@@ -1,0 +1,367 @@
+/* /app/static/css/pages/account.css */
+.account-page__container {
+    width: 90%;
+    max-width: 800px; /* 設定ページなので少し幅を抑える */
+    margin: 15px auto 45px;
+}
+
+.account-section {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    /*border-bottom: 1px solid #eee;*/
+}
+.account-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.language-switcher-buttons {
+    display: flex;
+    gap: 15px; /* ボタン間の隙間 */
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.lang-button {
+    padding: 8px 16px;
+    font-weight: 500;
+    border-radius: 10px;
+}
+
+.lang-button.is-active, /* 現在選択中の言語のスタイル */
+.lang-button:disabled { /* disabled属性でも同じスタイルを適用 */
+    /* background-color: #6c757d;
+    border-color: #6c757d;
+    color: white; */
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+/* is-active はプライマリボタンの色を維持しつつ、非活性に見せるために opacity を使うなど調整 */
+/*.lang-button.button--primary.is-active {
+    /* background-color: #007bff;
+    border-color: #007bff; */
+/*}
+.lang-button.button--secondary.is-active {
+    /* background-color: #f8f9fa;
+    border-color: #ced4da;
+    color: #6c757d; */
+/*}*/
+
+.account-setting-item {
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #fdfdfd;
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+}
+.account-setting-item .block-title {
+    text-align: left;
+    font-size: 20px; /* 少し小さめ */
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eaeaea;
+}
+.account-setting-item .form-group {
+    margin-bottom: 12px;
+}
+.account-setting-item .form-label {
+    font-weight: 500;
+}
+.account-setting-item .form-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.button--small {
+    font-size: 14px;
+    padding: 1.5px 6px;
+    margin-top: -0.5px;
+}
+.button--small:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.account-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.not-logged-in {
+    text-align: center;
+    background-color: var(--bg-fdfdfd);
+    border: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+    border-radius: 16px;
+    padding: 15px 15px 20px 15px;
+}
+.dark .not-logged-in {
+    border-color: #080808;
+}
+.not-logged-in .auth-actions {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+.not-logged-in .auth-actions .button {
+    padding: 10px 25px;
+    font-size: 16px;
+    border-radius: 10px;
+}
+
+.account-info-box {
+    background-color: var(--bg-fdfdfd);
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    padding: 7px 20px;
+}
+.dark .account-info-box {
+    border-color: #080808;
+}
+@media (max-width: 539px) {
+    .account-info-box {
+        padding: 5px 14px;
+    }
+}
+
+.info-item {
+    display: flex;
+    /*justify-content: space-between;*/
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.dark .info-item {
+    border-color: #333;
+}
+@media (max-width: 539px) {
+    .info-item {
+        padding: 6px 0;
+    }
+}
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item__label {
+    font-weight: 400;
+    color: var(--color-555);
+    margin-right: 8px;
+}
+
+.info-item__value {
+    font-weight: bold;
+    color: var(--color-111);
+    text-align: right;
+    margin-right: 8px;
+}
+
+.editable-item .info-item__edit-form {
+    width: 100%;
+    padding: 10px 15px 5px;
+    background-color: var(--bg-f8f8f8);
+    border: 1px dashed var(--color-ccc);
+    border-radius: 16px;
+}
+@media (max-width: 539px) {
+    .editable-item .info-item__edit-form {
+        padding:  10px 10px 5px;
+    }
+}
+
+.editable-item .info-item__edit-form .form-group {
+    margin-bottom: 10px;
+}
+.editable-item .info-item__edit-form .form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 400;
+}
+.editable-item .info-item__edit-form .form-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end; /* ボタンを右寄せ */
+    gap: 10px;
+}
+.account-deletion-confirm-box .form-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end; /* ボタンを右寄せ */
+    gap: 10px;
+}
+.account-deletion-confirm-box .form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 400;
+}
+.editable-item .info-item__edit-form .server-response {
+    margin-top: 5px;
+}
+/* x-cloak を使って初期表示のチラつきを防ぐ */
+[x-cloak] { display: none !important; }
+
+.main-account-verification-content {
+    margin: 15px 0;
+    padding: 7px 12px;
+    border: 1px solid var(--color-eee);
+    border-radius: 12px;
+    background-color: var(--bg-f8f8f8);
+}
+
+.giftcode-input-field {
+    border-radius: 11px;
+    padding: 8px;
+    margin-right: 12px;
+    border: 1px solid #ddd;
+    width: 100%;
+    height: auto;
+}
+
+.account-description {
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: var(--color-111);
+}
+
+.bonus-token-info-item {
+    padding-bottom: 5px;
+}
+.bonus-token-button,
+.remove-ads-button,
+.support-app-button {
+    background-color: var(--color-333);
+    color: var(--color-fff);
+    margin-right: 0;
+    padding: 5px 15px;
+    border: 1px solid var(--color-222);
+    border-radius: 10px;
+    font-weight: bold;
+}
+.support-app-button {
+    display: flex;
+}
+.bonus-token-button__web {
+    padding: 5px 10px;
+}
+.bonus-token-button.disabled {
+    cursor: not-allowed;
+    background-color: #ccc;
+    border-color: #bbb;
+}
+.dark .bonus-token-button.disabled {
+    background-color: #555;
+    border-color: #555;
+    color: rgba(170, 170, 170, 0.4);
+}
+
+.bonus-mission-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.bonus-mission-button.cleared {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: #084f17;
+    border-color: rgba(40, 167, 69, 0.6);
+    position: relative;
+    gap: 6px;
+}
+.bonus-mission-subtitle {
+    font-size: 0.9em;
+}
+
+.dark .bonus-mission-button.cleared {
+    color: #25be46;
+}
+
+.bonus-mission-button.cleared .cleared-icon {
+    height: 1.2em;
+    width: auto;
+}
+
+.remove-ads-button {
+    font-weight: bold;
+}
+
+.ticket-button {
+    font-size: 14px;
+    padding: 2px 8px;
+    border-radius: 9px;
+}
+.ticket-item__label {
+    color: var(--color-222);
+}
+
+/* プレゼント企画ボックス */
+.giveaway-title {
+    font-size: 15px;
+}
+.giveaway-button.cleared {
+    cursor: default;
+}
+.giveaway-entry-count {
+    color: #ac3a09
+}
+.dark .giveaway-entry-count {
+    color: #ff7733
+}
+.remove-ads-buttons {
+    display: flex;
+    gap: 7px;
+}
+.support-tier-buttons {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.remove-ads-button-container {
+    display: flex;
+}
+.support-tier-buttons .remove-ads-button-container {
+    flex: 0 0 auto;
+}
+.support-tier-buttons .remove-ads-button {
+    min-width: 72px;
+    text-align: center;
+}
+.remove-ads-button.disabled,
+.support-app-button.disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+@media (max-width: 539px) {
+    .account-description {
+        font-size: 13.5px;
+    }
+    .account-section {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+    }
+    .account-section .section-title {
+        font-size: 22px;
+        margin-top: 9px;
+        margin-bottom: 9px;
+        padding-bottom: 6px;
+    }
+    .lang-button {
+        padding: 6px 14px;
+    }
+    .remove-ads-buttons {
+        flex-direction: column;
+    }
+    .support-tier-buttons {
+        flex-direction: row;
+    }
+    .bonus-mission-title {
+        font-size: 14px;
+    }
+    .bonus-mission-subtitle {
+        font-size: 0.85em; /* title基準の相対サイズなので少し大きめ割合にするか固定値 */
+    }
+}

@@ -1,0 +1,328 @@
+{# /app/templates/club/fragments/profile_fragment.html #}
+<div class="club-page__container">
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <header class="club-header">
+        <div class="club-header__badge-container">
+            <img src="{{ url_for('static', path='/images/club_badges/' + club.badge_id|string + '.png') }}"
+                 alt="{{ club.name }} バッジ"
+                 class="club-header__badge"
+                 onerror="this.style.display='none'">
+        </div>
+        <div class="club-header__identity">
+            <h1 class="club-header__name">{{ club.name|safe }}</h1>
+            <p class="club-header__tag">{{ club.tag }}</p>
+        </div>
+    </header>
+
+    <div x-data="clubBookmarkButtonHandler('{{ club.tag }}', '{{ club.name | replace("'", "\\'") }}')" x-init="initButtonState()" class="club-bookmark-ui">
+        <template x-if="!isLoggedIn">
+            <a href="/{{ lang }}/login?next={{ url_for('get_club_profile', lang=lang, tag=club.tag[1:]) | urlencode }}" class="button button--secondary club-button--bookmark">
+                {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
+            </a>
+        </template>
+        <template x-if="isLoggedIn && isBookmarked">
+            <button type="button" class="button button--success is-active club-button--bookmark" @click="confirmRemoveBookmark()">
+                {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
+            </button>
+        </template>
+        <template x-if="isLoggedIn && !isBookmarked">
+            <button type="button" class="button button--secondary club-button--bookmark" @click="confirmAddBookmark()">
+                {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
+            </button>
+        </template>
+    </div>
+
+    <div class="club-content-grid">
+        <section class="club-content-block club-description">
+            <h2 class="section-title">{% if lang == "ja" %}説明文{% else %}Description{% endif %}</h2>
+            <div class="club-description__box">
+                {% if club.description %}
+                    <p class="club-description__text">{{ club.description|safe|replace('\n', '<br>') }}</p>
+                {% else %}
+                    <p class="club-description__text club-description__text--empty">{% if lang == "ja" %}(クラブの説明文はありません){% else %}(No Club Description){% endif %}</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="club-content-block club-basic-data">
+            <h2 class="section-title">{% if lang == "ja" %}基本データ{% else %}Basic Stats{% endif %}</h2>
+            <div class="table-wrapper">
+                <table class="data-table key-value-table club-data-table">
+                    <tbody>
+                        {% if club.region_ja and club.region_en %}
+                        <tr>
+                            <td>{% if lang == "ja" %}地域{% else %}Region{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/local.png') }}" alt="地域" class="icon--stat">
+                                    {{ club.region_ja if lang == "ja" else club.region_en }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if club.members_online is not none %}
+                        <tr>
+                            <td>{% if lang == "ja" %}オンラインのメンバー数{% else %}Online Members{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/notification_green.png') }}" alt="メンバー数" class="icon--stat">
+                                    {{ club.members_online }} / {{ club.members|length }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if club.is_family_friendly is not none %}
+                        <tr>
+                            <td>{% if lang == "ja" %}ファミリーフレンドリー{% else %}Family Friendly{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    {% if club.is_family_friendly %}
+                                        <img src="{{ url_for('static', path='/images/ui/family_friendly.png') }}" alt="ファミリーフレンドリー" class="icon--stat">
+                                        {% if lang == "ja" %}対応{% else %}Yes{% endif %}
+                                    {% else %}
+                                        {% if lang == "ja" %}非対応{% else %}No{% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td>{% if lang == "ja" %}タイプ{% else %}Type{% endif %}</td>
+                            <td>
+                                {% set club_type_ja = club.type %}
+                                {% set club_type_en = club.type[0]|upper + club.type[1:] if club.type else "Unknown" %}
+                                {% if club.type == "open" %}       {% set club_type_ja = "参加自由" %}
+                                {% elif club.type == "inviteOnly" %}{% set club_type_ja = "承認制" %}
+                                {% elif club.type == "closed" %}    {% set club_type_ja = "非公開" %}
+                                {% endif %}
+                                {{ club_type_ja if lang == "ja" else club_type_en }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{% if lang == "ja" %}必要トロフィー{% else %}Required Trophies{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/trophy_locked.png') }}" alt="必要トロフィー" class="icon--stat">
+                                    {{ "{:,}".format(club.required_trophies) }}
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{% if lang == "ja" %}合計トロフィー{% else %}Total Trophies{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="icon--stat">
+                                    {{ "{:,}".format(club.trophies) }}
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{% if lang == "ja" %}平均トロフィー{% else %}Average Trophies{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/trophy_switch.png') }}" alt="平均トロフィー" class="icon--stat">
+                                    {% if club.members and club.members|length > 0 %}
+                                        {{ "{:,}".format((club.trophies / club.members|length)|round(0)|int) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% if club.total_megapig_wins %}
+                        <tr>
+                            <td>{% if lang == "ja" %}直近のメガピッグの合計勝利数{% else %}Total Previous Megapig Wins{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/megapig.webp') }}" alt="メガピッグ" class="icon--stat">
+                                    {{ "{:,}".format(club.total_megapig_wins) }}
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{% if lang == "ja" %}直近のメガピッグの参加者数{% else %}Played Previous Megapig Members{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/member.png') }}" alt="メンバー数" class="icon--stat">
+                                    {{ "{:,}".format(club.played_megapig_members) }} / {{ club.members|length }}
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{% if lang == "ja" %}うちチケットを全消費したメンバー数{% else %}Used All Tickets Members{% endif %}</td>
+                            <td>
+                                <div class="td-content-flex">
+                                    <img src="{{ url_for('static', path='/images/ui/member.png') }}" alt="メンバー数" class="icon--stat">
+                                    {{ "{:,}".format(club.used_all_tickets_members) }} / {{ club.members|length }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <section class="member-section">
+        <h2 class="section-title">{% if lang == "ja" %}メンバー{% else %}Members{% endif %} ({{ club.members|length }}/30)</h2>
+        <div class="info-block member-section__info">
+            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+            <p class="info-block__text">{% if lang == "ja" %}各メンバーをクリックすると、そのメンバーのプロフィールページに移動します。{% else %}Clicking on each member will take you to that member's profile page.{% endif %}</p>
+        </div>
+
+        <div class="member-grid">
+            {% for member in club.members %}
+                <a href="{{ url_for('get_player_profile', lang=lang, tag=member.tag[1:]) }}" class="card-link member-card-link">
+                    <article class="card member-card">
+                        <img src="{{ member.icon_path }}"
+                             alt="{{ member.name }} アイコン"
+                             class="member-card__icon"
+                             onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+
+                        <div class="member-card__info">
+                            <p class="member-card__name">{{ member.name }}</p>
+                            <p class="member-card__tag">{{ member.tag }}</p>
+                        </div>
+
+                        <div class="member-card__spacer"></div>
+
+                        <div class="member-card__stats">
+                            <div class="member-card__trophies">
+                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="member-card__trophy-icon">
+                                <span class="member-card__trophy-text">{{ '{:,}'.format(member.trophies) }}</span>
+                            </div>
+                            <div class="member-card__role-container">
+                                {% set role_ja = member.role %}
+                                {% set role_en = member.role[0]|upper + member.role[1:] %}
+                                {% set role_class_modifier = "member" %}
+                                {% if member.role == "president" %}
+                                    {% set role_ja = "リーダー" %}
+                                    {% set role_class_modifier = "president" %}
+                                {% elif member.role == "vicePresident" %}
+                                    {% set role_ja = "サブリーダー" %}
+                                    {% set role_class_modifier = "vicePresident" %}
+                                {% elif member.role == "senior" %}
+                                    {% set role_ja = "シニア" %}
+                                    {% set role_class_modifier = "senior" %}
+                                {% elif member.role == "member" %}
+                                    {% set role_ja = "メンバー" %}
+                                {% endif %}
+                                <span class="member-card__role member-card__role--{{ role_class_modifier }}">{{ role_ja if lang == "ja" else role_en }}</span>
+                            </div>
+                        </div>
+                    </article>
+                </a>
+            {% else %}
+                <p style="grid-column: 1 / -1; text-align: center; color: #888; margin-top: 20px;">{% if lang == "ja" %}現在、このクラブにはメンバーがいません。{% else %}The club currently has no members.{% endif %}</p>
+            {% endfor %}
+        </div>
+    </section>
+
+</div>
+
+<script>
+function clubBookmarkButtonHandler(viewedClubTag, viewedClubName) {
+    return {
+        isLoggedIn: {{ current_user is not none | lower }},
+        currentUserClubBookmarks: {{ current_user.saved_clubs | tojson | safe if current_user else [] }},
+        currentUserBookmarkLimit: {{ current_user.saved_clubs_limit if current_user else 0 }},
+        viewedClubTag: viewedClubTag,
+        viewedClubName: viewedClubName,
+        isBookmarked: false,
+
+        initButtonState() {
+            if (!this.isLoggedIn) return;
+            this.isBookmarked = this.currentUserClubBookmarks.includes(this.viewedClubTag);
+        },
+
+        async confirmAddBookmark() {
+            const confirmMsg = `{% if lang == "ja" %}「${this.viewedClubName}」をブックマークしますか？{% else %}Bookmark "${this.viewedClubName}"?{% endif %}`;
+            let performAdd = false;
+            let overwriteLast = false;
+
+            if (this.currentUserClubBookmarks.length < this.currentUserBookmarkLimit) {
+                if (confirm(confirmMsg)) {
+                    performAdd = true;
+                }
+            } else {
+                const overwriteMsg = `{% if lang == "ja" %}ブックマーク枠が足りません。一番最後の枠に上書きして追加しますか？{% else %}Bookmark limit reached. Overwrite the last bookmark?{% endif %}`;
+                if (confirm(overwriteMsg)) {
+                    performAdd = true;
+                    overwriteLast = true;
+                }
+            }
+
+            if (!performAdd) return;
+
+            try {
+                const response = await fetch("{{ url_for('account_add_club_bookmark', lang=lang) }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ club_tag: this.viewedClubTag, overwrite: overwriteLast })
+                });
+                const data = await response.json();
+                alert(data.message);
+                if (data.success) {
+                    this.isBookmarked = true;
+                    if (!this.currentUserClubBookmarks.includes(this.viewedClubTag)) {
+                        if (overwriteLast && this.currentUserClubBookmarks.length >= this.currentUserBookmarkLimit && this.currentUserClubBookmarks.length > 0) {
+                            this.currentUserClubBookmarks.pop();
+                        }
+                        this.currentUserClubBookmarks.push(this.viewedClubTag);
+                    }
+                }
+            } catch (error) {
+                alert('{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}');
+            }
+        },
+
+        async confirmRemoveBookmark() {
+            const confirmMsg = `{% if lang == "ja" %}「${this.viewedClubName}」をブックマークから削除しますか？{% else %}Remove "${this.viewedClubName}" from bookmarks?{% endif %}`;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const response = await fetch("{{ url_for('account_remove_club_bookmark', lang=lang) }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ club_tag: this.viewedClubTag })
+                });
+                const data = await response.json();
+                alert(data.message);
+                if (data.success) {
+                    this.isBookmarked = false;
+                    const index = this.currentUserClubBookmarks.indexOf(this.viewedClubTag);
+                    if (index > -1) {
+                        this.currentUserClubBookmarks.splice(index, 1);
+                    }
+                }
+            } catch (error) {
+                alert('{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}');
+            }
+        }
+    };
+}
+
+const initClubBackButtons = () => {
+    const backButtons = document.querySelectorAll('.back-button');
+    backButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            history.back();
+        });
+    });
+};
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initClubBackButtons, { once: true });
+} else {
+    initClubBackButtons();
+}
+</script>

@@ -1,0 +1,57 @@
+{# /app/templates/tools/battle_card_ranking_fragment.html #}
+
+{% if all_frames %}
+<div class="frame-card-grid">
+    {% for frame in all_frames %}
+    <div class="frame-card">
+        {# 画像表示領域 #}
+        <div class="frame-card__img-wrapper">
+            <span class="frame-card__rank-badge">#{{ loop.index }}</span>
+            <img src="{{ url_for('static', path='/images/battle_card/' + frame.id|string + '.webp') }}"
+                 alt=""
+                 class="frame-card__img"
+                 loading="lazy"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}';"
+                 draggable="false"
+                 oncontextmenu="return false;">
+        </div>
+        
+        {# テキスト表示領域 #}
+        <div class="frame-card__info-row">
+            <div class="frame-card__name">
+                {% if lang == 'ja' %}{{ frame.ja }}{% else %}{{ frame.en }}{% endif %}
+            </div>
+        </div>
+            
+        <div class="frame-card__rate-row">
+            {% if lang == "ja" %}使用率: {% else %}Usage: {% endif %}
+            {% if frame.equip_rate is not none %}
+                {% if frame.equip_rate < 0.1 %}
+                    {{ "%.3f"|format(frame.equip_rate) }}%
+                {% else %}
+                    {{ "%.2f"|format(frame.equip_rate) }}%
+                {% endif %}
+            {% else %}
+                --
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if unequipped_rate is not none %}
+<div class="info-block" style="padding: 0; margin-top: 14px;">
+    <p class="info-block__text" style="margin: 0;">
+        {% if lang == "ja" %}
+            ちなみに...バトルカード背景を未装備の人の割合は<b>{{ "%.2f"|format(unequipped_rate) }}%</b>です。
+        {% else %}
+            By the way... the percentage of players with no battle card frame equipped is <b>{{ "%.2f"|format(unequipped_rate) }}%</b>.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% else %}
+<p style="text-align: center; color: var(--color-888, #888); padding: 30px 0; margin: 0;">
+    {% if lang == "ja" %}条件に一致するバトルカード背景はありません。{% else %}No battle card backgrounds match the selected criteria.{% endif %}
+</p>
+{% endif %}

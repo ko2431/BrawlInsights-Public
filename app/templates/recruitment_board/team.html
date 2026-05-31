@@ -1,0 +1,1393 @@
+{# /app/templates/recruitment_board/team.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 チーム募集掲示板{% else %}Team Recruitment Board{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのチーム募集掲示板です。ガチバトルランク等で条件を設定して募集ができるほか、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに便利なチャット機能を備えています。{% else %}Brawl Stars team recruitment board. You can set conditions such as ranked rank for recruitment, and it features a chat function for pre-join confirmation and communication with players who have chat muted in-game.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/boards.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="board-page__container team-board">
+    {# ^ アップデートのお願い #}
+    {% include "components/update_request.html" %}
+
+    {% if platform == "web" %}<h1 class="page-title--main board-page-title--main">{% if lang == "ja" %}チーム募集掲示板{% else %}Team Recruitment Board{% endif %}</h1>{% endif %}
+
+    {# 掲示板種類選択タブ #}
+    <nav class="tab-nav board-tab-nav">
+        <ul class="tab-nav__list">
+            <li class="tab-nav__item">
+                <a href="#" class="tab-nav__link tab-nav__link--active">{% if lang == "ja" %}チーム{% else %}Team{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('friend_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}フレンド{% else %}Friend{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('club_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}クラブ{% else %}Club{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('general_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}なんでも{% else %}General{% endif %}</a>
+            </li>
+        </ul>
+    </nav>
+
+    {# フィルター #}
+    <div class="board-filters__container">
+        <nav class="sub-tab-nav">
+            <ul class="sub-tab-nav__list">
+                <li class="sub-tab-nav__item">
+                    <a href="{% if category == 'all' %}#{% else %}?category=all&limit={{ limit }}&mode={{ mode }}&region={{ region }}&filter={{ filter }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if category == 'all' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="すべて" class="sub-tab-nav__icon sub-tab-nav__icon-big">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}すべて{% else %}All{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if category == 'trophy' %}#{% else %}?category=trophy&limit={{ limit }}&mode={{ mode }}&region={{ region }}&filter={{ filter }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if category == 'trophy' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}トロフィー{% else %}Trophy{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if category == 'ranked' %}#{% else %}?category=ranked&limit={{ limit }}&mode={{ mode }}&region={{ region }}&filter={{ filter }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if category == 'ranked' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="ガチバトル" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if category == 'friendly' %}#{% else %}?category=friendly&limit={{ limit }}&mode={{ mode }}&region={{ region }}&filter={{ filter }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if category == 'friendly' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/mode_icons/friendly.png') }}" alt="フレンドバトル" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}フレンドバトル{% else %}Friendly{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if category == 'event' %}#{% else %}?category=event&limit={{ limit }}&mode={{ mode }}&region={{ region }}&filter={{ filter }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if category == 'event' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}" alt="特別イベント" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}特別イベント{% else %}Event{% endif %}</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <div class="board-filters__filter-row" style="margin-top: 10px;">
+            <form method="get" id="filterForm" class="filter-form" style="margin-top: 0;">
+                <input type="hidden" name="limit" value="{{ limit }}"> {# 現在の値を維持 #}
+                <input type="hidden" name="category" value="{{ category }}">
+                <input type="hidden" name="mode" value="{{ mode }}">
+                <input type="hidden" name="region" value="{{ region }}">
+                <input type="hidden" name="eliminate_duplicates" value="{{ eliminate_duplicates }}">
+                <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
+                <select name="filter" id="filterSelect" class="filter-form__select" onchange="document.getElementById('filterForm').submit();">
+                    <option value="all" {% if filter != "only_can_participate" and filter != "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                    <option value="only_can_participate" {% if filter == "only_can_participate" %}selected{% endif %}>{% if lang == "ja" %}申請可能な募集のみ表示{% else %}Only Show Joinable{% endif %}</option>
+                    <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>
+                </select>
+                <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+            </form>
+            <div class="reload-button__container">
+                <p>{% if lang == "ja" %}更新{% else %}Reload{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+
+    {% if posts %}
+    {# フィルター下の説明文 #}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">{% if lang == "ja" %}<b>条件指定</b>&<b>チャット機能</b>付きの募集掲示板です。{% if not current_user %}条件の設定されている募集に参加するには、アカウントタブより<b>ログイン</b>してください。ログインしていない場合は、条件の設定されていない募集にのみ参加できます。{% endif %}{% else %}This is a recruitment board with condition specification and chat function.{% if not current_user %} To apply for posts with conditions, please <b>log in</b> from the Account tab. If you are not logged in, you can only apply for posts without conditions.{% endif %}{% endif %}</p>
+    </div>
+
+    {# 投稿を表示 #}
+    <div style="display: none; color:#d4f6ff;"></div>
+    <div class="posts__container view-compact">
+        {% for id, post in posts.items() %}
+        {# > 投稿者のIDを変数に格納 --- #}
+        {% set author_user_id = post.data.host_id %}
+        {% set author_anonymous_id = post.data.host_anonymous_id %}
+
+        {# > 投稿者がブロックリストに含まれているか判定 --- #}
+        {% if (author_user_id and author_user_id in blocked_ids.user_ids) or 
+                (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids) %}
+            
+            {# === ブロック中のユーザーの投稿だった場合の表示 (プレースホルダー) === #}
+            <div class="post-card-wrapper"
+                    data-post-id="{{ id }}"
+                    data-blocked-user-id="{{ author_user_id or '' }}"
+                    data-blocked-anonymous-id="{{ author_anonymous_id or '' }}">
+                <div class="card post-card">
+                    <div class="post-card__blocked-text-container">
+                        <p class="blocked-post__text">{% if lang == "ja" %}ブロック中のユーザーの投稿です。{% else %}This post is from a user you blocked.{% endif %}</p>
+                    </div>
+                    <div class="post-card__link-container">
+                        <button class="button post-card__show-button">{% if lang == "ja" %}表示する{% else %}Show{% endif %}</button>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            {% if post.data.category == "ranked" %}
+                {% set image_path = "/images/ui/ranked.png" %}
+                {% set title = "ガチバトル" if lang == "ja" else "Ranked" %}
+                {% set color1 = "#ffd4d4" %}
+                {% set color2 = "#d4d7ff" %}
+            {% elif post.data.category == "friendly" %}
+                {% set image_path = "/images/mode_icons/friendly.png" %}
+                {% set title = "フレンドバトル" if lang == "ja" else "Friendly" %}
+                {% set color1 = "#fff0d4" %}
+                {% set color2 = "#eeffd4" %}
+            {% elif post.data.category == "event" %}
+                {% set image_path = "/images/mode_icons/event.png" %}
+                {% set title = "特別イベント" if lang == "ja" else "Event" %}
+                {% set color1 = "#ffd4e6" %}
+                {% set color2 = "#ffd4d4" %}
+            {% elif post.data.mode == "others" %}
+                {% set image_path = "/images/ui/trophy.png" %}
+                {% set title = "トロフィー" if lang == "ja" else "Trophy" %}
+                {% set color1 = "#ffe7d4" %}
+                {% set color2 = "#fff6d4" %}
+            {% elif post.data.mode == "5v5" %}
+                {% set image_path = "/images/ui/friends_old.png" %}
+                {% set title = "5対5ゲームモード" if lang == "ja" else "5v5 Game Mode" %}
+                {% set color1 = "#d4f6ff" %}
+                {% set color2 = "#ffd4f9" %}
+            {% else %}
+                {% set image_path = "/images/mode_icons/" + post.data.mode + ".png" %}
+                {% if post.data.mode == "duoShowdown" %}
+                    {% set title = "デュオ バトルロイヤル" if lang == "ja" else "Duo Showdown" %}
+                    {% set color1 = "#e4ffd4" %}
+                    {% set color2 = "#d4ffd4" %}
+                {% elif post.data.mode == "trioShowdown" %}
+                    {% set title = "トリオ バトルロイヤル" if lang == "ja" else "Trio Showdown" %}
+                    {% set color1 = "#d4ffe2" %}
+                    {% set color2 = "#d4ffec" %}
+                {% elif post.data.mode == "gemGrab" %}
+                    {% set title = "エメラルドハント" if lang == "ja" else "Gem Grab" %}
+                    {% set color1 = "#eed4ff" %}
+                    {% set color2 = "#f9d4ff" %}
+                {% elif post.data.mode == "brawlBall" %}
+                    {% set title = "ブロストライカー" if lang == "ja" else "Brawl Ball" %}
+                    {% set color1 = "#d4d4ff" %}
+                    {% set color2 = "#dfd4ff" %}
+                {% elif post.data.mode == "heist" %}
+                    {% set title = "強奪" if lang == "ja" else "Heist" %}
+                    {% set color1 = "#fed4ff" %}
+                    {% set color2 = "#ffd4ec" %}
+                {% elif post.data.mode == "bounty" %}
+                    {% set title = "賞金稼ぎ" if lang == "ja" else "Bounty" %}
+                    {% set color1 = "#d4fffd" %}
+                    {% set color2 = "#d4f9ff" %}
+                {% elif post.data.mode == "hotZone" %}
+                    {% set title = "ホットゾーン" if lang == "ja" else "Hot Zone" %}
+                    {% set color1 = "#ffd4e4" %}
+                    {% set color2 = "#ffd4d4" %}
+                {% elif post.data.mode == "knockout" %}
+                    {% set title = "ノックアウト" if lang == "ja" else "Knockout" %}
+                    {% set color1 = "#ffe7d4" %}
+                    {% set color2 = "#fff1d4" %}
+                {% endif %}
+            {% endif %}
+            <div class="post-card-wrapper">
+                <div class="card post-card post-card--team" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
+                    {# プレイヤー名とn分前テキスト #}
+                    <div class="post-card__header">
+                        <img src="{{ url_for('static', path=image_path) }}" alt="モードアイコン" class="post-card__player-icon">
+                        <p class="post-card__title">{{ title }}</p>
+                        <div style="display: flex; flex: 1;"></div>
+                        <p class="post-card__ago-text" style="color: #555;">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                    </div>
+                    {# ガチバトルランクの翻訳表 (ダイヤモンドはダイヤに省略) #}
+                    {% set rank_map_ja = {
+                        22: 'プロ', 21: 'マスター Ⅲ', 20: 'マスター Ⅱ', 19: 'マスター Ⅰ',
+                        18: 'レジェ Ⅲ', 17: 'レジェ Ⅱ', 16: 'レジェ Ⅰ',
+                        15: 'エリ Ⅲ', 14: 'エリ Ⅱ', 13: 'エリ Ⅰ',
+                        12: 'ダイヤ Ⅲ', 11: 'ダイヤ Ⅱ', 10: 'ダイヤ Ⅰ',
+                        9: 'ゴールド Ⅲ', 8: 'ゴールド Ⅱ', 7: 'ゴールド Ⅰ',
+                        6: 'シルバー Ⅲ', 5: 'シルバー Ⅱ', 4: 'シルバー Ⅰ',
+                        3: 'ブロンズ Ⅲ', 2: 'ブロンズ Ⅱ', 1: 'ブロンズ Ⅰ', 0: 'ランクなし'
+                    } %}
+                    {% set rank_map_en = {
+                        22: 'Pro', 21: 'Mst. Ⅲ', 20: 'Mst. Ⅱ', 19: 'Mst. Ⅰ',
+                        18: 'Leg. Ⅲ', 17: 'Leg. Ⅱ', 16: 'Leg. Ⅰ',
+                        15: 'Myth. Ⅲ', 14: 'Myth. Ⅱ', 13: 'Myth. Ⅰ',
+                        12: 'Dia. Ⅲ', 11: 'Dia. Ⅱ', 10: 'Dia. Ⅰ',
+                        9: 'Gld. Ⅲ', 8: 'Gld. Ⅱ', 7: 'Gld. Ⅰ',
+                        6: 'Slv. Ⅲ', 5: 'Slv. Ⅱ', 4: 'Slv. Ⅰ',
+                        3: 'Brz. Ⅲ', 2: 'Brz. Ⅱ', 1: 'Brz. Ⅰ', 0: 'No Rank'
+                    } %}
+                    {# ホスト情報と条件 #}
+                    <div class="post-card__info-and-conditions">
+                        <div class="post-card__host-info" style="min-width: 210px;">
+                            <p class="post-card__host-info-title">{% if lang == "ja" %}ホスト{% else %}Host{% endif %}: {{ post.data.hostplayer.name }}</p>
+                            {% if post.data.hostplayer %}
+                            <div class="post-card__host-info-scroll-area">
+                            <div class="post-card__host-info-stats">
+                                <div style="flex: 1;">
+                                    <div class="post-card__host-info-stat">
+                                        <img src="{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}" alt="最多トロフィー" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}最多{% else %}Hi.{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ "{:,}".format(post.data.hostplayer.highest_trophies) if post.data.hostplayer.highest_trophies else "-" }}</p>
+                                    </div>
+                                    <div class="post-card__host-info-stat">
+                                        <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}現在{% else %}Cur.{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ "{:,}".format(post.data.hostplayer.current_trophies) if post.data.hostplayer.current_trophies else "-" }}</p>
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div class="post-card__host-info-stat">
+                                        {% if post.data.hostplayer.ranked_highest_rank in range(1, 23) %}
+                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + post.data.hostplayer.ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                        {% endif %}
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}最高{% else %}Hi.{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ '{:,}'.format(post.data.hostplayer.ranked_highest_score) if post.data.hostplayer.ranked_highest_score else "-" }}</p>
+                                    </div>
+                                    <div class="post-card__host-info-stat">
+                                        {% if post.data.hostplayer.ranked_current_rank in range(1, 23) %}
+                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + post.data.hostplayer.ranked_current_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                        {% endif %}
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}現在{% else %}Cur.{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ '{:,}'.format(post.data.hostplayer.ranked_current_score) if post.data.hostplayer.ranked_current_score else "-" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="post-card__host-info-stats">
+                                <div style="flex: 1; margin: auto 0;">
+                                    <div class="post-card__host-info-stat">
+                                        <img src="{{ url_for('static', path='/images/ui/total_prestige.png') }}" alt="トップランカーレベル" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-value">{{ post.data.hostplayer.total_prestige_level if post.data.hostplayer.total_prestige_level not in [0, -1, none] else "-" }}</p>
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div class="post-card__host-info-stat">
+                                        <img src="{{ url_for('static', path='/images/ui/prestige.png') }}" alt="旧トップランカー" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-value">{{ post.data.hostplayer.prestige if post.data.hostplayer.prestige not in [0, -1, none] else "-" }}</p>
+                                    </div>
+                                </div>
+                                <div style="flex: 2;">
+                                    <div class="post-card__host-info-stat" style="margin-left: -1.5px;">
+                                        <img src="{{ url_for('static', path='/images/tier_icons/35.webp') }}" alt="旧ランク35" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}旧紺盾{% else %}Old R35s{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ post.data.hostplayer.legacy_rank_35s if post.data.hostplayer.legacy_rank_35s not in [0, -1, none] else "-" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="post-card__host-info-stats">
+                                <div class="post-card__host-info-stat">
+                                    {% if post.data.hostplayer.solo_pl_rank %}
+                                        <img src="{{ url_for('static', path='/images/ranked_mini_icons/' + post.data.hostplayer.solo_pl_rank|string + ('_old' if post.data.hostplayer.solo_pl_rank == 19 else '') + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                    {% endif %}
+                                    <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}ソロPL最高ランク{% else %}Solo PL Highest{% endif %}</p>
+                                    <p class="post-card__host-info-stat-value">{{ (rank_map_ja[post.data.hostplayer.solo_pl_rank if post.data.hostplayer.solo_pl_rank else 0] if lang == "ja" else rank_map_en[post.data.hostplayer.solo_pl_rank if post.data.hostplayer.solo_pl_rank else 0])[:(-2 if post.data.hostplayer.solo_pl_rank == 19 else none)] }}</p>
+                                </div>
+                            </div>
+                            </div>
+                            <a href="{{ url_for('get_player_profile', lang=lang, tag=post.data.hostplayer.tag[1:]) }}">
+                                <div class="button button--primary post-card__host-info-button" style="border-color: #111;">
+                                    {% if lang == "ja" %}詳細なプロフィールを確認{% else %}Check Detailed Profile{% endif %}
+                                </div>
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div class="post-card__conditions-box" style="min-width: 130px;">
+                            <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
+                            {% if not post.data.required_highest_trophies and not post.data.required_ranked_highest_rank and not post.data.required_solo_pl_rank and not post.data.required_prestige %}
+                            <div class="post-card__conditions-list-wrapper">
+                                <p class="post-card__no-conditions-text">({% if lang == "ja" %}条件はありません{% else %}No Conditions{% endif %})</p>
+                            </div>
+                            {% else %}
+                                <div class="post-card__conditions-list-wrapper">
+                                    {% if post.data.required_highest_trophies %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}" alt="最多トロフィー" class="icon--stat post-card__host-info-stat-icon">
+                                            <p class="post-card__host-info-stat-text">{% if lang == "ja" %}最多{% else %}Hi.{% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ "{:,}".format(post.data.required_highest_trophies) }}+</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_ranked_highest_rank %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ranked_icons/' + post.data.required_ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                            <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}最高{% else %}Hi. {% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ rank_map_ja[post.data.required_ranked_highest_rank] if lang == "ja" else rank_map_en[post.data.required_ranked_highest_rank] }}</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_solo_pl_rank %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ranked_mini_icons/' + post.data.required_solo_pl_rank|string + ('_old' if post.data.required_solo_pl_rank == 19 else '') + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                            <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}ソロPL{% else %}Solo PL {% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ (rank_map_ja[post.data.required_solo_pl_rank] if lang == "ja" else rank_map_en[post.data.required_solo_pl_rank])[:(-2 if post.data.required_solo_pl_rank == 19 else none)] }}</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_prestige %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ui/prestige.png') }}" alt="トップランカー" class="icon--stat post-card__host-info-stat-icon">
+                                            <p class="post-card__host-info-stat-text">{% if lang == "ja" %}所持{% else %}{% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ post.data.required_prestige }}+</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if post.data.conditions_application_type == "and" %}
+                                    <div class="button button--red post-card__host-info-button">
+                                        {% if lang == "ja" %}<b>すべて</b>満たす{% else %}<b>All</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="button button--blue post-card__host-info-button">
+                                        {% if lang == "ja" %}<b>いずれか</b>を満たす{% else %}<b>Any</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {# コメント #}
+                    <div class="post-card__comment-container">
+                        <p class="post-card__comment-container-title">{% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
+                        <div class="post-card__comment-scroll">
+                            {% if post.data.comment %}
+                            <p class="post-card__comment-text">{{ post.data.comment|censor }}</p>
+                            {% else %}
+                            <p class="post-card__comment-empty">({% if lang == "ja" %}コメントはありません{% else %}No Comment{% endif %})</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {# チャット/通報or削除/ブロック/リンク #}
+                    <div class="post-card__link-container">
+                        {% if post.data.chat_permission_level <= 0 %}
+                        <div class="button post-card__chat-button disabled">
+                            <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="チャット" class="post-card__link-button-icon">
+                            {% if lang == "ja" %}閉鎖{% else %}Closed{% endif %}
+                        </div>
+                        {% else %}
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=id) }}" style="display: flex;">
+                            <div class="button post-card__chat-button">
+                                <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="チャット" class="post-card__link-button-icon">
+                                {{ post.data.message_count }}
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if current_user and current_user.is_admin %}
+                            <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
+                                {% if lang == "ja" %}削除{% else %}Delete{% endif %}
+                            </div>
+                        {% elif current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
+                            {# チーム募集掲示板においては削除ボタンは管理者のみに表示、一般ユーザーには表示しない #}
+                        {% else %}
+                            <div id="report-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__report-button">
+                                {% if lang == "ja" %}通報{% else %}Report{% endif %}
+                            </div>
+                            <div class="button post-card__block-button"
+                                data-blocked-user-id="{{ author_user_id or '' }}"
+                                data-blocked-anonymous-id="{{ author_anonymous_id or '' }}">
+                                {% if lang == "ja" %}ブロック{% else %}Block{% endif %}
+                            </div>
+                        {% endif %}
+                        {% if post.is_permitted_to_click_link or (current_user and current_user.id == post.data.host_id or ip == post.data.host_ip) %}
+                        <a href="{{ post.data.link }}" style="display: flex; flex: 1;" {% if platform != 'web' %}target="_blank"{% endif %}>
+                            <div class="button button--primary post-card__link-button">
+                                {% if current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
+                                    {% if lang == "ja" %}あなたの投稿です{% else %}Your Post{% endif %}
+                                {% else %}
+                                    {% if lang == "ja" %}参加{% else %}Join{% endif %}
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% else %}
+                        <div class="button button--primary post-card__link-button disabled"
+                            onclick='
+                            {% if current_user and main_account %}
+                                {% if lang == "ja" %}
+                                    alert("あなたのメインアカウント(\"{{ main_account.name }}\")の情報が条件を満たしていないため、参加できません。\nなお、メインアカウントを変更したい場合はアカウントタブから行えます。");
+                                {% else %}
+                                    alert("You cannot join the team because your main account (\"{{ main_account.name }}\") does not meet the conditions.\nIf you want to change your main account, you can do so from the Account tab.");
+                                {% endif %}
+                            {% else %}
+                                {% if lang == "ja" %}
+                                    alert("条件付きの募集に参加するには、条件判定のためアカウントタブよりログインしてください。\nアカウント作成にメールアドレス等は不要です。");
+                                {% else %}
+                                    alert("To apply for posts with conditions, please log in from the Account tab to verify the conditions.\nNo email address is required to create an account.");
+                                {% endif %}
+                            {% endif %}
+                            '
+                        >
+                            {% if current_user and main_account %}
+                                {% if lang == "ja" %}条件を満たしていません{% else %}Conditions Not Met{% endif %}
+                            {% else %}
+                                {% if lang == "ja" %}ログインして条件判定{% else %}Log In to Apply{% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% elif filter == "only_own_posts" %}
+    {# postsが空リスト="only_own_posts"の場合は自分の投稿がまだない場合に発生 #}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
+    {% else %}
+    {# postsが空リストの場合 #}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}まだ投稿はありません。投稿ボタンより、募集を投稿できます。{% else %}There are no posts yet. You can post using the Post button.{% endif %}</p>
+    {% endif %}
+
+    {# 募集掲示板についてセクション (説明兼SEO対策) #}
+    <section class="about-section">
+        <h1 class="page-title--sub">{% if lang == "ja" %}募集掲示板について{% else %}About the Recruitment Board{% endif %}</h1>
+        {% if lang == "ja" %}
+        <p>
+            ブロスタ<span class="tight"> の</span><span class="tight"> チーム募集</span><span class="tight"> 掲示板</span><span class="tight"> です</span>。
+            <br>ガチバトルランク等で条件を設定して募集ができるほか、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに便利なチャット機能を備えています。
+            <br>アカウントタブより<b>ログイン</b>すると、条件の設定されている募集にも参加できるようになります。
+        </p>
+        {% else %}
+        <p>
+            This is the Brawl Stars team recruitment board.
+            <br>You can set conditions such as ranked rank for recruitment, and it features a chat function for pre-join confirmation and communication with players who have chat muted in-game.
+            <br>By <b>logging in</b> from the Account tab, you will be able to apply for posts that have conditions set.
+        </p>
+        {% endif %}
+    </section>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+</div>
+
+{# フローティング投稿ボタン #}
+<button id="fab" class="fab {% if not is_permitted_to_post %}disabled{% endif %}" data-cooldown="{{ cooldown_seconds }}">
+    <img src="{{ url_for('static', path='/images/ui/plus.png') }}" alt="+" class="icon--stat fab-icon">
+    {% if lang == "ja" %}投稿{% else %}Post{% endif %}
+</button>
+
+{# 投稿作成モーダル #}
+<div id="post-modal-overlay" class="post-modal-overlay">
+    <div class="post-modal-content">
+        <header class="post-modal-header">
+            <button id="modal-close-btn" class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+            <button id="modal-post-btn" class="button button--primary post-button" disabled>{% if lang == "ja" %}投稿{% else %}Post{% endif %}</button>
+        </header>
+
+        <div class="post-modal-body">
+            <div id="use-last-post-section" class="use-last-post-section" style="display: none;">
+                <p>{% if lang == "ja" %}直近の投稿内容を再利用する...{% else %}Reuse content from last post...{% endif %}</p>
+            </div>
+            {% if platform != 'web' and not current_user %}
+            <div id="agree-to-terms-section" class="agree-to-terms-section" style="display: none;"> {# JSで表示制御 #}
+                <div class="agree-to-terms-content">
+                    <input type="checkbox" id="terms-checkbox" class="form-checkbox">
+                    <p class="agree-to-terms-text">
+                        {% if lang == "ja" %}
+                        他のユーザーを誹謗中傷する内容や、その他不適切な内容を投稿しないでください。<a href="{{ url_for('terms', lang=lang) }}" target="_blank">利用規約</a>に同意の上でご利用ください。
+                        {% else %}
+                        Posting abusive or otherwise inappropriate content is prohibited. Please agree to the <a href="{{ url_for('terms', lang=lang) }}" target="_blank">Terms of Service</a> to continue.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            {# 禁止事項ブロック #}
+            <div class="general-board-warning-block">
+                <p>❌ {% if lang == "ja" %}トークン稼ぎ目的の無意味な投稿{% else %}Posts for token farming purposes{% endif %}</p>
+                <p class="general-board-warning-note">{% if lang == "ja" %}プレゼント企画への応募がすべて無効となったり、アプリの利用制限の対象となる可能性があります。{% else %}All entries for the giveaway may be invalidated, or you may be subject to restrictions on the use of the app.{% endif %}</p>
+            </div>
+
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">1. {% if lang == "ja" %}ホスト情報を設定{% else %}Set Host Information{% endif %}</p>
+                {% if current_user and main_account %}
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)の情報がホスト情報として表示されます。メインアカウントを変更したい場合はアカウントタブから行ってください。{% else %}Your main account (<b>"{{ main_account.name }}"</b>) information will be displayed as host information. If you want to change your main account, please do so from the Account tab.{% endif %}</p>
+                {% else %}
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}使用するブロスタのアカウントのプレイヤータグを入力してください。プレイヤータグは、ゲーム内でプロフィールを開くとアイコンの下に小さく書いてある、「#」で始まるものです。なお、<b>ログイン</b>すると、プレイヤータグの入力を完全にスキップできるようになります。{% else %}Please enter the player tag of the Brawl Stars account you will use as the host.{% endif %}</p>
+                <div class="form-group" style="margin-top: 5px;">
+                    <input type="text" id="host-player-tag-form" class="form-input" placeholder="#XXXXXXX" required>
+                    <div id="host-player-tag-status" class="form-field-status" style="font-size: 0.8em;"></div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">2. {% if lang == "ja" %}チーム招待リンクを貼り付け{% else %}Paste Team Link{% endif %}</p>
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}ブロスタを開き、<b>チームアップ</b>→<b>SNSで招待をシェア</b>からリンクをコピーして、そのまま貼り付けてください。{% else %}Open Brawl Stars, go to <b>Team Up</b> → <b>Share Invite in Socials</b>, copy the link, and paste it here.{% endif %}</p>
+                <textarea id="invite-link-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}このリンクをタップして、●●と一緒にブロスタのチームに参加しましょう！{% else %}Click this link to join a team with ●● in Brawl Stars!{% endif %} https://link.brawlstars.com/invite/gameroom/xx?tag=XXXXXXXX"></textarea>
+                <div id="link-status" class="form-field-status" style="font-size: 0.8em;"></div>
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">3. {% if lang == "ja" %}カテゴリーを選択{% else %}Select Category{% endif %}</p>
+                <div class="filters__container post-modal-conditions" style="padding: 5px; gap: 5px;">
+                    <div class="post-modal-category-select__container">
+                        <div class="post-modal-category-select" data-category-value="trophy">
+                            <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="post-modal-category-select__icon">
+                            <span class="post-modal-category-select__text">{% if lang == "ja" %}トロフィー{% else %}Trophy{% endif %}</span>
+                        </div>
+                        <div class="post-modal-category-select" data-category-value="ranked">
+                            <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="ガチバトル" class="post-modal-category-select__icon">
+                            <span class="post-modal-category-select__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
+                        </div>
+                        <div class="post-modal-category-select" data-category-value="friendly">
+                            <img src="{{ url_for('static', path='/images/mode_icons/friendly.png') }}" alt="フレンドバトル" class="post-modal-category-select__icon">
+                            <span class="post-modal-category-select__text">{% if lang == "ja" %}フレンドバトル{% else %}Friendly{% endif %}</span>
+                        </div>
+                        <div class="post-modal-category-select" data-category-value="event">
+                            <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}" alt="特別イベント" class="post-modal-category-select__icon">
+                            <span class="post-modal-category-select__text">{% if lang == "ja" %}特別イベント{% else %}Event{% endif %}</span>
+                        </div>
+                    </div>
+                    <div id="mode-selection-container" style="display: none;">
+                        <p class="post-modal-category-select__title">{% if lang == "ja" %}ゲームモードを選択{% else %}Select Game Mode{% endif %}</p>
+                        <div class="post-modal-category-select__container">
+                            <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="gemGrab">
+                                <img src="{{ url_for('static', path='/images/mode_icons/gemGrab.png') }}" alt="エメラルドハント" class="post-modal-category-select__icon">
+                            </div>
+                            <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="brawlBall">
+                                <img src="{{ url_for('static', path='/images/mode_icons/brawlBall.png') }}" alt="ブロストライカー" class="post-modal-category-select__icon">
+                            </div>
+                            <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="heist">
+                                <img src="{{ url_for('static', path='/images/mode_icons/heist.png') }}" alt="強奪" class="post-modal-category-select__icon">
+                            </div>
+                            <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="bounty">
+                                <img src="{{ url_for('static', path='/images/mode_icons/bounty.png') }}" alt="賞金稼ぎ" class="post-modal-category-select__icon">
+                            </div>
+                            <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="hotZone">
+                                <img src="{{ url_for('static', path='/images/mode_icons/hotZone.png') }}" alt="ホットゾーン" class="post-modal-category-select__icon">
+                            </div>
+                            <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="knockout">
+                                <img src="{{ url_for('static', path='/images/mode_icons/knockout.png') }}" alt="ノックアウト" class="post-modal-category-select__icon">
+                            </div>
+                        </div>
+                        <div class="post-modal-category-select__container" style="margin-top: 5px;">
+                            <div class="post-modal-category-select" data-mode-value="duoShowdown">
+                                <img src="{{ url_for('static', path='/images/mode_icons/duoShowdown.png') }}" alt="デュオ" class="post-modal-category-select__icon">
+                                <span class="post-modal-category-select__text">{% if lang == "ja" %}デュオ{% else %}Duo{% endif %}</span>
+                            </div>
+                            <div class="post-modal-category-select" data-mode-value="trioShowdown">
+                                <img src="{{ url_for('static', path='/images/mode_icons/trioShowdown.png') }}" alt="トリオ" class="post-modal-category-select__icon">
+                                <span class="post-modal-category-select__text">{% if lang == "ja" %}トリオ{% else %}Trio{% endif %}</span>
+                            </div>
+                            <div class="post-modal-category-select" data-mode-value="5v5">
+                                <img src="{{ url_for('static', path='/images/ui/friends_old.png') }}" alt="5v5" class="post-modal-category-select__icon">
+                                <span class="post-modal-category-select__text">{% if lang == "ja" %}5対5{% else %}5v5{% endif %}</span>
+                            </div>
+                            <div class="post-modal-category-select" data-mode-value="others">
+                                <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="すべて" class="post-modal-category-select__icon">
+                                <span class="post-modal-category-select__text">{% if lang == "ja" %}その他・未指定{% else %}Not Set{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">4. {% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
+                {% if current_user and main_account %}
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}コメントを自由に追加できます。サブアカウントでチーム募集をする場合は、その旨をこちらにご記入ください。{% else %}You can add a comment. If you are recruiting for a team with a sub-account, please indicate that here.{% endif %}</p>
+                {% endif %}
+                <textarea id="comment-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}コメントを追加できます。{% else %}You can add a comment.{% endif %}"></textarea>
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">5. {% if lang == "ja" %}条件設定{% else %}Set Conditions{% endif %}</p>
+                {% if current_user and main_account %}
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}参加できる人の<b>条件</b>を設定できます。<br>1つでも条件を設定すると、ログインしていない人は参加できなくなり、ログインしていて登録済みの<b>メインアカウント</b>の情報が<b>条件</b>を満たしている人のみ、リンクをクリックできるようになります。<br>なお、あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)より高すぎるレベルの条件を設定することはできません。{% else %}You can set <b>conditions</b> for who can join the team.<br>Only logged-in users whose registered <b>main account</b> meets the conditions will be able to click the team link.<br>Note that you cannot set conditions that are too high compared to your main account (<b>"{{ main_account.name }}"</b>).{% endif %}</p>
+                <div class="filters__container post-modal-conditions">
+                    {# 条件選択メニュー #}
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="required-ranked-highest-rank" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}ガチバトル最高ランク:{% else %}Ranked Highest Rank:{% endif %}</label>
+                        <select id="required-ranked-highest-rank" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}設定しない{% else %}Not Set{% endif %}</option>
+                        </select>
+                    </form>
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="required-solo-pl-rank" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}旧ソロパワーリーグ:{% else %}Old Solo PL:{% endif %}</label>
+                        <select id="required-solo-pl-rank" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}設定しない{% else %}Not Set{% endif %}</option>
+                        </select>
+                    </form>
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="required-highest-trophies" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}最多トロフィー:{% else %}Highest Trophies:{% endif %}</label>
+                        <select id="required-highest-trophies" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}設定しない{% else %}Not Set{% endif %}</option>
+                        </select>
+                    </form>
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="required-prestige" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}旧トップランカー数:{% else %}Old Prestige:{% endif %}</label>
+                        <select id="required-prestige" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}設定しない{% else %}Not Set{% endif %}</option>
+                        </select>
+                    </form>
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="conditions-application-type" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}条件の適用方法:{% else %}Condition Logic:{% endif %}</label>
+                        <select id="conditions-application-type" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="and">{% if lang == "ja" %}すべて満たせば可{% else %}Meet All{% endif %}</option>
+                            <option value="or">{% if lang == "ja" %}いずれか1つを満たせば可{% else %}Meet Any{% endif %}</option>
+                        </select>
+                    </form>
+                </div>
+                {% else %}
+                <div class="not-logged-in-block not-logged-in-block--board">
+                    <div class="not-logged-in-block__text not-logged-in-block__text--board">
+                        <p>{% if lang == "ja" %}ログインすると、ガチバトル最高ランクや最多トロフィーで、あなたの募集に参加できる人の条件を設定することができます。{% else %}Once logged in, you can set the criteria for who can join the team with your recruit with ranked highest rank or highest trophies.{% endif %}</p>
+                        <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address or other information is required to create an account. You can create an account immediately with any user name and password.{% endif %}</p>
+                    </div>
+                    <div class="auth-actions">
+                        <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary" style="padding: 7px 15px;">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                        <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary" style="padding: 7px 15px;">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="post-modal-section">
+                {# 現行のバージョンでは、ログイン済み:chat_permission_level=30、未ログイン:chat_permission_level=0で固定とするため、選択メニューは設けず説明のみ書いておく。 #}
+                <p class="post-modal-section-title">6. {% if lang == "ja" %}チャットスレッド{% else %}Chat Thread{% endif %}</p>
+                {% if current_user %}
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}この募集を投稿すると、<b>チャットスレッド</b>が設置され、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに使うことができます。<br>なお、5.で設定した<b>条件</b>を満たしていない人でも、チャット画面から個別に許可することで、参加できるようにさせることが可能ですので、ご活用ください。<br>チャット時、あなたのユーザー名である<b>"{{ current_user.name }}"</b>が名前として表示されます。{% if "@" in current_user.name %}メールアドレス等の個人情報をユーザー名に設定している場合は、<b>アカウント</b>タブからユーザー名の変更をお願いします。{% endif %}{% else %}When you post this recruitment, a <b>chat thread</b> will be created. You can use it for confirmation before joining the team or to communicate with players who have muted chat in-game.<br>Even if someone does not meet the <b>conditions</b> set in step 5, you can individually permit them to apply from the chat screen.<br>Your username, <b>"{{ current_user.name }}"</b>, will be displayed in the chat. {% if "@" in current_user.name %}If your username contains personal information such as an email address, please change it from the <b>Account</b> tab.{% endif %}{% endif %}</p>
+                {% else %}
+                <div class="not-logged-in-block not-logged-in-block--board">
+                    <div class="not-logged-in-block__text not-logged-in-block__text--board">
+                        <p>{% if lang == "ja" %}ログインすると、作った募集にチャットスレッドが設置され、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに使うことができます。{% else %}When you log in, a chat thread will be set up for the recruitment you have made, which you can use to check before joining the team or to communicate with people in the game who are chatting mute.{% endif %}</p>
+                        <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address or other information is required to create an account. You can create an account immediately with any user name and password.{% endif %}</p>
+                    </div>
+                    <div class="auth-actions">
+                        <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary" style="padding: 7px 15px;">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                        <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary" style="padding: 7px 15px;">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# 通報モーダル #}
+<div id="report-modal-overlay" class="post-modal-overlay report-modal-overlay">
+    <div class="post-modal-content report-modal-content">
+        <header class="post-modal-header">
+            <button id="report-modal-cancel-btn" class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+            <button id="report-modal-submit-btn" class="button button--primary post-button" disabled>{% if lang == "ja" %}通報{% else %}Report{% endif %}</button>
+        </header>
+        <div class="post-modal-body">
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">1. {% if lang == "ja" %}カテゴリー{% else %}Category{% endif %}</p>
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}この投稿に問題がある理由を選択してください。{% else %}Please select the reason why this post is problematic.{% endif %}</p>
+                <div class="filters__container post-modal-conditions">
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="report-category" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}カテゴリー:{% else %}Category:{% endif %}</label>
+                        <select id="report-category" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}選択してください{% else %}Select{% endif %}</option>
+                            <option value="unpleasant_content">{% if lang == "ja" %}不快なコンテンツ{% else %}Unpleasant Content{% endif %}</option>
+                            <option value="hateful_content">{% if lang == "ja" %}攻撃的なコンテンツ{% else %}Hateful Content{% endif %}</option>
+                            <option value="spam">{% if lang == "ja" %}スパム{% else %}Spam{% endif %}</option>
+                            <option value="tos_violation">{% if lang == "ja" %}規約違反行為の呼びかけ{% else %}Incitement of ToS Violation{% endif %}</option>
+                        </select>
+                    </form>
+                </div>
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">2. {% if lang == "ja" %}詳細{% else %}Details{% endif %}</p>
+                <textarea id="report-text-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}詳細を入力 (任意){% else %}Enter details (optional){% endif %}"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Alpine.jsのような状態管理のための変数 ---
+            const postState = {
+                isHostValid: {{ 'true' if current_user and main_account else 'false' }},
+                isValidLink: false,
+                isCategoryValid: false,
+                isTermsAgreed: {{ 'true' if current_user or platform == 'web' else 'false' }}, // ログインユーザーは常に同意済みと見なす
+                link: '',
+                region: '',
+                hostPlayerTag: '{{ main_account.tag if current_user and main_account else "" }}',
+                category: '',
+                mode: null,
+            };
+
+            // --- DOM要素の取得 ---
+            const lang = '{{ lang }}';
+            const fab = document.getElementById('fab');
+            const modalOverlay = document.getElementById('post-modal-overlay');
+            const closeBtn = document.getElementById('modal-close-btn');
+            const postBtn = document.getElementById('modal-post-btn');
+            const inviteLinkForm = document.getElementById('invite-link-form');
+            const linkStatus = document.getElementById('link-status');
+            const commentForm = document.getElementById('comment-form');
+            const useLastPostBtn = document.getElementById('use-last-post-section');
+            const hostPlayerTagForm = document.getElementById('host-player-tag-form');
+            const hostPlayerTagStatus = document.getElementById('host-player-tag-status');
+            const categoryButtons = document.querySelectorAll('.post-modal-category-select[data-category-value]');
+            const modeSelectionContainer = document.getElementById('mode-selection-container');
+            const modeButtons = document.querySelectorAll('.post-modal-category-select[data-mode-value]');
+            const reloadButton = document.querySelector('.reload-button__container');
+            const agreeToTermsSection = document.getElementById('agree-to-terms-section');
+            const termsCheckbox = document.getElementById('terms-checkbox');
+            const TERMS_AGREEMENT_KEY = 'brawlInsightsTermsAgreed'; // localStorage用のキー
+
+            // --- 通報モーダルのDOM要素取得 ---
+            const reportModalOverlay = document.getElementById('report-modal-overlay');
+            const reportModalSubmitBtn = document.getElementById('report-modal-submit-btn');
+            const reportModalCancelBtn = document.getElementById('report-modal-cancel-btn');
+            const reportCategorySelect = document.getElementById('report-category');
+            const reportTextForm = document.getElementById('report-text-form');
+            
+
+            // --- モーダル制御 ---
+            const openModal = () => {
+                // 未ログインユーザーの場合のみ、同意状況をチェックしてUIを更新
+                if (!{{ 'true' if current_user or platform == 'web' else 'false' }}) {
+                    checkTermsAgreement();
+                }
+                document.body.classList.add('modal-open');
+                modalOverlay.classList.add('active');
+                checkLastPost(); // モーダルを開くたびに直近の投稿があるかチェック
+            };
+            const closeModal = () => {
+                document.body.classList.remove('modal-open');
+                modalOverlay.classList.remove('active');
+            };
+
+            // --- 通報モーダルの制御関数 ---
+            const openReportModal = (postId) => {
+                reportModalOverlay.dataset.postId = postId;
+                // モーダルを開く前にフォームをリセット
+                reportCategorySelect.value = "";
+                reportTextForm.value = "";
+                reportModalSubmitBtn.disabled = true;
+                
+                document.body.classList.add('modal-open');
+                reportModalOverlay.classList.add('active');
+            };
+            const closeReportModal = () => {
+                document.body.classList.remove('modal-open');
+                reportModalOverlay.classList.remove('active');
+                delete reportModalOverlay.dataset.postId;
+            };
+
+            const handleFabClick = async () => {
+                try {
+                    const response = await fetch(`{{ url_for('check_post_permission', lang=lang, post_type='team') }}`);
+                    const data = await response.json();
+
+                    if (data.is_permitted) {
+                        openModal();
+                    } else {
+                        if (data.cooldown > 0) {
+                            const minutes = Math.floor(data.cooldown / 60);
+                            const seconds = data.cooldown % 60;
+                            let alertMessage = '';
+                            if (minutes > 0) {
+                                alertMessage = `{% if lang == "ja" %}現在クールタイム中です。次の投稿まであと${minutes}分${seconds}秒お待ちください。{% else %}Please wait ${minutes}m ${seconds}s for the next post.{% endif %}`;
+                            } else {
+                                alertMessage = `{% if lang == "ja" %}現在クールタイム中です。次の投稿まであと${seconds}秒お待ちください。{% else %}Please wait ${seconds}s for the next post.{% endif %}`;
+                            }
+                            alert(alertMessage);
+                        } else {
+                            alert('{% if lang == "ja" %}現在投稿機能が制限されています。ご了承ください。{% else %}Posting is currently restricted. We appreciate your understanding.{% endif %}');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking post permission:', error);
+                    alert('{% if lang == "ja" %}エラーが発生しました。時間をおいて再試行してください。{% else %}An error occurred. Please try again later.{% endif %}');
+                }
+            };
+            
+            // --- 投稿ボタンの状態を更新 ---
+            const updatePostButtonState = () => {
+                postBtn.disabled = !(postState.isHostValid && postState.isValidLink && postState.isCategoryValid && postState.isTermsAgreed);
+            };
+
+            const checkTermsAgreement = () => {
+                // localStorageから同意状況を取得
+                const hasAgreed = localStorage.getItem(TERMS_AGREEMENT_KEY) === 'true';
+
+                if (hasAgreed) {
+                    // 同意済みの場合は、状態を更新し、UIは非表示のまま
+                    postState.isTermsAgreed = true;
+                    if (agreeToTermsSection) {
+                        agreeToTermsSection.style.display = 'none';
+                    }
+                } else {
+                    // 未同意の場合は、状態を更新し、UIを表示する
+                    postState.isTermsAgreed = false;
+                    if (agreeToTermsSection) {
+                        agreeToTermsSection.style.display = 'block';
+                    }
+                }
+                updatePostButtonState(); // 投稿ボタンの状態を再評価
+            };
+
+            if (termsCheckbox) {
+                termsCheckbox.addEventListener('change', () => {
+                    postState.isTermsAgreed = termsCheckbox.checked;
+                    updatePostButtonState();
+                });
+            }
+
+            // 0. ホストプレイヤータグのリアルタイム検証 (未ログイン時のみ)
+            if (hostPlayerTagForm) {
+                let hostTagDebounceTimer;
+                hostPlayerTagForm.addEventListener('input', () => {
+                    clearTimeout(hostTagDebounceTimer);
+                    
+                    hostTagDebounceTimer = setTimeout(async () => {
+                        // 自動フォーマット処理
+                        let formattedTag = hostPlayerTagForm.value.trim();
+                        if (formattedTag) {
+                            formattedTag = formattedTag.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                            if (!formattedTag.startsWith('#')) {
+                                formattedTag = '#' + formattedTag;
+                            }
+                            hostPlayerTagForm.value = formattedTag;
+                        }
+                        const tag = formattedTag;
+
+                        // 検証ステータスを初期化
+                        hostPlayerTagStatus.textContent = '...';
+                        hostPlayerTagStatus.className = 'form-field-status';
+                        postState.isHostValid = false;
+                        
+                        if (!tag) {
+                            hostPlayerTagStatus.textContent = '';
+                            updatePostButtonState();
+                            return;
+                        }
+                        
+                        // 検証APIを呼び出し
+                        try {
+                            const response = await fetch(`{{ url_for('validate_player_tag', lang=lang) }}`, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ player_tag: tag })
+                            });
+                            const data = await response.json();
+                            if (data.is_valid) {
+                                hostPlayerTagForm.value = data.formatted_tag;
+                                hostPlayerTagStatus.innerHTML = `<span class="text-green-500">✅ ${data.player_name} (${data.formatted_tag})</span>`;
+                                postState.isHostValid = true;
+                                postState.hostPlayerTag = data.formatted_tag;
+                            } else {
+                                hostPlayerTagStatus.innerHTML = `<span class="text-red-500">❌ ${data.message}</span>`;
+                            }
+                        } catch (error) {
+                            console.error('Error validating player tag:', error);
+                            hostPlayerTagStatus.innerHTML = `<span class="text-red-500">{% if lang == "ja" %}検証エラー{% else %}Validation Error{% endif %}</span>`;
+                        }
+                        updatePostButtonState();
+                    }, 500); // 500msのデバウンス
+                });
+            }
+
+            // --- 1. チーム招待リンクのリアルタイム解析 ---
+            let debounceTimer;
+            inviteLinkForm.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const text = inviteLinkForm.value.trim();
+                linkStatus.textContent = '...';
+                linkStatus.className = 'form-field-status';
+                postState.isValidLink = false;
+                updatePostButtonState();
+
+                if (!text) {
+                    linkStatus.textContent = '';
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`{{ url_for('parse_invitation_link', lang=lang) }}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({text: text, type: 'team'})
+                        });
+                        const data = await response.json();
+                        if (data.is_valid) {
+                            linkStatus.textContent = `✅ OK`;
+                            linkStatus.classList.add('text-green-500');
+                            postState.isValidLink = true;
+                            postState.link = data.link;
+                            postState.region = data.region;
+                        } else {
+                            linkStatus.textContent = `❌ {% if lang == "ja" %}チーム招待リンクの形式が正しくありません{% else %}Invalid team link format{% endif %}`;
+                            linkStatus.classList.add('text-red-500');
+                        }
+                    } catch (error) {
+                        console.error('Error parsing link:', error);
+                        linkStatus.textContent = `❌ {% if lang == "ja" %}解析中にエラーが発生しました{% else %}Error during analysis{% endif %}`;
+                        linkStatus.classList.add('text-red-500');
+                    }
+                    updatePostButtonState();
+                }, 500); // 500msのデバウンス
+            });
+
+            // カテゴリー/モード選択のイベントリスナー
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // スタイルの更新
+                    categoryButtons.forEach(btn => btn.classList.remove('selected'));
+                    button.classList.add('selected');
+
+                    // 状態の更新
+                    const selectedCategory = button.dataset.categoryValue;
+                    postState.category = selectedCategory;
+                    
+                    // モード選択UIの表示制御
+                    if (selectedCategory === 'trophy') {
+                        modeSelectionContainer.style.display = 'block';
+                        // トロフィーを選んだ時点ではモード未選択なので、妥当性は false
+                        postState.isCategoryValid = false; 
+                        // 以前のモード選択をリセット
+                        postState.mode = null;
+                        modeButtons.forEach(btn => btn.classList.remove('selected'));
+                    } else {
+                        modeSelectionContainer.style.display = 'none';
+                        postState.mode = null; // 他のカテゴリではモードは常にnull
+                        postState.isCategoryValid = true; // カテゴリ選択だけで妥当性は true
+                    }
+                    updatePostButtonState();
+                });
+            });
+
+            modeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // スタイルの更新
+                    modeButtons.forEach(btn => btn.classList.remove('selected'));
+                    button.classList.add('selected');
+
+                    // 状態の更新
+                    postState.mode = button.dataset.modeValue;
+                    // モードが選択されたので妥当性は true
+                    postState.isCategoryValid = true; 
+                    updatePostButtonState();
+                });
+            });
+            
+            // --- 2. 投稿作成処理 ---
+            postBtn.addEventListener('click', async () => {
+                const payload = {
+                    type: 'team',
+                    link: postState.link,
+                    region: postState.region,
+                    host_player_tag: postState.hostPlayerTag,
+                    comment: commentForm.value.trim() || null,
+                    chat_permission_level: {% if current_user %}30{% else %}0{% endif %},
+                    category: postState.category,
+                    mode: postState.mode,
+                    required_ranked_highest_rank: document.getElementById('required-ranked-highest-rank')?.value || null,
+                    required_solo_pl_rank: document.getElementById('required-solo-pl-rank')?.value || null,
+                    required_highest_trophies: document.getElementById('required-highest-trophies')?.value || null,
+                    required_prestige: document.getElementById('required-prestige')?.value || null,
+                    conditions_application_type: document.getElementById('conditions-application-type')?.value || 'and'
+                };
+
+                try {
+                    postBtn.disabled = true; // 連打防止
+                    const response = await fetch(`{{ url_for('create_new_post', lang=lang) }}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        // 投稿成功時に同意状況を保存
+                        if (!{{ 'true' if current_user else 'false' }} && (termsCheckbox && termsCheckbox.checked)) {
+                            localStorage.setItem(TERMS_AGREEMENT_KEY, 'true');
+                        }
+                        closeModal();
+                        window.location.reload(); // 成功したらリロード
+                    } else {
+                        const errorData = await response.json();
+                        alert(`{% if lang == "ja" %}投稿に失敗しました: ${errorData.detail}{% else %}Failed to post: ${errorData.detail}{% endif %}`);
+                    }
+                } catch (error) {
+                    console.error('Error creating post:', error);
+                    alert('{% if lang == "ja" %}投稿中にエラーが発生しました{% else %}An error occurred while posting{% endif %}');
+                } finally {
+                    updatePostButtonState(); // 失敗した場合にボタンを元に戻す
+                }
+            });
+
+            // --- 3. 直近の投稿内容を反映 ---
+            const checkLastPost = async () => {
+                try {
+                    const response = await fetch(`{{ url_for('get_last_post_by_user', lang=lang, post_type='team') }}`);
+                    if (response.ok) {
+                        useLastPostBtn.style.display = 'block';
+                    } else {
+                        useLastPostBtn.style.display = 'none';
+                    }
+                } catch {
+                    useLastPostBtn.style.display = 'none';
+                }
+            };
+            
+            useLastPostBtn.addEventListener('click', async () => {
+                try {
+                    const response = await fetch(`{{ url_for('get_last_post_by_user', lang=lang, post_type='team') }}`);
+                    const lastPost = await response.json();
+
+                    // 0. ホスト情報 (未ログイン時のみ)
+                    if (hostPlayerTagForm && lastPost.host_player_tag) {
+                        hostPlayerTagForm.value = lastPost.host_player_tag;
+                        hostPlayerTagForm.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+
+                    // 1. リンク
+                    inviteLinkForm.value = lastPost.link;
+                    // 手動でinputイベントを発火させてリンク解析を実行
+                    inviteLinkForm.dispatchEvent(new Event('input', { bubbles: true }));
+
+                    // カテゴリーとモードを復元
+                    if (lastPost.category) {
+                        const categoryButton = document.querySelector(`.post-modal-category-select[data-category-value="${lastPost.category}"]`);
+                        if (categoryButton) {
+                            categoryButton.click();
+                        }
+                    }
+                    // モードはカテゴリークリックイベント内でリセットされるので、少し待ってから設定
+                    if (lastPost.category === 'trophy' && lastPost.mode) {
+                        setTimeout(() => {
+                            const modeButton = document.querySelector(`.post-modal-category-select[data-mode-value="${lastPost.mode}"]`);
+                            if (modeButton) {
+                                modeButton.click();
+                            }
+                        }, 50); // わずかに遅延させる
+                    }
+
+                    // 2. コメント
+                    commentForm.value = lastPost.comment || '';
+
+                    // 3. 条件
+                    if (document.getElementById('required-ranked-highest-rank')) {
+                        document.getElementById('required-ranked-highest-rank').value = lastPost.required_ranked_highest_rank || '';
+                        document.getElementById('required-solo-pl-rank').value = lastPost.required_solo_pl_rank || '';
+                        document.getElementById('required-highest-trophies').value = lastPost.required_highest_trophies || '';
+                        document.getElementById('required-prestige').value = lastPost.required_prestige || '';
+                        document.getElementById('conditions-application-type').value = lastPost.conditions_application_type || 'and';
+                    }
+                } catch (error) {
+                    console.error('Error fetching last post:', error);
+                }
+            });
+            
+            // --- 4. 条件設定の選択肢を動的に生成 ---
+            {% if current_user and main_account %}
+            const mainAccount = {{ main_account.to_dict() | tojson }};
+
+            // ガチバトル最高ランク
+            const rankedOptions = [
+                {value: 22, ja: "プロ", en: "Pro"}, {value: 21, ja: "マスター Ⅲ以上", en: "Masters Ⅲ+"}, {value: 20, ja: "マスター Ⅱ以上", en: "Masters Ⅱ+"},
+                {value: 19, ja: "マスター Ⅰ以上", en: "Masters Ⅰ+"}, {value: 18, ja: "レジェンド Ⅲ以上", en: "Legendary Ⅲ+"}, {value: 17, ja: "レジェンド Ⅱ以上", en: "Legendary Ⅱ+"},
+                {value: 16, ja: "レジェンド Ⅰ以上", en: "Legendary Ⅰ+"}, {value: 15, ja: "エリート Ⅲ以上", en: "Mythic Ⅲ+"}, {value: 14, ja: "エリート Ⅱ以上", en: "Mythic Ⅱ+"},
+                {value: 13, ja: "エリート Ⅰ以上", en: "Mythic Ⅰ+"}
+            ];
+            const currentRankedRank = Math.max(mainAccount.acc_ranked_highest_rank || 0, mainAccount.ranked_highest_rank || 0);
+            const maxRankedRank = Math.max(currentRankedRank + 1, 13);
+            const rankedSelect = document.getElementById('required-ranked-highest-rank');
+            rankedOptions.filter(opt => opt.value <= maxRankedRank).forEach(opt => {
+                rankedSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
+            });
+
+            // 旧ソロPL
+            const plOptions = [
+                {value: 19, ja: "マスター", en: "Masters"}, {value: 18, ja: "レジェンド Ⅲ以上", en: "Legendary Ⅲ+"}, {value: 17, ja: "レジェンド Ⅱ以上", en: "Legendary Ⅱ+"},
+                {value: 16, ja: "レジェンド Ⅰ以上", en: "Legendary Ⅰ+"}, {value: 15, ja: "エリート Ⅲ以上", en: "Mythic Ⅲ+"}, {value: 14, ja: "エリート Ⅱ以上", en: "Mythic Ⅱ+"},
+                {value: 13, ja: "エリート Ⅰ以上", en: "Mythic Ⅰ+"}, {value: 12, ja: "ダイヤモンド Ⅲ以上", en: "Diamond Ⅲ+"}, {value: 11, ja: "ダイヤモンド Ⅱ以上", en: "Diamond Ⅱ+"},
+                {value: 10, ja: "ダイヤモンド Ⅰ以上", en: "Diamond Ⅰ+"}
+            ];
+            const plRankEquivalent = Math.max(mainAccount.solo_pl_rank || 0, (currentRankedRank || 0) - 4);
+            const maxPlRank = Math.max(plRankEquivalent + 1, 10);
+            const plSelect = document.getElementById('required-solo-pl-rank');
+            plOptions.filter(opt => opt.value <= maxPlRank).forEach(opt => {
+                plSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
+            });
+
+            // 最多トロフィー
+            const trophiesSelect = document.getElementById('required-highest-trophies');
+            const maxTrophies = Math.ceil((mainAccount.highest_trophies || 0) / 5000) * 5000 + 10000;
+            for (let i = 205000; i >= 5000; i -= 5000) {
+                if (i <= maxTrophies) {
+                    trophiesSelect.add(new Option(`{% if lang == "ja" %}${i.toLocaleString()}以上{% else %}${i.toLocaleString()}+{% endif %}`, i));
+                }
+            }
+
+            // 旧トップランカー数
+            const prestigeOptions = [
+                {value: 100, ja: "100以上", en: "100+"}, {value: 80, ja: "80以上", en: "80+"}, {value: 60, ja: "60以上", en: "60+"},
+                {value: 50, ja: "50以上", en: "50+"}, {value: 40, ja: "40以上", en: "40+"}, {value: 30, ja: "30以上", en: "30+"},
+                {value: 25, ja: "25以上", en: "25+"}, {value: 20, ja: "20以上", en: "20+"}, {value: 15, ja: "15以上", en: "15+"},
+                {value: 10, ja: "10以上", en: "10+"}, {value: 7, ja: "7以上", en: "7+"}, {value: 4, ja: "4以上", en: "4+"},
+                {value: 2, ja: "2以上", en: "2+"}, {value: 1, ja: "1以上", en: "1+"}
+            ];
+            const prestigeMap = [0, 1, 2, 4, 7, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100];
+            const currentPrestigeIndex = prestigeMap.findIndex(p => (mainAccount.prestige || 0) < p) -1;
+            const maxPrestigeIndex = Math.min(currentPrestigeIndex + 4, prestigeMap.length - 1);
+            const maxPrestigeValue = prestigeMap[maxPrestigeIndex];
+            const prestigeSelect = document.getElementById('required-prestige');
+            prestigeOptions.filter(opt => opt.value <= maxPrestigeValue).forEach(opt => {
+                prestigeSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
+            });
+            {% endif %}
+
+            // --- 5. 投稿の削除機能 ---
+            document.querySelectorAll('.post-card__delete-button').forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    const postId = event.currentTarget.dataset.postId;
+                    const confirmMessage = "{% if lang == 'ja' %}この投稿を削除しますか？\nこの操作は取り消せません。{% else %}Are you sure you want to delete this post?\nThis action cannot be undone.{% endif %}";
+
+                    if (window.confirm(confirmMessage)) {
+                        try {
+                            const response = await fetch(`{{ url_for('delete_post', lang=lang, post_id=0) }}`.replace('/0', `/${postId}`), {
+                                method: 'DELETE'
+                            });
+
+                            if (response.ok) {
+                                window.location.reload(); // 成功したらリロード
+                            } else {
+                                const errorData = await response.json();
+                                alert(`{% if lang == 'ja' %}削除に失敗しました: ${errorData.detail}{% else %}Failed to delete: ${errorData.detail}{% endif %}`);
+                            }
+                        } catch (error) {
+                            console.error('Error deleting post:', error);
+                            alert('{% if lang == "ja" %}削除中にエラーが発生しました。{% else %}An error occurred while deleting.{% endif %}');
+                        }
+                    }
+                });
+            });
+
+            // --- 6. 投稿の通報機能 ---
+            document.querySelectorAll('.post-card__report-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const postId = event.currentTarget.dataset.postId;
+                    openReportModal(postId);
+                });
+            });
+
+            // カテゴリー選択で通報ボタンを有効化/無効化
+            reportCategorySelect.addEventListener('change', () => {
+                if (reportCategorySelect.value) {
+                    reportModalSubmitBtn.disabled = false;
+                } else {
+                    reportModalSubmitBtn.disabled = true;
+                }
+            });
+
+            // 通報ボタンのクリック処理
+            reportModalSubmitBtn.addEventListener('click', async () => {
+                const postId = reportModalOverlay.dataset.postId;
+                const category = reportCategorySelect.value;
+                const text = reportTextForm.value.trim();
+
+                if (!postId || !category) return;
+
+                const payload = {
+                    category: category,
+                    text: text || null
+                };
+
+                try {
+                    reportModalSubmitBtn.disabled = true; // 連打防止
+                    const url = `{{ url_for('report_post', lang=lang, post_id=0) }}`.replace('/0', `/${postId}`);
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        closeReportModal();
+                        alert("{% if lang == 'ja' %}通報が完了しました。{% else %}Report submitted successfully.{% endif %}");
+                    } else {
+                        const errorText = await response.text();
+                        let errorDetail = errorText; // デフォルトは生のテキスト
+                        try {
+                            // 読み取ったテキストをJSONとして解析してみる
+                            const errorData = JSON.parse(errorText);
+                            // detailキーがあればそれを使う
+                            if (errorData.detail) {
+                                errorDetail = errorData.detail;
+                            }
+                        } catch (e) {
+                            // JSONとして解析できなくても、errorTextはそのまま使えるので何もしない
+                        }
+                        alert(`{% if lang == 'ja' %}${errorDetail}{% else %}${errorDetail}{% endif %}`);
+                        reportModalSubmitBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Error submitting report:', error);
+                    alert(`{% if lang == "ja" %}通報中にエラーが発生しました: ${error.message}{% else %}An error occurred while reporting: ${error.message}{% endif %}`);
+                    reportModalSubmitBtn.disabled = false;
+                }
+            });
+
+            // --- ブロック処理を実行する関数 ---
+            const handleBlockUser = async (button) => {
+                const { blockedUserId, blockedAnonymousId } = button.dataset;
+                const confirmMessage = lang === 'ja' ? 'この投稿者を本当にブロックしますか？' : 'Are you sure you want to block this poster?';
+                if (!confirm(confirmMessage)) return;
+
+                try {
+                    const response = await fetch(`{{ url_for('block_user', lang=lang) }}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            blocked_user_id: blockedUserId ? parseInt(blockedUserId, 10) : null,
+                            blocked_anonymous_id: blockedAnonymousId || null
+                        })
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        const errorData = await response.json();
+                        if (errorData.success === false) {
+                            alert(lang === 'ja' ? 'このユーザーはすでにブロックされています。' : 'This user is already blocked.');
+                            window.location.reload();
+                        } else {
+                            throw new Error(errorData.detail || 'Server error');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error during block action:', error);
+                    alert(lang === 'ja' ? 'ユーザーのブロックに失敗しました。' : 'Failed to block user.');
+                }
+            };
+
+            // --- ブロック解除処理を実行する関数 ---
+            const handleUnblockUser = async (button) => {
+                const { blockedUserId, blockedAnonymousId } = button.dataset;
+                const confirmMessage = lang === 'ja' ? 'この投稿者のブロックを本当に解除しますか？' : 'Are you sure you want to unblock this poster?';
+                if (!confirm(confirmMessage)) return;
+
+                try {
+                    const response = await fetch(`{{ url_for('unblock_user', lang=lang) }}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            blocked_user_id: blockedUserId ? parseInt(blockedUserId, 10) : null,
+                            blocked_anonymous_id: blockedAnonymousId || null
+                        })
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        const errorData = await response.json();
+                        if (errorData.success === false) {
+                            alert(lang === 'ja' ? 'このユーザーはすでにブロックが解除されています。' : 'This user is already unblocked.');
+                            window.location.reload();
+                        } else {
+                            throw new Error(errorData.detail || 'Server error');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error during unblock action:', error);
+                    alert(lang === 'ja' ? 'ユーザーのブロック解除に失敗しました。' : 'Failed to unblock user.');
+                }
+            };
+
+            // --- ブロックされた投稿のHTMLを動的に生成するヘルパー関数 ---
+            const createRevealedPostCardHTML = (post, blockedUserId, blockedAnonymousId) => {
+                const postData = post.data;
+                const commentHTML = postData.comment ? postData.comment.replace(/\n/g, '<br>') : (lang === 'ja' ? '(コメントはありません)' : '(No Comment)');
+
+                // テンプレートの複雑なロジックをJSで再現するのは大変なため、
+                // ここでは主要な情報（ホスト名、コメント、ブロック解除ボタン）のみを表示する簡易版カードを生成します。
+                return `
+                    <div class="card post-card" style="border: 2px solid #666;">
+                        <div class="post-card__header">
+                            <p class="post-card__title">${postData.hostplayer.name}</p>
+                            <div style="display: flex; flex: 1;"></div>
+                            <p class="post-card__ago-text">${lang === 'ja' ? postData.ago_ja : postData.ago_en}</p>
+                        </div>
+                        <div class="post-card__comment-container">
+                            <p class="post-card__comment-container-title">{% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
+                            <div class="post-card__comment-scroll">
+                                <p class="post-card__comment-text">${commentHTML}</p>
+                            </div>
+                        </div>
+                        <div class="post-card__link-container">
+                            <button class="button post-card__unblock-button"
+                                    data-blocked-user-id="${blockedUserId}"
+                                    data-blocked-anonymous-id="${blockedAnonymousId}">
+                                ${lang === 'ja' ? 'ブロック解除' : 'Unblock'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            };
+
+            // --- 「表示する」ボタンが押された時の処理 ---
+            const handleShowBlockedPost = (button) => {
+                const wrapper = button.closest('.post-card-wrapper');
+                const postId = wrapper.dataset.postId;
+                const { blockedUserId, blockedAnonymousId } = wrapper.dataset;
+                const postObject = {{ posts | tojson }}[postId];
+
+                // ヘルパー関数を使って、表示するHTMLを生成
+                const revealedHtml = createRevealedPostCardHTML(postObject, blockedUserId, blockedAnonymousId);
+
+                // プレースホルダーを、生成したHTMLで置き換え
+                wrapper.innerHTML = revealedHtml;
+            };
+
+
+            // --- イベントリスナー (イベント委譲) ---
+            const postsContainer = document.querySelector('.posts__container');
+            if (postsContainer) {
+                postsContainer.addEventListener('click', (event) => {
+                    // 押されたボタンの種類を特定
+                    const blockBtn = event.target.closest('.post-card__block-button');
+                    const showBtn = event.target.closest('.post-card__show-button');
+                    const unblockBtn = event.target.closest('.post-card__unblock-button');
+
+                    if (blockBtn) {
+                        handleBlockUser(blockBtn);
+                    } else if (showBtn) {
+                        handleShowBlockedPost(showBtn);
+                    } else if (unblockBtn) {
+                        handleUnblockUser(unblockBtn);
+                    }
+                });
+            }
+
+            // --- 初期化処理 ---
+            fab.addEventListener('click', handleFabClick);
+            closeBtn.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', (event) => {
+                if (event.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+
+            reportModalCancelBtn.addEventListener('click', closeReportModal);
+            reportModalOverlay.addEventListener('click', (event) => {
+                if (event.target === reportModalOverlay) {
+                    closeReportModal();
+                }
+            });
+            
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeModal();
+                    closeReportModal(); // 両方閉じる処理を呼ぶ
+                }
+            });
+
+            if (reloadButton) {
+                let isReloading = false; // 連打防止用のフラグ
+
+                reloadButton.addEventListener('click', () => {
+                    // isReloadingがtrueの場合は、処理を中断します
+                    if (isReloading) {
+                        return;
+                    }
+                    isReloading = true; // フラグを立てます
+
+                    // ページをリロードします
+                    window.location.reload();
+
+                    // 1秒後にフラグを解除して、再度クリックできるようにします
+                    setTimeout(() => {
+                        isReloading = false;
+                    }, 1000);
+                });
+            }
+
+        });
+    </script>
+{% endblock %}

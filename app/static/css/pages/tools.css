@@ -1,0 +1,2019 @@
+/* /app/static/css/pages/tools.css */
+
+.tools-page__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 15px auto 45px;
+}
+
+.tools-page__description {
+    margin-top: 20px;
+}
+
+.tools-page__section {
+    margin-top: 30px;
+}
+
+.tools-page__section-title {
+    cursor: pointer;
+    position: relative;
+    user-select: none; /* テキスト選択を無効化 */
+    display: flex; /* アイコンとテキストを横並びにするため */
+    justify-content: space-between; /* 両端に配置 */
+    align-items: center; /* 垂直方向中央揃え */
+}
+
+.tools-page__contents-box {
+    display: grid;
+    gap: 10px; /* コンテンツカード間の隙間 */
+    grid-template-columns: 1fr; /* デフォルト: 1列 */
+}
+.tools-page__content {
+    width: 100%;
+    aspect-ratio: 7 / 2; /* 幅Aに対して高さB */
+    border-radius: 12px;
+}
+.tools-page__content-image {
+    width: 100%;
+    aspect-ratio: 7 / 2; /* 幅Aに対して高さB */
+    border-radius: 12px;
+}
+.dark .tools-page__content-image,
+.dark .tools-page__content-image--slim {
+    border: 1px solid #ccc;
+}
+.tools-page__content--small {
+    aspect-ratio: 7 / 1;
+}
+.tools-page__content-image--small {
+    aspect-ratio: 7 / 1;
+}
+
+.tools-page__contents-box a {
+    display: block;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border-radius: 12px; /* 影がはみ出ないように */
+}
+.tools-page__contents-box a:hover {
+    transform: translateY(-0.1px); /* 少し上に移動 */
+    box-shadow: 0 1px 3.5px rgba(0, 0, 0, 0.2); /* 影を追加 */
+}
+
+.map_image {
+    width: auto;
+    max-width: 100%;
+    height: 80vh;
+    margin: 0 auto;
+}
+
+@media (max-width: 539px){
+    .map_image {
+        width: 100%;
+        height: auto;
+    }
+    .tools-page__description{
+        font-size: 13.5px;
+        margin-top: 10px;
+    }
+    .tools-page__section {
+        margin-top: 20px;
+    }
+}
+
+@media (min-width: 680px){
+    .tools-page__contents-box{
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (min-width: 1080px){
+    .tools-page__contents-box{
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+
+/* =============================================== */
+/* ガチバトルマップ一覧                               */
+/* =============================================== */
+.tools-page__image {
+    border-radius: 12px;
+    width: 100%;
+    height: auto;
+    margin-top: 20px;
+}
+
+/* スリムバナー用スタイル */
+.tools-page__content-image--slim {
+    display: none;
+    width: 100%;
+    aspect-ratio: 7 / 1;
+    border-radius: 12px;
+}
+
+@media (max-width: 679px) {
+    /* スリムバナー表示時のコンテナアスペクト比調整 */
+    .tools-page__content--responsive {
+        aspect-ratio: auto;
+    }
+    
+    /* 通常バナー非表示 */
+    .tools-page__content--responsive .tools-page__content-image {
+        display: none;
+    }
+    
+    /* スリムバナー表示 */
+    .tools-page__content--responsive .tools-page__content-image--slim {
+        display: block;
+    }
+}
+
+
+/* =============================================== */
+/* トロフィー増減表                                  */
+/* =============================================== */
+/* サブタブ */
+.sub-tab-nav {
+    margin-bottom: 3px;
+    border-bottom: 1px solid var(--color-ddd);
+    position: relative;
+}
+.sub-tab-nav__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    /* PC版: 左寄せ (デフォルト) */
+}
+.sub-tab-nav__item {
+    margin-right: 4px; /* タブ間のわずかな隙間 */
+}
+.sub-tab-nav__item:last-child {
+    margin-right: 0;
+}
+.sub-tab-nav__link {
+    display: flex; /* アイコンとテキストを中央揃え */
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px; /* 少し小さめ */
+    font-weight: 500;
+    font-size: 14px; /* 少し小さめ */
+    color: #555;
+    background-color: #f0f0f0;
+    border: 1px solid var(--color-ddd);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0; /* 角丸を少し小さく */
+    transition: background-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    text-align: center;
+}
+.dark .sub-tab-nav__link {
+    background-color: #262626;
+    color: #ccc;
+}
+.sub-tab-nav__icon {
+    height: 18px; /* アイコンサイズ */
+    width: auto;
+    margin-right: 6px;
+}
+.sub-tab-nav__text {
+    line-height: 1;
+}
+.sub-tab-nav__link:hover {
+    background-color: #e0e0e0;
+    color: #333;
+}
+.dark .sub-tab-nav__link:hover {
+    background-color: #333;
+    color: #b8b8b8;
+}
+.sub-tab-nav__link--active {
+    background-color: #fff;
+    color: #333;
+    border-color: var(--color-ddd);
+    position: relative;
+    bottom: -1px;
+    font-weight: bold;
+    z-index: 1; /* 下線を隠すため */
+    cursor: default;
+}
+.sub-tab-nav__link--active:hover {
+    background-color: #fff;
+    color: #333;
+}
+.dark .sub-tab-nav__link--active,
+.dark .sub-tab-nav__link--active:hover {
+    background-color: #1c1c1c;
+    color: #fff;
+}
+
+/* スマホ・タブレット版 サブタブ */
+@media (max-width: 839px) { /* player.css の .tab-nav のブレークポイントに合わせる */
+    .sub-tab-nav__list {
+        width: 100%; /* 90%から変更 */
+        /* 等幅分割のため flex-grow を設定 */
+    }
+    .sub-tab-nav__item {
+        flex-grow: 1;
+        flex-basis: 0;
+        margin-right: 0; /* 等幅分割のため不要に */
+    }
+    /*.sub-tab-nav__item:not(:last-child) { /* 最後の要素以外の右に線 */
+    /*    border-right: 1px solid #ddd;
+    /*}*/
+     .sub-tab-nav__link {
+        padding: 8px 5px; /* 左右パディングを詰める */
+        flex-direction: column; /* アイコンとテキストを縦積み */
+        font-size: 13px;
+    }
+    .sub-tab-nav__icon {
+        height: 26px;
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
+}
+@media (max-width: 679px) {
+    .sub-tab-nav__link {
+        font-size: 12px; /* さらに小さく */
+        padding: 7px 4px;
+    }
+    .sub-tab-nav__icon {
+        height: 24px;
+        margin-right: 0;
+        margin-bottom: 4.5px;
+    }
+}
+@media (max-width: 539px) {
+    .sub-tab-nav__link {
+        font-size: 10px; /* さらに小さく */
+        padding: 6px 3px;
+    }
+    .sub-tab-nav__icon {
+        height: 22px;
+        margin-right: 0;
+        margin-bottom: 4px;
+    }
+}
+
+.trophy-table-tab__container,
+.map-rotation-slot-tab__container {
+    width: 100%;
+    margin: 10px 0; /* 上下マージン */
+    padding: 10px;
+    background-color: var(--bg-f8f8f8);
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+.dark .trophy-table-tab__container,
+.dark .map-rotation-slot-tab__container {
+    border-color: #111;
+}
+
+.map-rotation-slot-tab {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+.map-rotation-slot {
+    display: flex;
+    border-radius: 8px;
+    border: 1px solid var(--color-ddd);
+    background-color: #f0f0f0;
+    color: #555;
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 5px 0;
+    min-width: 65px;
+}
+.dark .map-rotation-slot {
+    background-color: #262626;
+    color: #ccc;
+}
+.map-rotation-slot--active {
+    background-color: #fff;
+    color: #333;
+    cursor: default;
+}
+.dark .map-rotation-slot--active {
+    background-color: #1c1c1c;
+    color: #fff;
+}
+
+.map-rotation-slot__icon {
+    height: 36px;
+    width: auto;
+}
+.map-rotation-slot__text {
+    font-size: 12px;
+    margin-top: 1px;
+    white-space: nowrap;
+}
+
+.map-rotation-slot__icon--multi {
+    height: 36px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.map-rotation-slot__icon--small {
+    height: 30px;
+    width: auto;
+}
+
+.map-rotation-slot-info__container {
+    display: flex;
+    gap: 7px;
+}
+.map-rotation-slot-info__time,
+.map-rotation-slot-info__days {
+    display: flex;
+    gap: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--color-111);
+    background-color: var(--color-444);
+    color: var(--color-fff);
+    align-items: center;
+    padding: 2px 6px;
+}
+.map-rotation-slot-info__time__icon,
+.map-rotation-slot-info__days__icon {
+    height: 24px;
+    width: auto;
+}
+.map-rotation-slot-info__time__text,
+.map-rotation-slot-info__days__text {
+    font-weight: bold;
+}
+
+.winstreak-nav-container {
+    display: flex;
+    margin-top: 7px;
+}
+.winstreak-nav {
+    display: flex;
+    border-radius: 9px;
+    border: 1px solid var(--color-ddd);
+    align-items: center;
+}
+.winstreak-item-container {
+    display: flex;
+    gap: 4px;
+    font-weight: bold;
+    margin-right: 4px;
+    flex-wrap: wrap; /* ボタンが多いので折り返しを許可 */
+}
+.winstreak-break {
+    display: none; /* デフォルトでは非表示 */
+    width: 100%;
+}
+.winstreak-item {
+    display: flex;
+    border-radius: 8px;
+    border: 1px solid var(--color-ddd);
+    width: 50px;
+    margin: 3px 0;
+    background-color: #f0f0f0;
+    color: #555;
+    cursor: pointer;
+}
+.dark .winstreak-item {
+    background-color: #262626;
+    color: #ccc;
+}
+.winstreak-item--active {
+    background-color: #fff;
+    color: #333;
+    cursor: default;
+}
+.dark .winstreak-item--active {
+    background-color: #1c1c1c;
+    color: #fff;
+}
+.winstreak-item-text {
+    margin: 0 auto;
+}
+.trophy-rush-text {
+    margin-left: 8px;
+    font-size: 0.95em;
+}
+
+/* drop-box のレア度タブ: 選択中はより濃く表示し、クリックを無効化する */
+.winstreak-item-container .drop-box-rarity-item.winstreak-item--active,
+.drop-box-rarity-nav__items .drop-box-rarity-item.winstreak-item--active {
+    background-color: #dcdcdc; /* デフォルトより濃め */
+    color: #111;
+    cursor: default;
+    pointer-events: none; /* クリック無効化 */
+    border-color: rgba(0,0,0,0.12);
+}
+.dark .winstreak-item-container .drop-box-rarity-item.winstreak-item--active,
+.dark .drop-box-rarity-nav__items .drop-box-rarity-item.winstreak-item--active {
+    background-color: #2b2b2b; /* ダークモード向けに濃め */
+    color: #fff;
+    pointer-events: none;
+    border-color: rgba(255,255,255,0.06);
+}
+
+/* アクティブ時のホバー効果を抑制 */
+.drop-box-rarity-item.winstreak-item--active:hover {
+    background-color: inherit;
+}
+.winstreak-nav__icon {
+    height: 22px;
+    margin-bottom: 0;
+    margin-left: 7px;
+    margin-right: 5px;
+}
+
+.trophy-table,
+.map-rotation-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 14px;
+}
+.trophy-table th, .trophy-table td,
+.map-rotation-table th, .map-rotation-table td {
+    border: 1px solid var(--color-ddd);
+    padding: 2px;
+    text-align: center;
+}
+.trophy-table th,
+.map-rotation-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+.dark .trophy-table th,
+.dark .map-rotation-table th {
+    background-color: #161616;
+}
+.trophy-table td.trophy-rank {
+    font-weight: 500;
+    background-color: #f9f9f9;
+}
+.dark .trophy-table td.trophy-rank {
+    background-color: #1f1f1f;
+}
+.cell-win { background-color: #e6ffe6; color: #006400; font-weight: bold; }
+.cell-loss { background-color: #ffe6e6; color: #c82333; font-weight: bold; }
+.cell-draw { background-color: #e6f7ff; color: #005a8d; font-weight: bold; }
+
+.map-rotation-table__mode-icon {
+    height: 20px;
+    width: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+@media (max-width: 839px) {
+    .winstreak-item-container {
+        width: 100%;
+    }
+    .winstreak-item {
+        flex: 1;
+        min-width: 45px;
+        max-width: 80px;
+        margin: 2px 0;
+    }
+    .trophy-rush-item {
+        max-width: none;
+    }
+    .winstreak-nav {
+        width: 100%;
+    }
+    .winstreak-nav__icon {
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
+    .winstreak-break {
+        display: block; /* スマホ版では改行を有効にする */
+    }
+    .winstreak-item-container {
+        justify-content: flex-start;
+        padding: 3px 0;
+        gap: 0 3px;
+        flex: 1;
+    }
+}
+@media (max-width: 539px) {
+    .trophy-table {
+        font-size: 12px;
+    }
+    .trophy-table-tab__container {
+        width: 105%;
+        margin: 10px -2.5%;
+    }
+    .map-rotation-slot__icon {
+        height: 24px;
+ 
+    }
+    .map-rotation-slot__text {
+        font-size: 9px;
+    }
+    .map-rotation-slot__icon--multi {
+        height: 24px;
+    }
+    .map-rotation-slot__icon--small {
+        height: 20px;
+    }
+    .map-rotation-slot {
+        min-width: 52px;
+    }
+}
+
+/* テーブル行のスタイル */
+.row-active {
+    background-color: #ffe6e6; /* 薄い赤 */
+}
+.row-stripe {
+    background-color: #f9f9f9; /* ごく薄い灰色 */
+}
+
+/* ダークモード対応 */
+.dark .row-active {
+    background-color: #4a0f0f; /* 濃い赤 (背景に合わせて調整) */
+}
+.dark .row-stripe {
+    background-color: #1f1f1f; /* 濃いグレー */
+}
+
+/* マップ名のリンクスタイル */
+.map-link {
+    text-decoration: underline;
+    color: inherit;
+    display: block; /* クリック領域確保のため */
+}
+.map-link:hover {
+    opacity: 0.7;
+}
+
+
+/* =============================================== */
+/* スタードロップ                                    */
+/* =============================================== */
+.drop-box-slot-tab {
+    gap: 8px;
+}
+.drop-box-slot {
+    min-width: 76px;
+    padding: 5px 5px 3px;
+}
+.drop-box-slot__icon {
+    height: 40px;
+}
+.drop-box-slot__icon--starrdrop { height: 40px; }
+.drop-box-slot__icon--chaosdrop { height: 40px; }
+.drop-box-slot__icon--rankeddrop { height: 37px; margin: 1.5px 0; }
+.drop-box-slot__icon--angelicdrop { height: 39px; margin: 0.5px 0; }
+.drop-box-slot__icon--demonicdrop { height: 40px; }
+.drop-box-slot__icon--present { height: 39px; margin: 0.5px 0; }
+.drop-box-slot__icon--sushi { height: 37px; margin: 1.5px 0; }
+.drop-box-slot__icon--megabox { height: 35px; margin: 2.5px 0; }
+.drop-box-slot__icon--deadbox { height: 40px; }
+.drop-box-slot__icon--halloweenbox { height: 40px; }
+.drop-box-slot__icon--mechabox { height: 37px; margin: 1.5px 0; }
+.drop-box-slot__icon--lovebox { height: 40px; }
+.drop-box-slot__icon--boombox { height: 37px; margin: 1.5px 0; }
+.drop-box-slot__icon--starrnovabox { height: 50px; margin: -5px 0; }
+.drop-box-slot__icon--boltbox { height: 50px; margin: -5px 0; }
+.drop-box-slot__icon--smalltrophybox { height: 35px; margin: 2.5px 0; }
+.drop-box-slot__icon--bigtrophybox { height: 35px; margin: 2.5px 0; }
+.drop-box-slot__icon--megatrophybox { height: 35px; margin: 2.5px 0; }
+.drop-box-slot__icon--omegatrophybox { height: 35px; margin: 2.5px 0; }
+.drop-box-slot__icon--ultratrophybox { height: 35px; margin: 2.5px 0; }
+.drop-box-slot__text {
+    max-width: 83px;
+    text-align: center;
+    line-height: 1.2;
+    white-space: normal;
+}
+.drop-box-rarity-nav {
+    width: 100%;
+}
+.drop-box-rarity-nav__items {
+    padding: 4px 6px;
+    margin-right: 0;
+    gap: 5px;
+}
+.drop-box-rarity-item {
+    width: auto;
+    min-width: 88px;
+    padding: 0 10px;
+    flex: 0 0 auto;
+}
+.drop-box-rarity-item .winstreak-item-text {
+    white-space: nowrap;
+}
+.drop-box-rarity-item--rare {
+    background-color: rgba(88, 204, 84, 0.12);
+    border-color: rgba(88, 204, 84, 0.35);
+}
+.drop-box-rarity-item--superRare {
+    background-color: rgba(97, 150, 224, 0.14);
+    border-color: rgba(97, 150, 224, 0.35);
+}
+.drop-box-rarity-item--epic,
+.drop-box-rarity-item--hyperRare {
+    background-color: rgba(199, 92, 235, 0.14);
+    border-color: rgba(199, 92, 235, 0.35);
+}
+.drop-box-rarity-item--mythic,
+.drop-box-rarity-item--ultraRare {
+    background-color: rgba(225, 85, 85, 0.14);
+    border-color: rgba(225, 85, 85, 0.35);
+}
+.drop-box-rarity-item--legendary,
+.drop-box-rarity-item--legendRare {
+    background-color: rgba(210, 196, 72, 0.18);
+    border-color: rgba(210, 196, 72, 0.42);
+}
+.drop-box-rarity-item--ultra {
+    background-color: rgba(110, 215, 221, 0.18);
+    border-color: rgba(110, 215, 221, 0.42);
+}
+.drop-box-rarity-item.winstreak-item--active {
+    color: #111;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    cursor: default;
+    pointer-events: none; /* クリック無効化 */
+}
+/* per-rarity active colors: include both naming variants (single- and double-hyphen) for compatibility */
+.drop-box-rarity-item--rare.winstreak-item--active,
+.drop-box-rarity-item-rare.winstreak-item--active {
+    background-color: rgba(88, 204, 84, 0.34) !important;
+}
+.drop-box-rarity-item--superRare.winstreak-item--active,
+.drop-box-rarity-item-superRare.winstreak-item--active {
+    background-color: rgba(97, 150, 224, 0.36) !important;
+}
+.drop-box-rarity-item--epic.winstreak-item--active,
+.drop-box-rarity-item-epic.winstreak-item--active,
+.drop-box-rarity-item--hyperRare.winstreak-item--active,
+.drop-box-rarity-item-hyperRare.winstreak-item--active {
+    background-color: rgba(199, 92, 235, 0.36) !important;
+}
+.drop-box-rarity-item--mythic.winstreak-item--active,
+.drop-box-rarity-item-mythic.winstreak-item--active,
+.drop-box-rarity-item--ultraRare.winstreak-item--active,
+.drop-box-rarity-item-ultraRare.winstreak-item--active {
+    background-color: rgba(225, 85, 85, 0.36) !important;
+}
+.drop-box-rarity-item--legendary.winstreak-item--active,
+.drop-box-rarity-item-legendary.winstreak-item--active,
+.drop-box-rarity-item--legendRare.winstreak-item--active,
+.drop-box-rarity-item-legendRare.winstreak-item--active {
+    background-color: rgba(210, 196, 72, 0.40) !important;
+}
+.drop-box-rarity-item--ultra.winstreak-item--active,
+.drop-box-rarity-item-ultra.winstreak-item--active {
+    background-color: rgba(110, 215, 221, 0.40) !important;
+}
+.dark .drop-box-rarity-item--rare,
+.dark .drop-box-rarity-item-rare {
+    background-color: rgba(88, 204, 84, 0.20);
+}
+.dark .drop-box-rarity-item--superRare,
+.dark .drop-box-rarity-item-superRare {
+    background-color: rgba(97, 150, 224, 0.22);
+}
+.dark .drop-box-rarity-item--epic,
+.dark .drop-box-rarity-item-epic,
+.dark .drop-box-rarity-item--hyperRare,
+.dark .drop-box-rarity-item-hyperRare {
+    background-color: rgba(199, 92, 235, 0.22);
+}
+.dark .drop-box-rarity-item--mythic,
+.dark .drop-box-rarity-item-mythic,
+.dark .drop-box-rarity-item--ultraRare,
+.dark .drop-box-rarity-item-ultraRare {
+    background-color: rgba(225, 85, 85, 0.22);
+}
+.dark .drop-box-rarity-item--legendary,
+.dark .drop-box-rarity-item-legendary,
+.dark .drop-box-rarity-item--legendRare,
+.dark .drop-box-rarity-item-legendRare {
+    background-color: rgba(210, 196, 72, 0.24);
+}
+.dark .drop-box-rarity-item--ultra,
+.dark .drop-box-rarity-item-ultra {
+    background-color: rgba(110, 215, 221, 0.24);
+}
+.dark .drop-box-rarity-item.winstreak-item--active {
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+.drop-box-meta__container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.drop-box-meta__split {
+    display: flex;
+    gap: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--color-ddd);
+    background-color: #f2f2f2;
+    color: #333;
+    align-items: center;
+    padding: 4px 8px;
+}
+.dark .drop-box-meta__split {
+    background-color: #262626;
+    color: #eee;
+}
+.drop-box-meta__split-text {
+    margin: 0;
+    font-weight: 600;
+}
+.drop-box-meta__warning {
+    color: var(--c-red);
+}
+.drop-box-table__container {
+    margin-top: 12px;
+}
+.drop-box-table {
+    margin-top: 10px;
+}
+.drop-box-table th,
+.drop-box-table td {
+    padding: 4px 12px;
+    vertical-align: middle;
+}
+.drop-box-table__reward {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-start;
+}
+.drop-box-table__reward-icons {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.drop-box-table__reward-icon {
+    height: 26px;
+    width: auto;
+    flex-shrink: 0;
+}
+.drop-box-table__reward-icon--stacked {
+    height: 22px;
+}
+.drop-box-table__reward-amount {
+    font-weight: bold;
+    min-width: 12px;
+}
+.drop-box-table__reward-name {
+    color: var(--color-555);
+}
+.dark .drop-box-table__reward-name {
+    color: #ddd;
+}
+.drop-box-table__expand-button {
+    border: 1px solid #ccc;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 0 6px;
+    color: var(--color-333);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    cursor: pointer;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+.dark .drop-box-table__expand-button {
+    background-color: #262626;
+    border-color: #555;
+    color: #eee;
+}
+.drop-box-table__targets-cell {
+    padding: 8px 10px;
+    background-color: var(--bg-f8f8f8);
+}
+.drop-box-table__targets {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    padding: 3px 0;
+    align-items: stretch;
+}
+.drop-box-table__skin-chip {
+    border: 1px solid var(--color-ddd);
+    border-radius: 10px;
+    background-color: #fff;
+    padding: 0 0 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+.dark .drop-box-table__skin-chip {
+    background-color: #1f1f1f;
+}
+.drop-box-table__skin-chip-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+    flex-shrink: 0;
+    background-color: #f4f4f4;
+    padding: 5px;
+}
+.dark .drop-box-table__skin-chip-image {
+    background-color: #242424;
+}
+.drop-box-table__skin-chip-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    margin-top: 5px;
+    min-height: 20px;
+    padding: 0 6px;
+}
+.drop-box-table__skin-chip-rarity {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+.drop-box-table__skin-chip-name {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    word-break: break-word;
+}
+.drop-box-table__probability {
+    font-weight: bold;
+    white-space: nowrap;
+}
+.drop-box-table__empty {
+    color: #999;
+}
+
+@media (max-width: 1099px) {
+    .drop-box-table__targets {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 899px) {
+    .drop-box-table__targets {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 639px){
+    .drop-box-slot-tab {
+        gap: 6px;
+    }
+    .drop-box-slot {
+        min-width: 57px;
+        padding: 4px 4px 2px;
+    }
+    .drop-box-slot__icon {
+        height: 28px;
+    }
+    .drop-box-slot__icon--starrdrop { height: 28px; }
+    .drop-box-slot__icon--chaosdrop { height: 28px; }
+    .drop-box-slot__icon--rankeddrop { height: 26px; margin: 1px 0; }
+    .drop-box-slot__icon--angelicdrop { height: 27px; margin: 0.5px 0; }
+    .drop-box-slot__icon--demonicdrop { height: 28px; }
+    .drop-box-slot__icon--present { height: 27px; margin: 0.5px 0; }
+    .drop-box-slot__icon--sushi { height: 26px; margin: 1px 0; }
+    .drop-box-slot__icon--megabox { height: 25px; margin: 1.5px 0; }
+    .drop-box-slot__icon--deadbox { height: 28px; }
+    .drop-box-slot__icon--halloweenbox { height: 28px; }
+    .drop-box-slot__icon--mechabox { height: 26px; margin: 1px 0; }
+    .drop-box-slot__icon--lovebox { height: 28px; }
+    .drop-box-slot__icon--boombox { height: 26px; margin: 1px 0; }
+    .drop-box-slot__icon--starrnovabox { height: 34px; margin: -3px 0; }
+    .drop-box-slot__icon--boltbox { height: 34px; margin: -3px 0; }
+    .drop-box-slot__icon--smalltrophybox { height: 25px; margin: 1.5px 0; }
+    .drop-box-slot__icon--bigtrophybox { height: 25px; margin: 1.5px 0; }
+    .drop-box-slot__icon--megatrophybox { height: 25px; margin: 1.5px 0; }
+    .drop-box-slot__icon--omegatrophybox { height: 25px; margin: 1.5px 0; }
+    .drop-box-slot__icon--ultratrophybox { height: 25px; margin: 1.5px 0; }
+    .drop-box-slot__text {
+        font-size: 10px;
+        max-width: 70px;
+    }
+    .drop-box-rarity-item {
+        min-width: max-content;
+        padding: 0 8px;
+    }
+    .drop-box-table {
+        font-size: 12px;
+    }
+    .drop-box-table th,
+    .drop-box-table td {
+        padding: 2px 6px;
+    }
+    .drop-box-table__reward {
+        gap: 4px;
+    }
+    .drop-box-table__reward-icon {
+        height: 20px;
+    }
+    .drop-box-table__reward-icon--stacked {
+        height: 17px;
+    }
+    .drop-box-table__reward-name {
+        display: none;
+    }
+    .drop-box-table__expand-button {
+        margin-left: 2px;
+        font-size: 10px;
+        padding: 0 5px;
+        border-radius: 7px;
+    }
+    .drop-box-table__targets {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+    }
+    .drop-box-table__skin-chip {
+        padding: 0 0 5px;
+    }
+    .drop-box-table__skin-chip-image {
+        width: 100%;
+        padding: 4px;
+    }
+    .drop-box-table__skin-chip-name-row {
+        min-height: 16px;
+    }
+    .drop-box-table__skin-chip-rarity {
+        width: 12px;
+        height: 12px;
+    }
+    .drop-box-table__skin-chip-name {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 839px) {
+    .drop-box-rarity-nav__items {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 0 4px;
+    }
+    .drop-box-rarity-nav__items .drop-box-rarity-item {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+    }
+}
+
+
+/* =============================================== */
+/* 育成計算機                                       */
+/* =============================================== */
+.cost-calc-filter-form__select {
+    min-width: 40px;
+    max-width: calc(100% - 120px);
+    padding: 2px 10px;
+}
+
+.cost__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 60%;
+    min-width: 240px;
+    max-width: 310px;
+    margin: 0 auto;
+    border: 1px solid #eee;
+    padding: 5px;
+}
+.cost__container--en {
+    min-width: 350px;
+}
+.cost-section-title {
+    font-weight: bold;
+}
+.cost {
+    display: flex;
+    align-items: center;
+}
+.cost-text {
+    font-weight: bold;
+    font-size: 32px;
+}
+.cost-text-decimal {
+    color: var(--color-999);
+}
+.cost-image {
+    height: 32px;
+    width: auto;
+    margin-top: 2px;
+    margin-right: 6px;
+}
+.cost-image--semi-big {
+    height: 34px;
+}
+.cost-image--big {
+    height: 38px;
+}
+
+.drop-reward__container {
+    max-width: none;
+}
+.drop-rewards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 30px;
+}
+@media (max-width: 899px) {
+    .drop-rewards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 639px) {
+    .drop-reward__container {
+        min-width: 340px;
+    }
+    .drop-rewards {
+        gap: 0 15px;
+    }
+    .drop-reward-image {
+        height: 28px;
+    }
+    .drop-reward-text {
+        font-size: 28px;
+    }
+}
+
+.reward-info-block__text {
+    margin-top: -3px;
+    color: var(--color-444);
+}
+.reward-filter-form__label {
+    font-weight: bold;
+}
+.pass-filters-label {
+    font-weight: bold;
+}
+.form-checkbox-label {
+    font-size: 16px;
+}
+.pass-filters {
+    display: flex;
+    flex-direction: column;
+}
+.pass-filters .form-checkbox-group {
+    margin-bottom: 0;
+}
+.cost-label {
+    margin-left: -3px;
+    margin-right: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    background-color: #eee;
+    border-radius: 8px;
+    padding: 0 5px;
+    font-weight: bold;
+}
+.cost-label--mythic {
+    border-color: #ec2323;
+    background-color: #fec4c4;
+}
+.cost-label--legendary {
+    border-color: #beb508;
+    background-color: #fffa93;
+}
+.total-reward-info-block__text {
+    margin-top: 6px;
+}
+.starrdrop-checkbox-group__container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 580px){ .starrdrop-checkbox-group__container { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 840px){ .starrdrop-checkbox-group__container { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1100px){ .starrdrop-checkbox-group__container { grid-template-columns: repeat(5, 1fr); } }
+.starrdrop-checkbox-group__container .form-checkbox-label {
+    display: block;
+    font-size: 14px;
+    line-height: 1.3;
+}
+.starrdrop-form-input {
+    max-width: 70px;
+    padding: 0 8px;
+}
+.starrdrop-form-input-suffix {
+    margin-left: -3px;
+}
+.starrdrop-info-block__text {
+    display: block;
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+
+/* =============================================== */
+/* キャラクタールーレット                              */
+/* =============================================== */
+.random-brawler__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 30px;
+    padding: 30px 20px 20px;
+    background-color: var(--bg-f8f8f8, #f8f8f8);
+    border-radius: 28px;
+    border: 1px solid var(--color-ddd, #ddd);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.dark .random-brawler__container {
+    background-color: #1a1a1a;
+    border-color: #333;
+}
+@media (max-width: 639px){
+    .random-brawler__container {
+        margin-top: 20px;
+    }
+}
+
+.random-brawler__field {
+    width: 160px;
+    height: 160px;
+    background-color: #e0e0e0;
+    border-radius: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+.dark .random-brawler__field {
+    background-color: #2a2a2a;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.random-brawler__icon {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    transition: opacity 0.2s ease;
+}
+
+.opacity-50 { opacity: 0.5; }
+.opacity-100 { opacity: 1; }
+
+.random-brawler__name-container {
+    height: 36px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.random-brawler__name {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--color-333, #333);
+}
+.dark .random-brawler__name {
+    color: #eee;
+}
+
+.random-brawler__actions {
+    margin-bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.random-brawler__actions .button {
+    width: 240px;
+    max-width: 100%;
+    font-size: 18px;
+    padding: 12px 20px;
+    border-radius: 16px;
+}
+
+.random-brawler__options {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px; /* オプション間の余白を追加 */
+}
+
+.random-brawler__option-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.random-brawler__option-label.cursor-not-allowed {
+    cursor: not-allowed;
+}
+
+.random-brawler__options .form-checkbox {
+    margin-right: 0;
+}
+
+@media (max-width: 539px) {
+    .skin-ranking-page-title--main {
+        font-size: 31px;
+    }
+}
+
+
+/* =============================================== */
+/* よくある質問 (FAQ)                                */
+/* =============================================== */
+.faq-category-contents {
+    margin-top: 5px;
+}
+
+.faq-item {
+    border: 1px solid var(--color-ddd, #ddd);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    background-color: var(--bg-f8f8f8, #f8f8f8);
+}
+.dark .faq-item {
+    background-color: #1a1a1a;
+    border-color: #333;
+}
+
+.faq-item__title {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.5;
+    gap: 8px;
+}
+.faq-item__title:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+.dark .faq-item__title:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.faq-item__title-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--color-444, #444);
+    width: 20px;
+    text-align: center;
+}
+.dark .faq-item__title-icon {
+    color: #aaa;
+}
+
+.faq-item__title-text {
+    flex: 1;
+}
+
+.faq-item__body {
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--color-ddd, #ddd);
+}
+.dark .faq-item__body {
+    border-top-color: #333;
+}
+
+.faq-item__body-content {
+    padding-top: 12px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--color-333, #333);
+}
+.dark .faq-item__body-content {
+    color: #eee;
+}
+
+.faq-item__fallback-notice {
+    padding: 8px 12px;
+    margin-top: 10px;
+    margin-bottom: 6px;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #856404;
+}
+.dark .faq-item__fallback-notice {
+    background-color: #3d3200;
+    border-color: #665400;
+    color: #ffd454;
+}
+
+@media (max-width: 539px) {
+    .faq-item__title {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    .faq-item__body {
+        padding: 0 12px 12px;
+    }
+    .faq-item__body-content {
+        font-size: 13px;
+    }
+}
+
+
+/* =============================================== */
+/* キャラクター図鑑 スキンセクション (7・8)            */
+/* =============================================== */
+
+/* --- セクション7: スキン使用率 グラフ --- */
+.skin-usage-chart-wrapper {
+    position: relative;
+    height: 280px;
+    max-width: 700px;
+    margin: 12px auto 0;
+}
+@media (max-width: 539px) {
+    .skin-usage-chart-wrapper {
+        height: 220px;
+    }
+}
+
+/* --- セクション8: スキン一覧 ソートボタン --- */
+.skin-list-sort-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+@media (min-width: 640px) {
+    .skin-list-sort-buttons {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* --- フィルタ行 --- */
+.skin-list-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--color-555);
+}
+.skin-list-filter-row select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: #fff;
+    color: var(--color-333);
+}
+.dark .skin-list-filter-row select {
+    border-color: #555;
+    background-color: #333;
+    color: #ddd;
+}
+
+/* --- スキンカード グリッド --- */
+.skin-card-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 480px) {
+    .skin-card-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 680px) {
+    .skin-card-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 880px) {
+    .skin-card-grid { grid-template-columns: repeat(5, 1fr); }
+}
+@media (min-width: 1080px) {
+    .skin-card-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+.icon-card-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+@media (min-width: 480px) { .icon-card-grid { grid-template-columns: repeat(5, 1fr); } }
+@media (min-width: 580px) { .icon-card-grid { grid-template-columns: repeat(6, 1fr); } }
+@media (min-width: 680px) { .icon-card-grid { grid-template-columns: repeat(7, 1fr); } }
+@media (min-width: 780px) { .icon-card-grid { grid-template-columns: repeat(8, 1fr); } }
+@media (min-width: 980px) { .icon-card-grid { grid-template-columns: repeat(9, 1fr); } }
+@media (min-width: 1180px) { .icon-card-grid { grid-template-columns: repeat(10, 1fr); } }
+
+/* --- スキンカード本体 --- */
+.skin-card {
+    background-color: #fff;
+    border: 1px solid var(--color-eee, #eee);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.dark .skin-card {
+    background-color: #1a1a1a;
+    border-color: #333;
+}
+
+/* スキン画像ラッパー */
+.skin-card__img-wrapper {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.dark .skin-card__img-wrapper {
+    background-color: #242424;
+}
+.skin-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    padding: 5px;
+}
+
+.pin-card__img {
+    width: auto;
+    max-width: calc(100% - 10px);
+    height: calc(100% - 10px);
+    padding: 0;
+}
+
+/* レアリティ+スキン名行 */
+.skin-card__info-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 7px 2px;
+    min-width: 0;
+}
+.skin-card__rarity-icon {
+    height: 14px;
+    width: auto;
+    flex-shrink: 0;
+}
+.skin-card__name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-333, #333);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+.dark .skin-card__name {
+    color: #ddd;
+}
+
+/* [限定]ラベル+説明文行 */
+.skin-card__label-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 1px 7px;
+    min-width: 0;
+    flex: 1;
+}
+.skin-card__limited-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #e03030;
+    border-radius: 4px;
+    padding: 0 4px;
+    line-height: 1.4;
+    margin-top: 1px;
+}
+.skin-card__description {
+    font-size: 11px;
+    color: var(--color-555, #555);
+    line-height: 1.4;
+    word-break: break-word;
+    min-width: 0;
+}
+.dark .skin-card__description {
+    color: #aaa;
+}
+
+/* 使用率行 */
+.skin-card__rate-row {
+    padding: 3px 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-444, #444);
+    line-height: 1.3;
+}
+.icon-card__rate-row {
+    margin-top: 3px;
+}
+.dark .skin-card__rate-row {
+    color: #bbb;
+}
+
+
+/* =============================================== */
+/* スキン使用率ランキング ランクバッジ                  */
+/* =============================================== */
+.skin-card__rank-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: rgba(255, 255, 255, 0.82);
+    color: #222;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 2px 8px;
+    line-height: 1.4;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    pointer-events: none;
+    z-index: 1;
+}
+.dark .skin-card__rank-badge {
+    background-color: rgba(30, 30, 30, 0.80);
+    color: #eee;
+}
+
+.icon-card__rank-badge {
+    top: 3px;
+    left: 3px;
+    font-size: 12px;
+    padding: 1px 6px;
+}
+
+/* 画像ラッパーを relative にするためのクラス */
+.skin-card__img-wrapper--ranked {
+    position: relative;
+}
+
+@keyframes skin-rank-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 539px) {
+    .random-brawler-page-title--main {
+        font-size: 31px;
+    }
+}
+
+/* =============================================== */
+/* キャッチフレーズ使用率ランキング                  */
+/* =============================================== */
+.title-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-top: 15px;
+}
+@media (min-width: 780px) {
+    .title-card-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.title-card {
+    display: flex;
+    align-items: center;
+    padding: 4px 5px;
+    background-color: var(--bg-f8f8f8, #f8f8f8);
+    border: 1px solid var(--color-ddd, #ddd);
+    border-radius: 12px;
+    position: relative;
+}
+.dark .title-card {
+    background-color: #1c1c1c;
+    border-color: #333;
+}
+
+.title-card__rank-badge {
+    background-color: #eee;
+    color: #333;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 3px 9px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+.dark .title-card__rank-badge {
+    background-color: #333;
+    color: #eee;
+}
+
+.title-card__icon {
+    width: auto;
+    height: 24px;
+    object-fit: contain;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.title-card__text-box {
+    flex: 1;
+    margin-right: 12px;
+    padding: 2px 5px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    color: #111;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.title-card__rate {
+    margin-right: 2px;
+    font-weight: bold;
+    font-size: 15px;
+    color: var(--color-333, #333);
+    flex-shrink: 0;
+}
+.dark .title-card__rate {
+    color: #eee;
+}
+
+/* レア度別カラースタイル */
+.title-rarity-0 {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    color: #111;
+}
+.dark .title-rarity-0 {
+    background-color: #2a2a2a;
+    border-color: #444;
+    color: #eee;
+}
+
+.title-rarity-10 {
+    background: linear-gradient(135deg, #FFDF73, #D4AF37);
+    color: #5b4300;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.5);
+    border: 1px solid #C59B27;
+}
+.dark .title-rarity-10 {
+    background: linear-gradient(135deg, #B8860B, #8B6508);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    border: 1px solid #6b4d05;
+}
+
+.title-rarity-20 {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #a1c4fd 100%);
+    color: #111;
+    border: 1px solid #d4a5d4;
+}
+.dark .title-rarity-20 {
+    background: linear-gradient(135deg, #9932CC 0%, #4169E1 50%, #00CED1 100%);
+    color: #fff;
+    border: 1px solid #6b238e;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.title-rarity-30 {
+    background: linear-gradient(135deg, #001060 0%, #0040c0 100%);
+    color: #fff;
+    border: 1px solid #0033aa;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.dark .title-rarity-30 {
+    background: linear-gradient(135deg, #000830 0%, #002080 100%);
+    color: #fff;
+    border: 1px solid #001a66;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+/* =============================================== */
+/* バトルカード背景使用率ランキング                  */
+/* =============================================== */
+.frame-card-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    margin-top: 15px;
+}
+@media (min-width: 480px) {
+    .frame-card-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 680px) {
+    .frame-card-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 880px) {
+    .frame-card-grid { grid-template-columns: repeat(5, 1fr); }
+}
+@media (min-width: 1080px) {
+    .frame-card-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+.frame-card {
+    background-color: #fff;
+    border: 1px solid var(--color-eee, #eee);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.dark .frame-card {
+    background-color: #1a1a1a;
+    border-color: #333;
+}
+
+.frame-card__img-wrapper {
+    width: 100%;
+    position: relative;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.dark .frame-card__img-wrapper {
+    background-color: #242424;
+}
+
+.frame-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    padding: 0 5px 5px;
+    -webkit-touch-callout: none; /* iOSでの長押しメニュー無効化 */
+    -webkit-user-select: none;   /* Safariでの選択無効化 */
+    user-select: none;
+    pointer-events: none;        /* イベントを透過させ、右クリックや長押しを防止 */
+}
+
+.frame-card__rank-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: rgba(255, 255, 255, 0.82);
+    color: #222;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 2px 8px;
+    line-height: 1.4;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    pointer-events: none;
+    z-index: 2;
+}
+.dark .frame-card__rank-badge {
+    background-color: rgba(30, 30, 30, 0.80);
+    color: #eee;
+}
+
+.frame-card__battle-card-icon {
+    position: absolute;
+    top: 0;
+    left: 54%;
+    transform: translateX(-50%);
+    height: 30px;
+    width: auto;
+    pointer-events: none;
+    z-index: 1;
+    -webkit-touch-callout: none; /* iOSでの長押しメニュー無効化 */
+    -webkit-user-select: none;   /* Safariでの選択無効化 */
+    user-select: none;
+}
+.frame-card__battle-card-icon--Ranked2024 {
+    top: 0;
+    width: 70%;
+    height: auto;
+}
+.frame-card__battle-card-icon--85000000 { top: 0; }
+.frame-card__battle-card-icon--85000001 { top: 0; }
+.frame-card__battle-card-icon--85000002 { top: 0; }
+.frame-card__battle-card-icon--85000003 { top: -1.5%; }
+.frame-card__battle-card-icon--85000004 { top: 0; }
+.frame-card__battle-card-icon--85000005 { top: 2.5%; }
+.frame-card__battle-card-icon--85000006 { top: 0; }
+.frame-card__battle-card-icon--Ranked2025 {
+    top: 0;
+    width: 80%;
+    height: auto;
+}
+.frame-card__battle-card-icon--85000014 { top: 0; }
+.frame-card__battle-card-icon--85000015 { top: 0; }
+.frame-card__battle-card-icon--85000016 { top: 0; }
+.frame-card__battle-card-icon--85000017 { top: 0; }
+.frame-card__battle-card-icon--85000018 { top: -6.5%; }
+.frame-card__battle-card-icon--85000019 { top: 0; }
+.frame-card__battle-card-icon--85000020 { top: -3.5%; }
+.frame-card__battle-card-icon--85000021 { top: 0; }
+.frame-card__battle-card-icon--Fame {
+    height: 32px;
+    top: 2.5%;
+}
+.frame-card__battle-card-icon--85000011 { height: 35px; top: 0%; }
+.frame-card__battle-card-icon--85000012 { height: 42px; top: -3%; }
+.frame-card__battle-card-icon--85000013 { height: 35px; top: 1.5%; }
+.frame-card__battle-card-icon--85000034 { height: 51px; top: -5%; }
+.frame-card__battle-card-icon--Records {
+    top: 2.5%;
+}
+.frame-card__battle-card-icon--Prestige {
+    height: 90px;
+}
+.frame-card__battle-card-icon--85000035 { top: -14%; }
+.frame-card__battle-card-icon--85000036 { top: -22%; height: 105px; }
+.frame-card__battle-card-icon--85000037 { top: -15%; height: 96px; }
+.frame-card__battle-card-icon--85000038 { left: 23%; transform: scale(2.3); transform-origin: center; }
+.frame-card__battle-card-icon--85000039 { left: 23%; transform: scale(2.3); transform-origin: center; }
+
+.frame-card__info-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 7px 0;
+    min-width: 0;
+}
+
+.frame-card__name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-333, #333);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+.dark .frame-card__name {
+    color: #ddd;
+}
+
+.frame-card__rate-row {
+    padding: 0 7px 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-444, #444);
+}
+.dark .frame-card__rate-row {
+    color: #bbb;
+}
+
+/* ============================================================
+   ブロスタ動画ページ
+   ============================================================ */
+
+.brawl-videos__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 12px 0 20px;
+}
+@media (min-width: 740px) {
+    .brawl-videos__grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (min-width: 1080px) {
+    .brawl-videos__grid {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+
+.brawl-video-card {
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--color-card-bg, #fff);
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    transition: box-shadow .2s;
+    border: 1px solid #111;
+}
+.dark .brawl-video-card {
+    background: #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    border-color: #ccc;
+}
+.brawl-video-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.14);
+}
+
+/* スポンサー行（バッジ + 名前のflexbox） */
+.brawl-video-card__sponsor-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 0;
+}
+
+/* スポンサーバッジ */
+.brawl-video-card__sponsor-badge {
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: #f5a623;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .03em;
+}
+
+/* スポンサー名 */
+.brawl-video-card__sponsor-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-555, #555);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dark .brawl-video-card__sponsor-name {
+    color: #aaa;
+}
+
+/* サムネイルラッパー */
+.brawl-video-card__thumbnail-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    cursor: pointer;
+    overflow: hidden;
+    background: #000;
+}
+
+.brawl-video-card__thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity .2s;
+}
+.brawl-video-card__thumbnail-wrap:hover .brawl-video-card__thumbnail {
+    opacity: .85;
+}
+
+/* 再生ボタンオーバーレイ */
+.brawl-video-card__play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.65);
+    color: #fff;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition: background .2s, transform .2s;
+}
+.brawl-video-card__thumbnail-wrap:hover .brawl-video-card__play-btn {
+    background: rgba(255,0,0,.8);
+    transform: translate(-50%, -50%) scale(1.08);
+}
+
+/* iframeに差し替えた後のサイズ維持 */
+.brawl-video-card__thumbnail-wrap iframe,
+.brawl-video-card iframe {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: none;
+    display: block;
+}
+
+/* 動画タイトル */
+.brawl-video-card__title {
+    margin: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-333, #333);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.dark .brawl-video-card__title {
+    color: #ddd;
+}

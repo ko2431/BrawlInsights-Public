@@ -1,0 +1,79 @@
+{# /app/templates/recruitment_board/team.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}チーム募集掲示板{% else %}Team Recruitment Board{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのチーム募集掲示板です。{% else %}Brawl Stars team recruitment board.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/boards.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="board-page__container">
+    <h1 class="page-title--main board-page-title--main">{% if lang == "ja" %}チーム募集掲示板{% else %}Team Recruitment Board{% endif %}</h1>
+
+    {# 掲示板種類選択タブ #}
+    <nav class="tab-nav board-tab-nav">
+        <ul class="tab-nav__list">
+            <li class="tab-nav__item">
+                <a href="#" class="tab-nav__link tab-nav__link--active">{% if lang == "ja" %}チーム募集{% else %}Team{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('friend_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}フレンド募集{% else %}Friend{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('club_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}クラブ募集{% else %}Club{% endif %}</a>
+            </li>
+        </ul>
+    </nav>
+
+    {# チーム募集種類絞り込みUI (サブタブ) #}
+    <div class="board-filters__container">
+        {# サブタブ (区分選択) #}
+        <nav class="sub-tab-nav">
+            <ul class="sub-tab-nav__list">
+                <li class="sub-tab-nav__item">
+                    <a href="#" class="sub-tab-nav__link sub-tab-nav__link--active">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="" class="sub-tab-nav__icon sub-tab-nav__icon-big">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}すべて{% else %}All{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}トロフィー{% else %}Trophy{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/friendly.png') }}" alt="" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}フレンドバトル{% else %}Friendly{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}" alt="" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}特別イベント{% else %}Event{% endif %}</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    {# 仮のテキスト #}
+    <p style="margin-top: 20px; font-size: 15px;">{% if lang == "ja" %}このタブでは、フレンド募集掲示板/クラブ募集掲示板と同様の仕組みの、<b>条件指定機能</b>と<b>チャット機能</b>を備えた<b>チーム募集掲示板</b>が利用できるようになる予定です。<br>ガチバトルや高トロフィー帯を回す人を条件付きで募集したり、チャットミュートの人ともやりとりしたりできる、<b>画期的</b>な募集ツールとなる予定です。<br>チーム募集掲示板を成り立たせるにはある程度の人口が必要なため、フレンド募集掲示板/クラブ募集掲示板の利用状況を見て、成り立ちそうであれば実装を進めます。ぜひフレンド募集掲示板/クラブ募集掲示板の利用をお願いします！また、X・YouTube・TikTokなどのSNSでこのサイトを広めてくれると嬉しいです！{% else %}Team recruitment board will be available on this tab. Please wait until development is completed!{% endif %}</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+
+    </script>
+{% endblock %}

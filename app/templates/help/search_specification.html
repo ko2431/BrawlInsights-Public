@@ -1,0 +1,87 @@
+{# /app/templates/help/search_specification.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ヘルプ / 検索機能の仕様について{% else %}Help / About Search Function Specifications{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}検索機能の詳しい仕様について解説しています。{% else %}Detailed explanation of the search function specifications.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/help.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="help-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main help-page-title--main">{% if lang == "ja" %}ヘルプ / 検索機能の仕様について{% else %}Help / About Search Function Specifications{% endif %}</h1>
+
+    <h2 class="help-page__section-title">{% if lang == "ja" %}高度な検索{% else %}Advanced Search{% endif %}</h2>
+    <div class="help-page__text">
+        {% if lang == "ja" %}
+            プレイヤー検索とクラブ検索では、「_」と「%」を使うことで、より高度な検索を行うことができます。
+            <div class="line-space"></div>
+            「_」は任意の1文字以上、「%」は任意の0文字以上にマッチします。
+            <div class="line-space"></div>
+            たとえば、「Brawl%Stars」は、「Brawl Stars」にも「brawlstars」にもマッチします。「Brawl_Stars」は「brawlstars」にはマッチしません。
+            <div class="line-space"></div>
+            なお、<b>完全一致する名前のみ検索</b>をオンにしていると、「_」と「%」は実際の「_」および「%」として解釈されます。
+        {% else %}
+            In player and club searches, you can use "_" and "%" to perform more advanced searches.
+            <div class="line-space"></div>
+            "_" matches one or more arbitrary characters, while "%" matches zero or more arbitrary characters.
+            <div class="line-space"></div>
+            For example, "Brawl%Stars" will match both "Brawl Stars" and "brawlstars". However, "Brawl_Stars" will not match "brawlstars".
+            <div class="line-space"></div>
+            Note: if <b>search only exact name matches</b> is enabled, "_" and "%" will be interpreted as literal "_" and "%" characters.
+        {% endif %}
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">{% if lang == "ja" %}その他の仕様{% else %}Other Specifications{% endif %}</h2>
+    <div class="help-page__text">
+        {% if lang == "ja" %}
+            ・検索結果の画面で、「？」のプレイヤーアイコン、または初期クラブアイコンが表示されていたり、トロフィーの値が「不明」となっていたりすることがあります。これは負荷軽減のための措置です。プレイヤーの閲覧後は正しいアイコンとトロフィーの値が反映されます。
+            <div class="line-space"></div>
+            ・<b>改名前の名前を含めて検索</b>で検索対象となる改名前の名前は、各プレイヤープロフィールページで閲覧できる改名履歴の範囲と同じです。
+        {% else %}
+            ・In the search results screen, you may see a "?" player icon, an initial/default club icon, or a trophy count listed as "Unknown". This is an intentional measure to reduce server load. After viewing the player’s details, the correct icons and trophy count will be updated.
+            <div class="line-space"></div>
+            ・The names included when <b>include previous names</b> is enabled are limited to those shown in the name history on each player's profile page.
+        {% endif %}
+    </div>
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

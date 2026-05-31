@@ -1,0 +1,535 @@
+/* /app/static/css/pages/pick_tool.css */
+
+/* ^ --------------- ^ */
+/* ^ ピック提案ツール用 ^ */
+/* ^ --------------- ^ */
+.pick-tool-page__container {
+    display: flex;
+    flex-direction: column;
+    /* 画面全体の高さを基準にする */
+    height: calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); /* PCのグローバルヘッダー高さを引く */
+    width: 90%;
+    max-width: 1194px;
+    margin: 0 auto; /* グローバルヘッダー分のマージンを上にとる */
+    /* ダブルタップズームを抑制 */
+    touch-action: manipulation;
+}
+@media (max-width: 839px) {
+    .pick-tool-page__container {
+        /* モバイルヘッダーの高さを引く */
+        height: calc(100dvh - 85px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        width: 100%;
+        margin-top: 0; /* ヘッダー分のマージン */
+        border: none;
+    }
+}
+@media (max-width: 539px) {
+    .pick-tool-page__container {
+        /* スマホヘッダーの高さを引く */
+        height: calc(100dvh - 73px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        margin-top: 0; /* ヘッダー分のマージン */
+    }
+}
+
+/* * 共通コンポーネントのフッターはチャット画面では非表示 * */
+.footer {
+    display: none;
+}
+
+.pick-tool-header__container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%; /* 親要素に追従させる */
+    padding: 10px;
+    border-bottom: 1px solid #e0e0e0;
+    z-index: 10;
+    flex-shrink: 0; /* ヘッダーが縮まないようにする */
+}
+@media (max-width: 839px) {
+    .pick-tool-header__container {
+        top: 0;
+    }
+}
+/* * ボタンのスタイル * */
+.pick-tool-menu-buttons {
+    display: flex;
+    justify-content: space-between;
+}
+.pick-tool-button {
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 0 5px;
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+    background-color: #fefefe;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    font-weight: bold;
+}
+.pick-tool-button.disabled {
+    cursor: not-allowed;
+}
+.pick-tool-back-button {
+    border-color: #207ae2;
+    background-color: #4fa1ff;
+    color: #fff;
+}
+.pick-tool-back-button:hover {
+    border-color: #156ed4;
+    background-color: #4194f2;
+}
+.pick-tool-back-button.disabled {
+    border-color: rgba(32, 123, 226, 0.15);
+    background-color: rgba(79, 161, 255, 0.3);
+}
+.pick-tool-back-button.disabled:hover {
+    border-color: rgba(32, 123, 226, 0.15);
+    background-color: rgba(79, 161, 255, 0.3);
+}
+.pick-tool-switch-button {
+    border-color: #c220e2;
+    background-color: #df4fff;
+    color: #fff;
+}
+.pick-tool-switch-button:hover {
+    border-color: #b715d4;
+    background-color: #d541f2;
+}
+.pick-tool-switch-button.disabled {
+    border-color: rgba(194, 32, 226, 0.15);
+    background-color: rgba(223, 79, 255, 0.3);
+}
+.pick-tool-switch-button.disabled:hover {
+    border-color: rgba(194, 32, 226, 0.15);
+    background-color: rgba(223, 79, 255, 0.3);
+}
+.pick-tool-reset-button {
+    border-color: #e22020;
+    background-color: #ff4f4f;
+    color: #fff;
+}
+.pick-tool-reset-button:hover {
+    border-color: #d41515;
+    background-color: #f24141;
+}
+.pick-tool-reset-button.disabled {
+    border-color: rgba(226, 32, 32, 0.15);
+    background-color: rgba(225, 79, 79, 0.3);
+}
+.pick-tool-reset-button.disabled:hover {
+    border-color: rgba(226, 32, 32, 0.15);
+    background-color: rgba(225, 79, 79, 0.3);
+}
+
+.pick-tool-filters__container {
+    flex-direction: row;
+    justify-content: center;
+    margin: 0;
+}
+.pick-tool-filter-form {
+    flex: 1;
+}
+.pick-tool-filter-form__select {
+    width: 100%;
+}
+@media (max-width: 539px) {
+    .pick-tool-filters__container {
+        width: 100%;
+        margin: 0;
+    }
+}
+
+.pick-tool-team-info__container {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+}
+.pick-tool-team-info {
+    flex: 1;
+    border: 1px solid #ccc;
+    background-color: #fefefe;
+    border-radius: 14px;
+    max-width: 270px;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.pick-tool-team-info--blue {
+    border-color: #58a5fe;
+    background-color: #97c8ff;
+}
+.pick-tool-team-info--red {
+    border-color: #f94949;
+    background-color: #fda0a0;
+}
+.pick-tool-team-info__vs-icon {
+    width: auto;
+    height: 30px;
+}
+@media (max-width: 539px) {
+    .pick-tool-team-info__vs-icon {
+        height: 24px;
+    }
+}
+.pick-tool-team-info__bans__container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+.pick-tool-team-info__bans__index {
+    border: 1.5px solid #f94949;
+    background-color: #ffe7e7;
+    color: #000;
+    border-radius: 7px;
+    padding: 0 3px;
+    font-weight: bold;
+    font-size: 14px;
+}
+.pick-tool-team-info__bans {
+    display: flex;
+    gap: 5px;
+}
+.pick-tool-team-info__ban-icon {
+    width: auto;
+    height: 24px;
+}
+.pick-tool-team-info__picks__container {
+    display: flex;
+    gap: 7px;
+    justify-content: center;
+}
+@media (max-width: 539px) {
+    .pick-tool-team-info__picks__container {
+        gap: 5px;
+    }
+}
+.pick-tool-team-info__picks__brawler-card {
+    flex: 1;
+    max-width: 70px;
+}
+.pick-tool-team-info__picks__brawler-card--blue {
+    border-color: #6fb0fa;
+}
+.pick-tool-team-info__picks__brawler-card--red {
+    border-color: #f97171;
+}
+.pick-tool-team-info__picks__brawler-card--gold {
+    border-color: #f9e071;
+}
+.pick-tool-team-info__picks__brawler-card:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+:root {
+    --brawler-grid-cols: 5;
+}
+@media ( min-width: 430px ) { :root { --brawler-grid-cols: 6; } }
+@media ( min-width: 510px ) { :root { --brawler-grid-cols: 7; } }
+@media ( min-width: 590px ) { :root { --brawler-grid-cols: 8; } }
+@media ( min-width: 670px ) { :root { --brawler-grid-cols: 9; } }
+@media ( min-width: 750px ) { :root { --brawler-grid-cols: 10; } }
+@media ( min-width: 830px ) { :root { --brawler-grid-cols: 11; } }
+@media ( min-width: 910px ) { :root { --brawler-grid-cols: 12; } }
+@media ( min-width: 990px ) { :root { --brawler-grid-cols: 13; } }
+@media ( min-width: 1070px ) { :root { --brawler-grid-cols: 14; } }
+@media ( min-width: 1150px ) { :root { --brawler-grid-cols: 15; } }
+@media ( min-width: 1230px ) { :root { --brawler-grid-cols: 16; } }
+@media ( min-width: 1310px ) { :root { --brawler-grid-cols: 17; } }
+@media ( min-width: 1390px ) { :root { --brawler-grid-cols: 18; } }
+
+.brawler-grid.is-single-result {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+}
+.is-single-result .brawler-card {
+    flex: 0 0 calc((100% - (var(--brawler-grid-cols) - 1) * 5px) / var(--brawler-grid-cols));
+}
+
+.pick-tool-team-info__win-rate__container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pick-tool-team-info__win-rate__index {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: bold;
+    padding: 0 3px;
+    font-size: 13px;
+    margin-right: 5px;
+}
+.pick-tool-team-info__win-rate__index--blue {
+    border-color: #428ee5;
+    background-color: #58a5fe;
+}
+.pick-tool-team-info__win-rate__index--red {
+    border-color: #d93838;
+    background-color: #f94949;
+}
+
+.pick-tool-enter-confirm-card {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    background-color: #f8f8f8;
+    border: 1.5px solid #207ae2;
+    border-radius: 12px;
+    margin-left: 1px;
+    padding: 0 10px 0 7.5px;
+    height: 100%; /* brawler-card と同じ高さになるように */
+    color: #207ae2;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.4;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    
+    /* 登場アニメーション (右からスライドイン + フェードイン) */
+    animation: confirm-card-in 0.3s ease forwards;
+}
+.dark .pick-tool-enter-confirm-card {
+    background-color: #1a1a1a;
+    border-color: #74b2fa;
+    color: #74b2fa;
+}
+.pick-tool-enter-confirm-card__arrow {
+    font-size: 20px;
+}
+.pick-tool-enter-confirm-card__text {
+    white-space: nowrap; /* テキストの改行を禁止します */
+    
+}
+
+/* 退場アニメーション (その場でフェードアウト) */
+.pick-tool-enter-confirm-card[x-cloak] {
+    display: none !important;
+}
+.pick-tool-enter-confirm-card-out {
+    animation: confirm-card-out 0.25s ease forwards !important;
+}
+
+@keyframes confirm-card-in {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes confirm-card-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.pick-tool-team-info__win-rate__title {
+    font-size: 13px;
+    color: #333;
+    margin-right: 2px;
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+}
+.pick-tool-team-info__win-rate__value {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: -0.75px;
+    color: #000;
+}
+
+.pick-tool-guide__container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid var(--color-ccc);
+    background-color: var(--color-eee);
+    color: var(--color-000);
+    border-radius: 10px;
+    padding: 0 5px;
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+.pick-tool-guide__main-info {
+    font-weight: bold;
+}
+.pick-tool-guide__sub-info {
+    font-size: 13.5px;
+    margin-top: -2px;
+}
+.pick-tool-guide__container--blue {
+    border-color: #207ae2;
+    background-color: #4fa1ff;
+    color: #fff;
+}
+.pick-tool-guide__container--red {
+    border-color: #e22020;
+    background-color: #ff4f4f;
+    color: #fff;
+}
+
+.pick-tool-brawlers__container {
+    flex-grow: 1; /* 残りのスペースをすべて埋める */
+    overflow-y: auto; /* このエリアだけをスクロールさせる */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pick-tool-brawlers-menu__container {
+    display: grid;
+    gap: 5px;
+    grid-template-columns: repeat(1, 1fr);
+    margin-bottom: 5px;
+}
+@media ( min-width: 800px ) { .pick-tool-brawlers-menu__container{ grid-template-columns: repeat(2, 1fr); } }
+.pick-tool-brawlers-checkboxes__container {
+    margin-bottom: 5px;
+}
+.pick-tool-brawlers-checkbox__container {
+    display: flex;
+    align-items: center;
+}
+.pick-tool-brawlers-checkbox__container label {
+    color: var(--color-222);
+    font-size: 13px;
+}
+.pick-tool-brawlers-menu__row {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+.pick-tool-brawlers-menu__button {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    background-color: #eee;
+    text-align: center;
+    padding: 0 5px;
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+    font-weight: bold;
+    font-size: 14.5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.dark .pick-tool-brawlers-menu__button {
+    background-color: #222;
+    border-color: #333;
+    color: #eee;
+}
+.pick-tool-brawlers-menu__button:hover {
+    background-color: #e7e7e7;
+    border-color: #c0c0c0;
+}
+.dark .pick-tool-brawlers-menu__button:hover {
+    background-color: #262626;
+    border-color: #363636;
+    color: #eee;
+}
+.pick-tool-brawlers-menu__button.selected {
+    cursor: default;
+    background-color: #333;
+    border-color: #222;
+    color: #fff;
+}
+.dark .pick-tool-brawlers-menu__button.selected {
+    background-color: #fcfcfc;
+    border-color: #ccc;
+    color: #111;
+}
+.pick-tool-brawlers-menu__button.selected:hover {
+    background-color: #2e2e2e;
+    border-color: #1d1d1d;
+}
+.dark .pick-tool-brawlers-menu__button.selected:hover {
+    background-color: #f8f8f8;
+    border-color: #bbb;
+    color: #111;
+}
+.pick-tool-brawlers-menu__search-form {
+    flex: 2;
+}
+.pick-tool-brawlers-menu__input {
+    font-size: 14.5px;
+    padding: 0 5px;
+    height: 25.2px;
+}
+
+.pick-tool-brawlers-start-menu__container {
+    border: 1px solid var(--color-ccc);
+    background-color: var(--bg-f8f8f8);
+    border-radius: 14px;
+    padding: 10px;
+    text-align: center;
+}
+.pick-tool-brawlers-start-menu__title {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--color-000);
+}
+.pick-tool-brawlers-start-menu__text {
+    font-size: 14.5px;
+    color: var(--color-333);
+}
+
+/* レッドチームのBAN/ピック表示を右から左の順にする */
+.pick-tool-team-info__bans--red,
+.pick-tool-team-info__picks__container--red {
+    flex-direction: row-reverse;
+}
+.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.pick-tool-keyboard-shortcut {
+    font-size: 12px;
+}
+.pick-tool-keyboard-shortcut-description {
+    color: var(--color-333);
+    margin-top: -5px;
+    margin-bottom: 5px;
+    font-size: 12px;
+}
+.pick-tool-keyboard-shortcut-description-top {
+    margin-bottom: -5px;
+}
+.pick-tool-keyboard-shortcut-description__label {
+    margin-right: 10px;
+    border: 1px solid var(--color-111);
+    border-radius: 5px;
+    background-color: var(--color-333);
+    color: var(--color-fff);
+    padding: 0 3px;
+}
+
+@media (max-width: 839px) {
+    .pick-tool-keyboard-shortcut {
+        display: none;
+    }
+    .pick-tool-keyboard-shortcut-description {
+        display: none;
+    }
+}

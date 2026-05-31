@@ -1,0 +1,24 @@
+/* /app/static/css/pages/terms.css */
+
+.terms-page__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 15px auto 45px;
+}
+
+.terms-page__link {
+    text-decoration: underline;
+}
+
+.terms-page__section {
+    margin: 5px auto 20px;
+    color: var(--color-111);
+}
+
+.indent {
+    padding-left: 20px;
+}
+
+.indent-2 {
+    padding-left: 40px;
+}

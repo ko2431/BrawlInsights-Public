@@ -1,0 +1,27 @@
+{# /app/templates/player/fragments/battles_error.html #}
+{# バトル履歴データ取得エラー時のフラグメント #}
+{% if error_type == "not_found" %}
+<div class="player-page__container">
+    <div class="player-error-msg">
+        {% if lang == "ja" %}
+        <h2>プレイヤーが見つかりませんでした</h2>
+        <p>プレイヤータグ<b>{{ tag }}</b>に一致するプレイヤーは見つかりませんでした。<br>プレイヤータグをもう一度ご確認ください。</p>
+        {% else %}
+        <h2>Player Not Found</h2>
+        <p>No player matching tag <b>{{ tag }}</b> was found.<br>Please check the player tag again.</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="player-page__container">
+    <div class="player-error-msg">
+        {% if lang == "ja" %}
+        <h2>エラーが発生しました</h2>
+        <p>バトル履歴の取得中にエラーが発生しました。しばらく待ってから再試行してください。</p>
+        {% else %}
+        <h2>An Error Occurred</h2>
+        <p>An error occurred while fetching battle log. Please try again later.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

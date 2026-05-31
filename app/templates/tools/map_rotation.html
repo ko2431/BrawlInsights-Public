@@ -1,0 +1,498 @@
+{# /app/templates/tools/map_rotation.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 マップ周期{% else %}Map Rotation{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのマップ周期表です。各イベントスロットのマップ周期を画像でわかりやすくまとめています。{% else %}This page shows map rotation of Brawl Stars.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container" 
+     x-data="mapRotationApp()"
+     @keydown.right.window.prevent="activeSlot = (activeSlot + 1) % slots.length"
+     @keydown.left.window.prevent="activeSlot = (activeSlot - 1 + slots.length) % slots.length">
+    
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+    <h1 class="page-title--main">{% if lang == "ja" %}マップ周期{% else %}Map Rotation{% endif %}</h1>
+
+    <p class="tools-page__description">{% if lang == "ja" %}<span style="font-weight: bold; color: var(--c-red);"></span>2026年4月アップデート後のマップ周期です。常設の11スロットのマップ周期を表示しています。{% else %}<span style="font-weight: bold; color: var(--c-red);"></span>Here are the map rotation of Brawl Stars.{% endif %}</p>
+
+    {#^ スロット選択タブ #}
+    <div class="map-rotation-slot-tab__container">
+        <div class="map-rotation-slot-tab">
+            <template x-for="(slot, index) in slots" :key="index">
+                <div class="map-rotation-slot"
+                     :class="{ 'map-rotation-slot--active': activeSlot === index }"
+                     @click="activeSlot = index">
+                    
+                    <template x-if="slot.icons.length === 1">
+                        <img :src="slot.iconFullUrl || ('{{ url_for('static', path='/images/mode_icons/') }}' + slot.icons[0])" :alt="slot.name_ja" class="map-rotation-slot__icon">
+                    </template>
+                    <template x-if="slot.icons.length > 1">
+                        <div class="map-rotation-slot__icon--multi">
+                            <template x-for="icon in slot.icons">
+                                <img :src="'{{ url_for('static', path='/images/mode_icons/') }}' + icon" class="map-rotation-slot__icon--small">
+                            </template>
+                        </div>
+                    </template>
+
+                    <p class="map-rotation-slot__text" x-text="isJa ? slot.name_ja : slot.name_en"></p>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    {#^ 切り替え時間／周期日数 #}
+    <div class="map-rotation-slot-info__container">
+        <div class="map-rotation-slot-info__time">
+            <img src="{{ url_for('static', path='/images/ui/refresh.png') }}" alt="切り替え時間" class="map-rotation-slot-info__time__icon">
+            <p class="map-rotation-slot-info__time__text">
+                <span x-text="getRefreshTimeText()"></span><span style="font-size: smaller;" x-text="isJa ? '切替' : ' Reset'"></span>
+            </p>
+        </div>
+        <div class="map-rotation-slot-info__days">
+            <img src="{{ url_for('static', path='/images/ui/calendar.png') }}" alt="周期日数" class="map-rotation-slot-info__days__icon">
+            <p class="map-rotation-slot-info__days__text">
+                <span x-text="slots[activeSlot].rotationHours ? (slots[activeSlot].maps.length * slots[activeSlot].rotationHours / 24) : slots[activeSlot].maps.length"></span><span x-text="isJa ? '日' : 'd'"></span><span style="font-size: smaller;" x-text="isJa ? '周期' : ' Cycle'"></span>
+            </p>
+        </div>
+    </div>
+
+    {#^ 周期表 #}
+    <div class="map-rotation-table__container">
+        <table class="map-rotation-table">
+            <thead>
+                <tr>
+                    <th style="width: 33%;">{% if lang == "ja" %}日時{% else %}Date and Time (UTC){% endif %}</th>
+                    <th style="width: 15%;">{% if lang == "ja" %}モード{% else %}Mode{% endif %}</th>
+                    <th>{% if lang == "ja" %}マップ{% else %}Map{% endif %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="(row, index) in getRotationTable()" :key="index">
+                    <tr :class="getRowClass(index)">
+                        <td x-text="row.dateLabel"></td>
+                        
+                        <td>
+                            <img :src="'{{ url_for('static', path='/images/mode_icons/') }}' + row.map.mode + '.png'" 
+                                 :alt="row.map.mode" 
+                                 class="map-rotation-table__mode-icon">
+                        </td>
+                        
+                        <td>
+                            <a :href="getMapLink(row.map)" class="map-link" x-text="isJa ? row.map.name_ja : row.map.name_en"></a>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    {#^ フッターテキスト #}
+    <p class="info-block__text block" style="margin-top: 10px;">
+        {% if lang == "ja" %}
+            各マップ名をクリックすることで、マップ画像を見ることができます（一部新マップは閲覧できないことがあります）。
+            <br>ブロスタのアップデートやバグ等により、マップ周期は突然変更されることがあります。そのため、このマップ周期表は必ずその日にそのマップが出現することを保証するものではありません。
+            {% if platform == "web" %}<br>PCの場合、キーボードの←→キーを押すことでスロットの切り替えができます。{% endif %}
+        {% else %}
+            By clicking on each map name, you can view the map image. (Some new maps may not be available for viewing.)
+            <br>Due to Brawl Stars updates or bugs, the map rotation may change suddenly. This map rotation does not guarantee that a specific map will appear on that day.
+            {% if platform == "web" %}<br>On PC, you can switch slots using the left and right arrow keys on your keyboard.{% endif %}
+        {% endif %}
+    </p>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+var MAP_ROTATION_FRIENDS_ICON = "{{ url_for('static', path='/images/ui/friends_old.png') }}";
+function mapRotationApp() {
+    return {
+        isJa: '{{ lang }}' === 'ja',
+        lang: '{{ lang }}',
+        activeSlot: 0,
+        now: new Date(),
+
+        // 🗓️ここでスロットとマップ周期を定義する
+        slots: [
+            // Slot 1: バトルロイヤル
+            {
+                name_ja: 'バトロイ', name_en: 'Showdown',
+                icons: ['soloShowdown.png'],
+                baseDate: '2026-02-24T05:00:00+09:00',
+                maps: [
+                    { mode: 'soloShowdown', name_ja: 'よそ者お断り', name_en: 'Gated Community', id: '15001121' },
+                    { mode: 'soloShowdown', name_ja: '激動の洞窟', name_en: 'Cavern Churn', id: '15000953' },
+                    { mode: 'soloShowdown', name_ja: 'スターフルーツ超新星', name_en: 'Starfruit Supernova', id: '15001217' },
+                    { mode: 'soloShowdown', name_ja: '真実', name_en: 'Truth', id: '15001109' },
+                    { mode: 'soloShowdown', name_ja: '天国と地獄', name_en: 'Feast or Famine', id: '15000950' },
+                    { mode: 'soloShowdown', name_ja: '空飛ぶ絨毯', name_en: 'Flying Fantasies', id: '15000959' },
+                    { mode: 'soloShowdown', name_ja: 'リリーラグーン', name_en: 'Lilypond Grove', id: '15000990' },
+                    { mode: 'soloShowdown', name_ja: '安全センター', name_en: 'Safety Center', id: '15000968' },
+                    { mode: 'soloShowdown', name_ja: 'クロケット', name_en: 'Kroket', id: '15001119' },
+                    { mode: 'soloShowdown', name_ja: '岩壁の決戦', name_en: 'Rockwall Brawl', id: '15000947' },
+                    { mode: 'soloShowdown', name_ja: 'ガイコツ川', name_en: 'Skull Creek', id: '15000944' },
+                    { mode: 'soloShowdown', name_ja: '即席足場', name_en: 'Makeshift Scaffolding', id: '15001122' },
+                    { mode: 'soloShowdown', name_ja: 'マグマの心臓', name_en: 'Molten to the Core', id: '15001213' },
+                    { mode: 'soloShowdown', name_ja: '酸性湖', name_en: 'Acid Lakes', id: '15000032' },
+                ]
+            },
+            // Slot 2: ブロストライカー
+            {
+                name_ja: 'サッカー', name_en: 'Brawl Ball',
+                icons: ['brawlBall.png'],
+                baseDate: '2026-02-24T17:00:00+09:00',
+                maps: [
+                    { mode: 'brawlBall', name_ja: 'ビーチボール', name_en: 'Beach Ball', id: '15000143' },
+                    { mode: 'brawlBall', name_ja: 'ピンボールドリーム', name_en: 'Pinball Dreams', id: '15000118' },
+                    { mode: 'brawlBall', name_ja: '狭き門', name_en: 'Pinhole Punt', id: '15000026' },
+                    { mode: 'brawlBall', name_ja: 'サイドトラック', name_en: 'Sidetrack', id: '15001053' },
+                    { mode: 'brawlBall', name_ja: 'ナツメグ', name_en: 'Nutmeg', id: '15001168' },
+                    { mode: 'brawlBall', name_ja: 'クサムスビ平原', name_en: 'Grass Knot', id: '15001020' },
+                    { mode: 'brawlBall', name_ja: 'マッチ1123581321', name_en: 'Match 1123581321', id: '15001054' },
+                    { mode: 'brawlBall', name_ja: 'サニーサッカー', name_en: 'Sunny Soccer', id: '15000144' },
+                    { mode: 'brawlBall', name_ja: 'スーパービーチ', name_en: 'Super Beach', id: '15000051' },
+                    { mode: 'brawlBall', name_ja: 'ゴールキーパーズ', name_en: 'Goalies', id: '15001204' },
+                    { mode: 'brawlBall', name_ja: 'トリプル・ドリブル', name_en: 'Triple Dribble', id: '15000025' },
+                    { mode: 'brawlBall', name_ja: '静かな広場', name_en: 'Sneaky Fields', id: '15000050' },
+                    { mode: 'brawlBall', name_ja: '鉄壁の護り', name_en: 'Backyard Bowl', id: '15000024' },
+                    { mode: 'brawlBall', name_ja: 'スパイラルピッチ', name_en: 'Spiraling Out', id: '15001021' },
+                ]
+            },
+            // Slot 3: エメラルドハント
+            {
+                name_ja: 'エメハン', name_en: 'Gem Grab',
+                icons: ['gemGrab.png'],
+                baseDate: '2026-04-22T09:00:00+09:00',
+                maps: [
+                    { mode: 'gemGrab', name_ja: 'サボテンの罠', name_en: 'Deathcap Trap', id: '15000009' },
+                    { mode: 'gemGrab', name_ja: 'スネークピット', name_en: 'Snake Pit', id: '15001171' },
+                    { mode: 'gemGrab', name_ja: 'エメラルドの要塞', name_en: 'Gem Fort', id: '15000010' },
+                    { mode: 'gemGrab', name_ja: 'ごつごつ坑道', name_en: 'Hard Rock Mine', id: '15000007' },
+                    { mode: 'gemGrab', name_ja: '始まりの地', name_en: 'Ancestral Roots', id: '15001246' },
+                    { mode: 'gemGrab', name_ja: 'クリスタルアーケード', name_en: 'Crystal Arcade', id: '15000008' },
+                    { mode: 'gemGrab', name_ja: 'フォトスポット', name_en: 'Picturesque', id: '15001208' },
+                    { mode: 'gemGrab', name_ja: 'オープンスペース', name_en: 'Open Space', id: '15000499' },
+                    { mode: 'gemGrab', name_ja: 'サトミの泉', name_en: 'Satomi Springs', id: '15001209' },
+                    { mode: 'gemGrab', name_ja: 'アンダーマイン', name_en: 'Undermine', id: '15000011' },
+                    { mode: 'gemGrab', name_ja: '囁きのヴェール', name_en: 'Whisper Vale', id: '15001051' },
+                    { mode: 'gemGrab', name_ja: '連勝街道', name_en: 'On a Roll', id: '15001026' },
+                    { mode: 'gemGrab', name_ja: 'グルメタウン', name_en: 'Local Restaurants', id: '15000932' },
+                    { mode: 'gemGrab', name_ja: 'ダブルレール', name_en: 'Double Swoosh', id: '15000115' },
+                ]
+            },
+            // Slot 4: ノックアウト
+            {
+                name_ja: 'ノック', name_en: 'Knockout',
+                icons: ['knockout.png'],
+                baseDate: '2026-04-19T11:00:00+09:00',
+                maps: [
+                    { mode: 'knockout', name_ja: 'コナッコル', name_en: 'Konnakol', id: '15001173' },
+                    { mode: 'knockout', name_ja: 'ゴールドアームの渓谷', name_en: "Goldarm Gulch", id: '15000367' },
+                    { mode: 'knockout', name_ja: 'ベルの岩', name_en: "Belle's Rock", id: '15000368' },
+                    { mode: 'knockout', name_ja: '先読み街道', name_en: 'Think Ahead', id: '15001058' },
+                    { mode: 'knockout', name_ja: 'リスキーロード', name_en: 'Healthy Middle Ground', id: '15000581' },
+                    { mode: 'knockout', name_ja: 'オープニングムーブ', name_en: 'Opening Move', id: '15001210' },
+                    { mode: 'knockout', name_ja: 'オープンフィールド', name_en: 'Out in the Open', id: '15000548' },
+                    { mode: 'knockout', name_ja: '燃える不死鳥', name_en: 'Flaring Phoenix', id: '15000440' },
+                    { mode: 'knockout', name_ja: 'クラブクロー', name_en: 'Crab Claws', id: '15001211' },
+                    { mode: 'knockout', name_ja: '騎士道', name_en: 'Chivalry', id: '15001127' },
+                    { mode: 'knockout', name_ja: '名もなき道', name_en: 'Streets with No Name', id: '15001019' },
+                    { mode: 'knockout', name_ja: 'ダウン厳禁', name_en: 'Please Remain Standing', id: '15001247' },
+                    { mode: 'knockout', name_ja: '立体交差', name_en: 'Double Decker', id: '15001018' },
+                    { mode: 'knockout', name_ja: '新天地', name_en: 'New Perspective', id: '15000528' },
+                ]
+            },
+            // Slot 5: 強奪／ホッゾ
+            {
+                name_ja: '強奪／ホッゾ', name_en: 'Heist/HZ',
+                icons: ['heist.png', 'hotZone.png'],
+                baseDate: '2026-02-26T03:00:00+09:00',
+                maps: [
+                    { mode: 'heist', name_ja: '安全地帯', name_en: 'Safe Zone', id: '15000019' },
+                    { mode: 'hotZone', name_ja: '次元の狭間', name_en: 'In the Liminal', id: '15001023' },
+                    { mode: 'heist', name_ja: 'ホットポテト', name_en: 'Hot Potato', id: '15000053' },
+                    { mode: 'hotZone', name_ja: 'ヒヤシンスハウス', name_en: 'Hyacinth House', id: '15001203' },
+                    { mode: 'heist', name_ja: '那由多', name_en: 'Quintillion', id: '15001170' },
+                    { mode: 'hotZone', name_ja: 'オープンビジネス', name_en: 'Open Business', id: '15000292' },
+                    { mode: 'heist', name_ja: 'モリモリタイム！', name_en: 'Eating Good!', id: '15001245' },
+                    { mode: 'hotZone', name_ja: 'パラレルワールド', name_en: 'Parallel Plays', id: '15000293' },
+                    { mode: 'heist', name_ja: 'フォトンインフェルノ', name_en: 'Photic Doom', id: '15001099' },
+                    { mode: 'hotZone', name_ja: 'ゴールデンベイ', name_en: 'Golden Bay', id: '15001202' },
+                    { mode: 'heist', name_ja: 'チューニングフォーク', name_en: 'Tuning Fork', id: '15001206' },
+                    { mode: 'hotZone', name_ja: 'アブラカタブラ', name_en: 'Abracadabra', id: '15001022' },
+                ]
+            },
+            // Slot 6: ホッケー
+            {
+                name_ja: 'ホッケー', name_en: 'Hockey',
+                icons: ['brawlHockey.png'],
+                baseDate: '2026-04-25T19:00:00+09:00',
+                maps: [
+                    { mode: 'brawlHockey', name_ja: 'ハイパースペース', name_en: 'Hyperspace', id: '15001178' },
+                    { mode: 'brawlHockey', name_ja: 'つま先立ち', name_en: 'Tip Toe', id: '15001221' },
+                    { mode: 'brawlHockey', name_ja: 'キャビンフィーバー', name_en: 'Cabin Fever', id: '15001222' },
+                    { mode: 'brawlHockey', name_ja: 'スーパーセンター', name_en: 'Super Center', id: '15000850' },
+                    { mode: 'brawlHockey', name_ja: 'ツルツル大乱闘', name_en: 'Slippery Showdown', id: '15001248' },
+                    { mode: 'brawlHockey', name_ja: 'アラベスク', name_en: 'Arabesque', id: '15001249' },
+                ]
+            },
+            // Slot 7: 殲滅／バスケ
+            {
+                name_ja: '殲滅／バスケ', name_en: 'WO/Basket',
+                icons: ['wipeout.png', 'basketBrawl.png'],
+                baseDate: '2026-02-25T13:00:00+09:00',
+                maps: [
+                    { mode: 'wipeout', name_ja: '熱砂のお散歩', name_en: 'WALKING ON HOT SAND', id: '15001163' },
+                    { mode: 'basketBrawl', name_ja: 'ポケットパス', name_en: 'Pocket Pass', id: '15000386' },
+                    { mode: 'wipeout', name_ja: '消耗戦', name_en: 'Attrition', id: '15001244' },
+                    { mode: 'basketBrawl', name_ja: 'ターンオーバー', name_en: 'Turnover', id: '15000387' },
+                    { mode: 'wipeout', name_ja: '出会いと別れ', name_en: 'Hello Always Ends With a Goodbye', id: '15001200' },
+                    { mode: 'basketBrawl', name_ja: '独壇場', name_en: 'Ball Hog', id: '15000384' },
+                    { mode: 'wipeout', name_ja: 'パレット広場', name_en: 'Palette Hangout', id: '15001201' },
+                    { mode: 'basketBrawl', name_ja: 'トリプルダブル', name_en: 'Triple-Double', id: '15000390' },
+                ]
+            },
+            // Slot 8: 5v5
+            {
+                name_ja: '5対5', name_en: '5v5',
+                icons: ['5v5.png'],
+                baseDate: '2026-02-25T21:00:00+09:00',
+                maps: [
+                    { mode: 'brawlBall', name_ja: 'シベリアの決闘', name_en: 'Siberian Stand Off', id: '15000971' },
+                    { mode: 'wipeout', name_ja: 'ガクブル公園', name_en: 'Icy ice park', id: '15000646' },
+                    { mode: 'knockout', name_ja: '勝利を求めて三千里', name_en: 'Journey of a Thousand Steps', id: '15001102' },
+                    { mode: 'brawlBall', name_ja: 'ストレージスタジアム', name_en: 'Stockpile Stadium', id: '15000919' },
+                    { mode: 'wipeout', name_ja: 'フロスティトラック', name_en: 'Frosty tracks', id: '15000647' },
+                    { mode: 'knockout', name_ja: 'ピクセルマインド', name_en: 'Rastermind', id: '15001162' },
+                    { mode: 'brawlBall', name_ja: 'クレイジーストリーマー', name_en: 'Insane Streamer', id: '15001043' },
+                    { mode: 'wipeout', name_ja: 'ツルツルロード', name_en: 'Slippery road', id: '15000645' },
+                    { mode: 'knockout', name_ja: 'ビルドアップ', name_en: 'Crescendo', id: '15001101' },
+                ]
+            },
+            // Slot 9: デュエル／賞金
+            {
+                name_ja: 'デュエル／賞金', name_en: 'Duels/Bounty',
+                icons: ['duels.png', 'bounty.png'],
+                baseDate: '2026-02-24T01:00:00+09:00',
+                maps: [
+                    { mode: 'duels', name_ja: '見えざる大蛇', name_en: 'Shrouding Serpent', id: '15000461' },
+                    { mode: 'bounty', name_ja: '隠れ家', name_en: 'Hideout', id: '15000022' },
+                    { mode: 'duels', name_ja: 'ビックリ洞窟', name_en: 'Jumpscare Lair', id: '15001212' },
+                    { mode: 'bounty', name_ja: 'ウォーターメロン', name_en: 'Watermelons', id: '15001219' },
+                    { mode: 'duels', name_ja: '常勝街道', name_en: 'Warrior\'s Way', id: '15000463' },
+                    { mode: 'bounty', name_ja: 'ミルフィーユ', name_en: 'Layer Cake', id: '15000082' },
+                    { mode: 'duels', name_ja: 'パラライズハウス', name_en: 'Paralysis Pen', id: '15001174' },
+                    { mode: 'bounty', name_ja: '合唱の間', name_en: 'Choral Chambers', id: '15001176' },
+                    { mode: 'duels', name_ja: 'サーチ＆デストロイ', name_en: 'Search and Destroy', id: '15001061' },
+                    { mode: 'bounty', name_ja: '流れ星', name_en: 'Shooting Star', id: '15000005' },
+                    { mode: 'duels', name_ja: '不屈の精神', name_en: 'No Surrender', id: '15000460' },
+                    { mode: 'bounty', name_ja: 'ヒット&ラン', name_en: 'Hit and Run', id: '15001220' },
+                    { mode: 'duels', name_ja: 'グレート・マイティー・ルー', name_en: 'The Great Mighty Lou', id: '15001097' },
+                    { mode: 'bounty', name_ja: '乾燥地帯', name_en: 'Dry Season', id: '15000083' },
+                ]
+            },
+            // Slot 10: アリーナ
+            {
+                name_ja: 'アリーナ', name_en: 'Arena',
+                icons: ['brawlArena.png'],
+                baseDate: '2026-04-21T23:00:00+09:00',
+                maps: [
+                    { mode: 'brawlArena', name_ja: '幻影のアリーナ', name_en: 'Mirage Arena', id: '15000997' },
+                    { mode: 'brawlArena', name_ja: '怪獣の湖', name_en: 'Kaiju Lake', id: '15000993' },
+                    { mode: 'brawlArena', name_ja: '紅蓮の裂け目', name_en: 'Crimson Divide', id: '15001241' },
+                    { mode: 'brawlArena', name_ja: '銀の高地', name_en: 'Silver Highlands', id: '15001242' },
+                    { mode: 'brawlArena', name_ja: 'ノックアウトグラウンド', name_en: 'Knockout Grounds', id: '15001064' },
+                    { mode: 'brawlArena', name_ja: 'スマックドーム', name_en: 'The Smackdome', id: '15001065' },
+                    { mode: 'brawlArena', name_ja: '栄光のアリーナ', name_en: 'Arena of Glory', id: '15000996' },
+                ]
+            },
+            // Slot 11: フリープレイ（2時間毎・12マップで1日周期）
+            {
+                name_ja: 'フリープレイ', name_en: 'Free Play',
+                icons: ['friends_old.png'],
+                iconFullUrl: MAP_ROTATION_FRIENDS_ICON,
+                rotationHours: 2,
+                baseDate: '2026-03-04T01:00:00+09:00',
+                maps: [
+                    { mode: 'knockout', name_ja: '新天地', name_en: 'New Perspective', id: '15000528' },
+                    { mode: 'knockout', name_ja: 'リスキーロード', name_en: 'Healthy Middle Ground', id: '15000581' },
+                    { mode: 'knockout', name_ja: 'ビルドアップ', name_en: 'Crescendo', id: '15001101' },
+                    { mode: 'knockout', name_ja: '勝利を求めて三千里', name_en: 'Journey of a Thousand Steps', id: '15001102' },
+                    { mode: 'brawlHockey', name_ja: 'ボヨヨンボウル', name_en: 'Bouncy Bowl', id: '15000852' },
+                    { mode: 'brawlHockey', name_ja: '氷点下', name_en: 'Below Zero', id: '15000853' },
+                    { mode: 'hotZone', name_ja: 'オープンビジネス', name_en: 'Open Business', id: '15000292' },
+                    { mode: 'hotZone', name_ja: 'ビートルバトル', name_en: 'Dueling Beetles', id: '15000306' },
+                    { mode: 'soloShowdown', name_ja: '空飛ぶ絨毯', name_en: 'Flying Fantasies', id: '15000959' },
+                    { mode: 'soloShowdown', name_ja: '即席足場', name_en: 'Makeshift Scaffolding', id: '15001122' },
+                    { mode: 'brawlBall', name_ja: '鉄壁の護り', name_en: 'Backyard Bowl', id: '15000024' },
+                    { mode: 'brawlBall', name_ja: 'ビーチボール', name_en: 'Beach Ball', id: '15000143' },
+                ]
+            },
+        ],
+
+        // === Methods ===
+
+        // 切り替え時間テキストの取得 (17時 / 8AM、または2時間毎)
+        getRefreshTimeText() {
+            const slot = this.slots[this.activeSlot];
+            if (slot.rotationHours === 2) {
+                return this.isJa ? "2時間毎" : "Every 2h";
+            }
+            // 入力文字列 例えば"2026-01-01T17:00:00+09:00" から "17" を抽出
+            const jstHour = parseInt(slot.baseDate.substring(11, 13));
+            if (this.isJa) {
+                return jstHour + "時";
+            } else {
+                let utcHour = jstHour - 9;
+                if (utcHour < 0) utcHour += 24;
+                return utcHour + (utcHour < 12 ? "AM" : "PM");
+            }
+        },
+
+        // 周期表の生成
+        getRotationTable() {
+            const slot = this.slots[this.activeSlot];
+            if (!slot.maps || slot.maps.length === 0) return [];
+
+            const list = [];
+            const baseTime = new Date(slot.baseDate).getTime();
+            const nowTime = this.now.getTime();
+            const displayCount = slot.maps.length;
+
+            // 2時間周期（フリープレイ等）
+            if (slot.rotationHours === 2) {
+                const periodMs = 2 * 60 * 60 * 1000;
+                const periodsPassed = Math.floor((nowTime - baseTime) / periodMs);
+                for (let i = 0; i < displayCount; i++) {
+                    const mapIndex = (periodsPassed + i) % slot.maps.length;
+                    const periodStart = baseTime + (periodsPassed + i) * periodMs;
+                    const targetDate = new Date(periodStart);
+                    const dateLabel = i === 0
+                        ? (this.isJa ? "現在出現中" : "Active")
+                        : this.formatDate(targetDate, i);
+                    list.push({ dateLabel: dateLabel, map: slot.maps[mapIndex] });
+                }
+                return list;
+            }
+
+            // 24時間周期
+            const oneDay = 24 * 60 * 60 * 1000;
+            const diffTime = nowTime - baseTime;
+            const daysPassed = Math.floor(diffTime / oneDay);
+
+            for (let i = 0; i < displayCount; i++) {
+                const targetDayIndex = daysPassed + i;
+                const mapIndex = targetDayIndex % slot.maps.length;
+                const targetDate = new Date(baseTime + (targetDayIndex * oneDay));
+                let dateLabel = "";
+                if (i === 0) {
+                    dateLabel = this.isJa ? "現在出現中" : "Active";
+                } else {
+                    dateLabel = this.formatDate(targetDate, i);
+                }
+                list.push({
+                    dateLabel: dateLabel,
+                    map: slot.maps[mapIndex]
+                });
+            }
+            return list;
+        },
+
+        // 日付フォーマット
+        formatDate(dateObj, daysFromNow) {
+            // 注意: dateObj は JST 17:00 を指している Date オブジェクト
+            
+            // "今日" か "明日" かの判定について
+            // この判定を行うには、現在のローカル日付と dateObj の日付を比較します
+            const today = new Date();
+            const isSameDate = dateObj.getDate() === today.getDate() && dateObj.getMonth() === today.getMonth();
+            
+            // 明日の判定 (今日+1日)
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const isTomorrow = dateObj.getDate() === tomorrow.getDate() && dateObj.getMonth() === tomorrow.getMonth();
+
+            const timeStr = this.isJa ? 
+                            `${dateObj.getHours()}時〜` : 
+                            `${dateObj.getHours() < 12 ? dateObj.getHours() + 'AM-' : (dateObj.getHours() - 12 || 12) + 'PM-'}`; // 簡易的な英語時刻
+
+            if (isSameDate) {
+                return this.isJa ? `今日 ${timeStr}` : `Today ${timeStr}`;
+            } else if (isTomorrow) {
+                return this.isJa ? `明日 ${timeStr}` : `Tomorrow ${timeStr}`;
+            } else {
+                // 通常の日付フォーマット
+                const m = dateObj.getMonth() + 1;
+                const d = dateObj.getDate();
+                const day = dateObj.getDay();
+                const daysJa = ['日', '月', '火', '水', '木', '金', '土'];
+                const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                
+                if (this.isJa) {
+                    return `${m}/${d}(${daysJa[day]}) ${timeStr}`;
+                } else {
+                    return `${monthsEn[dateObj.getMonth()]} ${d} ${timeStr}`;
+                }
+            }
+        },
+
+        // 行のクラス決定 (背景色制御)
+        getRowClass(index) {
+            if (index === 0) return 'row-active';
+            // 2行目(index 1)は塗りなし
+            // 3行目(index 2)はグレー、4行目(index 3)はなし、5行目(index 4)はグレー...
+            // つまり、index >= 2 かつ indexが偶数のとき row-stripe
+            if (index >= 2 && index % 2 === 0) return 'row-stripe';
+            return '';
+        },
+
+        // リンク生成
+        getMapLink(map) {
+            const name = this.isJa ? map.name_ja : map.name_en;
+            // encodeURIComponentでURLエンコード
+            return `/{{ lang }}/tools/map/${map.id}?name=${encodeURIComponent(name)}&is_tools_tab=True`;
+        }
+    }
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

@@ -1,0 +1,174 @@
+{# /app/templates/tools/brawler_guide_menu.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 キャラクター図鑑{% else %}Brawler Stats Guide{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのキャラクターステータス/統計図鑑です。各キャラクターのスキン一覧や使用率、詳細ステータスやおすすめガジェット/スターパワー/ギア、おすすめモード/マップなどを閲覧でき、毎日膨大な勝敗データをもとに自動で更新されます。{% else %}This is the Brawler Stats Guide for Brawl Stars. You can view the skin catalog, skin usage rate, detailed stats, recommended gadgets/star powers/gears, recommended modes/maps, and more for each brawler, automatically updated daily based on millions of match records.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranked_stats.css') }}?v={{ app_version }}">
+    <style>
+        .brawler-guide-menu-search-form {
+            width: 100%;
+        }
+        .brawler-guide-menu-search-form .form-input {
+            font-size: 15px;
+        }
+        .brawler-grid--empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 180px;
+        }
+        .brawler-grid__no-results {
+            width: 100%;
+            text-align: center;
+            color: #888;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        .dark .brawler-grid__no-results {
+            color: #aaa;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    {# ^ 1. タイトル #}
+    <h1 class="page-title--main">{% if lang == "ja" %}キャラクター図鑑{% else %}Brawler Stats Guide{% endif %}</h1>
+
+    {# ^ 2. 並び替え #}
+    <div class="filters__container">
+        <form method="get" id="sortFilterForm" class="filter-form">
+            <label for="sortSelect" class="filter-form__label">{% if lang == "ja" %}並び替え:{% else %}Sort:{% endif %}</label>
+            <select name="sort" id="sortSelect" class="filter-form__select" onchange="document.getElementById('sortFilterForm').submit();">
+                <option value="id" {% if current_sort == 'id' %}selected{% endif %}>{% if lang == "ja" %}内部ID順{% else %}Internal ID{% endif %}</option>
+                <option value="name" {% if current_sort == 'name' %}selected{% endif %}>{% if lang == "ja" %}名前順{% else %}Name{% endif %}</option>
+                <option value="rarity_asc" {% if current_sort == 'rarity_asc' %}selected{% endif %}>{% if lang == "ja" %}レア度の低い順{% else %}Rarity (ASC){% endif %}</option>
+                <option value="rarity_desc" {% if current_sort == 'rarity_desc' %}selected{% endif %}>{% if lang == "ja" %}レア度の高い順{% else %}Rarity (DESC){% endif %}</option>
+            </select>
+             <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+        <form class="filter-form brawler-guide-menu-search-form" id="nameSearchForm" onsubmit="return false;">
+            <input type="text"
+                   class="form-input"
+                   id="nameSearchInput"
+                   placeholder="{% if lang == 'ja' %}キャラクター名で検索...{% else %}Search by brawler name...{% endif %}">
+        </form>
+    </div>
+
+    {# ^ 3. 説明文 #}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">{% if lang == "ja" %}各キャラクターをクリックすると、そのキャラクターの図鑑ページに移動します。図鑑ページでは、各キャラクターの<b>限定スキンを含むスキン一覧</b>や<b>スキンの使用率</b>、<b>詳細ステータス</b>や<b>おすすめガジェット／スターパワー／ギア</b>、<b>おすすめモード／マップ</b>など、さまざまな情報を閲覧できます。データは毎日自動で更新されます。{% else %}You can browse various information such as <b>skin catalog</b>, <b>skin usage rate</b>, <b>detailed stats</b>, <b>recommended gadgets/star powers/gears</b>, and <b>recommended modes/maps</b> for each brawler. The data is automatically updated daily. Click on a brawler to go to their guide page.{% endif %}</p>
+    </div>
+
+    {# ^ 4. キャラクターグリッド #}
+    <div class="brawler-grid" id="brawlerGrid">
+        {% for brawler in brawlers %}
+        <a class="brawler-card-link"
+           href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.id) }}"
+           data-name-en="{{ brawler.name_en }}"
+           data-names-ja='{{ (brawler.names_ja or []) | tojson }}'>
+            <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
+                {# ^ 4-1. アイコン #}
+                {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+                <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.id|string + '.png') }}"
+                    alt="キャラクターアイコン"
+                    class="brawler-card__brawler-portrait"
+                    onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
+                {# ^ 4-2. キャラクター名 #}
+                <div class="brawler-card__name">{{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}</div>
+            </div>
+        </a>
+        {% endfor %}
+        <div id="brawlerNoResults" class="brawler-grid__no-results" hidden>
+            {% if lang == "ja" %}該当するキャラクターは見つかりませんでした。{% else %}No matching brawlers were found.{% endif %}
+        </div>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+
+        const searchInput = document.getElementById('nameSearchInput');
+        const brawlerGrid = document.getElementById('brawlerGrid');
+        const brawlerCards = document.querySelectorAll('.brawler-card-link');
+        const noResults = document.getElementById('brawlerNoResults');
+
+        if (!searchInput || !brawlerGrid || !noResults || brawlerCards.length === 0) return;
+
+        // ひらがなとカタカナを同一視するため、検索時はひらがなをカタカナへ正規化する
+        const hiraToKana = (str) => str.replace(/[\u3041-\u3096]/g, (match) =>
+            String.fromCharCode(match.charCodeAt(0) + 0x60)
+        );
+
+        const normalizeText = (str) => hiraToKana((str || '').toLowerCase());
+
+        const applySearchFilter = () => {
+            const query = normalizeText(searchInput.value.trim());
+            let visibleCount = 0;
+
+            brawlerCards.forEach((card) => {
+                const nameEn = normalizeText(card.dataset.nameEn || '');
+
+                let namesJa = [];
+                try {
+                    namesJa = JSON.parse(card.dataset.namesJa || '[]');
+                } catch {
+                    namesJa = [];
+                }
+
+                const isMatchedEn = nameEn.includes(query);
+                const isMatchedJa = namesJa.some((name) => normalizeText(name).includes(query));
+                const isVisible = query === '' || isMatchedEn || isMatchedJa;
+
+                card.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount += 1;
+            });
+
+            const isEmptyResult = visibleCount === 0;
+            noResults.hidden = !isEmptyResult;
+            brawlerGrid.classList.toggle('brawler-grid--empty', isEmptyResult);
+        };
+
+        searchInput.addEventListener('input', applySearchFilter);
+    });
+    </script>
+{% endblock %}

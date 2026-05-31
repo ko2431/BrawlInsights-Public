@@ -1,0 +1,673 @@
+/* /app/static/css/pages/ranked_stats.css */
+
+/* ^ ------------------------------ ^ */
+/* ^ 基本的なキャラクターグリッドスタイル ^ */
+/* ^ ------------------------------ ^ */
+
+.tier-row {
+    display: flex;
+    align-items: stretch; /* ラベルとグリッドの高さを揃えます */
+    margin-bottom: 10px; /* 各Tier間の余白です */
+}
+
+.tier-rank-label {
+    /* < サイズと配置 > */
+    flex-shrink: 0; /* コンテンツが縮まないようにします */
+    width: 30px; /* ラベルの横幅を固定します */
+    margin-right: 5px; /* 右側のグリッドとの余白です */
+
+    /* < 中の文字のスタイル > */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(170, 170, 170, 0.8);
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+
+    /* < 装飾 > */
+    border-radius: 8px; /* 角を丸めます */
+}
+
+.tier-rank-label p {
+    margin: 0; /* tier-rank-label内のpタグに不要なマージンが入らないように調整します */
+}
+
+.brawler-grid {
+    display: grid;
+    gap: 5px; /* キャラクターカード間の隙間 */
+    grid-template-columns: repeat(5, 1fr); /* デフォルト: 5列 */
+}
+@media (max-width: 539px) {
+    .brawler-grid {
+        width: 105%;
+        margin: 0 -2.5%;
+    }
+    .brawler-tier-list {
+        width: 105%;
+        margin: 0 -2.5%;
+    }
+    .brawler-tier-list .brawler-grid { /* tier-list内のbrawler-gridにおいては、親であるtier-listの方を105%に伸ばすのでこちらは調整しない */
+        width: 100%;
+        margin: 0;
+    }
+}
+/* > 画面幅が大きくなるほど、列数を増やしていく */
+@media ( min-width: 430px ) { .brawler-grid{ grid-template-columns: repeat(6, 1fr); } }
+@media ( min-width: 510px ) { .brawler-grid{ grid-template-columns: repeat(7, 1fr); } }
+@media ( min-width: 590px ) { .brawler-grid{ grid-template-columns: repeat(8, 1fr); } }
+@media ( min-width: 670px ) { .brawler-grid{ grid-template-columns: repeat(9, 1fr); } }
+@media ( min-width: 750px ) { .brawler-grid{ grid-template-columns: repeat(10, 1fr); } }
+@media ( min-width: 830px ) { .brawler-grid{ grid-template-columns: repeat(11, 1fr); } }
+@media ( min-width: 910px ) { .brawler-grid{ grid-template-columns: repeat(12, 1fr); } }
+@media ( min-width: 990px ) { .brawler-grid{ grid-template-columns: repeat(13, 1fr); } }
+@media ( min-width: 1070px ) { .brawler-grid{ grid-template-columns: repeat(14, 1fr); } }
+@media ( min-width: 1150px ) { .brawler-grid{ grid-template-columns: repeat(15, 1fr); } }
+@media ( min-width: 1230px ) { .brawler-grid{ grid-template-columns: repeat(16, 1fr); } }
+@media ( min-width: 1310px ) { .brawler-grid{ grid-template-columns: repeat(17, 1fr); } }
+@media ( min-width: 1390px ) { .brawler-grid{ grid-template-columns: repeat(18, 1fr); } }
+
+.brawler-card {
+    position: relative; /* 子要素(.brawler-card__name)を絶対配置するための基準点にする */
+    border: 3px solid #ccc;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.brawler-card:hover {
+    transform: translate(-0.25px, -0.5px); /* ホバー時にカードを浮き上がらせる */
+    box-shadow: 0.75px 1.5px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* > レアリティごとの枠線色 */
+.brawler-card--rarity-1 { border-color: #6ed7dd; }
+.brawler-card--rarity-2 { border-color: #82d67f; }
+.brawler-card--rarity-3 { border-color: #7cb2fe; }
+.brawler-card--rarity-4 { border-color: #e084ff; }
+.brawler-card--rarity-5 { border-color: #fd8d8d; }
+.brawler-card--rarity-6 { border-color: #fff385; }
+.brawler-card--rarity-7 { border-color: #fece8b; }
+
+.brawler-card__name {
+    /* < 配置 > */
+    position: absolute; /* 親要素(.brawler-card)を基準に配置します */
+    bottom: 0;
+    left: 0;
+    width: 100%; /* 横幅を親要素いっぱいに広げます */
+    box-sizing: border-box; /* paddingを含めたサイズ計算にします */
+
+    /* < 文字スタイル > */
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+
+    /* < 背景（ふんわりと自然な表現） > */
+    /* 下から上へ、半透明の黒から透明になるグラデーションを適用します */
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 60%, transparent);
+    padding: 4px 2px 0 2px; /* 内側の余白を調整します (上を少し多めに) */
+    margin-bottom: -1px; /* 少し下にずらす */
+
+    /* < オーバーフロー処理 > */
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+
+    /* < 装飾 > */
+    /* カードの角丸に合わせて、名前表示部分の左下も少し丸めます */
+    border-bottom-left-radius: 8px;
+}
+
+.brawler-card__value,
+.brawler-card__score {
+    /* < 配置 > */
+    position: absolute; /* 親要素(.brawler-card)を基準に配置します */
+    top: 0;
+    right: 0;
+    width: 100%; /* 横幅を親要素いっぱいに広げます */
+    box-sizing: border-box; /* paddingを含めたサイズ計算にします */
+    text-align: right;
+
+    /* < 文字スタイル > */
+    color: white;
+    font-size: 12.5px;
+    font-weight: bold;
+
+    /* < 背景（ふんわりと自然な表現） > */
+    /* 下から上へ、半透明の黒から透明になるグラデーションを適用します */
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 60%, transparent);
+    padding: 0 2.5px 4px 2.5px; /* 内側の余白を調整します (下を少し多めに) */
+    margin-top: -1px; /* 少し上にずらす */
+
+    /* < オーバーフロー処理 > */
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+
+    /* < 装飾 > */
+    /* カードの角丸に合わせて、表示部分の右上も少し丸めます */
+    border-top-right-radius: 8px;
+}
+.brawler-card__score {
+    font-size: 12px;
+    padding: 0 3px 4px 3px;
+}
+
+.brawler-card__rank-grade {
+    /* < 配置 > */
+    position: absolute; /* 親要素(.brawler-card)を基準に配置します */
+    top: 2.25px;
+    left: 2.25px;
+    box-sizing: border-box; /* paddingを含めたサイズ計算にします */
+
+    /* < 文字スタイル > */
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+
+    /* < 背景 > */
+    background-color: rgba(170, 170, 170, 0.8);
+    padding: 0 2.5px 0 2.5px; /* 内側の余白を調整します */
+
+    /* < オーバーフロー処理 > */
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+
+    /* < 装飾 > */
+    border-radius: 3px;
+    border-top-left-radius: 7px;
+}
+.brawler-card__rank-grade p{
+    margin: -1.5px 0;
+}
+
+/* > 説明セクション */
+.about-section {
+    margin-top: 40px; /* 上のセクションとのマージン */
+}
+.about-section p {
+    font-size: 15px;
+    line-height: 1.7;
+    margin-bottom: 1em; /* 段落間のマージン */
+}
+.about-section p:last-child {
+    margin-bottom: 0;
+}
+@media (max-width: 539px) {
+    .about-section p {
+        font-size: 14px;
+    }
+}
+
+
+/* ^ --------------- ^ */
+/* ^ キャラクター図鑑用 ^ */
+/* ^ --------------- ^ */
+.brawler-header {
+    display: flex;
+    align-items: center;
+    margin-top: 20px;
+}
+.brawler-header__icon {
+    width: auto;
+    height: 90px;
+    flex-shrink: 0;
+}
+.brawler-header__identity {
+    margin-left: 15px;
+}
+.brawler-header__name {
+    font-size: 48px;
+    font-weight: bold;
+    line-height: 1.1;
+}
+.brawler-header__rarity {
+    font-size: 24px;
+    font-weight: bold;
+    color: #6c757d;
+}
+.brawler-header__rarity--1 { color: #4dc2c8; }
+.brawler-header__rarity--2 { color: #58cc54; }
+.brawler-header__rarity--3 { color: #6196e0; }
+.brawler-header__rarity--4 { color: #c75ceb; }
+.brawler-header__rarity--5 { color: #e15555; }
+.brawler-header__rarity--6 { color: #d2c448; }
+.brawler-header__rarity--7 { color: #dfad66; }
+
+@media (max-width: 539px) {
+    .brawler-header__icon { height: 60px; }
+    .brawler-header__identity { margin-left: 10px; }
+    .brawler-header__name { font-size: 36px; }
+    .brawler-header__rarity { font-size: 20px; }
+}
+
+/* > 目次 */
+.brawler-guide-toc {
+    margin-top: 20px;
+    padding: 12px 16px;
+    border: 1px solid #eee;
+    border-radius: 2px;
+    background-color: #fdfdfd;
+}
+.dark .brawler-guide-toc {
+    border-color: #444;
+    background-color: #2a2a2a;
+}
+.brawler-guide-toc__title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+.brawler-guide-toc__list {
+    margin: 0;
+    padding-left: 22px;
+    list-style-type: decimal;
+}
+.brawler-guide-toc__list li {
+    font-size: 15px;
+    line-height: 1.8;
+}
+.brawler-guide-toc__list a {
+    text-decoration: none;
+    color: #003366;
+}
+.dark .brawler-guide-toc__list a {
+    color: #8ab4f8;
+}
+.brawler-guide-toc__list a:hover {
+    text-decoration: underline;
+}
+
+.brawler-guide-section {
+    margin-top: 30px;
+}
+
+.mode-stats__title,
+.map-stats__title,
+.overall-stat__name {
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 15px;
+}
+.overall-stat__name {
+    margin-top: 0;
+}
+.mode-stats,
+.map-stats {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(1, 1fr);
+    margin-top: 10px;
+}
+@media ( min-width: 800px ) { .mode-stats, .map-stats{ grid-template-columns: repeat(2, 1fr); } }
+@media ( min-width: 1194px ) { .mode-stats, .map-stats{ grid-template-columns: repeat(3, 1fr); } }
+.mode-stat,
+.map-stat,
+.overall-stats {
+    display: flex;
+    align-items: center;
+}
+.mode-stat__name,
+.map-stat__name {
+    font-weight: bold;
+    /* < オーバーフロー処理 > */
+    white-space: nowrap; /* テキストの改行を禁止します */
+    overflow: hidden; /* はみ出した部分を隠します */
+    text-overflow: ellipsis; /* はみ出したテキストを「...」で表示します */
+}
+.mode-stat__rank,
+.map-stat__rank,
+.overall-stat__rank {
+    background-color: rgba(170, 170, 170, 0.8);
+    color: white;
+    border-radius: 8px;
+    margin: 0 4px;
+    padding: 0 4px;
+    font-weight: 500;
+    font-size: 15px;
+}
+.mode-stat__use-rate--index,
+.map-stat__use-rate--index,
+.overall-stat__use-rate--index {
+    color: #777;
+    font-size: 14px;
+    margin: 0.5px 2px 0 6px;
+}
+
+
+.brawler-status-tables {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 30px;
+}
+@media (min-width: 1194px) {
+    .brawler-status-tables {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+.icon--stat-big {
+    height: 24px;
+    margin-right: 3px;
+    margin-left: -3px;
+}
+.icon--stat-semi-big {
+    height: 20.5px;
+}
+@media (max-width: 539px) {
+    .icon--stat-big { height: 22.5px; }
+    .icon--stat-semi-big { height: 19px; }
+}
+.brawler-status-label {
+    background-color: rgba(170, 170, 170, 0.8);
+    color: white;
+    border-radius: 6px;
+    margin: 1px 5px 0 -2.5px;
+    padding: 0 4px;
+    font-weight: bold;
+    font-size: 13.5px;
+    white-space: nowrap;
+}
+
+.accessory-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 10px;
+}
+@media (min-width: 1194px) {
+    .accessory-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+.accessory-item {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    margin: 0;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1.5px solid #ccc;
+}
+.accessory-item__header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+}
+.accessory-image {
+    width: 32px;
+    height: 32px;
+    margin-right: 7px;
+    object-fit: contain;
+}
+.accessory-name {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+    line-height: 1.2;
+}
+.accessory-item__body {
+    margin-top: 5px;
+    width: 100%;
+}
+.accessory-description {
+    margin-top: 5px;
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.accessory-ownership-rate {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.accessory-ownership-rate__label {
+    background-color: #222;
+    color: #fff;
+    border-radius: 7px;
+    font-size: 14px;
+    margin-right: 5px;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+.accessory-ownership-rate__value {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0;
+}
+.accessory-ownership-rate__description {
+    color: #777;
+    font-size: 10.5px;
+    margin-left: 7px;
+    line-height: 1.2;
+}
+
+.gadget-item {
+    background: #d6ffe6;
+    border-color: #02b547;
+}
+.starpower-item {
+    background: #fffcd6;
+    border-color: #e6c200;
+}
+.buffie-item {
+    margin-bottom: 10px;
+    padding: 5px 10px;
+}
+.buffie-item__body {
+    margin-top: 0;
+}
+.buffie-item--gadget {
+    background: linear-gradient(135deg, #d6ffe6 0%, #ffffff 50%, #d6ffe6 100%);
+    border-color: #02b547;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+.buffie-item--starpower {
+    background: linear-gradient(135deg, #fffcd6 0%, #ffffff 50%, #fffcd6 100%);
+    border-color: #e6c200;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+.gadget-cooldown {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 5px;
+}
+.gadget-cooldown__label {
+    background-color: #222;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-right: 4px;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+.gadget-cooldown__value {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0;
+}
+.gadget-cooldown__gear-label {
+    font-size: 14px;
+    margin-right: 1px;
+}
+.gadget-cooldown__icon {
+    width: auto;
+    height: 18px;
+    margin: 0 3px 0 10px;
+}
+
+/* > Gear Grid */
+.gear-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 10px;
+}
+@media (min-width: 800px) {
+    .gear-grid {
+        grid-template-columns: repeat(2, 1fr); /* Tablet: 2 columns */
+        gap: 15px;
+    }
+}
+@media (min-width: 1194px) {
+    .gear-grid {
+        grid-template-columns: repeat(3, 1fr); /* PC: 3 columns */
+        gap: 15px;
+    }
+}
+
+/* > Gear Colors */
+/* Rarity <= 3: Blue (#d6ebff / #007bff) */
+.gear-item--rarity-3 {
+    background: #d6ebff;
+    border-color: #007bff;
+}
+.dark .gear-item--rarity-3 {
+    background: #001f3f;
+    border-color: #007bff;
+}
+
+/* Rarity == 4: Purple (#f3d6ff / #b100ff) */
+.gear-item--rarity-4 {
+    background: #f3d6ff;
+    border-color: #b100ff;
+}
+.dark .gear-item--rarity-4 {
+    background: #2d0040;
+    border-color: #b100ff;
+}
+
+/* Rarity >= 5: Red (#ffd6d6 / #ff0000) */
+.gear-item--rarity-5 {
+    background: #ffd6d6;
+    border-color: #ff0000;
+}
+.dark .gear-item--rarity-5 {
+    background: #400000;
+    border-color: #ff0000;
+}
+
+/* > Hypercharge */
+.hypercharge-item {
+    background: #f3d6ff;
+    border-color: #b100ff;
+}
+.hypercharge-duration {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 5px;
+}
+.hypercharge-duration__label {
+    background-color: #222;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-right: 4px;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+.hypercharge-duration__value {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0;
+}
+
+/* > Sorting Button */
+.sorting-button {
+    padding: 1px 16px;
+    border-radius: 8px;
+    background-color: #f0f0f0;
+    color: #555;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    flex: 1;
+    text-align: center;
+    user-select: none;
+}
+.sorting-button:hover {
+    background-color: #e0e0e0;
+}
+.sorting-button--active {
+    background-color: #222;
+    color: #fff;
+}
+.sorting-button--active:hover {
+    background-color: #222;
+}
+
+
+/* > ダークモード対応 */
+.dark .accessory-item {
+    border-color: #444;
+}
+.dark .gadget-item {
+    background: #002b11;
+    border-color: #02b547;
+}
+.dark .starpower-item {
+    background: #2b2500;
+    border-color: #e6c200;
+}
+.dark .buffie-item--gadget {
+    background: linear-gradient(135deg, #002b11 0%, #005c25 50%, #002b11 100%);
+    border-color: #02b547;
+    box-shadow: 0 0 8px rgba(120, 255, 120, 0.3), inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+.dark .buffie-item--starpower {
+    background: linear-gradient(135deg, #2b2500 0%, #5c4e00 50%, #2b2500 100%);
+    border-color: #e6c200;
+    box-shadow: 0 0 8px rgba(255, 255, 120, 0.3), inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+.dark .hypercharge-item {
+    background: #2d0040;
+    border-color: #b100ff;
+}
+.dark .hypercharge-duration__label {
+    background-color: #fff;
+    color: #222;
+}
+.dark .gadget-cooldown__label,
+.dark .accessory-ownership-rate__label {
+    background-color: #fff;
+    color: #222;
+}
+.dark .accessory-ownership-rate__description {
+    color: #aaa;
+}
+.dark .sorting-button {
+    background-color: #262626;
+    color: #ccc;
+}
+.dark .sorting-button:hover {
+    background-color: #333;
+}
+.dark .sorting-button--active {
+    background-color: #fff;
+    color: #333;
+}
+.dark .sorting-button--active:hover {
+    background-color: #fff;
+}
+
+
+/* > ランクごとの背景色 */
+.brawler-card__rank-grade--SS { background-color: rgba(253, 0, 207, 0.8); }
+.brawler-card__rank-grade--S\+ { background-color: rgba(253, 0, 105, 0.8); }
+.brawler-card__rank-grade--S { background-color: rgba(253, 0, 0, 0.8); }
+.brawler-card__rank-grade--S- { background-color: rgba(253, 76, 0, 0.8); }
+.brawler-card__rank-grade--A\+ { background-color: rgba(253, 202, 0, 0.8); color: black; }
+.brawler-card__rank-grade--A { background-color: rgba(253, 228, 0, 0.8); color: black; }
+.brawler-card__rank-grade--A- { background-color: rgba(215, 253, 0, 0.8); color: black; }
+.brawler-card__rank-grade--B\+ { background-color: rgba(105, 253, 0, 0.8); color: black; }
+.brawler-card__rank-grade--B { background-color: rgba(0, 253, 101, 0.8); color: black; }
+.brawler-card__rank-grade--B- { background-color: rgba(0, 253, 169, 0.8); color: black; }
+.brawler-card__rank-grade--C\+ { background-color: rgba(0, 253, 253, 0.8); color: black; }
+.brawler-card__rank-grade--C { background-color: rgba(0, 219, 253, 0.8); color: black; }
+.brawler-card__rank-grade--C- { background-color: rgba(0, 190, 253, 0.8); color: black; }
+.brawler-card__rank-grade--D\+ { background-color: rgba(0, 152, 253, 0.8); }
+.brawler-card__rank-grade--D { background-color: rgba(0, 93, 253, 0.8); }
+.brawler-card__rank-grade--D- { background-color: rgba(0, 38, 253, 0.8); }

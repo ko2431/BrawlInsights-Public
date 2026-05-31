@@ -1,0 +1,125 @@
+{# /app/templates/tools/brawl_videos.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 ブロスタ動画{% else %}Brawl Videos{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのおすすめ動画を掲載しています。本アプリのスポンサーであるブロスタクリエイターのおすすめ動画も含まれています。{% else %}A curated collection of recommended Brawl Stars videos, including content from creators who sponsor this app.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+
+    {# アプリ版：上部戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">
+        {% if lang == "ja" %}ブロスタ動画{% else %}Brawl Videos{% endif %}
+    </h1>
+
+    <p class="tools-page__description">
+        {% if lang == "ja" %}
+        ブロスタのおすすめ動画を掲載しています。本アプリのスポンサーであるブロスタクリエイターのおすすめ動画も含まれています。
+        {% else %}
+        A curated collection of recommended Brawl Stars videos, including content from creators who sponsor this app.
+        {% endif %}
+    </p>
+
+    {# 動画グリッド #}
+    {% if videos %}
+    <div class="brawl-videos__grid">
+        {% for video in videos %}
+        <div class="brawl-video-card">
+
+            {# サムネイル（クリックでiframe遅延ロード） #}
+            {% set thumb = video.thumbnail_url if video.thumbnail_url else "https://img.youtube.com/vi/" + video.video_id + "/maxresdefault.jpg" %}
+            {% set fb_thumb = "https://img.youtube.com/vi/" + video.video_id + "/hqdefault.jpg" %}
+            <div class="brawl-video-card__thumbnail-wrap"
+                 onclick="loadBrawlVideo(this, '{{ video.video_id | e }}', '{{ video.platform | e }}')">
+                <img src="{{ thumb }}"
+                     onerror="this.onerror=null; this.src='{{ fb_thumb }}';"
+                     alt="{{ (video.title_en if lang != 'ja' and video.title_en else video.title_ja) | e }}"
+                     class="brawl-video-card__thumbnail"
+                     loading="lazy">
+                <div class="brawl-video-card__play-btn">▶</div>
+            </div>
+
+            {# スポンサーバッジ + スポンサー名 #}
+            {% if video.is_sponsored %}
+            <div class="brawl-video-card__sponsor-row">
+                <div class="brawl-video-card__sponsor-badge">
+                    {% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}
+                </div>
+                {% if video.sponsor_name %}
+                <span class="brawl-video-card__sponsor-name">{{ video.sponsor_name }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {# タイトル #}
+            <p class="brawl-video-card__title" {% if video.is_sponsored %}style="margin-top: 4px;"{% endif %}>
+                {{ (video.title_en if lang != 'ja' and video.title_en else video.title_ja) }}
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="info-block__text block" style="margin-top: 20px; text-align: center;">
+        {% if lang == "ja" %}現在掲載中の動画はありません。{% else %}No videos are currently available.{% endif %}
+    </p>
+    {% endif %}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# アプリ版：下部戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+/**
+ * サムネイルクリック時にiframeを動的生成してYouTube動画を遅延ロードする。
+ * 将来的にplatformを追加する場合はここに分岐を追加する。
+ */
+function loadBrawlVideo(wrapper, videoId, platform) {
+    if (platform === 'youtube') {
+        var iframe = document.createElement('iframe');
+        iframe.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&playsinline=1';
+        iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.setAttribute('allowfullscreen', '');
+        // ラッパー要素をiframeで置き換え
+        wrapper.replaceWith(iframe);
+    }
+    // 将来: TikTok等の対応はここに追加
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const backButtons = document.querySelectorAll('.back-button');
+        backButtons.forEach(btn => {
+            btn.addEventListener('click', () => history.back());
+        });
+    });
+    </script>
+{% endblock %}

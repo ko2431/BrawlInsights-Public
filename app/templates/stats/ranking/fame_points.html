@@ -1,0 +1,145 @@
+{# /app/templates/stats/ranking/fame_points.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}名声ポイント ランキング{% else %}Fame Points Leaderboards{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタの累計名声ポイントのランキングです。グローバルランキングとローカルランキングのどちらも閲覧できます。{% else %}Brawl Stars fame points leaderboards. View global and local leaderboards.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranking.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="stats-page__container ranking-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}名声ポイントランキング{% else %}Fame Points Leaderboards{% endif %}</h1>
+
+    {# 地域選択UI #}
+    <div class="filters__container">
+        <form method="get" id="regionFilterForm" class="filter-form">
+            <input type="hidden" name="type" value="{{ type }}"> {# 現在のtypeを維持 #}
+            <input type="hidden" name="limit" value="{{ limit }}"> {# 現在のlimitを維持 #}
+            <label for="regionSelect" class="filter-form__label">{% if lang == "ja" %}地域:{% else %}Region:{% endif %}</label>
+            <select name="region" id="regionSelect" class="filter-form__select" onchange="document.getElementById('regionFilterForm').submit();">
+                <option value="global" {% if region == 'global' %}selected{% endif %}>{% if lang == "ja" %}グローバル{% else %}Global{% endif %}</option>
+                {% for r in regions[:1] %} {# 地域は日本のみ選択肢に表示 #}
+                    <option value="{{ r.code }}" {% if r.code == region %}selected{% endif %}>
+                        {{ r.ja if lang == 'ja' else r.en }}
+                    </option>
+                {% endfor %}
+            </select>
+             <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+    </div>
+
+    {# 説明文 #}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">{% if lang == "ja" %}累計<span class="tight"> 名声<span class="tight"> ポイント</span>の非公式<span class="tight"> ランキング</span><span class="tight"> です</span>。アースIからの累計の名声ポイント数を掲載しています。各プレイヤーをクリックすると、そのプレイヤーのプロフィールページに移動します。多くのプレイヤーを集計していますが、すべてのプレイヤーを集計しているわけではありません。ランキングに掲載されていないプレイヤーは、Brawl Insightsで一度でも閲覧されれば集計対象となり、掲載されるようになります。{% else %}This is an unofficial leaderboard of fame points. Click on a player to go to their profile page. While it includes data from many players, not all players are covered. If a player does not appear in the rankings, they will be added automatically after being viewed at least once on Brawl Insights.{% endif %}</p>
+    </div>
+
+    {# ランキング #}
+    {% if ranking %}
+        <div class="ranking-list-grid">
+            <div class="ranking-list ranking-list-column">
+                {% for player in ranking[:(limit // 2)] %}
+                    {% if loop.index0 % 10 == 0 and not loop.first %}
+                        <div style="margin-bottom: 10px;"></div>{# 10件ごとの余白 #}
+                    {% endif %}
+                    <a href="{{ url_for('get_player_profile', lang=lang, tag=player.tag[1:]) }}" class="card-link ranking-list__item-link">
+                        <div class="card ranking-list__item">
+                            <div class="button ranking-list__item-index button--secondary">
+                                {{ player.rank }}
+                            </div>
+                            <div class="ranking-list__item-main">
+                                <img src="{{ player.icon_path }}"
+                                    alt="{{ player.name }} アイコン"
+                                    class="ranking-list__item-player-icon">
+                                <p class="ranking-list__item-name ranking-list__item-name--fame">{{ player.name }}</p>
+                                <p class="ranking-list__item-tag">{{ player.tag }}</p>
+                            </div>
+                            <div style="display: flex; flex: 1;"></div>
+                            <div class="ranking-list__item-value">
+                                {% set default_icon = url_for('static', path='/images/ui/mystery.png') %}
+                                <img src="{{ url_for('static', path='/images/fame/' + player.fame_rank|string + '.png') }}"
+                                    alt="単位アイコン"
+                                    class="ranking-list__item-value-icon"
+                                    onerror="this.onerror=null; this.src='{{ default_icon }}';">
+                                <p class="ranking-list__item-score">{{ "{:,}".format(player.score) }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            <div class="ranking-list ranking-list-column">
+                {% for player in ranking[(limit // 2):] %}
+                    {% if loop.index0 % 10 == 0 and not loop.first %}
+                        <div style="margin-bottom: 10px;"></div>{# 10件ごとの余白 #}
+                    {% endif %}
+                    <a href="{{ url_for('get_player_profile', lang=lang, tag=player.tag[1:]) }}" class="card-link ranking-list__item-link">
+                        <div class="card ranking-list__item">
+                            <div class="button ranking-list__item-index button--secondary">
+                                {{ player.rank }}
+                            </div>
+                            <div class="ranking-list__item-main">
+                                <img src="{{ player.icon_path }}"
+                                    alt="{{ player.name }} アイコン"
+                                    class="ranking-list__item-player-icon">
+                                <p class="ranking-list__item-name ranking-list__item-name--fame">{{ player.name }}</p>
+                                <p class="ranking-list__item-tag">{{ player.tag }}</p>
+                            </div>
+                            <div style="display: flex; flex: 1;"></div>
+                            <div class="ranking-list__item-value">
+                                {% set default_icon = url_for('static', path='/images/ui/mystery.png') %}
+                                <img src="{{ url_for('static', path='/images/fame/' + player.fame_rank|string + '.png') }}"
+                                    alt="単位アイコン"
+                                    class="ranking-list__item-value-icon"
+                                    onerror="this.onerror=null; this.src='{{ default_icon }}';">
+                                <p class="ranking-list__item-score">{{ "{:,}".format(player.score) }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <p style="margin-top: 20px; text-align: center;">{% if lang == "ja" %}ランキングデータを取得できませんでした。申し訳ありませんが、しばらく待ってから再度お試しください。{% else %}Could not retrieve leaderboard data. Sorry, please wait a while and try again.{% endif %}</p>
+    {% endif %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

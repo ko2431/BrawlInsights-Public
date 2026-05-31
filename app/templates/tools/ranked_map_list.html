@@ -1,0 +1,111 @@
+{# /app/templates/tools/ranked_map_list.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ガチバトルマップ一覧{% else %}Ranked Map List{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトルのマップ一覧を、マップ画像付きで掲載しています。{% else %}A list of maps for ranked is available with map images.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}ガチバトルマップ一覧{% else %}Ranked Map List{% endif %}</h1>
+
+    <p class="tools-page__description">{% if lang == "ja" %}現在のガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。現在のガチバトルでは、以下の<b>26マップ</b>からマップがランダムに出現します。{% else %}The following is a list of maps selected for the current ranked season, with map images. In the current ranked season, maps are randomly selected from the following <b>26 maps</b>.{% endif %}</p>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202605_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+    <p class="info-block__text block" style="margin-top: 10px;">
+        {% if lang == "ja" %}無料キャラのうち、「ビー」が「ボニー」に急遽変更されました。{% else %}Among the free brawlers, "Bea" has been suddenly changed to "Bonnie".{% endif %}
+    </p>
+
+    <p class="tools-page__description" style="margin-top: 20px;">{% if lang == "ja" %}以下は、過去のシーズンのマップ一覧です。{% else %}Below is a list of maps from past seasons.{% endif %}</p>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202604_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202603_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202602_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202601_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202512_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202511_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202510_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202509_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202508_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202507_' + lang + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202506_' + lang + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

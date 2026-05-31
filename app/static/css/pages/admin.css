@@ -1,0 +1,338 @@
+/* /app/static/css/pages/admin.css */
+.admin-page__container {
+    width: 90%;
+    max-width: 2000px;
+    margin: 15px auto 45px;
+}
+.admin-page__description {
+    margin-top: 15px;
+}
+
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.form-actions {
+    margin-top: 5px;
+}
+
+.admin-filters__container {
+    width: 100%;
+    margin: 10px 0; /* 上下マージン */
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+
+@media (max-width: 539px) {
+    .admin-filters__container {
+        width: 105%;
+        margin: 10px -2.5%;
+    }
+}
+
+
+/* +---+---+---+---+---+---+---+--- */
+/* テーブル                          */
+/* +---+---+---+---+---+---+---+--- */
+/*.map-table td.is-editable {*/
+/*    cursor: pointer;*/
+/*}*/
+.sort-indicator {
+    font-size: 0.8em;
+    margin-left: 4px;
+}
+th {
+    cursor: pointer;
+    user-select: none;
+}
+.map-table td.is-editable.show-placeholder::before,
+.mode-table td.is-editable.show-placeholder::before,
+.region-table td.is-editable.show-placeholder::before,
+.secretquestion-table td.is-editable.show-placeholder::before,
+.brawler-table td.is-editable.show-placeholder::before,
+.brawler-status-table td.is-editable.show-placeholder::before { /* プレースホルダー表示用クラス */
+    content: attr(data-placeholder);
+    color: #999;
+    font-style: italic;
+    pointer-events: none; /* プレースホルダーテキストがクリックイベントを妨げないように */
+    /* display: inline-block; 必要であれば */
+}
+.map-table td.changed,
+.mode-table td.changed,
+.region-table td.changed,
+.secretquestion-table td.changed,
+.brawler-table td.changed,
+.brawler-status-table td.changed {
+    background-color: rgba(255, 0, 0, 0.1) !important; /* !importantで他のスタイルを上書き */
+    color: red !important;
+}
+.region-table td.invalid,
+.secretquestion-table td.invalid,
+.brawler-status-table td.invalid {
+    background-color: rgba(255, 0, 106, 0.8) !important;
+    border: 2px dashed red !important;
+    color: #a00 !important;
+}
+.save-changes-block {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: var(--bg-f8f8f8);
+    border: 1px solid var(--color-ddd);
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.save-changes-block p {
+    margin: 0;
+    font-size: 15px;
+}
+.button--small { /* セル内ボタン用 */
+    font-size: 14px;
+    padding: 0 7px;
+}
+
+.reaction-table th,
+.message-table th,
+.post-table th,
+.report-table th {
+    cursor: default;
+}
+
+.message-table .col-message,
+.post-table .col-message
+.report-table .col-message {
+    min-width: 200px; /* メッセージカラムの最小幅 */
+    max-width: 400px;
+    white-space: normal; /* 折り返しを許可 */
+}
+
+.message-table .col-message-content,
+.post-table .col-message-content,
+.report-table .col-message-content {
+    max-height: 80px; /* 高さを80pxに制限 */
+    overflow-y: auto;  /* 高さを超えた場合に縦スクロールを表示 */
+    white-space: pre-wrap; /* HTML内の改行を維持しつつ、必要に応じて折り返す */
+    word-break: break-all; /* 長い単語やURLの途中でも強制的に改行する */
+    padding-right: 5px; /* スクロールバーとテキストの間に余白を設ける */
+}
+
+
+/* +---+---+---+---+---+---+---+--- */
+/* 購入情報確認ページ用                */
+/* +---+---+---+---+---+---+---+--- */
+.purchase-table th,
+.purchase-table td {
+    font-size: 13px;
+    padding: 6px 8px;
+    white-space: nowrap;
+    vertical-align: top;
+}
+.purchase-table th.sortable-header {
+    cursor: pointer;
+}
+.purchase-table th.sortable-header:hover {
+    background-color: #f0f0f0;
+}
+.purchase-table .col-id {
+    text-align: right;
+    min-width: 70px;
+}
+.purchase-table .col-datetime {
+    min-width: 140px;
+}
+.purchase-table .col-user {
+    min-width: 220px;
+}
+.purchase-table .col-app-user {
+    min-width: 180px;
+}
+.purchase-table .col-payload {
+    min-width: 240px;
+    max-width: 520px;
+    white-space: normal;
+}
+.purchase-table .col-payload details {
+    cursor: pointer;
+}
+.purchase-table .col-payload pre {
+    margin-top: 6px;
+    max-height: 240px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+
+/* +---+---+---+---+---+---+---+--- */
+/* ログ確認ページ用                   */
+/* +---+---+---+---+---+---+---+--- */
+.log-table th, .log-table td {
+    font-size: 13px; /* 少しフォントを小さく */
+    padding: 6px 8px;
+    vertical-align: top; /* 上揃え */
+    cursor: default;
+}
+
+/* ログレベルごとの行の背景色 */
+.log-level-debug {
+    background-color: #e0f7fa; /* 薄い水色 */
+}
+.dark .log-level-debug {
+    background-color: #009fb5;
+}
+.log-level-info {
+    background-color: transparent;
+}
+.log-level-warning {
+    background-color: #fff9c4; /* 薄い黄色 */
+}
+.dark .log-level-warning {
+    background-color: #f0b506;
+    color: #000;
+}
+.log-level-error {
+    background-color: #ffcdd2; /* 薄い赤 */
+    color: #b71c1c; /* 暗めの赤文字 */
+}
+.dark .log-level-error {
+    color: #e93e3e;
+}
+.log-level-critical {
+    background-color: #212121; /* 黒に近いグレー */
+    color: #ffffff; /* 白文字 */
+    border: 2px solid #d32f2f; /* 濃い赤の枠線 */
+    font-weight: bold;
+}
+.log-level-raw {
+    background-color: #f5f5f5; /* 薄いグレー */
+}
+
+/* ログレベルのバッジ（オプション） */
+.log-level-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    font-size: 11px;
+    line-height: 1;
+}
+.log-level-debug .log-level-badge { background-color: #00bcd4; }
+.log-level-info .log-level-badge { background-color: #4caf50; }
+.log-level-warning .log-level-badge { background-color: #ffc107; color: #333; }
+.log-level-error .log-level-badge { background-color: #f44336; }
+.log-level-critical .log-level-badge { background-color: #d32f2f; }
+.log-level-raw .log-level-badge { background-color: #9e9e9e; }
+
+
+/* +---+---+---+---+---+---+---+--- */
+/* ユーザー管理ページ用                */
+/* +---+---+---+---+---+---+---+--- */
+.user-table th, .user-table td {
+    min-width: 120px; /* 各セルの最小幅 */
+    white-space: nowrap; /* 折り返しを防ぐ */
+}
+.user-table th {
+    text-align: left !important; /* ヘッダーをすべて左揃えに */
+    cursor: default;
+}
+.user-table th.sortable-header {
+    cursor: pointer; /* 並び替え可能なヘッダーのみカーソルを変更 */
+}
+.user-table th.sortable-header:hover {
+    background-color: #f0f0f0;
+}
+.user-table td {
+    font-size: 14px;
+}
+.user-table .col-index { min-width: 40px; text-align: center; }
+.user-table .col-id { min-width: 50px; }
+.user-table .col-username { min-width: 150px; }
+.user-table .col-lang { min-width: 80px; }
+.user-table .col-datetime { min-width: 160px; }
+.user-table .col-main-account { min-width: 200px; }
+.user-table .col-list {
+    min-width: 250px;
+    white-space: normal; /* リストは折り返し許可 */
+}
+.user-table .col-list-content {
+    max-height: 40px; /* 高さを制限 */
+    overflow-y: auto;  /* 縦スクロールを有効化 */
+    white-space: pre-wrap; /* 改行を反映 */
+    word-break: break-all;
+}
+.user-table .col-list-content a { text-decoration: none; color: inherit; } /* リンクの下線をなくす */
+.user-table .col-limit { min-width: 130px; }
+.user-table .col-checkbox { min-width: 100px; text-align: center; }
+.user-table .col-json { min-width: 250px; }
+.user-table .col-json textarea {
+    width: 100%;
+    height: 40px; /* 高さを固定 */
+    resize: vertical; /* 縦方向のみリサイズ可 */
+    font-family: monospace;
+    font-size: 13px;
+    padding: 3px 5px;
+}
+.user-table .col-numeric { min-width: 100px; text-align: right; }
+.user-table .col-date { min-width: 120px; }
+
+.is-editable[contenteditable="true"] {
+        background-color: #fff;
+        border: 1px dashed #ccc;
+}
+.dark .is-editable[contenteditable="true"] {
+    background-color: #262626;
+    border-color: #363636;
+}
+.is-editable.changed {
+    background-color: rgba(255, 0, 0, 0.05) !important;
+}
+.is-editable.invalid {
+    background-color: rgba(255, 0, 0, 0.2) !important;
+    border: 1px solid red;
+}
+.form-checkbox-cell {
+    vertical-align: middle;
+    text-align: center;
+}
+
+
+/* +---+---+---+---+---+---+---+--- */
+/* 統計グラフページ用                  */
+/* +---+---+---+---+---+---+---+--- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* デフォルト1列 */
+}
+
+@media (min-width: 1194px) { /* PC大画面で2列 */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+}
+
+
+/* +---+---+---+---+---+---+---+--- */
+/* キャラクターステータス管理テーブル用  */
+/* +---+---+---+---+---+---+---+--- */
+.brawler-status-table th,
+.brawler-status-table td {
+    font-size: 13px;
+    padding: 5px 7px;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.brawler-status-table th {
+    white-space: nowrap;
+}
+.brawler-status-table td.is-editable {
+    white-space: pre-wrap;
+    min-width: 80px;
+}

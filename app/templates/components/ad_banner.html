@@ -1,0 +1,35 @@
+{# /app/templates/components/ad_banner.html
+   使い方（context_processorで自動付与されるため、テンプレートに1行追加するだけ）:
+   {% include "components/ad_banner.html" %}
+
+   左右マージンを追加したい場合:
+   <div style="margin: 0 16px;">{% include "components/ad_banner.html" %}</div>
+
+   非表示ロジック:
+   - ログインユーザーで is_delete_ads=True かつ is_admin=False → サーバー側で ad_banner=None のため描画不要
+   - 匿名アプリユーザーで広告削除購入済み → Alpine.jsで localStorage:'bi_guest_remove_ads' をチェック
+     （account_settings.html の setGuestRemoveAdsFlag() が購入時にこのキーを設定する）
+#}
+{% if ad_banner %}
+<div class="ad-banner-wrap"
+     x-data="{ _adVisible: true }"
+     x-init="(() => {
+         try {
+             if (localStorage.getItem('bi_guest_remove_ads') === 'true') _adVisible = false;
+         } catch(_e) {}
+     })()"
+     x-show="_adVisible"
+     style="display: none;">
+    <p class="ad-banner__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
+    {% if ad_banner.click_url %}
+    <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
+    {% endif %}
+        <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
+             alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
+             class="ad-banner__img"
+             loading="lazy">
+    {% if ad_banner.click_url %}
+    </a>
+    {% endif %}
+</div>
+{% endif %}

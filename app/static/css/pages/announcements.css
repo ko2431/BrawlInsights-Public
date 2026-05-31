@@ -1,0 +1,60 @@
+/* /app/static/css/pages/announcements.css */
+.announcements-page__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 15px auto 45px;
+}
+
+.announcements-page__section-title {
+    font-size: 22px; /* 基本サイズ */
+    font-weight: bold;
+    margin-top: 10px; /* 上マージン */
+    margin-bottom: 17px; /* 下マージン */
+    padding-bottom: 7px; /* 下線とのスペース */
+    border-bottom: 1px solid #eee; /* 下線 */
+    cursor: pointer; /* クリック可能であることを示す */
+    position: relative; /* アイコンの位置決めの基準 */
+    user-select: none; /* テキスト選択を無効化 */
+}
+
+.announcement-toggle-icon {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7em; /* 親要素に対するサイズ */
+    color: #666;
+}
+
+.announcement-item {
+    margin-bottom: 30px;
+}
+
+.announcements-page__text {
+    font-size: 16px;
+    margin: 5px auto 30px;
+}
+
+@media (max-width: 839px) {
+    .announcements-page-title--main {
+        font-size: 36px;
+    }
+    .announcements-page__section-title {
+        font-size: 20px;
+    }
+    .announcements-page__text {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 539px) {
+    .announcements-page-title--main {
+        font-size: 28px;
+    }
+    .announcements-page__section-title {
+        font-size: 17px;
+    }
+    .announcements-page__text {
+        font-size: 14px;
+    }
+}

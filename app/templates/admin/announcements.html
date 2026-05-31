@@ -1,0 +1,390 @@
+{# /app/templates/admin/announcements.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / アナウンス管理{% endblock %}
+{% block og_description %}アナウンスを管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="announcementAdmin()">
+    <h1 class="page-title--main">アナウンス管理</h1>
+
+    <p class="admin-page__description">
+        アナウンス総数: <b>{{ announcements|length }}</b>
+    </p>
+
+    {# --- 絞り込みフィルター --- #}
+    <div class="filters__container" style="margin-bottom: 20px;">
+        <div class="filter-form">
+            <label for="categoryFilter" class="filter-form__label">カテゴリー:</label>
+            <select id="categoryFilter" class="filter-form__select" x-model="categoryFilter">
+                <option value="all">すべて (All)</option>
+                <option value="none">なし (None)</option>
+                <option value="1">緊急のお知らせ (Urgent Notice)</option>
+                <option value="2">お知らせ (Notice)</option>
+                <option value="3">アップデート (Update)</option>
+                <option value="4">プレゼント企画 (Giveaway)</option>
+                <option value="5">当選発表 (Giveaway Results)</option>
+            </select>
+        </div>
+    </div>
+
+    {# --- 新規追加フォーム --- #}
+    <div class="add-new-item-form">
+        <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しいアナウンスを追加</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="new_id" class="form-label">ID (必須, 他と重複不可)</label>
+                <input type="text" id="new_id" class="form-input" x-model="newAnnouncement.id" @input="validateNewId()">
+                <div class="form-field-status" x-html="newAnnouncementStatus.id"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_datetime" class="form-label">投稿日時 (JST, 省略可)</label>
+                <input type="datetime-local" id="new_datetime" class="form-input" x-model="newAnnouncement.datetime">
+            </div>
+            <div class="form-group">
+                <label for="new_category" class="form-label">カテゴリー (任意)</label>
+                <select id="new_category" class="form-input" x-model="newAnnouncement.category">
+                    <option value="">なし (None)</option>
+                    <option value="1">緊急のお知らせ (Urgent Notice)</option>
+                    <option value="2">お知らせ (Notice)</option>
+                    <option value="3">アップデート (Update)</option>
+                    <option value="4">プレゼント企画 (Giveaway)</option>
+                    <option value="5">当選発表 (Giveaway Results)</option>
+                </select>
+            </div>
+             <div class="form-group">
+                <label for="new_en_title" class="form-label">英語タイトル (必須)</label>
+                <input type="text" id="new_en_title" class="form-input" x-model="newAnnouncement.en_title" @input="validateNewEnTitle()">
+                 <div class="form-field-status" x-html="newAnnouncementStatus.en_title"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_ja_title" class="form-label">日本語タイトル (任意)</label>
+                <input type="text" id="new_ja_title" class="form-input" x-model="newAnnouncement.ja_title">
+            </div>
+            <div class="form-group">
+                <label for="new_en_text" class="form-label">英語テキスト (必須)</label>
+                <textarea id="new_en_text" class="form-input" x-model="newAnnouncement.en_text" @input="validateNewEnText()" rows="4" placeholder="HTMLタグ使用可。改行は<br>に自動変換されます。" style="min-width: 100%; max-width: 100%; min-height: 170px;"></textarea>
+                <div class="form-field-status" x-html="newAnnouncementStatus.en_text"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_ja_text" class="form-label">日本語テキスト (任意)</label>
+                <textarea id="new_ja_text" class="form-input" x-model="newAnnouncement.ja_text" rows="4" placeholder="HTMLタグ使用可。改行は<br>に自動変換されます。" style="min-width: 100%; max-width: 100%; min-height: 170px;"></textarea>
+            </div>
+            <div class="form-group form-actions">
+                <button type="button" class="button button--primary" @click="confirmAddAnnouncement()" :disabled="!isNewAnnouncementFormValid">追加</button>
+            </div>
+        </div>
+        <div x-show="addStatus.message" class="form-field-status server-response"
+             :class="{ 'success': addStatus.success, 'error': !addStatus.success && addStatus.message }"
+             x-text="addStatus.message" style="margin-top: 5px;">
+        </div>
+    </div>
+
+    {# --- 既存アナウンス編集テーブル --- #}
+    <div class="save-changes-block" style="margin-top: 25px;">
+        <p>既存のアナウンスを編集・削除できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table announcement-table">
+            <thead>
+                <th @click="sortBy('datetime')"><span>投稿日時 (JST)</span><span x-show="sortColumn === 'datetime'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('id')"><span>ID</span><span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th>カテゴリー</th>
+                <th>英語タイトル</th>
+                <th>日本語タイトル</th>
+                <th>英語テキスト</th>
+                <th>日本語テキスト</th>
+                <th>操作</th>
+            </thead>
+            <tbody>
+                <template x-for="item in filteredAnnouncements" :key="item.id">
+                    <tr x-data="announcementRow(item)" x-init="init()">
+                        <td><input type="datetime-local" class="form-input" :class="{ 'changed': isDatetimeDirty }" x-model="datetime" style="font-size: 13px; padding: 2px;"></td>
+                        <td x-text="item.id"></td>
+                        <td>
+                            <select class="form-input" :class="{ 'changed': isCategoryDirty }" x-model="category" style="font-size: 13px; padding: 2px;">
+                                <option value="">なし</option>
+                                <option value="1">緊急のお知らせ</option>
+                                <option value="2">お知らせ</option>
+                                <option value="3">アップデート</option>
+                                <option value="4">プレゼント企画</option>
+                                <option value="5">当選発表</option>
+                            </select>
+                        </td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isEnTitleDirty, 'invalid': !isEnTitleValid }" x-model="en_title"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isJaTitleDirty }" x-model="ja_title"></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isEnTextDirty, 'invalid': !isEnTextValid }" x-model="en_text" rows="3"></textarea></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isJaTextDirty }" x-model="ja_text" rows="3"></textarea></td>
+                        <td style="text-align: center;"><button type="button" class="button button--danger button--small" @click="$dispatch('confirm-delete', { id: item.id })">削除</button></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // 共通のヘルパー関数
+        function nl2br(text) {
+            if (text === null || typeof text === 'undefined') return '';
+            return text.replace(/\r\n|\n\r|\r|\n/g, '<br>');
+        }
+        function br2nl(html) {
+             if (html === null || typeof html === 'undefined') return '';
+             return html.replace(/<br\s*\/?>/gi, '\n');
+        }
+
+        // Alpine.js コンポーネント
+        function announcementAdmin() {
+            return {
+                announcementsData: {{ announcements | tojson | safe }},
+                sortColumn: 'datetime',
+                sortDirection: 'desc',
+                categoryFilter: 'all',
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                addStatus: { message: '', success: false },
+                newAnnouncement: {
+                    id: '', datetime: '', en_title: '', ja_title: '', en_text: '', ja_text: '', category: ''
+                },
+                newAnnouncementStatus: { id: '', en_title: '', en_text: '' },
+                isNewIdValid: false,
+                isNewEnTitleValid: false,
+                isNewEnTextValid: false,
+
+                init() {
+                    this.sortBy('datetime', true);
+                    this.$root.addEventListener('row-change', () => this.checkForChanges());
+                    this.$root.addEventListener('confirm-delete', (e) => this.confirmDelete(e.detail.id));
+                    window.addEventListener('beforeunload', (e) => { if (this.hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
+                },
+
+                get filteredAnnouncements() {
+                    return this.announcementsData.filter(item => {
+                        if (this.categoryFilter === 'all') return true;
+                        if (this.categoryFilter === 'none') return !item.category;
+                        return String(item.category) === this.categoryFilter;
+                    });
+                },
+
+                get isNewAnnouncementFormValid() {
+                    return this.isNewIdValid && this.isNewEnTitleValid && this.isNewEnTextValid;
+                },
+
+                validateNewId() {
+                    const id = this.newAnnouncement.id.trim();
+                    if (!id) {
+                        this.newAnnouncementStatus.id = '<span class="text-red-500">IDは必須です。</span>';
+                        this.isNewIdValid = false;
+                    } else if (this.announcementsData.some(a => a.id === id)) {
+                        this.newAnnouncementStatus.id = '<span class="text-red-500">このIDは既に使用されています。</span>';
+                        this.isNewIdValid = false;
+                    } else {
+                        this.newAnnouncementStatus.id = '<span class="text-green-500">OK</span>';
+                        this.isNewIdValid = true;
+                    }
+                },
+                validateNewEnTitle() {
+                    this.isNewEnTitleValid = this.newAnnouncement.en_title.trim().length > 0;
+                    this.newAnnouncementStatus.en_title = this.isNewEnTitleValid ? '' : '<span class="text-red-500">英語タイトルは必須です。</span>';
+                },
+                validateNewEnText() {
+                    this.isNewEnTextValid = this.newAnnouncement.en_text.trim().length > 0;
+                    this.newAnnouncementStatus.en_text = this.isNewEnTextValid ? '' : '<span class="text-red-500">英語テキストは必須です。</span>';
+                },
+
+                confirmAddAnnouncement() {
+                    this.validateNewId(); this.validateNewEnTitle(); this.validateNewEnText();
+                    if (!this.isNewAnnouncementFormValid) return;
+                    if (confirm(`新しいアナウンス（ID: ${this.newAnnouncement.id}）を追加しますか？`)) {
+                        this.addAnnouncement();
+                    }
+                },
+
+                async addAnnouncement() {
+                    this.addStatus = { message: '追加中...', success: false };
+                    const payload = {
+                        ...this.newAnnouncement,
+                        category: this.newAnnouncement.category ? parseInt(this.newAnnouncement.category, 10) : null,
+                        en_text: nl2br(this.newAnnouncement.en_text),
+                        ja_text: nl2br(this.newAnnouncement.ja_text),
+                    };
+                    try {
+                        const response = await fetch("{{ url_for('admin_add_announcement', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await response.json();
+                        this.addStatus = { message: data.message, success: data.success };
+                        if (data.success) setTimeout(() => window.location.reload(), 1500);
+                    } catch (error) {
+                        this.addStatus = { message: '追加処理中にエラーが発生しました。', success: false };
+                    }
+                },
+                
+                checkForChanges() {
+                    this.hasUnsavedChanges = Array.from(this.$root.querySelectorAll('tbody tr[x-data]')).some(rowEl => Alpine.$data(rowEl)?.isDirty);
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = column === 'datetime' ? 'desc' : 'asc';
+                    }
+
+                    this.announcementsData.sort((a, b) => {
+                        let valA = a[this.sortColumn];
+                        let valB = b[this.sortColumn];
+                        if (this.sortColumn === 'datetime') {
+                            valA = a.datetime_utc;
+                            valB = b.datetime_utc;
+                        }
+                        const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
+                        return this.sortDirection === 'asc' ? comparison : -comparison;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.checkForChanges();
+                    if (!this.hasUnsavedChanges) {
+                         this.saveStatus = { message: '変更点はありません。', success: true };
+                         setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+                    if (confirm('すべての変更を保存しますか？')) this.saveChanges();
+                },
+                async saveChanges() {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    const changedItems = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData.isDirty && rowData.isRowValid) {
+                            changedItems.push({
+                                id: rowData.id,
+                                datetime: rowData.datetime, // 生の文字列
+                                category: rowData.category ? parseInt(rowData.category, 10) : null,
+                                en_title: rowData.en_title,
+                                ja_title: rowData.ja_title || null,
+                                en_text: nl2br(rowData.en_text),
+                                ja_text: nl2br(rowData.ja_text) || null,
+                            });
+                        }
+                    });
+
+                    if (changedItems.length === 0) {
+                        this.saveStatus = { message: '有効な変更点がありませんでした。', success: true };
+                         setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_announcements', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ announcements: changedItems })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            // hasUnsavedChangesをfalseにしてから、わずかに遅延させてリロードする
+                            this.hasUnsavedChanges = false;
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 100); // 100ミリ秒の遅延
+                        }
+                    } catch (error) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                },
+                
+                confirmDelete(id) {
+                    if (confirm(`アナウンスID「${id}」を本当に削除しますか？`)) {
+                        this.deleteAnnouncement(id);
+                    }
+                },
+                async deleteAnnouncement(id) {
+                    this.saveStatus = { message: '削除中...', success: false };
+                    try {
+                        const response = await fetch("{{ url_for('admin_delete_announcement', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) setTimeout(() => window.location.reload(), 1500);
+                    } catch (error) {
+                        this.saveStatus = { message: '削除処理中にエラーが発生しました。', success: false };
+                    }
+                },
+            }
+        }
+
+        function announcementRow(item) {
+            return {
+                id: item.id,
+                initialData: { ...item, 
+                                en_text_raw: br2nl(item.en_text),
+                                ja_text_raw: br2nl(item.ja_text || '')
+                             },
+                
+                // フォームコントロールに直接バインドするプロパティ
+                datetime: item.datetime_jst_str,
+                category: item.category || '',
+                en_title: item.en_title,
+                ja_title: item.ja_title || '',
+                en_text: br2nl(item.en_text),
+                ja_text: br2nl(item.ja_text || ''),
+                
+                init() {
+                    // 変更を検知するために、$watchを使う
+                    this.$watch('datetime', () => this.$dispatch('row-change'));
+                    this.$watch('category', () => this.$dispatch('row-change'));
+                    this.$watch('en_title', () => this.$dispatch('row-change'));
+                    this.$watch('ja_title', () => this.$dispatch('row-change'));
+                    this.$watch('en_text', () => this.$dispatch('row-change'));
+                    this.$watch('ja_text', () => this.$dispatch('row-change'));
+                },
+
+                // 変更があったかどうかを判定する算出プロパティ
+                get isDatetimeDirty() { return this.initialData.datetime_jst_str !== this.datetime; },
+                get isCategoryDirty() { return String(this.initialData.category || '') !== String(this.category || ''); },
+                get isEnTitleDirty() { return this.initialData.en_title !== this.en_title; },
+                get isJaTitleDirty() { return (this.initialData.ja_title || '') !== this.ja_title; },
+                get isEnTextDirty() { return this.initialData.en_text_raw !== this.en_text; },
+                get isJaTextDirty() { return this.initialData.ja_text_raw !== this.ja_text; },
+                get isDirty() {
+                    return this.isDatetimeDirty || this.isCategoryDirty || this.isEnTitleDirty || this.isJaTitleDirty || this.isEnTextDirty || this.isJaTextDirty;
+                },
+                
+                // バリデーション
+                get isEnTitleValid() { return this.en_title.trim().length > 0; },
+                get isEnTextValid() { return this.en_text.trim().length > 0; },
+                get isRowValid() { return this.isEnTitleValid && this.isEnTextValid; },
+            }
+        }
+        
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('announcementAdmin', announcementAdmin);
+            Alpine.data('announcementRow', announcementRow);
+        });
+    </script>
+{% endblock %}

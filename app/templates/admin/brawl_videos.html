@@ -1,0 +1,300 @@
+{# /app/templates/admin/brawl_videos.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / ブロスタ動画管理{% endblock %}
+{% block og_description %}ブロスタ動画ページの動画を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="brawlVideoAdmin()">
+    <h1 class="page-title--main">ブロスタ動画管理</h1>
+
+    <p class="admin-page__description">
+        動画総数: <b>{{ videos|length }}</b>件
+        （有効: <b>{{ videos|selectattr('is_active')|list|length }}</b>件）
+    </p>
+
+    {# --- 新規追加フォーム --- #}
+    <div class="add-new-item-form">
+        <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しい動画を追加</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="new_title_ja" class="form-label">日本語タイトル (必須)</label>
+                <input type="text" id="new_title_ja" class="form-input" x-model="newVideo.title_ja">
+            </div>
+            <div class="form-group">
+                <label for="new_title_en" class="form-label">英語タイトル (任意)</label>
+                <input type="text" id="new_title_en" class="form-input" x-model="newVideo.title_en" placeholder="空の場合は日本語タイトルで代替">
+            </div>
+            <div class="form-group">
+                <label for="new_platform" class="form-label">プラットフォーム</label>
+                <select id="new_platform" class="form-input" x-model="newVideo.platform">
+                    <option value="youtube">YouTube</option>
+                    <option value="tiktok">TikTok (将来)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="new_video_id" class="form-label">動画ID (必須)</label>
+                <input type="text" id="new_video_id" class="form-input" x-model="newVideo.video_id" placeholder="YouTubeなら動画IDのみ (例: dQw4w9WgXcQ)">
+            </div>
+            <div class="form-group">
+                <label for="new_thumbnail_url" class="form-label">カスタムサムネイルURL (任意)</label>
+                <input type="text" id="new_thumbnail_url" class="form-input" x-model="newVideo.thumbnail_url" placeholder="空の場合はYouTubeサムネイルを自動使用">
+            </div>
+            <div class="form-group">
+                <label for="new_display_order" class="form-label">表示順 (小さいほど先)</label>
+                <input type="number" id="new_display_order" class="form-input" x-model.number="newVideo.display_order" min="0" value="0" style="max-width: 100px;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <label class="form-label" style="margin: 0;">スポンサー動画</label>
+                <input type="checkbox" id="new_is_sponsored" x-model="newVideo.is_sponsored" style="width: 18px; height: 18px;">
+            </div>
+            <div class="form-group" x-show="newVideo.is_sponsored">
+                <label for="new_sponsor_name" class="form-label">スポンサー名</label>
+                <input type="text" id="new_sponsor_name" class="form-input" x-model="newVideo.sponsor_name" placeholder="ラベル表示用（例: やまだチャンネル）">
+            </div>
+            <div class="form-group form-actions">
+                <button type="button" class="button button--primary"
+                        @click="confirmAdd()"
+                        :disabled="!newVideo.title_ja.trim() || !newVideo.video_id.trim()">
+                    追加
+                </button>
+            </div>
+        </div>
+        <div x-show="addStatus.message" class="form-field-status server-response"
+             :class="{ 'success': addStatus.success, 'error': !addStatus.success && addStatus.message }"
+             x-text="addStatus.message" style="margin-top: 5px;">
+        </div>
+    </div>
+
+    {# --- 既存動画編集テーブル --- #}
+    <div class="save-changes-block" style="margin-top: 25px;">
+        <p>既存の動画を編集できます。変更を保存するには <b>保存</b> ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSave()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <th>ID</th>
+                <th>表示順</th>
+                <th>日本語タイトル</th>
+                <th>英語タイトル</th>
+                <th>PF</th>
+                <th>動画ID</th>
+                <th>SP</th>
+                <th>スポンサー名</th>
+                <th>有効</th>
+                <th>操作</th>
+            </thead>
+            <tbody>
+                <template x-for="item in videosData" :key="item.id">
+                    <tr x-data="brawlVideoRow(item)" x-init="init()">
+                        <td x-text="item.id" style="white-space: nowrap;"></td>
+                        <td><input type="number" class="form-input" :class="{ 'changed': isDirtyField('display_order') }" x-model.number="display_order" min="0" style="width: 60px; padding: 2px;"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('title_ja'), 'invalid': !title_ja.trim() }" x-model="title_ja" style="min-width: 150px;"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('title_en') }" x-model="title_en" style="min-width: 120px;"></td>
+                        <td>
+                            <select class="form-input" :class="{ 'changed': isDirtyField('platform') }" x-model="platform" style="padding: 2px; font-size: 12px;">
+                                <option value="youtube">YT</option>
+                                <option value="tiktok">TT</option>
+                            </select>
+                        </td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('video_id'), 'invalid': !video_id.trim() }" x-model="video_id" style="min-width: 110px;"></td>
+                        <td style="text-align: center;"><input type="checkbox" x-model="is_sponsored" :class="{ 'changed': isDirtyField('is_sponsored') }" style="width: 16px; height: 16px;"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('sponsor_name') }" x-model="sponsor_name" style="min-width: 100px;" :disabled="!is_sponsored"></td>
+                        <td style="text-align: center;"><input type="checkbox" x-model="is_active" :class="{ 'changed': isDirtyField('is_active') }" style="width: 16px; height: 16px;"></td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <button type="button" class="button button--danger button--small" @click="$dispatch('confirm-delete', { id: item.id })">削除</button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function brawlVideoAdmin() {
+            return {
+                videosData: {{ videos | tojson | safe }},
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                addStatus: { message: '', success: false },
+                newVideo: {
+                    title_ja: '', title_en: '', platform: 'youtube',
+                    video_id: '', thumbnail_url: '', is_sponsored: false,
+                    sponsor_name: '', display_order: 0
+                },
+
+                init() {
+                    this.$root.addEventListener('row-change', () => this.checkForChanges());
+                    this.$root.addEventListener('confirm-delete', (e) => this.confirmDelete(e.detail.id));
+                    window.addEventListener('beforeunload', (e) => {
+                        if (this.hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; }
+                    });
+                },
+
+                checkForChanges() {
+                    this.hasUnsavedChanges = Array.from(
+                        this.$root.querySelectorAll('tbody tr[x-data]')
+                    ).some(el => Alpine.$data(el)?.isDirty);
+                },
+
+                confirmAdd() {
+                    if (!this.newVideo.title_ja.trim() || !this.newVideo.video_id.trim()) return;
+                    if (confirm(`動画「${this.newVideo.title_ja}」を追加しますか？`)) this.addVideo();
+                },
+
+                async addVideo() {
+                    this.addStatus = { message: '追加中...', success: false };
+                    const payload = {
+                        title_ja: this.newVideo.title_ja.trim(),
+                        title_en: this.newVideo.title_en.trim() || null,
+                        platform: this.newVideo.platform,
+                        video_id: this.newVideo.video_id.trim(),
+                        thumbnail_url: this.newVideo.thumbnail_url.trim() || null,
+                        is_sponsored: this.newVideo.is_sponsored,
+                        sponsor_name: this.newVideo.sponsor_name.trim() || null,
+                        display_order: this.newVideo.display_order,
+                    };
+                    try {
+                        const res = await fetch("{{ url_for('admin_add_brawl_video', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await res.json();
+                        this.addStatus = { message: data.message, success: data.success };
+                        if (data.success) setTimeout(() => window.location.reload(), 1500);
+                    } catch (e) {
+                        this.addStatus = { message: '追加処理中にエラーが発生しました。', success: false };
+                    }
+                },
+
+                confirmSave() {
+                    this.checkForChanges();
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus = { message: '変更点はありません。', success: true };
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+                    if (confirm('すべての変更を保存しますか？')) this.saveChanges();
+                },
+
+                async saveChanges() {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    const changed = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(el => {
+                        const row = Alpine.$data(el);
+                        if (row.isDirty && row.isValid) {
+                            changed.push({
+                                id: row.id,
+                                title_ja: row.title_ja.trim(),
+                                title_en: row.title_en.trim() || null,
+                                platform: row.platform,
+                                video_id: row.video_id.trim(),
+                                thumbnail_url: row.thumbnail_url.trim() || null,
+                                is_sponsored: row.is_sponsored,
+                                sponsor_name: row.sponsor_name.trim() || null,
+                                display_order: row.display_order,
+                                is_active: row.is_active,
+                            });
+                        }
+                    });
+                    if (changed.length === 0) {
+                        this.saveStatus = { message: '有効な変更点がありませんでした。', success: true };
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+                    try {
+                        const res = await fetch("{{ url_for('admin_update_brawl_videos', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ videos: changed })
+                        });
+                        const data = await res.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            setTimeout(() => window.location.reload(), 100);
+                        }
+                    } catch (e) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                },
+
+                confirmDelete(id) {
+                    if (confirm(`動画 ID:${id} を本当に削除しますか？`)) this.deleteVideo(id);
+                },
+                async deleteVideo(id) {
+                    this.saveStatus = { message: '削除中...', success: false };
+                    try {
+                        const res = await fetch("{{ url_for('admin_delete_brawl_video', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        });
+                        const data = await res.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) setTimeout(() => window.location.reload(), 1500);
+                    } catch (e) {
+                        this.saveStatus = { message: '削除処理中にエラーが発生しました。', success: false };
+                    }
+                },
+            }
+        }
+
+        function brawlVideoRow(item) {
+            return {
+                id: item.id,
+                _initial: { ...item },
+                title_ja: item.title_ja || '',
+                title_en: item.title_en || '',
+                platform: item.platform || 'youtube',
+                video_id: item.video_id || '',
+                thumbnail_url: item.thumbnail_url || '',
+                is_sponsored: item.is_sponsored || false,
+                sponsor_name: item.sponsor_name || '',
+                display_order: item.display_order || 0,
+                is_active: item.is_active !== false,
+
+                init() {
+                    const fields = ['title_ja','title_en','platform','video_id','thumbnail_url','is_sponsored','sponsor_name','display_order','is_active'];
+                    fields.forEach(f => this.$watch(f, () => this.$dispatch('row-change')));
+                },
+
+                isDirtyField(field) {
+                    const ini = this._initial[field];
+                    const cur = this[field];
+                    // null/''/0の正規化比較
+                    return String(ini ?? '') !== String(cur ?? '');
+                },
+                get isDirty() {
+                    return ['title_ja','title_en','platform','video_id','thumbnail_url','is_sponsored','sponsor_name','display_order','is_active']
+                        .some(f => this.isDirtyField(f));
+                },
+                get isValid() {
+                    return this.title_ja.trim().length > 0 && this.video_id.trim().length > 0;
+                },
+            }
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('brawlVideoAdmin', brawlVideoAdmin);
+            Alpine.data('brawlVideoRow', brawlVideoRow);
+        });
+    </script>
+{% endblock %}

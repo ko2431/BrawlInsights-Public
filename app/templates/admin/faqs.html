@@ -1,0 +1,340 @@
+{# /app/templates/admin/faqs.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / FAQ管理{% endblock %}
+{% block og_description %}よくある質問を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="faqAdmin()">
+    <h1 class="page-title--main">FAQ管理</h1>
+
+    <p class="admin-page__description">
+        FAQ総数: <b>{{ faqs|length }}</b>
+        {% if show_deleted %}
+            （論理削除済みを含む）<a href="{{ url_for('admin_faqs', lang=lang) }}">削除済みを非表示</a>
+        {% else %}
+            <a href="{{ url_for('admin_faqs', lang=lang) }}?show_deleted=true">削除済みも表示</a>
+        {% endif %}
+    </p>
+
+    {# --- 新規追加フォーム --- #}
+    <div class="add-new-item-form">
+        <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しいFAQを追加</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="new_priority" class="form-label">優先順位 (数値が低いほど上に表示)</label>
+                <input type="number" id="new_priority" class="form-input" x-model.number="newFaq.priority" style="width: 100px;">
+            </div>
+            <div class="form-group">
+                <label for="new_category_ja" class="form-label">カテゴリ (日本語, 必須)</label>
+                <input type="text" id="new_category_ja" class="form-input" x-model="newFaq.category_ja" @input="validateNewForm()" placeholder="例: アプリについて">
+                <div class="form-field-status" x-html="newFaqStatus.category_ja"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_category_en" class="form-label">カテゴリ (英語, 必須)</label>
+                <input type="text" id="new_category_en" class="form-input" x-model="newFaq.category_en" @input="validateNewForm()" placeholder="例: About the App">
+                <div class="form-field-status" x-html="newFaqStatus.category_en"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_title_ja" class="form-label">タイトル / 質問 (日本語, 必須)</label>
+                <input type="text" id="new_title_ja" class="form-input" x-model="newFaq.title_ja" @input="validateNewForm()" placeholder="HTMLタグ使用可">
+                <div class="form-field-status" x-html="newFaqStatus.title_ja"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_title_en" class="form-label">タイトル / 質問 (英語, 必須)</label>
+                <input type="text" id="new_title_en" class="form-input" x-model="newFaq.title_en" @input="validateNewForm()" placeholder="HTMLタグ使用可">
+                <div class="form-field-status" x-html="newFaqStatus.title_en"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_body_ja" class="form-label">本文 / 回答 (日本語, 必須)</label>
+                <textarea id="new_body_ja" class="form-input" x-model="newFaq.body_ja" @input="validateNewForm()" rows="4" placeholder="HTMLタグ使用可。改行は<br>に自動変換されます。" style="min-width: 100%; max-width: 100%; min-height: 130px;"></textarea>
+                <div class="form-field-status" x-html="newFaqStatus.body_ja"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_body_en" class="form-label">本文 / 回答 (英語, 任意)</label>
+                <textarea id="new_body_en" class="form-input" x-model="newFaq.body_en" rows="4" placeholder="HTMLタグ使用可。改行は<br>に自動変換されます。空欄の場合、英語版では日本語本文が代わりに表示されます。" style="min-width: 100%; max-width: 100%; min-height: 130px;"></textarea>
+            </div>
+            <div class="form-group form-actions">
+                <button type="button" class="button button--primary" @click="confirmAddFaq()" :disabled="!isNewFaqFormValid">追加</button>
+            </div>
+        </div>
+        <div x-show="addStatus.message" class="form-field-status server-response"
+             :class="{ 'success': addStatus.success, 'error': !addStatus.success && addStatus.message }"
+             x-text="addStatus.message" style="margin-top: 5px;">
+        </div>
+    </div>
+
+    {# --- 既存FAQ編集テーブル --- #}
+    <div class="save-changes-block" style="margin-top: 25px;">
+        <p>既存のFAQを編集できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <th style="width: 40px;">ID</th>
+                <th style="width: 90px;">優先順位</th>
+                <th>カテゴリ(ja)</th>
+                <th>カテゴリ(en)</th>
+                <th>タイトル(ja)</th>
+                <th>タイトル(en)</th>
+                <th>本文(ja)</th>
+                <th>本文(en)</th>
+                <th style="width: 70px;">操作</th>
+            </thead>
+            <tbody>
+                <template x-for="item in faqsData" :key="item.id">
+                    <tr x-data="faqRow(item)" x-init="init()" :class="{ 'row-deleted': item.is_deleted }">
+                        <td x-text="item.id" style="text-align: center;"></td>
+                        <td><input type="number" class="form-input" :class="{ 'changed': isPriorityDirty }" x-model.number="priority" style="width: 90px;"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isCategoryJaDirty }" x-model="category_ja"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isCategoryEnDirty }" x-model="category_en"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isTitleJaDirty }" x-model="title_ja"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isTitleEnDirty }" x-model="title_en"></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isBodyJaDirty }" x-model="body_ja" rows="3"></textarea></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isBodyEnDirty }" x-model="body_en" rows="3"></textarea></td>
+                        <td style="text-align: center;">
+                            <button type="button" 
+                                    class="button button--small" 
+                                    :class="item.is_deleted ? 'button--primary' : 'button--danger'"
+                                    @click="$dispatch('confirm-toggle-delete', { id: item.id, is_deleted: item.is_deleted })"
+                                    x-text="item.is_deleted ? '復元' : '削除'">
+                            </button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // 共通のヘルパー関数
+        function nl2br(text) {
+            if (text === null || typeof text === 'undefined') return '';
+            return text.replace(/\r\n|\n\r|\r|\n/g, '<br>');
+        }
+        function br2nl(html) {
+             if (html === null || typeof html === 'undefined') return '';
+             return html.replace(/<br\s*\/?>/gi, '\n');
+        }
+
+        function faqAdmin() {
+            return {
+                faqsData: {{ faqs | tojson | safe }},
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                addStatus: { message: '', success: false },
+                newFaq: {
+                    priority: 0,
+                    category_ja: '', category_en: '',
+                    title_ja: '', title_en: '',
+                    body_ja: '', body_en: ''
+                },
+                newFaqStatus: { category_ja: '', category_en: '', title_ja: '', title_en: '', body_ja: '' },
+                isNewCategoryJaValid: false,
+                isNewCategoryEnValid: false,
+                isNewTitleJaValid: false,
+                isNewTitleEnValid: false,
+                isNewBodyJaValid: false,
+
+                init() {
+                    this.$root.addEventListener('row-change', () => this.checkForChanges());
+                    this.$root.addEventListener('confirm-toggle-delete', (e) => this.confirmToggleDelete(e.detail.id, e.detail.is_deleted));
+                    window.addEventListener('beforeunload', (e) => { if (this.hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
+                },
+
+                get isNewFaqFormValid() {
+                    return this.isNewCategoryJaValid && this.isNewCategoryEnValid && this.isNewTitleJaValid && this.isNewTitleEnValid && this.isNewBodyJaValid;
+                },
+
+                validateNewForm() {
+                    this.isNewCategoryJaValid = this.newFaq.category_ja.trim().length > 0;
+                    this.newFaqStatus.category_ja = this.isNewCategoryJaValid ? '' : '<span class="text-red-500">必須です。</span>';
+                    this.isNewCategoryEnValid = this.newFaq.category_en.trim().length > 0;
+                    this.newFaqStatus.category_en = this.isNewCategoryEnValid ? '' : '<span class="text-red-500">必須です。</span>';
+                    this.isNewTitleJaValid = this.newFaq.title_ja.trim().length > 0;
+                    this.newFaqStatus.title_ja = this.isNewTitleJaValid ? '' : '<span class="text-red-500">必須です。</span>';
+                    this.isNewTitleEnValid = this.newFaq.title_en.trim().length > 0;
+                    this.newFaqStatus.title_en = this.isNewTitleEnValid ? '' : '<span class="text-red-500">必須です。</span>';
+                    this.isNewBodyJaValid = this.newFaq.body_ja.trim().length > 0;
+                    this.newFaqStatus.body_ja = this.isNewBodyJaValid ? '' : '<span class="text-red-500">必須です。</span>';
+                },
+
+                confirmAddFaq() {
+                    this.validateNewForm();
+                    if (!this.isNewFaqFormValid) return;
+                    if (confirm('新しいFAQを追加しますか？')) {
+                        this.addFaq();
+                    }
+                },
+
+                async addFaq() {
+                    this.addStatus = { message: '追加中...', success: false };
+                    const payload = {
+                        ...this.newFaq,
+                        body_ja: nl2br(this.newFaq.body_ja),
+                        body_en: this.newFaq.body_en.trim() ? nl2br(this.newFaq.body_en) : null,
+                    };
+                    try {
+                        const response = await fetch("{{ url_for('admin_add_faq', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await response.json();
+                        this.addStatus = { message: data.message, success: data.success };
+                        if (data.success) setTimeout(() => window.location.reload(), 1500);
+                    } catch (error) {
+                        this.addStatus = { message: '追加処理中にエラーが発生しました。', success: false };
+                    }
+                },
+
+                checkForChanges() {
+                    this.hasUnsavedChanges = Array.from(this.$root.querySelectorAll('tbody tr[x-data]')).some(rowEl => Alpine.$data(rowEl)?.isDirty);
+                },
+
+                confirmSaveChanges() {
+                    this.checkForChanges();
+                    if (!this.hasUnsavedChanges) {
+                         this.saveStatus = { message: '変更点はありません。', success: true };
+                         setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+                    if (confirm('すべての変更を保存しますか？')) this.saveChanges();
+                },
+
+                async saveChanges() {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    const changedItems = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData.isDirty && rowData.isRowValid) {
+                            changedItems.push({
+                                id: rowData.id,
+                                priority: rowData.priority,
+                                category_ja: rowData.category_ja,
+                                category_en: rowData.category_en,
+                                title_ja: rowData.title_ja,
+                                title_en: rowData.title_en,
+                                body_ja: nl2br(rowData.body_ja),
+                                body_en: rowData.body_en.trim() ? nl2br(rowData.body_en) : null,
+                            });
+                        }
+                    });
+
+                    if (changedItems.length === 0) {
+                        this.saveStatus = { message: '有効な変更点がありませんでした。', success: true };
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_faqs', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ faqs: changedItems })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            setTimeout(() => window.location.reload(), 100);
+                        }
+                    } catch (error) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                },
+
+                confirmToggleDelete(id, currentIsDeleted) {
+                    const action = currentIsDeleted ? '復元' : '論理削除';
+                    if (confirm(`FAQ(ID: ${id})を${action}しますか？`)) {
+                        this.toggleDelete(id);
+                    }
+                },
+                async toggleDelete(id) {
+                    this.saveStatus = { message: '処理中...', success: false };
+                    try {
+                        const response = await fetch("{{ url_for('admin_toggle_delete_faq', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) setTimeout(() => window.location.reload(), 1500);
+                    } catch (error) {
+                        this.saveStatus = { message: '処理中にエラーが発生しました。', success: false };
+                    }
+                },
+            }
+        }
+
+        function faqRow(item) {
+            return {
+                id: item.id,
+                initialData: { ...item,
+                                body_ja_raw: br2nl(item.body_ja),
+                                body_en_raw: br2nl(item.body_en || '')
+                             },
+
+                // フォームコントロールに直接バインドするプロパティ
+                priority: item.priority,
+                category_ja: item.category_ja,
+                category_en: item.category_en,
+                title_ja: item.title_ja,
+                title_en: item.title_en,
+                body_ja: br2nl(item.body_ja),
+                body_en: br2nl(item.body_en || ''),
+
+                init() {
+                    this.$watch('priority', () => this.$dispatch('row-change'));
+                    this.$watch('category_ja', () => this.$dispatch('row-change'));
+                    this.$watch('category_en', () => this.$dispatch('row-change'));
+                    this.$watch('title_ja', () => this.$dispatch('row-change'));
+                    this.$watch('title_en', () => this.$dispatch('row-change'));
+                    this.$watch('body_ja', () => this.$dispatch('row-change'));
+                    this.$watch('body_en', () => this.$dispatch('row-change'));
+                },
+
+                get isPriorityDirty() { return this.initialData.priority !== this.priority; },
+                get isCategoryJaDirty() { return this.initialData.category_ja !== this.category_ja; },
+                get isCategoryEnDirty() { return this.initialData.category_en !== this.category_en; },
+                get isTitleJaDirty() { return this.initialData.title_ja !== this.title_ja; },
+                get isTitleEnDirty() { return this.initialData.title_en !== this.title_en; },
+                get isBodyJaDirty() { return this.initialData.body_ja_raw !== this.body_ja; },
+                get isBodyEnDirty() { return this.initialData.body_en_raw !== this.body_en; },
+                get isDirty() {
+                    return this.isPriorityDirty || this.isCategoryJaDirty || this.isCategoryEnDirty || this.isTitleJaDirty || this.isTitleEnDirty || this.isBodyJaDirty || this.isBodyEnDirty;
+                },
+
+                // バリデーション
+                get isCategoryJaValid() { return this.category_ja.trim().length > 0; },
+                get isCategoryEnValid() { return this.category_en.trim().length > 0; },
+                get isTitleJaValid() { return this.title_ja.trim().length > 0; },
+                get isTitleEnValid() { return this.title_en.trim().length > 0; },
+                get isBodyJaValid() { return this.body_ja.trim().length > 0; },
+                get isRowValid() { return this.isCategoryJaValid && this.isCategoryEnValid && this.isTitleJaValid && this.isTitleEnValid && this.isBodyJaValid; },
+            }
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('faqAdmin', faqAdmin);
+            Alpine.data('faqRow', faqRow);
+        });
+    </script>
+{% endblock %}

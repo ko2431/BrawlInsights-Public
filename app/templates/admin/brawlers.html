@@ -1,0 +1,365 @@
+{# /app/templates/admin/brawlers.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / キャラクター基本情報管理{% endblock %}
+{% block og_description %}キャラクター基本情報を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="brawlerAdmin()">
+    <h1 class="page-title--main">キャラクター基本情報管理</h1>
+
+    <p class="admin-page__description">
+        キャラクター総数: <b>{{ brawlers|length }}</b>
+        <span style="display: inline-block; width: 5px;"></span>
+        日本語名未設定: <b>{{ brawlers | selectattr('names_ja', 'eq', []) | list | length + brawlers | selectattr('names_ja', 'none') | list | length }}</b>
+        <span style="display: inline-block; width: 5px;"></span>
+        レアリティ未設定: <b>{{ brawlers | selectattr('rarity', 'none') | list | length }}</b>
+    </p>
+
+    <div class="save-changes-block">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table brawler-table">
+            <thead>
+                <th @click="sortBy('id')">
+                    <span>ID</span>
+                    <span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('name_en')">
+                    <span>英語名</span>
+                    <span x-show="sortColumn === 'name_en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('names_ja_display')">
+                    <span>日本語名 (カンマ区切り)</span>
+                    <span x-show="sortColumn === 'names_ja_display'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('rarity')">
+                    <span>レアリティ</span>
+                    <span x-show="sortColumn === 'rarity'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('is_temporary')">
+                    <span>期間限定</span>
+                    <span x-show="sortColumn === 'is_temporary'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+            </thead>
+            <tbody>
+                <template x-for="brawler_item in brawlersData" :key="brawler_item.id">
+                    <tr x-data="brawlerRow(brawler_item)" x-init="initComponent()">
+                        <td x-text="brawler_item.id" style="text-align: center;"></td>
+                        <td x-text="brawler_item.name_en"></td>
+                        <td contenteditable="true" class="is-editable"
+                            :class="{ 'changed': isNamesJaDirty, 'show-placeholder': shouldShowNamesJaPlaceholder && !isFocused.names_ja, 'invalid': !isNamesJaValid && isNamesJaDirty }"
+                            :data-placeholder="(normalizeNamesJaString(currentNamesJaString) === '' && !isFocused.names_ja) ? '未設定 (カンマ区切りで入力)' : ''"
+                            @focus="handleFocus($el, 'names_ja')"
+                            @blur="isFocused.names_ja = false; handleInputOrBlur($el, 'names_ja')"
+                            @input.debounce.200ms="handleInputOrBlur($el, 'names_ja')">
+                        </td>
+                        <td contenteditable="true" class="is-editable"
+                            :class="{ 'changed': isRarityDirty, 'show-placeholder': shouldShowRarityPlaceholder && !isFocused.rarity, 'invalid': !isRarityValid && isRarityDirty }"
+                            :data-placeholder="(normalizeRarity(currentRarity) === '' && !isFocused.rarity) ? '未設定' : ''"
+                            @focus="handleFocus($el, 'rarity')"
+                            @blur="isFocused.rarity = false; handleInputOrBlur($el, 'rarity')"
+                            @input.debounce.200ms="handleInputOrBlur($el, 'rarity')"
+                            style="text-align: right;">
+                        </td>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="form-checkbox"
+                                   :checked="currentIsTemporary"
+                                   @change="handleIsTemporaryChange($event.target.checked)">
+                        </td>
+                    </tr>
+                </template>
+                <template x-if="brawlersData.length === 0">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #777;">キャラクターデータがありません</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="save-changes-block" style="margin-top: 0;">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+        :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+        x-text="saveStatus.message" style="margin-top: -5px;">
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function brawlerAdmin() {
+            return {
+                // サーバーから渡された生のキャラクターデータ
+                brawlersDataRaw: {{ brawlers | tojson | safe }},
+                // 表示・ソート用の加工済みデータ
+                brawlersData: [],
+                sortColumn: 'id', // 初期ソート列
+                sortDirection: 'asc', // 初期ソート方向
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+
+                init() {
+                    // names_ja (リスト) を表示・編集用にカンマ区切りの文字列に変換
+                    this.brawlersData = this.brawlersDataRaw.map(b => ({
+                        ...b,
+                        names_ja_display: (b.names_ja && b.names_ja.length > 0) ? b.names_ja.join(',') : '',
+                        rarity_display: b.rarity === null ? '' : String(b.rarity) // レアリティも文字列で扱う
+                    }));
+                    this.sortBy(this.sortColumn, true); // 初期ソート
+                    this.checkForAnyChanges();
+                    this.$root.addEventListener('rowinputchanged', () => this.checkForAnyChanges());
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault();
+                            event.returnValue = '';
+                        }
+                    });
+                },
+
+                checkForAnyChanges() {
+                    let changesFound = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty && rowData.isRowCompletelyValid) {
+                            changesFound = true;
+                        }
+                    });
+                    this.hasUnsavedChanges = changesFound;
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        // ID, レアリティは昇順、名前は昇順、期間限定は降順(Trueが先)をデフォルトにする
+                        if (column === 'is_temporary') this.sortDirection = 'desc';
+                        else this.sortDirection = 'asc';
+                    }
+
+                    this.brawlersData.sort((a, b) => {
+                        let valA = a[column];
+                        let valB = b[column];
+
+                        // names_ja_display のソートのために、ソート列がそれなら表示名を使う
+                        if (column === 'names_ja_display') {
+                            valA = a.names_ja_display;
+                            valB = b.names_ja_display;
+                        }
+
+
+                        // null or undefined or "" をソートの最後に持っていく
+                        const isEmpty = (val) => val === null || typeof val === 'undefined' || String(val).trim() === "";
+                        const aIsEmpty = isEmpty(valA);
+                        const bIsEmpty = isEmpty(valB);
+
+                        if (aIsEmpty && bIsEmpty) return 0;
+                        if (aIsEmpty) return 1; // aが空ならbより大きい(後ろ)
+                        if (bIsEmpty) return -1;// bが空ならaより大きい(後ろ) -> aが小さい(前)
+
+                        let comparison = 0;
+                        if (column === 'id' || column === 'rarity') {
+                            const numA = valA === null ? Infinity : Number(valA); // nullは無限大として扱う
+                            const numB = valB === null ? Infinity : Number(valB);
+                            comparison = numA - numB;
+                        } else if (column === 'is_temporary') {
+                            // boolean値のソート (trueを前にしたい場合は調整)
+                            // ここでは false (0) < true (1) とする
+                            const boolA = valA ? 1 : 0;
+                            const boolB = valB ? 1 : 0;
+                            comparison = boolA - boolB;
+                        } else { // 文字列比較
+                            comparison = String(valA).localeCompare(String(valB), 'ja-JP-u-kf-upper', { sensitivity: 'base', numeric: true });
+                        }
+                        return this.sortDirection === 'asc' ? comparison : comparison * -1;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.checkForAnyChanges();
+                    let invalidRowsExist = false;
+                    let emptyJaNameExists = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData) {
+                            if (rowData.isDirty && !rowData.isRowCompletelyValid) {
+                                invalidRowsExist = true;
+                            }
+                            if (rowData.isDirty && rowData.isNamesJaValid && rowData.normalizeNamesJaString(rowData.currentNamesJaString) === '') {
+                                // 日本語名が有効だが空文字列の場合
+                            }
+                        }
+                    });
+
+                    if (invalidRowsExist) {
+                        this.saveStatus.message = 'エラー: 未入力または不正な値の項目があります。修正してください。';
+                        this.saveStatus.success = false;
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                        return;
+                    }
+
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus.message = '変更点はありません。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    const changedItems = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const alpineData = Alpine.$data(rowEl);
+                        if (alpineData.isDirty && alpineData.isRowCompletelyValid) {
+                            const namesJaArray = alpineData.currentNamesJaString.split(',')
+                                                    .map(name => name.trim())
+                                                    .filter(name => name !== ''); // 空の要素を除去
+                            changedItems.push({
+                                id: alpineData.id,
+                                names_ja: namesJaArray.length > 0 ? namesJaArray : null, // 空配列ならnull
+                                rarity: alpineData.currentRarity.trim() === '' ? null : parseInt(alpineData.currentRarity.trim(), 10),
+                                is_temporary: alpineData.currentIsTemporary
+                            });
+                        }
+                    });
+
+                    if (changedItems.length === 0) {
+                        this.saveStatus.message = '有効な変更点はありませんでした。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    if (confirm(`${changedItems.length}件のキャラクター情報が変更されています。すべての変更を保存しますか？`)) {
+                        this.saveChanges(changedItems);
+                    }
+                },
+
+                async saveChanges(itemsToUpdate) {
+                    this.saveStatus.message = '保存中...';
+                    this.saveStatus.success = false;
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_brawlers_process', lang=lang) }}", { // エンドポイント名変更
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ brawlers: itemsToUpdate }) // ペイロードキー変更
+                        });
+                        const data = await response.json();
+                        this.saveStatus.message = data.message;
+                        this.saveStatus.success = data.success;
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.saveStatus.message = '保存中にエラーが発生しました。';
+                        this.saveStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                    }
+                }
+            }
+        }
+
+        function brawlerRow(brawlerItem) {
+            return {
+                id: brawlerItem.id,
+                initialNamesJaString: (brawlerItem.names_ja && brawlerItem.names_ja.length > 0) ? brawlerItem.names_ja.join(',') : '',
+                initialRarity: brawlerItem.rarity === null ? '' : String(brawlerItem.rarity),
+                initialIsTemporary: brawlerItem.is_temporary,
+
+                currentNamesJaString: (brawlerItem.names_ja && brawlerItem.names_ja.length > 0) ? brawlerItem.names_ja.join(',') : '',
+                currentRarity: brawlerItem.rarity === null ? '' : String(brawlerItem.rarity),
+                currentIsTemporary: brawlerItem.is_temporary,
+
+                isFocused: { names_ja: false, rarity: false },
+
+                isNamesJaValid: true, // 日本語名は空でも許容するが、カンマ区切りで各要素が空でないかはチェックしない (簡易的)
+                isRarityValid: true,  // レアリティは数値または空
+
+                get isNamesJaDirty() { return this.normalizeNamesJaString(this.initialNamesJaString) !== this.normalizeNamesJaString(this.currentNamesJaString); },
+                get isRarityDirty() { return this.normalizeRarity(this.initialRarity) !== this.normalizeRarity(this.currentRarity); },
+                get isIsTemporaryDirty() { return this.initialIsTemporary !== this.currentIsTemporary; },
+                get isDirty() { return this.isNamesJaDirty || this.isRarityDirty || this.isIsTemporaryDirty; },
+
+                get isRowCompletelyValid() { return this.isNamesJaValid && this.isRarityValid; },
+
+                get shouldShowNamesJaPlaceholder() { return this.normalizeNamesJaString(this.currentNamesJaString) === ""; },
+                get shouldShowRarityPlaceholder() { return this.normalizeRarity(this.currentRarity) === ""; },
+
+                initComponent() {
+                    const tdJa = this.$el.querySelector("td:nth-child(3)");
+                    const tdRarity = this.$el.querySelector("td:nth-child(4)");
+                    if (tdJa) tdJa.textContent = this.currentNamesJaString;
+                    if (tdRarity) tdRarity.textContent = this.currentRarity;
+
+                    this.validateField('names_ja');
+                    this.validateField('rarity');
+
+                    this.$watch('currentNamesJaString', () => { this.validateField('names_ja'); this.updateAndNotify(); });
+                    this.$watch('currentRarity', () => { this.validateField('rarity'); this.updateAndNotify(); });
+                    this.$watch('currentIsTemporary', () => this.updateAndNotify());
+                },
+                
+                normalizeNamesJaString(value) {
+                    if (value === null || typeof value === "undefined") return "";
+                    return String(value).split(',').map(s => s.trim()).filter(s => s).join(',');
+                },
+                normalizeRarity(value) {
+                    const trimmed = String(value).trim();
+                    return trimmed === '' || trimmed.toLowerCase() === 'none' ? '' : trimmed;
+                },
+
+                validateField(field) {
+                    if (field === 'names_ja') {
+                        // カンマ区切りの各要素が空でないかなどの詳細バリデーションはここでは省略
+                        this.isNamesJaValid = true; // とりあえず常にtrue
+                    } else if (field === 'rarity') {
+                        const val = this.currentRarity.trim();
+                        this.isRarityValid = val === '' || /^\d+$/.test(val); // 空または数値
+                    }
+                },
+
+                handleInputOrBlur(eventTarget, field) {
+                    const trimmedValue = eventTarget.textContent.trim();
+                    if (field === 'names_ja') this.currentNamesJaString = trimmedValue;
+                    else if (field === 'rarity') this.currentRarity = trimmedValue;
+                },
+                handleFocus(eventTarget, field) {
+                    this.isFocused[field] = true;
+                    const placeholderText = (field === 'names_ja') ? '未設定 (カンマ区切りで入力)' : '未設定';
+                    if (this[`shouldShow${field.charAt(0).toUpperCase() + field.slice(1)}Placeholder`] && eventTarget.textContent.trim() === placeholderText) {
+                        eventTarget.textContent = "";
+                    }
+                },
+                handleIsTemporaryChange(checked) {
+                    this.currentIsTemporary = checked;
+                },
+                updateAndNotify() {
+                    this.$dispatch('rowinputchanged');
+                }
+            }
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('brawlerAdmin', brawlerAdmin);
+            Alpine.data('brawlerRow', brawlerRow);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,45 @@
+/* /app/static/css/pages/help.css */
+
+.help-page__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 15px auto 45px;
+}
+
+.help-page__section-title {
+    font-size: 28px; /* 基本サイズ */
+    font-weight: bold;
+    margin-top: 10px; /* 上マージン */
+    margin-bottom: 17px; /* 下マージン */
+    padding-bottom: 7px; /* 下線とのスペース */
+    border-bottom: 1px solid #eee; /* 下線 */
+}
+
+.help-page__text {
+    font-size: 16px;
+    margin: 0 auto;
+}
+
+@media (max-width: 839px) {
+    .help-page-title--main {
+        font-size: 36px;
+    }
+    .help-page__section-title {
+        font-size: 24px;
+    }
+    .help-page__text {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 539px) {
+    .help-page-title--main {
+        font-size: 28px;
+    }
+    .help-page__section-title {
+        font-size: 20px;
+    }
+    .help-page__text {
+        font-size: 14px;
+    }
+}

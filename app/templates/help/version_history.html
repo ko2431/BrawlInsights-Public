@@ -1,0 +1,848 @@
+{# /app/templates/help/version_history.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}バージョン履歴{% else %}Version History{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}このサービスのバージョン履歴についてのページです。{% else %}This page is about the version history of this service.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/help.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="help-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main help-page-title--main">{% if lang == "ja" %}バージョン履歴{% else %}Version History{% endif %}</h1>
+
+    <div class="help-page__text">
+        {% if lang == "ja" %}
+            このサービス、および前身のDiscordボットのバージョン履歴についてのページです。今後のアップデート予定(変更される可能性があります)も一部掲載していることがあります。
+        {% else %}
+            This page details the version history of this service and its predecessor, the Discord bot. It also includes some future update plans (which are subject to change). The content on this page is displayed in Japanese regardless of your language preference. Please be aware of this.
+        {% endif %}
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 14.2</h2>
+    <div class="help-page__text">
+        <b>2026年5月23日</b>
+        <div class="line-space"></div>
+        このアップデートでは、中規模のコンテンツを多数実装したほか、収益化を強化するための独自バナー広告の実装などを行いました。
+        <div class="line-space"></div>
+        ・プレイヤープロフィール画面に「評価」セクションを実装。
+        <div class="line-space"></div>
+        ・「統計データ」タブに新コンテンツ「バトルカード背景使用率ランキング」を実装。
+        <div class="line-space"></div>
+        ・「ツール」タブに新コンテンツ「ブロスタおすすめ動画」を実装。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「各種ドロップ／ボックス確率表」および「期待値計算機」で、各種トロフィーボックスの確率表および期待値計算機が利用できるように。
+        <div class="line-space"></div>
+        ・独自のバナー広告を実装。
+        <div class="line-space"></div>
+        ・「お知らせ」にカテゴリーによる絞り込み機能を実装。
+        <div class="line-space"></div>
+        ・プレイヤープロフィール画面の「改名履歴」および「クラブ履歴」セクションにおいて、履歴が6件以上ある場合は、最新の5件のみを表示し、古い履歴は「表示を増やす」ボタンを押すことで表示させられるように変更。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルマップ一覧」を更新。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡機能の自動有効化に必要な条件を引き上げ。
+        <div class="line-space"></div>
+        ・プレイヤーページの「推移グラフ」タブの「平均トロフィー推移」グラフで、平均最多トロフィーと平均現在トロフィーの値の表示桁数が食い違っていた問題を修正。
+        <div class="line-space"></div>
+        ・その他バグ修正など。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 14.1</h2>
+    <div class="help-page__text">
+        <b>2026年4月30日</b>
+        <div class="line-space"></div>
+        このアップデートでは、中規模のコンテンツを多数実装しました。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「プロフィール画像生成ツール」に、新画像タイプ「装備スキン一覧画像」を実装。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」のステータスセクションをリニューアルし、全キャラのキャッチフレーズとステータスが表示されるように。
+        <div class="line-space"></div>
+        ・「統計データ」タブ - 「スキン使用率ランキング」および「ツール」タブ - 「キャラクター図鑑」で、スキンの使用率だけでなく所持率も表示されるように。
+        <div class="line-space"></div>
+        ・「統計データ」タブに新コンテンツ「キャッチフレーズ使用率ランキング」を実装。
+        <div class="line-space"></div>
+        ・プレイヤーページのプロフィールタブに、「スキン所持状況」の表を追加。
+        <div class="line-space"></div>
+        ・プレイヤーページのバトル履歴タブに、「クリック絞り込み」メニューを追加。
+        <div class="line-space"></div>
+        ・プレイヤーページの推移グラフタブに、「所持スキン数推移」グラフを追加。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「各種ドロップ／ボックス確率表」「各種ドロップ／ボックス期待値計算機」にノヴァドロップ、ダミアンボックス、スターノヴァボックス、ボルトボックスを追加し、スタードロップとカオスドロップの確率変更に対応。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を現在判明分まで更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルマップ一覧」を更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」のキャラクター選択画面で、キャラクターをキャラクター名で絞り込める機能を追加。
+        <div class="line-space"></div>
+        ・プレイヤーページおよび「ツール」タブ - 「キャラクター図鑑」で、バフィー実装によりゲーム内から削除されたギアが残って表示され続けていた問題を修正。
+        <div class="line-space"></div>
+        ・プレイヤーページおよび「ツール」タブ - 「プロフィール画像生成ツール」で、クラブ未所属時にクラブ未所属を示すアイコンを利用するように変更。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡機能の自動有効化に必要なトロフィー条件を引き上げ。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブ - 「なんでも掲示板」で、いいねした投稿のみ表示できるフィルターを追加。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブ - 「なんでも掲示板」でブロックができなかった不具合を修正。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブ内の各種掲示板において、募集に最多トロフィーの条件を設定する際の条件の上限を、105000から205000に引き上げ。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブ - 「フレンド募集掲示板」で新しい形式のリンクが不正なリンクと検知されてしまっていた問題を修正。
+        <div class="line-space"></div>
+        ・その他バグ修正など。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 14.0</h2>
+    <div class="help-page__text">
+        <b>2026年4月8日</b>
+        <div class="line-space"></div>
+        このアップデートでは、大型新機能としてプロフィール画像生成ツールを実装したほか、新コンテンツとしてバトルカードピンズ使用率ランキング、なんでも掲示板などを実装し、さらに多数の改善を行いました。
+        <div class="line-space"></div>
+        ・「ツール」タブに新ツール「プロフィール画像生成ツール」を実装。
+        <div class="line-space"></div>
+        ・「統計データ」タブに新コンテンツ「バトルカードピンズ使用率ランキング」を実装。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブに新コンテンツ「なんでも掲示板」を実装。
+        <div class="line-space"></div>
+        ・クラブにもブックマークおよび閲覧履歴表示機能を追加。
+        <div class="line-space"></div>
+        ・プレイヤー閲覧履歴を削除できるように変更。
+        <div class="line-space"></div>
+        ・「統計データ」タブ - 「プレイヤーアイコン使用率ランキング」で、ランキングの集計表示ロジックを一部改善。
+        <div class="line-space"></div>
+        ・「募集掲示板」で、コンパクト表示をデフォルトとし、ページの更新ボタンをフィルターの横に移動してレイアウトを最適化。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブを押した際にデフォルトで開く掲示板の種類を、「アカウント」タブ→「オプション」より設定できるように変更。
+        <div class="line-space"></div>
+        ・すべての種類の募集掲示板で、チャットスレッドにメッセージが送信された際、掲示板画面でのチャット数のカウントの更新が遅れていた問題を修正。
+        <div class="line-space"></div>
+        ・チーム募集掲示板とフレンド募集掲示板で、ホストプレイヤー情報で旧トップランカー数と旧最大グレード到達数が表示されていた部分を、合計トップランカーレベルと旧トップランカー数を表示するように変更。
+        <div class="line-space"></div>
+        ・フレンド募集掲示板とクラブ募集掲示板で、連投を排除して投稿を表示できるオプションを追加し、これをデフォルトに変更。
+        <div class="line-space"></div>
+        ・実施中のユーザーアンケートを「アカウント」タブ→「トークン」→「スペシャルミッション」に表示するように変更。
+        <div class="line-space"></div>
+        ・ブックマークの編集をした後、ブックマーク表示枠の拡張ボタンが押せなくなってしまう不具合を修正。
+        <div class="line-space"></div>
+        ・クラブ名検索で、検索クエリに含まれるスペースを、ワイルドカードとして認識するように変更。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「各種ドロップ／ボックス確率表」のカオスドロップの確率表で、ウルトラのハイパーチャージ排出率が誤ってハイパーチャージスキン排出率として表示されていた問題を修正。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「トロフィー増減表」を更新。
+        <div class="line-space"></div>
+        ・プレイヤーアイコンなどの一部画像アセットについて、BSInfo CDNの画像を用いるように変更。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページのキャラクターセクション、および「ツール」タブ - 「キャラクター図鑑」で、ガジェット、スターパワー、ハイパーチャージのアイコンを変更。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページのキャラクターセクションで、ガジェット、スターパワー、ハイパーチャージの名前が、英語版でも日本語で表示されていた問題を修正。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページのキャラクターセクションで、新たにランク順で並べ替えられるように改善。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページのキャラクターセクションで、キャラクターのパワーレベルが11未満でハイパーチャージを所持している場合、ハイパーチャージのアイコンがグレーアウトして表示されるように変更。
+        <div class="line-space"></div>
+        ・プレゼント企画をまとめて応募できる機能を追加。
+        <div class="line-space"></div>
+        ・その他軽微なUI改善、表現の変更など。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 13.5</h2>
+    <div class="help-page__text">
+        <b>2026年3月28日</b>
+        <div class="line-space"></div>
+        このアップデートでは、アプリ版に課金機能を実装したほか、各種ツールの更新などを行いました。
+        <div class="line-space"></div>
+        ・アプリ版で、980円（買い切り）の広告削除を販売開始。
+        <div class="line-space"></div>
+        ・アプリ版で、アプリを支援する機能を提供開始。
+        <div class="line-space"></div>
+        ・トークンの獲得可能量を増やし、UIを改善。毎日ログインでの獲得量は4から5に、ボーナスミッションでの獲得量は8から10に、広告視聴での獲得量は10から15に、募集掲示板投稿での獲得量は初回のみ15に変更。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「各種ドロップ／ボックス確率表」「各種ドロップ／ボックス期待値計算機」に、ナジアボックスを追加。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルマップ一覧」を更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「トロフィー増減表」を判明分まで更新。
+        <div class="line-space"></div>
+        ・ブロスタのメンテナンス中に、アプリが起動できなくなることがあった不具合を修正。
+        <div class="line-space"></div>
+        ・ブロスタのメンテナンス中に、プレイヤープロフィールページの「ガチバトル実績」が表示されなくなってしまう不具合を修正。
+        <div class="line-space"></div>
+        ・プレイヤープロフィール画面のキャラクター一覧で、「最多トロフィー順」を選択したときのキャラの並び順が正しくなかった問題を修正。
+        <div class="line-space"></div>
+        ・広告ブロッカーを不正に導入している場合、モーダルを表示するように変更。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 13.4</h2>
+    <div class="help-page__text">
+        <b>2026年3月18日</b>
+        <div class="line-space"></div>
+        このアップデートでは、各種ドロップ／ボックス確率表および期待値計算機の実装を中心に、UI改善やバグ修正などを行いました。
+        <div class="line-space"></div>
+        ・「ツール」タブから「スタードロップ確率表」「カオスドロップ確率表」を廃止し、新たに「各種ドロップ／ボックス確率表」を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブから「スタードロップ期待値計算機」を廃止し、新たに「各種ドロップ／ボックス期待値計算機」としてパワーアップして登場。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」で、キャラクター名で検索時、検索結果が1件のみの場合、Enterを押すことで直接ピックできるように変更。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡の自動有効化に必要な条件を引き上げ。
+        <div class="line-space"></div>
+        ・毎日日本時間16時になると、アプリが重くなる問題に対処。
+        <div class="line-space"></div>
+        ・その他UI改善、バグ修正など。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 13.3</h2>
+    <div class="help-page__text">
+        <b>2026年3月15日</b>
+        <div class="line-space"></div>
+        このアップデートでは、各種ツールの改善や、バグ修正などを実施しました。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページで、「最終プレイ時間」を追加。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページで、「ガチバトル実績」（特定のランクへの到達回数の記録）を追加。
+        <div class="line-space"></div>
+        ・「統計データ」タブに、新コンテンツ「プレイヤーアイコン使用率ランキング」を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」で、ログインしている場合は、メインアカウントのパワー11のキャラのみ表示するオプションを追加。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクタールーレット」で、ログインしている場合は、メインアカウントの所持キャラまたはパワー11のキャラのみルーレットに出現する設定ができるように変更。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」のキャラクター名による検索で、一部のブラウザで変換の際に文字が増殖しても、適切な検索結果が表示されるように改善。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」のキャラクター名による検索で、正式名称ではない他の名前で検索してもヒットするように改善。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を判明分まで更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「育成計算機」の残り必要コスト計算で、ハイパーチャージとバフィーの残り必要コストの計算が特定の条件下に限り誤っていた問題を修正。
+        <div class="line-space"></div>
+        ・ユーザー名を忘れた人のために、メインアカウントのプレイヤータグを入力してアイコン認証を完了することで、ユーザー名を表示できる機能を追加。
+        <div class="line-space"></div>
+        ・毎日朝9時になるとアプリが重くなる問題に対処。
+        <div class="line-space"></div>
+        ・一部の端末で、動画視聴によるトークン獲得機能でトークンが獲得できない問題に対処。
+        <div class="line-space"></div>
+        ・ギフトコードで、複数のユーザーを対象にしたコードを作成できるようにし、これにより今後のプレゼント企画の景品受け取り方法を一部変更。
+        <div class="line-space"></div>
+        ・その他UI改善など。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 13.2</h2>
+    <div class="help-page__text">
+        <b>2026年3月12日</b>
+        <div class="line-space"></div>
+        このアップデートでは、名前検索を中心にアプリの負荷を軽減するための改善を行ったほか、育成計算機のリニューアル、UI改善などを実施しました。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「育成計算機」の「カスタム計算」でバフィーのコストも含めた計算ができるようになり、さらに複数体分のコスト計算もできるように。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「育成計算機」の「残り育成コスト計算」がより正確に計算されるようになり、さらにオプションもより細かく指定できるように。
+        <div class="line-space"></div>
+        ・ホーム画面の「ブックマーク」と「閲覧履歴」に、プレイヤーアイコンが表示されるように変更。
+        <div class="line-space"></div>
+        ・毎日日本時間朝9時になると、アプリが重くなる問題を一部修正。
+        <div class="line-space"></div>
+        ・プレイヤー名検索結果の並び順を最多トロフィー順から現在トロフィー順に変更し、検索結果には最多トロフィーと現在トロフィー情報ではなく、現在トロフィーと最多ガチバトルランク／スコア情報が表示されるように変更。
+        <div class="line-space"></div>
+        ・プレイヤー名検索のクエリに半角または全角スペースが含まれる場合は、自動でそれを"%(0文字以上の任意の文字列にマッチ)"に変換するように変更。
+        <div class="line-space"></div>
+        ・プレイヤー名検索およびクラブ名検索の検索処理が、ページ遷移後に行われるように変更。
+        <div class="line-space"></div>
+        ・負荷軽減のため、プレイヤー名検索およびクラブ名検索の検索結果が10,000件を超える場合は、上位10,000件のみ表示されるように変更。
+        <div class="line-space"></div>
+        ・負荷軽減のため、「完全一致する名前のみ検索」「改名前の名前を含めて検索」の各検索オプションは、ログインすると利用可能なように変更。
+        <div class="line-space"></div>
+        ・その他名前検索の処理を改善し、負荷を軽減。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を判明分まで更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「トロフィー増減表」を判明分まで更新。
+        <div class="line-space"></div>
+        ・「募集掲示板」で、コンパクト表示を新たに追加し、詳細表示と切り替えられるように変更。
+        <div class="line-space"></div>
+        ・その他各種不具合などの修正。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 13.1</h2>
+    <div class="help-page__text">
+        <b>2026年3月7日</b>
+        <div class="line-space"></div>
+        このアップデートでは、細かな改善を多数行いました。
+        <div class="line-space"></div>
+        ・「統計データ」タブ - 「スキン使用率ランキング」で、レア度による絞り込みができるように。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を判明分まで更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「トロフィー増減表」にトロフィーラッシュイベントの切替メニューを追加。
+        <div class="line-space"></div>
+        ・ホーム画面の「プレイヤータグで検索」「プレイヤー名で検索」「クラブタグで検索」「クラブ名で検索」の4セクションが折りたためるように改善。折りたたみ状況は端末に保存されるため、ブックマークへのアクセスがスムーズに。
+        <div class="line-space"></div>
+        ・「統計データ」「ツール」「アカウント」各タブのセクション折りたたみ状況がセッションの間に限り保存されるように変更。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡機能の有効化可能時間の上限を7日間から30日間に延長。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡機能の有効化について、10トークン消費で24時間有効化のほか、90トークン消費で10日間有効化できるオプションを追加。
+        <div class="line-space"></div>
+        ・ダークモード時の文字色が見やすくなるように改善。
+        <div class="line-space"></div>
+        ・ダークモード時の「統計データ」タブと「ツール」タブのバナーが見やすくなるように枠線を追加。
+        <div class="line-space"></div>
+        ・フッターのDiscordサーバーへの招待リンクが期限切れだったのを修正。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 13.0</h2>
+    <div class="help-page__text">
+        <b>2026年3月5日</b>
+        <div class="line-space"></div>
+        このアップデートでは、ブロスタのアップデートに対応し、アプリ内部のシステムを更新したほか、多くの新コンテンツを実装しました。
+        <div class="line-space"></div>
+        ・ブロスタのアップデートに対応し、アプリ内部のシステムを大規模刷新。
+        <div class="line-space"></div>
+        ・プレイヤーページ、クラブページ、統計データタブ内の各種ランキングページのデータ読み込みが、ページ遷移後に行われるように変更。
+        <div class="line-space"></div>
+        ・プレイヤーページの表示を大きくリニューアルし、新たに装備スキン・具体的な所持アクセサリー・ハイパーチャージやバフィーの情報が掲載されるように。
+        <div class="line-space"></div>
+        ・持続的な運営のため、バトル履歴に保存期間の上限を実装。デフォルトの保存期間は4ヶ月間となり、トークンを100消費するごとに1ヶ月間、最大10年間まで保存期間を延長できるように。
+        <div class="line-space"></div>
+        ・ブロスタがメンテナンス中でも、今までに閲覧されたことのあるプレイヤーのプレイヤーページは閲覧できるように改善。
+        <div class="line-space"></div>
+        ・毎日朝9時に更新される、「ボーナスミッション」を追加。毎日30種類の中から選ばれたランダムなミッションをクリアすることで、8トークンを獲得可能。
+        <div class="line-space"></div>
+        ・プレゼント企画の応募が、ボタンを押すだけでできるように改善。さらに企画の残り時間が表示されるように。
+        <div class="line-space"></div>
+        ・ガチバトルピック提案ツールおよびガチバトルTier表において、より最近のデータを重視するように変更し、環境が変わった際の適応が早くなるように。
+        <div class="line-space"></div>
+        ・「統計データ」タブ - 新コンテンツ「スキン使用率ランキング」を実装。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 新ツール「キャラクタールーレット」を実装。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 新コンテンツ「アプリのよくある質問」を実装。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」にハイパーチャージとバフィーの所持率、スキンの使用率グラフ、スキン一覧を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」に表示されるアクセサリー使用率の算出方法を改善。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」で、新たにパムのステータスを追加。
+        <div class="line-space"></div>
+        ・ブロスタのアップデートに対応し、「統計データ」タブ内「トップランカーボーダー一覧」を「旧トップランカーボーダー一覧」に変更。
+        <div class="line-space"></div>
+        ・ブロスタのアップデートに対応し、「統計データ」タブ内「トップランカー所持数ランキング」を「旧トップランカー所持数ランキング」に変更。
+        <div class="line-space"></div>
+        ・プレイヤーページの推移グラフの罫線などが、ダークモードでより明るい色で表示されるように改善。
+        <div class="line-space"></div>
+        ・募集掲示板タブと育成計算機の表示速度を高速化。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡機能によるバックグラウンドでのデータ取得頻度のばらつきが少なくなるように改善。
+        <div class="line-space"></div>
+        ・その他一部の箇所の説明文を変更、UI改善など。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.3</h2>
+    <div class="help-page__text">
+        <b>2026年2月20日</b>
+        <div class="line-space"></div>
+        このアップデートでは、「キャラクター図鑑」と「マップ周期」の大幅リニューアルをメインに、その他さまざまなUI改善などを行いました。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」を大幅リニューアルし、UIを改善。先発キャラクター・レア・スーパーレア・ウルトラレジェンドレアの全てのキャラクターと、一部のハイパーレア・ウルトラレア・レジェンドレアキャラクターの詳細なステータスが閲覧できるように。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「キャラクター図鑑」で、全キャラのガジェット／スターパワー／ギアの情報と毎日更新される所持率のデータを追加。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」を大幅リニューアルし、UIを改善。最新のマップ周期に対応し、マップ画像の閲覧もできるように。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「マップ周期」で、PCではキーボードの←→キーを押すことでスロット間の移動ができるように改善。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」で、PCではキーボードショートカットを利用して各種操作ができるように改善。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルマップ一覧」を更新。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「スタードロップ確率表」からカオスドロップの確率表を分離し、「カオスドロップ確率表」として新設。
+        <div class="line-space"></div>
+        ・「統計データ」タブ - 「ガチバトルTier表」で、説明文に「ガチバトルマップ一覧」へのリンクを追加。
+        <div class="line-space"></div>
+        ・「統計データ」タブおよび「ツール」タブのスマホ版レイアウトを改善。一部の文字やバナーなどのサイズを小さくし、見やすくなりました。
+        <div class="line-space"></div>
+        ・アプリ版では、「ナビゲーションバーを表示」をオンにしていなくても、プレイヤーページ、クラブページ、「統計データ」タブ内の全ページ、「ツール」タブ内の「ガチバトルピック提案ツール」を除く全ページ、「お知らせ」ページでは常に戻るボタンが表示されるように変更。
+        <div class="line-space"></div>
+        ・アプリ版では、募集掲示板のチャット画面で戻るボタンが表示されるように改善。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページ、バトル履歴ページ、推移グラフページにおいて、各セクションが折りたためるように改善。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.2</h2>
+    <div class="help-page__text">
+        <b>2026年1月2日</b>
+        <div class="line-space"></div>
+        このアップデートでは、コンテンツの更新・バグ修正やさまざまな改善を行いました。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「スタードロップ確率表」を更新し、カオスドロップの確率表も追加。（日本語版のみ）
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「スタードロップ期待値計算機」を更新。（レジェンドレアの確率変更に対応）
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ブロスタパス／プロパス報酬量計算機」を更新。（ブロスタパスの内容変更に対応）
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルマップ一覧」を更新。
+        <div class="line-space"></div>
+        ・「アカウント」タブ - 「コード入力」で、プレゼント企画参加コード使用時に何口目の応募かを表示するように改善。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」で、アプリ版において、「キャラクター名で検索」を使用すると画面が拡大し、その後戻せなくなる不具合を修正。
+        <div class="line-space"></div>
+        ・「ツール」タブ - 「ガチバトルピック提案ツール」で、「キャラクター名で検索」機能を使用中にキャラクターを選択すると、検索ボックスがリセットされるように改善。
+        <div class="line-space"></div>
+        ・ダークモードに対応。
+        <div class="line-space"></div>
+        ・ログインボーナストークンを2から4に変更、掲示板投稿でのボーナストークン受取回数を10回から5回に減少。
+        <div class="line-space"></div>
+        ・ログイン状態が自動で切れる期限を30日から365日に変更。
+        <div class="line-space"></div>
+        ・新名声ランク「スターフォース」に対応。
+        <div class="line-space"></div>
+        ・「ホーム」タブで、検索ボタンを連打できないように変更。
+        <div class="line-space"></div>
+        ・「アカウント」タブに、アプリを支援するボタンを追加。
+        <div class="line-space"></div>
+        ・「アカウント」タブに、広告非表示の購入に関する案内を追加。（Web版のみ）
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.1.2</h2>
+    <div class="help-page__text">
+        <b>2025年9月20日</b>
+        <div class="line-space"></div>
+        このアップデートでは、中規模の新コンテンツを複数実装しました。
+        <div class="line-space"></div>
+        ・メインアカウントの改名履歴・クラブ履歴の非表示設定機能を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブに、ブロスタパス／プロパス報酬量計算機を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブに、スタードロップ期待値計算機を追加。
+        <div class="line-space"></div>
+        ・「統計データ」タブに、非公式推定プレイ時間ランキングを追加。
+        <div class="line-space"></div>
+        ・ガチバトルピック提案ツールで、現在ピック中のプレイヤーの枠がゴールドでハイライトされるように改善。
+        <div class="line-space"></div>
+        ・その他バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.1.1</h2>
+    <div class="help-page__text">
+        <b>2025年9月18日</b>
+        <div class="line-space"></div>
+        このアップデートでは、使い勝手向上のための改善を多数行いました。
+        <div class="line-space"></div>
+        ・アプリで、ナビゲーションバー（戻る／進むボタン）を任意で表示可能に。
+        <div class="line-space"></div>
+        ・アプリで、1日の広告視聴によるボーナストークン獲得可能回数を3回から5回に変更。
+        <div class="line-space"></div>
+        ・プレイヤー自動追跡のトークン消費による有効化時間を20時間から24時間に、さらに重ねがけ上限時間を100時間から168時間に変更。
+        <div class="line-space"></div>
+        ・新しいトロフィーグレードアイコン画像に対応。
+        <div class="line-space"></div>
+        ・ガチバトルTier表とピック提案ツールにおいて、新しいデータをより重視するように変更。
+        <div class="line-space"></div>
+        ・ツールタブのトロフィー増減表に、ブロスタアリーナを追加。
+        <div class="line-space"></div>
+        ・ツールタブのガチバトルマップ一覧に、9月シーズンのマップを追加。
+        <div class="line-space"></div>
+        ・バトル履歴のガチバトルタブにおいて、シーズン単位でのバトル絞り込みができる機能を追加。
+        <div class="line-space"></div>
+        ・その他UI改善・バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.1</h2>
+    <div class="help-page__text">
+        <b>2025年9月3日</b>
+        <div class="line-space"></div>
+        このアップデートでは、お役立ち外部リンクの追加と、使い勝手向上のための改善などを行いました。
+        <div class="line-space"></div>
+        ・「ツール」タブに、お役立ち外部リンクを追加。
+        <div class="line-space"></div>
+        ・ガチバトルピック提案ツールのピック提案精度を向上。
+        <div class="line-space"></div>
+        ・「アカウント」タブに、広告視聴によるボーナストークン獲得機能を追加。
+        <div class="line-space"></div>
+        ・スマホ向けに一部のコンテンツサイズを小さくし、画面により多くのコンテンツが収まるように改善。
+        <div class="line-space"></div>
+        ・その他UI改善・バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.0.2</h2>
+    <div class="help-page__text">
+        <b>2025年8月31日</b>
+        <div class="line-space"></div>
+        このアップデートでは、iOSアプリ版のリリースと、それに向けた調整を行いました。
+        <div class="line-space"></div>
+        ・iOS向けのアプリ版を公開。
+        <div class="line-space"></div>
+        ・募集掲示板およびチャットに、ブロック機能を実装。
+        <div class="line-space"></div>
+        ・その他小さな更新・UI改善・バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.0.1</h2>
+    <div class="help-page__text">
+        <b>2025年8月18日</b>
+        <div class="line-space"></div>
+        このアップデートでは、5000万件以上の勝敗データをもとに、ガチバトルに関連する統計データを自動で集計する新しい仕組みを導入し、これにより多数の大型新機能を実装しました。さらにその他の新機能も実装しました。
+        <div class="line-space"></div>
+        ・「統計データ」タブに、総合/モード別/マップ別のいずれも確認でき、毎日更新されるガチバトル最強キャラTier表、およびガチバトルキャラクター使用率ランキングを実装。
+        <div class="line-space"></div>
+        ・「ツール」タブに、おすすめBAN/ピックキャラクターを自動で提案する、ガチバトルピック提案ツールを実装。
+        <div class="line-space"></div>
+        ・「ツール」タブに、ゲーム内で見られない詳細ステータスや、おすすめモード/マップなどを閲覧できるキャラクター図鑑を実装。
+        <div class="line-space"></div>
+        ・「募集掲示板」タブに、条件指定機能とチャット機能を備えた「チーム募集掲示板」を試験運用版として実装。
+        <div class="line-space"></div>
+        ・プレイヤーページ→バトル履歴タブ→キャラクター指定タブのキャラクター選択メニューにおいて、キャラクターの並び順を名前順に固定するように変更。
+        <div class="line-space"></div>
+        ・プレイヤー名前検索の部分一致検索において、検索キーワードに半角または全角スペースが含まれる場合は、そのスペースの位置に任意の文字を含む名前もヒット対象になるように変更。
+        <div class="line-space"></div>
+        ・その他UI改善・バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 12.0</h2>
+    <div class="help-page__text">
+        <b>2025年7月31日</b>
+        <div class="line-space"></div>
+        このアップデートでは、使い勝手向上のための改善を複数実装しました。
+        <div class="line-space"></div>
+        ・募集掲示板のチャットにおいて、メッセージやリアクションが再読み込みを挟まなくても適切に即時反映されるように修正。
+        <div class="line-space"></div>
+        ・プレイヤーの名前検索の「改名前を含めて検索」において、実行速度を改善して負荷を軽減。
+        <div class="line-space"></div>
+        ・サイト内「お知らせ」のタイトルに色が付くように変更。
+        <div class="line-space"></div>
+        ・ログインした後、ログインする直前に見ていたページに自動で遷移するように改善。
+        <div class="line-space"></div>
+        ・ホームページに、簡単な使い方ガイドを追加。
+        <div class="line-space"></div>
+        ・その他UI改善・バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.3.1</h2>
+    <div class="help-page__text">
+        <b>2025年7月27日</b>
+        <div class="line-space"></div>
+        このアップデートでは、「統計データ」タブに新しい非公式ランキングを追加し、さらに「フレンド募集掲示板」と「クラブ募集掲示板」を実装しました。
+        <div class="line-space"></div>
+        ・「統計データ」タブに新しい非公式ランキングを5種類(連勝数、トップランカー所持数、名声ポイント、記録ポイント、合計旧マスタリーポイント)追加。
+        <div class="line-space"></div>
+        ・「フレンド募集掲示板」と「クラブ募集掲示板」を試験運用版として実装。条件指定/判定機能、投稿の通報機能などを付属機能として実装。
+        <div class="line-space"></div>
+        ・掲示板に付属するチャット機能を実装。タイピングインジケーター(入力中...)表示、リアクション機能、メッセージの通報機能、ブロック機能などを付属機能として実装。
+        <div class="line-space"></div>
+        ・クラブ情報ページに、新たにメガピッグに関する情報の表示を追加。
+        <div class="line-space"></div>
+        ・その他内部的なシステム調整、UI改善、バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.3</h2>
+    <div class="help-page__text">
+        <b>2025年7月17日</b>
+        <div class="line-space"></div>
+        このアップデートでは、トークンの所持上限廃止などを行いました。
+        <div class="line-space"></div>
+        ・トークンの所持上限を廃止。
+        <div class="line-space"></div>
+        ・「ツール」タブのガチバトルマップ一覧を新シーズンに対応したものに更新。
+        <div class="line-space"></div>
+        ・その他内部的なシステム調整など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.2.2</h2>
+    <div class="help-page__text">
+        <b>2025年7月15日</b>
+        <div class="line-space"></div>
+        このアップデートでは、「ツール」タブへの複数の新コンテンツ実装などを行いました。
+        <div class="line-space"></div>
+        ・「ツール」タブに、育成計算機を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブに、トロフィー増減表を追加。
+        <div class="line-space"></div>
+        ・「ツール」タブに、スタードロップ確率表を追加。
+        <div class="line-space"></div>
+        ・毎日初めてサイトを利用すると、トークンが2個付与されるようになりました。
+        <div class="line-space"></div>
+        ・サイトの利用状況が当初の想定を上回っており、プレイヤー自動追跡機能が有効化されているプレイヤーが想定より増えているため、プレイヤー自動追跡機能の自動有効化時間を一部調整(下方修正)しました。
+        <div class="line-space"></div>
+        ・その他UI改善・バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.2.1</h2>
+    <div class="help-page__text">
+        <b>2025年7月10日</b>
+        <div class="line-space"></div>
+        このアップデートでは、使い勝手向上のための機能を実装しました。
+        <div class="line-space"></div>
+        ・スマホアプリのように、タブごとの最後に閲覧していたページが、タブを切り替えても記憶されるようになりました。
+        <div class="line-space"></div>
+        ・「統計データ」と「ツール」タブでも、お知らせページのようにセクションごとに折りたためるようになりました。
+        <div class="line-space"></div>
+        ・全ページ共通のフッターを実装。
+        <div class="line-space"></div>
+        ・その他UI改善など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.2</h2>
+    <div class="help-page__text">
+        <b>2025年7月8日</b>
+        <div class="line-space"></div>
+        このアップデートでは、「統計データ」タブへの勝利数ランキング実装などを行いました。
+        <div class="line-space"></div>
+        ・「統計データ」タブに、3対3/ソロ/デュオ勝利数の非公式ランキングを追加。
+        <div class="line-space"></div>
+        ・「統計データ」タブの「ガチバトルランキング」で、シーズンごとのランキングだけではなく歴代のランキングも閲覧できるようになりました。グローバルランキングとローカルランキングのどちらも閲覧が可能で、シーズンごとのランキングの2倍である、最大1,000位まで表示されます。
+        <div class="line-space"></div>
+        ・サイト内「お知らせ」のタイトル部分をタップで、お知らせを折りたためるようになりました。
+        <div class="line-space"></div>
+        ・その他バグ修正など
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.1</h2>
+    <div class="help-page__text">
+        <b>2025年7月5日</b>
+        <div class="line-space"></div>
+        このアップデートでは、「統計データ」と「ツール」タブに、新たにコンテンツを実装しました。
+        <div class="line-space"></div>
+        ・総合トロフィーランキング、キャラクタートロフィーランキング、クラブランキングのページを実装。グローバルランキングとローカルランキングのどちらも閲覧が可能。また、総合トロフィーランキングとキャラクタートロフィーランキングについては、現在のランキングだけではなく歴代ランキングの閲覧も可能。
+        <div class="line-space"></div>
+        ・トップランカーボーダーのページを実装。各シーズンのボーダーやボーダー変動を、わかりやすく確認できます。
+        <div class="line-space"></div>
+        ・ガチバトルマップ一覧のページを実装。ガチバトルのマップ一覧を、マップ画像付きで確認できます。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 11.0</h2>
+    <div class="help-page__text">
+        <b>2025年7月3日</b>
+        <div class="line-space"></div>
+        より使いやすく多機能なサービスにするため、サービス形態をDiscordボットからWebサイトに変更。それに伴い、別途サーバーを契約しての運営方式に変更。さらに、データベースもSQLiteからPostgreSQLに変更したため、安定性やパフォーマンスが大幅に向上しました。
+        <div class="line-space"></div>
+        ・プレイヤー名でのプレイヤー検索機能、およびクラブ名でのクラブ検索機能が大幅に強化、より高度な検索ができるように。検索結果の最大表示件数も25件から無制限に増加。
+        <div class="line-space"></div>
+        ・プレイヤーをブックマークして保存できる最大数が1件から25件に増加。Discord版と同様、ログインで複数端末での共有もできるように。
+        <div class="line-space"></div>
+        ・ブックマークしていないプレイヤーについても、プレイヤー情報の閲覧時に閲覧履歴を記録して表示できるように変更。
+        <div class="line-space"></div>
+        ・プレイヤープロフィールページで、ガチバトルスコアや以前のステータスなどのこれまで閲覧できなかったデータを含む、さまざまなデータを閲覧できるように。
+        <div class="line-space"></div>
+        ・改名履歴・クラブ履歴の表示機能を追加。
+        <div class="line-space"></div>
+        ・バトル履歴の最大表示可能数が250件から100,000件に増加。さらにバトル履歴データをもとに各種グラフが生成され、バトル履歴ページで閲覧できるように。
+        <div class="line-space"></div>
+        ・バトル履歴の絞り込み機能が強化され、さらに期間での絞り込みも可能に。
+        <div class="line-space"></div>
+        ・プレイヤーの各種統計データの推移グラフが生成され、推移グラフページで閲覧できるように。
+        <div class="line-space"></div>
+        ・新たにクラブ情報の表示も可能に。
+        <div class="line-space"></div>
+        その他にも多数の新機能を追加しています。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 10.5</h2>
+    <div class="help-page__text">
+        <b>2025年3月7日</b>
+        <div class="line-space"></div>
+        ガチバトルのマスター(1-3)のランク区分が画像に表示されるようになるなど、軽微な改善や修正を行いました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 10.4</h2>
+    <div class="help-page__text">
+        <b>2025年1月30日</b>
+        <div class="line-space"></div>
+        従来の10倍となる、過去250戦までのバトル履歴が掲載されたバトル履歴画像が生成できるようになりました。さらに、ガチバトルや特定キャラのみのバトルを絞り込んで画像を生成できる"バトル絞り込み機能"も実装。ガチバトルを、バトル単位ではなく自動でセット単位にまとめる機能も初めて実装しました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 10.3</h2>
+    <div class="help-page__text">
+        <b>2024年12月29日</b>
+        <div class="line-space"></div>
+        改名履歴・クラブ履歴・バトル履歴・推移グラフを表示するための、プレイヤーデータ自動アップデート機能を実装。さらに従来の4倍となる、過去100戦までのバトル履歴が掲載されたバトル履歴画像が生成できるようになりました。なお、現在このサイトで確認できるバトル履歴の範囲は、最も古い場合でこの時点からとなっています。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 10.2</h2>
+    <div class="help-page__text">
+        <b>2024年12月13日</b>
+        <div class="line-space"></div>
+        新たに現在トロフィー版プロフィール画像、パワーレベル画像、旧ランク制度版プロフィール画像の3種類のプロフィール画像が生成できるようになりました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 10.1</h2>
+    <div class="help-page__text">
+        <b>2024年11月23日</b>
+        <div class="line-space"></div>
+        プレイヤー名でのプレイヤー検索機能が追加(復活)。その他機能追加や軽微な修正を行いました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 10.0</h2>
+    <div class="help-page__text">
+        <b>2024年11月19日</b>
+        <div class="line-space"></div>
+        ガチバトルと新トロフィーシステムに対応し、システムを刷新した大型アップデート。操作方法の改善、プロフィール画像のデザイン刷新、英語対応など多数の新機能を追加しました。ゲーム内で歴代ランキングが閲覧できるようになったことに伴い、このボットで独自集計していたランキング機能は廃止しました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 9.0</h2>
+    <div class="help-page__text">
+        <b>2024年夏ごろ</b>
+        <div class="line-space"></div>
+        パワーリーグが廃止されガチバトルが実装されたこと、そしてボットのシステムが古く非効率になってきたことにより、システムを1から再設計して開発を進めていたバージョンでしたが、ブロスタのトロフィーシステム刷新が発表されたため開発を中止しました。一部機能はVer 10.0に引き継がれました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.7.2</h2>
+    <div class="help-page__text">
+        <b>2024年1月25日</b>
+        <div class="line-space"></div>
+        軽微な更新
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.7.1</h2>
+    <div class="help-page__text">
+        <b>2023年12月30日</b>
+        <div class="line-space"></div>
+        軽微な更新
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.7</h2>
+    <div class="help-page__text">
+        <b>2023年8月17日</b>
+        <div class="line-space"></div>
+        独自のランキングを確認できるデータベースの人数が約25万人から約31万人に増加しました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.6</h2>
+    <div class="help-page__text">
+        <b>2023年8月11日</b>
+        <div class="line-space"></div>
+        ボットのDiscordサーバー上に、プライベートチャンネルを作成できる機能を実装しました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.5</h2>
+    <div class="help-page__text">
+        <b>2023年8月4日</b>
+        <div class="line-space"></div>
+        新たに過去25戦のバトル履歴と勝率が掲載された、バトル履歴画像の生成ができるようになりました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.4.1</h2>
+    <div class="help-page__text">
+        <b>2023年7月29日</b>
+        <div class="line-space"></div>
+        改名履歴を記録する機能が追加されました。この日から記録を始めた改名履歴は、現在このサイトで確認できる改名履歴にも反映されています(推定改名日が"それ以前"になっているものがそうです)。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.4</h2>
+    <div class="help-page__text">
+        <b>2023年7月27日</b>
+        <div class="line-space"></div>
+        Discordボットとしての大型アップデート。独自のランキングを確認できるデータベースの人数が約8000人から約25万人に増加、新たな画像形式としてスーパープロフィール画像の生成ができるようになったほか、多数の新機能を追加しました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.3</h2>
+    <div class="help-page__text">
+        <b>2023年7月ごろ</b>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.2</h2>
+    <div class="help-page__text">
+        <b>2023年7月ごろ</b>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.1</h2>
+    <div class="help-page__text">
+        <b>2023年7月ごろ</b>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 8.0</h2>
+    <div class="help-page__text">
+        <b>2023年7月ごろ</b>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 7.0</h2>
+    <div class="help-page__text">
+        <b>2023年6月6日</b>
+        <div class="line-space"></div>
+        Discordボットとしての大型アップデート。従来の!で始まるコマンドを廃止しスラッシュコマンドに対応したほか、プレイヤータグのセーブ機能、初めての画像生成機能となるプロフィール画像の生成機能などを実装しました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 6.0</h2>
+    <div class="help-page__text">
+        <b>2023年4月21日</b>
+        <div class="line-space"></div>
+        Discordボットとしての大型アップデート。一部コマンドの刷新のほか、リアクションボタンを利用したランキング閲覧機能などを追加。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 5.1 - 5.6</h2>
+    <div class="help-page__text">
+        <b>2023年4月17 - 19日</b>
+        <div class="line-space"></div>
+        軽微な機能追加と修正
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 5.0</h2>
+    <div class="help-page__text">
+        <b>2023年4月17日</b>
+        <div class="line-space"></div>
+        機能追加と修正
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 4.1</h2>
+    <div class="help-page__text">
+        <b>2023年4月17日</b>
+        <div class="line-space"></div>
+        軽微な機能追加と修正
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 4.0</h2>
+    <div class="help-page__text">
+        <b>2023年4月17日</b>
+        <div class="line-space"></div>
+        このプロジェクトは、もともと日本のブロスタプレイヤー約4,000人の(旧)紺盾・赤盾の数の非公式ランキングを自動集計・表示する目的でDiscordボットとして始まりました。その後、Ver 6.0までのアップデートで、プレイヤー名によるプレイヤー検索、その他の項目のランキング表示などを実装していきました。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Ver 1.0 - 3.0</h2>
+    <div class="help-page__text">
+        <b>2023年4月以前</b>
+    </div>
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

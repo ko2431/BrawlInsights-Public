@@ -1,0 +1,107 @@
+/* /app/static/css/pages/auth.css */
+/* =============================================== */
+/* 認証関連ページ固有スタイル                          */
+/* =============================================== */
+.auth-page__container {
+    width: 90%;
+    max-width: 500px; /* フォームなので少し狭く */
+    margin: 30px auto;
+    padding: 20px;
+    background-color: var(--bg-f8f8f8);
+    border: 1px solid var(--color-ddd);
+    border-radius: 16px;
+}
+
+.auth-form .form-group {
+    margin-bottom: 15px;
+}
+
+.auth-form .form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 400;
+}
+
+/* パスワードの表示/非表示ボタン */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.password-input-wrapper .form-input {
+    padding-right: 40px; /* ボタンのスペース確保 */
+}
+.password-toggle-button {
+    position: absolute;
+    right: 1px;
+    top: 1px;
+    bottom: 1px;
+    width: 38px; /* ボタン幅 */
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.password-toggle-icon {
+    height: 20px; /* アイコンサイズ */
+    width: auto;
+    opacity: 0.6;
+}
+.password-toggle-button:hover .password-toggle-icon {
+    opacity: 1;
+}
+
+
+.auth-button {
+    width: 100%;
+    padding: 10px;
+    font-size: 18px;
+}
+.auth-button:disabled {
+    background-color: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
+}
+
+.auth-links {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+.auth-links p {
+    margin-bottom: 5px;
+}
+.auth-links a {
+    color: #007bff;
+    text-decoration: underline;
+}
+.dark .auth-links a {
+    color: #52a5ff;
+}
+
+.global-error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+.global-error-message .info-block__icon {
+    margin-right: 8px;
+    height: 1.2em; /* アイコンサイズ調整 */
+}
+
+.main-account-verification-content {
+    margin: 15px 0;
+    padding: 7px 12px;
+    border: 1px solid var(--color-eee);
+    border-radius: 12px;
+    background-color: var(--bg-f8f8f8);
+}

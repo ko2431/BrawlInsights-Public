@@ -1,0 +1,132 @@
+{# /app/templates/admin/reactions.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / リアクション確認{% endblock %}
+{% block og_description %}リアクションを確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{# ページネーションUIマクロ #}
+{% macro render_pagination(pagination, grouping) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="リアクションページネーション">
+            <ul class="pagination-list">
+                {% set base_query_parts = [] %}
+                {% if grouping %}{% set _ = base_query_parts.append("grouping=True") %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {# 1. "＜" (前へ) ボタン #}
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {# 2. ページ番号のロジック #}
+                {% set page_numbers = [] %}
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {# 最初と最後、および現在ページ±2のページ番号を表示対象とする #}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
+                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
+                        {% if page_numbers and p > page_numbers[-1] + 1 %}
+                            {% set _ = page_numbers.append('...') %}
+                        {% endif %}
+                        {% set _ = page_numbers.append(p) %}
+                    {% endif %}
+                {% endfor %}
+
+                {# 3. ページ番号リストを元にHTMLを生成 #}
+                {% for p in page_numbers %}
+                    {% if p == '...' %}
+                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                    {% elif p == pagination.current_page %}
+                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {# 4. ">" (次へ) ボタン #}
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="admin-page__container">
+    <h1 class="page-title--main">リアクション確認</h1>
+
+    {# フィルター #}
+    <div class="admin-filters__container">
+        <form method="get" id="groupingForm" class="filter-form">
+            <label for="groupingSelect" class="filter-form__label">グルーピング:</label>
+            <select name="grouping" id="groupingSelect" class="filter-form__select" onchange="document.getElementById('groupingForm').submit();">
+                <option value="True" {% if grouping %}selected{% endif %}>する</option>
+                <option value="False" {% if not grouping %}selected{% endif %}>しない</option>
+            </select>
+            <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+    </div>
+
+    <p class="admin-page__description">
+        リアクション総数: <b>{{ '{:,}'.format(total_count) }}</b> 件
+    </p>
+
+    {# ページネーション (上) #}
+    {{ render_pagination(pagination, grouping) }}
+
+    {# テーブル #}
+    <div class="table-wrapper" style="margin-top: 1em;">
+        <table class="data-table reaction-table">
+            <thead>
+                <th>ID</th>
+                <th>日時 (JST)</th>
+                <th>ユーザー</th>
+                <th>ユーザーID</th>
+                <th>絵文字</th>
+                <th>該当メッセージ</th>
+                <th>該当メッセージID</th>
+                <th>該当メッセージ送信者</th>
+                <th>該当メッセージ送信者ID</th>
+            </thead>
+            <tbody>
+                {% for reaction in reactions %}
+                <tr>
+                    <td>{{ reaction.id }}</td>
+                    <td>{{ reaction.created_at_text }}</td>
+                    <td>{{ reaction.user_name }}</td>
+                    <td>{{ reaction.user_id }}</td>
+                    <td>{{ reaction.emoji }}</td>
+                    <td>{{ reaction.message.message }}</td>
+                    <td>{{ reaction.message_id }}</td>
+                    <td>{{ reaction.message.user_name if reaction.message.user_name else "(ゲスト)" }}</td>
+                    <td>{{ reaction.message.user_id if reaction.message.user_id else reaction.message.user_ip }}</td>
+                </tr>
+                {% endfor %}
+                {% if not reactions %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: #777;">リアクションはありません。</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {# ページネーション (下) #}
+    {{ render_pagination(pagination, grouping) }}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    </script>
+{% endblock %}

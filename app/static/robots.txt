@@ -1,0 +1,88 @@
+# app/static/robots.txt
+
+# =============== 基本ルール (全てのボットに適用) ===============
+User-agent: *
+Disallow: /admin/
+Disallow: /account-settings/
+Disallow: /player/
+Disallow: /club/
+Disallow: /chat/
+# 必要に応じて、サイト構造に合わせたDisallowルールを追加
+
+# =============== AI学習・一部検索エンジン (プレイヤー/クラブページへのアクセスを制限) ===============
+# Yandex
+User-agent: Yandex
+Disallow: /player/
+Disallow: /club/
+
+# OpenAI
+User-agent: GPTBot
+Disallow: /player/
+Disallow: /club/
+
+# Google AI
+User-agent: Google-Extended
+Disallow: /player/
+Disallow: /club/
+
+# Perplexity AI
+User-agent: PerplexityBot
+Disallow: /player/
+Disallow: /club/
+
+# Amazon
+User-agent: Amazonbot
+Disallow: /player/
+Disallow: /club/
+
+# =============== 不要・迷惑なボット (サイト全体へのアクセスを禁止) ===============
+# SEO/マーケティングツール
+User-agent: AhrefsBot
+Disallow: /
+User-agent: SemrushBot
+Disallow: /
+User-agent: SemrushBot-SA
+Disallow: /
+User-agent: SemrushBot-OCOB
+Disallow: /
+User-agent: MJ12bot
+Disallow: /
+User-agent: CriteoBot
+Disallow: /
+User-agent: DotBot
+Disallow: /
+User-agent: BLEXBot
+Disallow: /
+User-agent: serpstatbot
+Disallow: /
+
+# AI/LLM学習用クローラー
+User-agent: ChatGPT-User
+Disallow: /
+User-agent: anthropic-ai
+Disallow: /
+User-agent: ClaudeBot
+Disallow: /
+User-agent: OAI-SearchBot
+Disallow: /
+User-agent: YouBot
+Disallow: /
+User-agent: Perplexity-User
+Disallow: /
+User-agent: DuckAssistBot
+Disallow: /
+
+# その他、低価値・迷惑クローラー
+User-agent: meta-externalagent
+Disallow: /
+User-agent: meta-externalfetcher
+Disallow: /
+User-agent: FacebookBot
+Disallow: /
+User-agent: PetalBot
+Disallow: /
+User-agent: Bytespider
+Disallow: /
+
+# =============== サイトマップ ===============
+Sitemap: https://brawlinsights.com/sitemap.xml

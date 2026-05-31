@@ -1,0 +1,1425 @@
+{# /app/templates/index.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ホーム{% else %}Home{% endif %} - Brawl Insights{% endblock %}
+{% block og_type %}website{% endblock %}
+
+{% block head_extra %}
+    {# ホームページ固有のCSSを読み込む #}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/home.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="home-page__container"> {# ページ全体のコンテナ #}
+    {# ^ アップデートのお願い #}
+    {% include "components/update_request.html" %}
+
+    {# バナー広告の削除 #} {# 要検討。現在は仮のバナーのみ設置 #}
+    {% if platform == 'ios' and (app_client_version and app_client_version >= "13.5") %}
+    <div x-data="adRemovalButton()" x-show="isReady" style="display: none;" x-cloak>
+        
+        {# パターンA: ボタン表示 (有効期限切れ or 未視聴) #}
+        <template x-if="showButton">
+            <div class="remove-app-ad-button"
+                 :class="{ 'is-loading': isLoading }"
+                 @click="watchAd()">
+                
+                <img src="{{ url_for('static', path='/images/ui/brawltv.png') }}" alt="Ad" class="remove-app-ad-button__icon">
+                
+                <p class="remove-app-ad-button__text" x-text="buttonText"></p>
+            </div>
+        </template>
+
+        {# パターンB: 残り時間表示 (有効期間中) #}
+        <template x-if="!showButton && expiryDate > 0">
+            <div class="remove-app-ad-remaining">
+                <p class="remove-app-ad-remaining__text">
+                    {% if lang == "ja" %}
+                        バナー広告を削除中：<b x-text="remainingText"></b>
+                    {% else %}
+                        Removing banner ads: <b x-text="remainingText"></b>
+                    {% endif %}
+                </p>
+            </div>
+        </template>
+
+    </div>
+    {% endif %}
+
+    {# 0. お知らせ #}
+    <section class="home-page__section announcements-section">
+        <div class="announcements-box">
+            <div style="display: flex; border-bottom: 1px solid #eee; justify-content: space-between; align-items: center;">
+                <div class="announcements-block-title-block">
+                    <h2 class="block-title announcements-block-title" style="margin-bottom: 4px;">{% if lang == "ja" %}お知らせ{% else %}News{% endif %}</h2>
+                    <p class="announcements-block-description">{% if lang == "ja" %}タイトルをタップして本文を見る{% else %}Tap the title to read the full announcement{% endif %}</p>
+                </div>
+                <a href="{{ url_for('announcements', lang=lang) }}" class="button button--secondary announcements-button" style="max-height: 32px; border-radius: 10px; margin-bottom: 6px;">{% if lang == "ja" %}すべて見る{% else %}View All{% endif %}</a>
+            </div>
+            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 2px;">
+                {% for announcement in announcements %}
+                    <a href="{{ url_for('announcements', lang=lang) }}#{{ announcement.id }}" class="announcement-title">
+                        <div>
+                            {{ announcement.datetime_jst_str[:10] if lang == "ja" else announcement.datetime_utc_str[:10] }} <b>{{ announcement.ja_title|safe if lang == "ja" and announcement.ja_title else announcement.en_title|safe }}</b>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    {# 1. プレイヤー検索セクション #}
+    <section class="home-page__section search-section"> {# セクション共通クラス + 固有クラス #}
+        <h1 class="page-title--main">{% if lang == "ja" %}プレイヤー検索{% else %}Player Search{% endif %}</h1> {# components.css の見出しクラス #}
+        <div class="search-grid"> {# 検索ブロックを並べるグリッド #}
+            {# 1-1. プレイヤータグ検索 #}
+            <div class="search-block" x-data="{ open: localStorage.getItem('bi_player_tag_search_open') !== 'false' }" x-init="$watch('open', val => localStorage.setItem('bi_player_tag_search_open', val))"> {# 各検索ブロック #}
+                <div class="bookmark-section-title-container" @click="open = !open" style="cursor: pointer; margin-bottom: 12px;">
+                    <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}プレイヤータグで検索{% else %}Search by Player Tag{% endif %}</h2> {# components.css の見出しクラス #}
+                    <div class="bookmark-button-block" style="right: 0;">
+                        <span class="section-toggle-icon home-page__section-toggle-icon" x-text="open ? '△' : '▽'" style="color: var(--color-888);"></span>
+                    </div>
+                </div>
+                <div x-show="open" x-transition style="display: flex; flex-direction: column;">
+                    {# フォームにIDを付与し、onsubmitを削除 #}
+                    <form class="search-form" id="playerTagSearchForm">
+                        <input type="text" class="form-input search-form__input" placeholder="#XXXXXXX" id="playerTagSearchInput">
+                        <button type="submit" class="button button--primary search-form__button">{% if lang == "ja" %}検索{% else %}GO{% endif %}</button>
+                    </form>
+                    {# 説明文ブロック (components.css の info-block を使用) #}
+                    <div class="info-block">
+                        <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                        <p class="info-block__text">{% if lang == "ja" %}プレイヤータグは、ゲーム内でプロフィールを開くとアイコンの下に小さく書いてある、「#」で始まるものです。{% else %}The player tag is the identifier that begins with a "#" and can be found beneath your icon when you open your profile in the game.{% endif %}</p>
+                    </div>
+                    {# ガイド画像 #}
+                    <img src="{{ url_for('static', path='/images/ui/player_tag_guide_' + lang + '.png') }}" alt="プレイヤータグの説明画像" class="guide-image {% if current_user %}guide-image-logged-in{% endif %}">
+                </div>
+            </div>
+
+            {# 1-2. プレイヤー名検索 #}
+            <div class="search-block" x-data="{ open: localStorage.getItem('bi_player_name_search_open') !== 'false' }" x-init="$watch('open', val => localStorage.setItem('bi_player_name_search_open', val))">
+                <div class="bookmark-section-title-container" @click="open = !open" style="cursor: pointer; margin-bottom: 12px;">
+                    <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}プレイヤー名で検索{% else %}Search by Player Name{% endif %}</h2>
+                    <div class="bookmark-button-block" style="right: 0;">
+                        <span class="section-toggle-icon home-page__section-toggle-icon" x-text="open ? '△' : '▽'" style="color: var(--color-888);"></span>
+                    </div>
+                </div>
+                <div x-show="open" x-transition style="display: flex; flex-direction: column;">
+                    {# フォームにIDを付与し、onsubmitを削除 #}
+                    <form class="search-form" id="playerNameSearchForm">
+                        <input type="text" class="form-input search-form__input" placeholder="{% if lang == 'ja' %}プレイヤー名を入力{% else %}Enter Player Name{% endif %}" id="playerNameSearchInput">
+                        <button type="submit" class="button button--primary search-form__button">{% if lang == "ja" %}検索{% else %}GO{% endif %}</button>
+                    </form>
+                    {# チェックボックスエリア #}
+                    <div class="search-options">
+                        <div class="form-checkbox-group" {% if not current_user %}onclick="alertLoginRequired()"{% endif %}>
+                            {# input と label のクラス名を components.css に合わせる #}
+                            <input type="checkbox" id="exactMatchPlayer" name="exactMatchPlayer" class="form-checkbox" {% if not current_user %}disabled style="cursor: not-allowed;"{% endif %}>
+                            <label for="exactMatchPlayer" class="form-checkbox-label" {% if not current_user %}style="color: var(--color-888); cursor: not-allowed;"{% endif %}>
+                                {% if lang == "ja" %}完全一致する名前のみ検索{% else %}Search only exact name matches{% endif %}
+                                {% if not current_user %}{% if lang == "ja" %}（ログインすると利用可）{% else %} (Available upon login){% endif %}{% endif %}
+                            </label>
+                        </div>
+                        <div class="form-checkbox-group" {% if not current_user %}onclick="alertLoginRequired()"{% endif %}>
+                            <input type="checkbox" id="includeOldNames" name="includeOldNames" class="form-checkbox" {% if not current_user %}disabled style="cursor: not-allowed;"{% endif %}>
+                            <label for="includeOldNames" class="form-checkbox-label" {% if not current_user %}style="color: var(--color-888); cursor: not-allowed;"{% endif %}>
+                                {% if lang == "ja" %}改名前の名前を含めて検索{% else %}Include previous names{% endif %}
+                                {% if not current_user %}{% if lang == "ja" %}（ログインすると利用可）{% else %} (Available upon login){% endif %}{% endif %}
+                            </label>
+                        </div>
+                    </div>
+                    {# 複数行の説明文ブロック #}
+                    <div class="info-block info-block--multi-line">
+                        <div class="info-block__line">
+                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                            <p class="info-block__text">{% if lang == "ja" %}多くのプレイヤーを検索できますが、すべてのプレイヤーを検索できるわけではありません。検索できないプレイヤーは、一度でも<span class="tight"> Brawl</span> Insights<span class="tight"> で</span>閲覧されれば検索できるようになります。その他の仕様は<a href="{{ url_for('search_specification', lang=lang) }}", class="info-block__link">こちら</a>。{% else %}While you can search for many players, not all players are searchable by default. Players who have not been viewed on Brawl Insights before may not appear in search results. However, once they have been viewed even once, they will become searchable. Click <a href="{{ url_for('search_specification', lang=lang) }}", class="info-block__link">here</a> for other specifications.{% endif %}</p>
+                        </div>
+                        <div class="info-block__line">
+                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                            <p class="info-block__text">{% if lang == "ja" %}上にチェックマークを入れなければ、プレイヤー名の一部だけでもヒットします。また、英語の大文字と小文字は区別しません。{% else %}If the checkbox above is unchecked, partial player name matches will also appear in search results. Searches are not case-sensitive.{% endif %}</p>
+                        </div>
+                        <div class="info-block__line">
+                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                            <p class="info-block__text">{% if lang == "ja" %}下にチェックマークを入れると、現在の名前だけではなく改名前の名前もヒット対象になります。ただし、<span class="tight"> Brawl</span> Insights<span class="tight"> で</span>初めて閲覧されるより前の名前では検索できないことがあります。{% else %}If the checkbox below is checked, the search will include both the current and previous player names. However, names used before a player was first viewed on Brawl Insights may not be included in the results.{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# 1-3. ブックマーク #}
+            <div class="search-block" x-data="bookmarksEditor()"> {# Alpine.jsコンポーネント #}
+                {% if current_user %}
+                    <div class="bookmark-section-title-container">
+                        {# 編集ボタン / キャンセル・保存ボタン (Alpine.jsで表示切替) #}
+                        <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
+                            <button type="button" @click="cancelEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+                        </div>
+                        <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}ブックマーク{% else %}Bookmarks{% endif %}</h2>
+                        <div x-show="!isEditing" class="bookmark-button-block" style="right: 0;">
+                            <button type="button" @click="startEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}編集{% else %}Edit{% endif %}</button>
+                        </div>
+                        <div x-show="isEditing" class="bookmark-button-block" style="right: 0;" x-cloak>
+                            <button type="button" @click="saveBookmarks()" class="button button--secondary button--small bookmark-button" :disabled="!hasChanges">{% if lang == "ja" %}保存{% else %}Save{% endif %}</button>
+                        </div>
+                    </div>
+                {% else %}
+                    <h2 class="block-title">{% if lang == "ja" %}ブックマーク{% else %}Bookmarks{% endif %}</h2>
+                {% endif %}
+
+                {# 編集モード時の情報ブロック #}
+                <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
+                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                    <p class="info-block__text">{% if lang == "ja" %}ブックマークは矢印ボタンを押して並び替え、赤いボタンで削除できます。変更を保存するには「保存」ボタンを押してください。メインアカウントはアカウントタブで編集できます。{% else %}Press the arrow buttons to reorder, use the red button to remove. Press "Save" to apply changes. The main account cannot be edited here.{% endif %}</p>
+                </div>
+                <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
+                    <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
+                </div>
+
+
+                {% if current_user %}
+                    <div class="player-list" id="bookmark-list-sortable"> {# SortableJS用のID #}
+                        {# メインアカウント (編集不可) #}
+                        <div class="card player-list__item is-main-account" data-tag="{{ current_user.main_account }}">
+                            <div class="button player-list__item-index button--primary" style="font-size: 11.5px; font-weight: bold;">
+                                <span style="margin-top: 1px;">{% if lang == "ja" %}メイン{% else %}MAIN{% endif %}</span>
+                            </div>
+                            <div class="player-list__item-main" :class="{'editing-no-link': isEditing}">
+                                {# メインアカウント名はブックマーク表示データから取得 #}
+                                {% for player_data_item in bookmarked_players %}
+                                    {% if player_data_item.is_main %}
+                                        <a href="{{ url_for('get_player_profile', lang=lang, tag=player_data_item.tag[1:]) }}" class="card-link" style="display: contents;" @click="if(isEditing) $event.preventDefault()"> {# 編集中はクリックイベントを無効化 #}
+                                            <img src="{% if player_data_item.icon_id %}/static/images/player_icon/{{ player_data_item.icon_id }}.webp{% else %}{{ url_for('static', path='/images/player_icon/0.png') }}{% endif %}"
+                                                alt="アイコン"
+                                                class="player-list__item-player-icon"
+                                                onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                                            <p class="player-list__item-name">{{ player_data_item.name }}</p>
+                                            <p class="player-list__item-tag">{{ player_data_item.tag }}</p>
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {# メインアカウントには並び替えボタンや削除ボタンは表示しない #}
+                        </div>
+
+                        {# ブックマークされたプレイヤーリスト (Alpine.jsでレンダリング) #}
+                        <template x-for="(bookmark, index) in editableBookmarks" :key="bookmark.tag">
+                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': bookmark.isDeleting }" :data-tag="bookmark.tag">
+                                {# 通常表示時 (インデックス) #}
+                                <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
+                                {# 編集モード時 (削除ボタン) #}
+                                <div x-show="isEditing" class="button" style="margin: 0; padding: 0;" x-cloak>
+                                    <button type="button" @click="confirmDeleteBookmark(index)" class="button button--danger player-list__item-index" style="font-size: 11.5px; font-weight: bold;">
+                                        {% if lang == "ja" %}削除{% else %}Del{% endif %}
+                                    </button>
+                                </div>
+
+                                <div class="player-list__item-main" :class="{'editing-no-link': isEditing}"> {# 編集中はリンク無効化用クラス #}
+                                    <a :href="isEditing ? '#' : `/${currentLang}/player/profile/${bookmark.tag.substring(1)}`"
+                                    class="card-link" style="display: contents;"
+                                    @click="if(isEditing) $event.preventDefault()"> {# 編集中はクリックイベントを無効化 #}
+                                        <img :src="bookmark.icon_id ? `/static/images/player_icon/${bookmark.icon_id}.webp` : '/static/images/player_icon/0.png'"
+                                            alt="アイコン"
+                                            class="player-list__item-player-icon"
+                                            onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                        <p class="player-list__item-name" x-text="bookmark.name"></p>
+                                        <p class="player-list__item-tag" x-text="bookmark.tag"></p>
+                                    </a>
+                                </div>
+
+                                {# 並び替えボタン (ドラッグハンドルの代わりに) #}
+                                <div x-show="isEditing" class="bookmark-item-actions" x-cloak>
+                                    <button type="button" @click="moveBookmarkUp(index)" :disabled="index === 0" class="button-move">↑</button>
+                                    <button type="button" @click="moveBookmarkDown(index)" :disabled="index === editableBookmarks.length - 1" class="button-move">↓</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        {# 空きスロット/拡張ボタン (既存のロジックをAlpine.jsの x-if で制御) #}
+                        <template x-if="!isEditing && availableSlots > 0 && editableBookmarks.length < displayLimit">
+                            <div class="card player-list__item player-list__item--empty">
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">
+                                        {% if lang == "ja" %}空きスロット (あと<span x-text="availableSlots"></span>個){% else %}Empty Slots (<span x-text="availableSlots"></span> remaining){% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="!isEditing && canExtend && editableBookmarks.length < displayLimit">
+                            <div class="card player-list__item player-list__item--extend">
+                                <button type="button" class="button player-list__item--extend-button button--secondary expand-slots-btn" data-target="bookmarks">
+                                    {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
+                                </button>
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費してブックマーク枠を<span x-text="userLimit + 2"></span>枠に拡張{% else %}Spend 10 tokens to expand to <span x-text="userLimit + 2"></span> slots{% endif %}</p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                {% else %}
+                    {# 未ログイン時の表示 #}
+                    <div class="not-logged-in-block">
+                        <div class="not-logged-in-block__text">
+                            <p>{% if lang == "ja" %}ログインすると、最大で{{ bookmark_display_limit }}人のプレイヤーをブックマークとしてセーブし、さらに複数端末で共有することが可能です。{% else %}Once logged in, up to {{ bookmark_display_limit }} players can be saved as bookmarks and further shared across multiple devices.{% endif %}</p>
+                            <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address or other information is required to create an account. You can create an account immediately with any user name and password.{% endif %}</p>
+                        </div>
+                        <div class="auth-actions">
+                            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                            <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# 1-4. 閲覧履歴 #}
+            <div class="search-block" x-data="viewedHistoryEditor()">
+                {% if current_user %}
+                    <div class="bookmark-section-title-container">
+                        <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
+                            <button type="button" @click="cancelEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+                        </div>
+                        <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}</h2>
+                        <div x-show="!isEditing" class="bookmark-button-block" style="right: 0;">
+                            <button type="button" @click="startEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}編集{% else %}Edit{% endif %}</button>
+                        </div>
+                        <div x-show="isEditing" class="bookmark-button-block" style="right: 0;" x-cloak>
+                            <button type="button" @click="saveHistory()" class="button button--secondary button--small bookmark-button" :disabled="!hasChanges">{% if lang == "ja" %}保存{% else %}Save{% endif %}</button>
+                        </div>
+                    </div>
+                {% else %}
+                    <h2 class="block-title">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}</h2>
+                {% endif %}
+
+                {% if current_user %}
+                <div x-show="!isEditing" class="info-block" style="padding-top: 0;">
+                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                    <p class="info-block__text">{% if lang == "ja" %}ブックマークしていないプレイヤーの閲覧履歴です。ブックマーク済みのプレイヤーはここには表示されません。{% else %}This is the viewing history of players who have not bookmarked. Bookmarked players will not be shown here.{% endif %}</p>
+                </div>
+                <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
+                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                    <p class="info-block__text">{% if lang == "ja" %}赤いボタンで履歴から削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
+                </div>
+                <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
+                    <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
+                </div>
+                <div class="player-list">
+                    {% if viewed_players %}
+                        <template x-for="(history, index) in editableHistory" :key="history.tag">
+                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': history.isDeleting }" :data-tag="history.tag">
+                                <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
+                                <div x-show="isEditing" class="button" style="margin: 0; padding: 0;" x-cloak>
+                                    <button type="button" @click="confirmDeleteHistory(index)" class="button button--danger player-list__item-index" style="font-size: 11.5px; font-weight: bold;">
+                                        {% if lang == "ja" %}削除{% else %}Del{% endif %}
+                                    </button>
+                                </div>
+                                <div class="player-list__item-main" :class="{'editing-no-link': isEditing}">
+                                    <a :href="isEditing ? '#' : `/${currentLang}/player/profile/${history.tag.substring(1)}`"
+                                       class="card-link" style="display: contents;"
+                                       @click="if(isEditing) $event.preventDefault()">
+                                        <img :src="history.icon_id ? `/static/images/player_icon/${history.icon_id}.webp` : '/static/images/player_icon/0.png'"
+                                            alt="アイコン"
+                                            class="player-list__item-player-icon"
+                                            onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                        <p class="player-list__item-name" x-text="history.name"></p>
+                                        <p class="player-list__item-tag" x-text="history.tag"></p>
+                                    </a>
+                                </div>
+                            </div>
+                        </template>
+                        {# 履歴が表示上限未満で、かつDB上の閲覧履歴上限にも達していない場合 #}
+                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length < userLimit">
+                            <div class="card player-list__item player-list__item--empty">
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}さらに閲覧すると、履歴が追加されます{% else %}More history will be added as you browse{% endif %}</p>
+                                </div>
+                            </div>
+                        </template>
+                        {# 履歴が表示上限未満だが、DB上の閲覧履歴上限には達している場合 #}
+                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length >= userLimit && userLimit > 0">
+                            <div class="card player-list__item player-list__item--extend">
+                                <button type="button" class="button player-list__item--extend-button button--secondary expand-slots-btn" data-target="history">
+                                    {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
+                                </button>
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費して閲覧履歴の表示枠を{{ current_user.viewed_accounts_limit + 3 }}枠に拡張{% else %}Spend 10 tokens to expand to {{ current_user.viewed_accounts_limit + 3 }} slots{% endif %}</p>
+                                </div>
+                            </div>
+                        </template>
+                    {% else %}
+                        <div class="card player-list__item player-list__item--empty">
+                            <div class="player-list__item-main">
+                                <p class="player-list__item--empty-text">{% if lang == "ja" %}閲覧履歴はありません。プレイヤーページを閲覧すると、ここに履歴が追加されます。{% else %}No viewing history. History will be added here when you view player pages.{% endif %}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="not-logged-in-block">
+                    <div class="not-logged-in-block__text">
+                        <p>{% if lang == "ja" %}ログインすると、ブックマークしていないプレイヤーを閲覧した場合はここに閲覧履歴として追加されます。{% else %}Once logged in, up to 25 players can be saved as bookmarks and further shared across multiple devices.{% endif %}</p>
+                        <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address or other information is required to create an account. You can create an account immediately with any user name and password.{% endif %}</p>
+                    </div>
+                    <div class="auth-actions">
+                        <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                        <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    {# バナー広告 (アプリのみ) #}
+    {% if platform != "web" %}
+    {% include "components/ad_banner.html" %}
+    {% endif %}
+
+    {# 2. クラブ検索セクション #}
+    <section class="home-page__section search-section">
+        <h1 class="page-title--main">{% if lang == "ja" %}クラブ検索{% else %}Club Search{% endif %}</h1>
+        <div class="search-grid">
+            {# 2-1. クラブタグ検索 #}
+            <div class="search-block" x-data="{ open: localStorage.getItem('bi_club_tag_search_open') !== 'false' }" x-init="$watch('open', val => localStorage.setItem('bi_club_tag_search_open', val))">
+                <div class="bookmark-section-title-container" @click="open = !open" style="cursor: pointer; margin-bottom: 12px;">
+                    <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}クラブタグで検索{% else %}Search by Club Tag{% endif %}</h2>
+                    <div class="bookmark-button-block" style="right: 0;">
+                        <span class="section-toggle-icon home-page__section-toggle-icon" x-text="open ? '△' : '▽'" style="color: var(--color-888);"></span>
+                    </div>
+                </div>
+                <div x-show="open" x-transition style="display: flex; flex-direction: column;">
+                    {# フォームにIDを付与し、onsubmitを削除 #}
+                    <form class="search-form" id="clubTagSearchForm">
+                        <input type="text" class="form-input search-form__input" placeholder="#XXXXXXX" id="clubTagSearchInput">
+                        <button type="submit" class="button button--primary search-form__button">{% if lang == "ja" %}検索{% else %}GO{% endif %}</button>
+                    </form>
+                    <div class="info-block"> {# 単一行の説明文 #}
+                        <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                        <p class="info-block__text">{% if lang == "ja" %}クラブタグは、ゲーム内でクラブのページを開くと左の方に書いてある、「#」で始まるものです。{% else %}The club tag is also a "#" identifier and appears on the left side of the club page in the game.{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+
+            {# 2-2. クラブ名検索 #}
+            <div class="search-block" x-data="{ open: localStorage.getItem('bi_club_name_search_open') !== 'false' }" x-init="$watch('open', val => localStorage.setItem('bi_club_name_search_open', val))">
+                <div class="bookmark-section-title-container" @click="open = !open" style="cursor: pointer; margin-bottom: 12px;">
+                    <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}クラブ名で検索{% else %}Search by Club Name{% endif %}</h2>
+                    <div class="bookmark-button-block" style="right: 0;">
+                        <span class="section-toggle-icon home-page__section-toggle-icon" x-text="open ? '△' : '▽'" style="color: var(--color-888);"></span>
+                    </div>
+                </div>
+                <div x-show="open" x-transition style="display: flex; flex-direction: column;">
+                    {# フォームにIDを付与し、onsubmitを削除 #}
+                    <form class="search-form" id="clubNameSearchForm">
+                        <input type="text" class="form-input search-form__input" placeholder="{% if lang == 'ja' %}クラブ名を入力{% else %}Enter Club Name{% endif %}" id="clubNameSearchInput">
+                        <button type="submit" class="button button--primary search-form__button">{% if lang == "ja" %}検索{% else %}GO{% endif %}</button>
+                    </form>
+                    {# 複数行の説明文ブロック #}
+                    <div class="info-block info-block--multi-line">
+                         <div class="info-block__line">
+                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                            <p class="info-block__text">{% if lang == "ja" %}クラブ名での検索ができるのは、一度でも<span class="tight"> Brawl</span> Insights<span class="tight"> で</span>閲覧されたことのあるプレイヤーが所属していたことのあるクラブのみとなります。{% else %}Club name searches are limited to clubs that have been joined by at least one player who has previously been viewed on Brawl Insights.{% endif %}</p>
+                        </div>
+                         <div class="info-block__line">
+                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                            <p class="info-block__text">{% if lang == "ja" %}クラブ名の一部だけでもヒットします。また、英語の大文字と小文字は区別しません。その他の仕様は<a href="{{ url_for('search_specification', lang=lang) }}", class="info-block__link">こちら</a>。{% else %}Partial matches for club names are also supported, and searches are not case-sensitive. Click <a href="{{ url_for('search_specification', lang=lang) }}", class="info-block__link">here</a> for other specifications.{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# 2-3. クラブブックマーク #}
+            <div class="search-block" x-data="clubBookmarksEditor()">
+                {% if current_user %}
+                    <div class="bookmark-section-title-container">
+                        <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
+                            <button type="button" @click="cancelEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+                        </div>
+                        <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}ブックマーク{% else %}Bookmarks{% endif %}</h2>
+                        <div x-show="!isEditing" class="bookmark-button-block" style="right: 0;">
+                            <button type="button" @click="startEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}編集{% else %}Edit{% endif %}</button>
+                        </div>
+                        <div x-show="isEditing" class="bookmark-button-block" style="right: 0;" x-cloak>
+                            <button type="button" @click="saveBookmarks()" class="button button--secondary button--small bookmark-button" :disabled="!hasChanges">{% if lang == "ja" %}保存{% else %}Save{% endif %}</button>
+                        </div>
+                    </div>
+                {% else %}
+                    <h2 class="block-title">{% if lang == "ja" %}ブックマーク{% else %}Bookmarks{% endif %}</h2>
+                {% endif %}
+
+                <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
+                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                    <p class="info-block__text">{% if lang == "ja" %}矢印ボタンで並び替え、赤いボタンで削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Press the arrow buttons to reorder, use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
+                </div>
+                <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
+                    <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
+                </div>
+
+                {% if current_user %}
+                    <div class="player-list">
+                        <template x-for="(bookmark, index) in editableBookmarks" :key="bookmark.tag">
+                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': bookmark.isDeleting }" :data-tag="bookmark.tag">
+                                <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
+                                <div x-show="isEditing" class="button" style="margin: 0; padding: 0;" x-cloak>
+                                    <button type="button" @click="confirmDeleteBookmark(index)" class="button button--danger player-list__item-index" style="font-size: 11.5px; font-weight: bold;">
+                                        {% if lang == "ja" %}削除{% else %}Del{% endif %}
+                                    </button>
+                                </div>
+
+                                <div class="player-list__item-main" :class="{'editing-no-link': isEditing}">
+                                    <a :href="isEditing ? '#' : `/${currentLang}/club/profile/${bookmark.tag.substring(1)}`"
+                                    class="card-link" style="display: contents;"
+                                    @click="if(isEditing) $event.preventDefault()">
+                                        <img :src="bookmark.badge_id ? `{{ url_for('static', path='/images/club_badges/') }}${bookmark.badge_id}.png` : '{{ url_for('static', path='/images/ui/club.webp') }}'"
+                                            alt="クラブ"
+                                            class="player-list__item-player-icon player-list__item-club-badge"
+                                            onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/ui/club.webp') }}'">
+                                        <p class="player-list__item-name" x-html="bookmark.name"></p>
+                                        <p class="player-list__item-tag" x-text="bookmark.tag"></p>
+                                    </a>
+                                </div>
+
+                                <div x-show="isEditing" class="bookmark-item-actions" x-cloak>
+                                    <button type="button" @click="moveBookmarkUp(index)" :disabled="index === 0" class="button-move">↑</button>
+                                    <button type="button" @click="moveBookmarkDown(index)" :disabled="index === editableBookmarks.length - 1" class="button-move">↓</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="!isEditing && availableSlots > 0 && editableBookmarks.length < displayLimit">
+                            <div class="card player-list__item player-list__item--empty">
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">
+                                        {% if lang == "ja" %}空きスロット (あと<span x-text="availableSlots"></span>個){% else %}Empty Slots (<span x-text="availableSlots"></span> remaining){% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="!isEditing && canExtend && editableBookmarks.length < displayLimit">
+                            <div class="card player-list__item player-list__item--extend">
+                                <button type="button" class="button player-list__item--extend-button button--secondary expand-slots-btn" data-target="club_bookmarks">
+                                    {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
+                                </button>
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費してブックマーク枠を<span x-text="userLimit + 2"></span>枠に拡張{% else %}Spend 10 tokens to expand to <span x-text="userLimit + 2"></span> slots{% endif %}</p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                {% else %}
+                    <div class="not-logged-in-block">
+                        <div class="not-logged-in-block__text">
+                            <p>{% if lang == "ja" %}ログインすると、最大で{{ club_bookmark_display_limit }}件のクラブをブックマークとしてセーブし、さらに複数端末で共有することが可能です。{% else %}Once logged in, up to {{ club_bookmark_display_limit }} clubs can be saved as bookmarks and shared across devices.{% endif %}</p>
+                            <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address is required to create an account. You can create one immediately with any user name and password.{% endif %}</p>
+                        </div>
+                        <div class="auth-actions">
+                            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                            <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# 2-4. クラブ閲覧履歴 #}
+            <div class="search-block" x-data="clubViewedHistoryEditor()">
+                {% if current_user %}
+                    <div class="bookmark-section-title-container">
+                        <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
+                            <button type="button" @click="cancelEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+                        </div>
+                        <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}</h2>
+                        <div x-show="!isEditing" class="bookmark-button-block" style="right: 0;">
+                            <button type="button" @click="startEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}編集{% else %}Edit{% endif %}</button>
+                        </div>
+                        <div x-show="isEditing" class="bookmark-button-block" style="right: 0;" x-cloak>
+                            <button type="button" @click="saveHistory()" class="button button--secondary button--small bookmark-button" :disabled="!hasChanges">{% if lang == "ja" %}保存{% else %}Save{% endif %}</button>
+                        </div>
+                    </div>
+                {% else %}
+                    <h2 class="block-title">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}</h2>
+                {% endif %}
+
+                {% if current_user %}
+                <div x-show="!isEditing" class="info-block" style="padding-top: 0;">
+                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                    <p class="info-block__text">{% if lang == "ja" %}ブックマークしていないクラブの閲覧履歴です。ブックマーク済みのクラブはここには表示されません。{% else %}This is the viewing history of clubs that are not bookmarked. Bookmarked clubs are not shown here.{% endif %}</p>
+                </div>
+                <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
+                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
+                    <p class="info-block__text">{% if lang == "ja" %}赤いボタンで履歴から削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
+                </div>
+                <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
+                    <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
+                </div>
+                <div class="player-list">
+                    {% if viewed_clubs %}
+                        <template x-for="(history, index) in editableHistory" :key="history.tag">
+                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': history.isDeleting }" :data-tag="history.tag">
+                                <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
+                                <div x-show="isEditing" class="button" style="margin: 0; padding: 0;" x-cloak>
+                                    <button type="button" @click="confirmDeleteHistory(index)" class="button button--danger player-list__item-index" style="font-size: 11.5px; font-weight: bold;">
+                                        {% if lang == "ja" %}削除{% else %}Del{% endif %}
+                                    </button>
+                                </div>
+                                <div class="player-list__item-main" :class="{'editing-no-link': isEditing}">
+                                    <a :href="isEditing ? '#' : `/${currentLang}/club/profile/${history.tag.substring(1)}`"
+                                       class="card-link" style="display: contents;"
+                                       @click="if(isEditing) $event.preventDefault()">
+                                        <img :src="history.badge_id ? `{{ url_for('static', path='/images/club_badges/') }}${history.badge_id}.png` : '{{ url_for('static', path='/images/ui/club.webp') }}'"
+                                            alt="クラブ"
+                                            class="player-list__item-player-icon player-list__item-club-badge"
+                                            onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/ui/club.webp') }}'">
+                                        <p class="player-list__item-name" x-html="history.name"></p>
+                                        <p class="player-list__item-tag" x-text="history.tag"></p>
+                                    </a>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length < userLimit">
+                            <div class="card player-list__item player-list__item--empty">
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}さらに閲覧すると、履歴が追加されます{% else %}More history will be added as you browse{% endif %}</p>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length >= userLimit && userLimit > 0">
+                            <div class="card player-list__item player-list__item--extend">
+                                <button type="button" class="button player-list__item--extend-button button--secondary expand-slots-btn" data-target="club_history">
+                                    {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
+                                </button>
+                                <div class="player-list__item-main">
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費して閲覧履歴の表示枠を{{ current_user.viewed_clubs_limit + 3 }}枠に拡張{% else %}Spend 10 tokens to expand to {{ current_user.viewed_clubs_limit + 3 }} slots{% endif %}</p>
+                                </div>
+                            </div>
+                        </template>
+                    {% else %}
+                        <div class="card player-list__item player-list__item--empty">
+                            <div class="player-list__item-main">
+                                <p class="player-list__item--empty-text">{% if lang == "ja" %}閲覧履歴はありません。クラブページを閲覧すると、ここに履歴が追加されます。{% else %}No viewing history. History will be added here when you view club pages.{% endif %}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="not-logged-in-block">
+                    <div class="not-logged-in-block__text">
+                        <p>{% if lang == "ja" %}ログインすると、ブックマークしていないクラブを閲覧した場合はここに閲覧履歴として追加されます。{% else %}Once logged in, clubs you view that are not bookmarked will be added here as viewing history.{% endif %}</p>
+                        <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address is required to create an account. You can create one immediately with any user name and password.{% endif %}</p>
+                    </div>
+                    <div class="auth-actions">
+                        <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                        <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    {# バナー広告 (アプリのみ) #}
+    {% if platform != "web" %}
+    {% include "components/ad_banner.html" %}
+    {% endif %}
+
+    {# 3. このサイトについてセクション #}
+    <section class="home-page__section about-section">
+        <h1 class="page-title--sub">{% if lang == "ja" %}この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}について{% else %}About This {% if platform == "web" %}Site{% else %}App{% endif %}{% endif %}</h1> {# components.css の見出しクラス #}
+        {% if lang == "ja" %}
+            <p>Brawl Insights<span class="tight"> は</span>、ブロスタの戦績確認アプリです。<br>プレイヤーの名前検索、絞り込みとグラフ付きのバトル履歴、ピック提案ツール、キャラクター図鑑、マップ周期など、高度な分析機能やツールを提供しています。</p>
+            <p>この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}で提供している各種統計データやコンテンツ、またはこの{% if platform == "web" %}サイト{% else %}アプリ{% endif %}自体について、X(旧Twitter)、YouTube、TikTokなどのSNSに自由に投稿、または利用していただけます。</p>
+            {% if platform == "web" %}
+                <p>iOS向けの<b>アプリ版</b>も提供しています。</p>
+                <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link" style="margin-bottom: 20px;"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_JP.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+                <p>AndroidやPCをお使いの方、またはアプリのダウンロードなしで使いたい方は、ブラウザに<b>ブックマーク</b>するとより便利にご利用いただけます。</p>
+            {% endif %}
+            <p>お問い合わせなどは、<a href="https://x.com/BrawlInsights" target="_blank" rel="noopener noreferrer">公式X(旧Twitter)</a>までお願いします！</p>
+        {% else %}
+            <p>Brawl Insights is {% if platform == "web" %}a web-based platform{% else %}the app{% endif %} for analyzing Brawl Stars player data.<br>It offers powerful features such as player search by name, viewing name and club history, checking battle logs by type (Trophies / Ranked / Friendly), battle breakdowns by brawler, and visualizing player progress with timeline graphs.</p>
+            <p>You are welcome to freely share the various statistics, content, or even the {% if platform == "web" %}website{% else %}app{% endif %} itself provided here on social media platforms such as X (formerly Twitter), YouTube, TikTok, and others.</p>
+            {% if platform == "web" %}
+                <p>We also offer an <b>iOS app</b> version.</p>
+                <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link" style="margin-bottom: 20px;"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_US.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+                <p>If you are using <b>Android</b> or <b>PC</b>, or prefer to use it without downloading the app, you can simply <b>bookmark</b> this site in your browser for quick access.</p>
+            {% endif %}
+            <p>For inquiries or feedback, please contact the developer on <a href="https://x.com/BrawlInsights" target="_blank" rel="noopener noreferrer">X (formerly Twitter)</a>.</p>
+        {% endif %}
+    </section>
+
+    <section class="home-page__section about-section">
+        <h2 class="page-title--sub">{% if lang == "ja" %}基本的な使い方ガイド{% else %}Usage Guide{% endif %}</h2>
+        {% if lang == "ja" %}
+        <p><b>推定プレイ時間</b>、<b>改名・クラブ履歴</b>、<b>装備スキン</b>などのプレイヤーに関する情報は、各プレイヤーページより確認できます。このページの上の方に移動して、プレイヤータグまたはプレイヤー名で検索して、プレイヤーページに移動することができます。</p>
+        <p><b>一緒にプレイした人のグラフ</b>、<b>ガチバトルのポイント推移・勝率・キャラ使用率などのグラフ</b>は、プレイヤーページに移動しバトル履歴タブを選択すると確認できます。</p>
+        <p><b>プレイヤー名で検索</b>では、一度もBrawl Insightsで閲覧されたことのないプレイヤーは検索できないことがあります。<b>プレイヤータグで検索</b>では、ブロスタがメンテナンス中でない限り、<b>必ず</b>全てのプレイヤーを検索できます。プレイヤータグでの検索ができない場合は、入力間違いがないか確認をお願いします。</p>
+        <p><b>ログイン</b>することで、<b>ブックマーク</b>や<b>閲覧履歴表示</b>、<b>募集掲示板の追加機能</b>などが利用できるようになり、さらに便利にご利用いただけます。なお、アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを入力すればすぐに作成できます。</p>
+        <p><b>ガチバトルTier表</b>や<b>スキン使用率ランキング</b>、<b>その他各種ランキング</b>は統計データタブから、<b>プロフィール画像生成ツール</b>、<b>ガチバトルピック提案ツール</b>、<b>マップ周期</b>、<b>キャラクターステータス／スキン図鑑</b>、<b>育成計算機</b>や<b>トロフィー増減表</b>などの各種ツールはツールタブからご利用いただけます。</p>
+        <p>条件指定機能とチャット機能を備えた<b>各種募集掲示板</b>は、募集掲示板タブよりご利用いただけます。</p>
+        <p><a href="{{ url_for('app_faq', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">よくある質問</a>もぜひご確認ください！</p>
+        {% else %}
+        <p>Information about players, such as <b>estimated play time</b>, <b>name change / club log</b>, and <b>equipped skins</b>, can be found on each player's page. You can go to the top of this page and search by player tag or player name to navigate to a player page.</p>
+        <p>Graphs such as <b>players you played with</b>, and <b>ranked score trend, win rates, and brawler usage rates</b> can be viewed by going to the player page and selecting the <b>battle log</b> tab.</p>
+        <p>When <b>searching by player name</b>, you may not be able to find players who have never been viewed on Brawl Insights. When <b>searching by player tag</b>, you can <b>always</b> find all players as long as <b>Brawl Stars</b> is not under maintenance. If you cannot search by player tag, please check for any input errors.</p>
+        <p>By <b>logging in</b>, you can use additional features such as <b>bookmarks</b>, <b>viewing history</b>, and <b>advanced features for the recruitment boards</b>, making it even more convenient. No email address is required to create an account. You can create one immediately by entering your desired username and password.</p>
+        <p><b>Ranked Brawler Tier List</b>, <b>Skin Usage Ranking</b>, and various <b>leaderboards</b> are available from the <b>stats tab</b>, and various tools such as the <b>profile image generator</b>, <b>ranked pick suggestion tool</b>, <b>map rotation</b>, <b>brawler stats guide</b>, <b>level-up cost calculator</b> and <b>trophy change table</b> are available from the <b>tools tab</b>.</p>
+        <p>Various <b>recruitment boards</b> with condition specification and chat functions are available from the <b>boards tab</b>.</p>
+        <p><a href="{{ url_for('app_faq', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">App FAQ</a> is also available.</p>
+        {% endif %}
+    </section>
+
+    {% if platform != "ios" %}
+    <section class="home-page__section about-section">
+        <h2 class="page-title--sub">{% if lang == "ja" %}アプリを支援する{% else %}Support the App{% endif %}</h2>
+        <p class="account-description">
+            {% if lang == "ja" %}
+                このアプリは、公認クリエイターやYouTuberではない個人が開発・運営しています。動画など他の収益源なしに多額のサーバー代を負担しており、今後もサービスを続けていくには、みなさまのご支援が必要です。もしアプリが役に立ったと思っていただけたら、この下のボタンより支援していただけるととても嬉しいです。
+            {% else %}
+                This app is developed and managed by an individual who is not an official Supercell Creator or YouTuber. I am covering significant server costs without any other revenue sources, such as video content. Your support is essential to keep this service running. If you find this app helpful, I would greatly appreciate your support through the button below.
+            {% endif %}
+        </p>
+        <div style="display: flex;">
+            <a href="https://note.com/lmdkosuke/n/nce97fb28f661?app_launch=false#aed25f28-c925-4cc2-99ea-a516c15ff995" target="_blank" rel="noopener noreferrer" style="text-decoration-line: none;">
+                <div class="support-app-button">
+                    {% if lang == "ja" %}アプリを支援する{% else %}Support the App{% endif %}
+                </div>
+            </a>
+        </div>
+        <p class="account-description" style="margin-top: 10px;">
+            {% if lang == "ja" %}
+                ※開発者のnoteのチップを送るページに移動します。<span style="font-weight: bold; color: var(--c-red);">PayPay</span>または<span style="font-weight: bold; color: var(--c-blue);">クレジットカード</span>で、100円〜100,000円の任意の金額を支援していただけます。
+            {% else %}
+                *You will be redirected to the developer's "note" tip page. You can contribute any amount from 100 JPY to 100,000 JPY via <span style="font-weight: bold; color: var(--c-red);">PayPay</span> or <span style="font-weight: bold; color: var(--c-blue);">Credit Card</span>.
+            {% endif %}
+        </p>
+    </section>
+    {% endif %}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+</div> {# home-page__container の終わり #}
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // --- 現在の言語コードを取得 ---
+        // window.location.pathname から取得するのが確実
+        const currentPathname = window.location.pathname; // 例: "/ja/" や "/en/player/profile/TAG"
+        const pathSegments = currentPathname.split('/');
+        // pathSegments[0] は空文字, pathSegments[1] が言語コードのはず
+        const currentLang = (pathSegments.length > 1 && (pathSegments[1] === 'ja' || pathSegments[1] === 'en')) ? pathSegments[1] : "{{ lang | default('ja') }}"; // フォールバックとしてJinjaのlangも利用
+        // ----------------------------------------
+        // タグ検証ヘルパー関数
+        // ----------------------------------------
+        function formatInputTag(rawTag) {
+            if (!rawTag) return ''; // 空の場合は空文字を返す
+
+            let tag = rawTag.trim();
+            // 先頭の '#' を除き、再度付与することで1つだけにする
+            tag = tag.replace(/^#+/, ''); // 先頭の連続する#を削除
+            tag = '#' + tag;
+
+            // 'o' または 'O' を '0' (ゼロ) に置換
+            tag = tag.replace(/o/gi, '0');
+
+            // #以降を大文字に変換
+            if (tag.length > 1) {
+                tag = '#' + tag.substring(1).toUpperCase();
+            }
+            return tag;
+        }
+
+        // --- タグ入力フィールドに自動矯正機能を適用する関数 ---
+        function applyTagAutoCorrection(inputId) {
+            const inputElement = document.getElementById(inputId);
+            if (inputElement) {
+                inputElement.addEventListener('blur', function() { // フォーカスが外れた時
+                    this.value = formatInputTag(this.value);
+                });
+                // オプション: 入力中にもある程度矯正する場合 (ただし、入力の邪魔になる可能性も)
+                // inputElement.addEventListener('input', function() {
+                //    // 簡易的な矯正（例：#を先頭に固定、小文字を大文字にリアルタイム変換など）
+                //    // あまり過度なリアルタイム矯正はUXを損なう場合があるので注意
+                // });
+            }
+        }
+
+        // DOM読み込み完了後に各入力フィールドに適用
+        document.addEventListener('DOMContentLoaded', function() {
+            applyTagAutoCorrection('playerTagSearchInput');
+            applyTagAutoCorrection('clubTagSearchInput');
+            // メインアカウントタグ入力フィールドにも適用する場合 (auth/register.html側で)
+            // applyTagAutoCorrection('main_account_tag'); // これはauth/register.htmlのAlpine.js内で行う方が良い
+        });
+
+        function validateAndFormatTag(rawTag) {
+            if (!rawTag) return null;
+            let tag = rawTag.trim();
+            if (tag.startsWith('#')) {
+                tag = tag.substring(1);
+            }
+            tag = tag.replace(/o/gi, '0').toUpperCase();
+            const validTagRegex = /^[0289CGJLPQRUVY]+$/;
+            if (tag.length > 0 && tag.length <= 15 && validTagRegex.test(tag)) { // タグの最大長も考慮 (例: 15文字)
+                return tag; // #なしで返す (サーバー側で付与する想定)
+            }
+            return null;
+        }
+
+        // 送信時に検索関数に入力値を渡す
+        function setupFormSubmitHandler(formId, inputId, searchFunction) {
+            const formElement = document.querySelector(formId);
+            const inputElement = document.getElementById(inputId);
+
+            if (formElement && inputElement) {
+                formElement.addEventListener('submit', function(event) {
+                    event.preventDefault(); // デフォルトの送信をキャンセル
+                    // 検索関数を実行
+                    searchFunction(inputElement.value);
+                });
+            }
+        }
+
+        function performPlayerTagSearch(rawTagValue) {
+            const formattedClientSide = formatInputTag(rawTagValue);
+            const tagForValidation = validateAndFormatTag(formattedClientSide);
+
+            if (tagForValidation) {
+                window.location.href = `/${currentLang}/player/profile/${tagForValidation}`;
+            } else {
+                const alertMessage = currentLang === "ja" ? '有効な形式のプレイヤータグを入力してください。' : 'Please enter a valid format player tag.';
+                alert(alertMessage);
+            }
+        }
+
+        function performClubTagSearch(rawTagValue) {
+            const formattedClientSide = formatInputTag(rawTagValue);
+            const tagForValidation = validateAndFormatTag(formattedClientSide);
+
+            if (tagForValidation) {
+                window.location.href = `/${currentLang}/club/profile/${tagForValidation}`;
+            } else {
+                const alertMessage = currentLang === "ja" ? '有効な形式のクラブタグを入力してください。' : 'Please enter a valid format club tag.';
+                alert(alertMessage);
+            }
+        }
+
+        function performPlayerNameSearch(rawNameValue) {
+            const query = rawNameValue.trim();
+            const exactMatchCheckbox = document.getElementById('exactMatchPlayer');
+            const includeOldCheckbox = document.getElementById('includeOldNames');
+
+            if (query) {
+                const params = new URLSearchParams();
+                params.append('q', query);
+                if (exactMatchCheckbox && exactMatchCheckbox.checked) {
+                    params.append('exact', 'true');
+                }
+                if (includeOldCheckbox && includeOldCheckbox.checked) {
+                    params.append('old', 'true');
+                }
+                window.location.href = `/${currentLang}/player/search?${params.toString()}`;
+            } else {
+                const alertMessage = currentLang === "ja" ? 'プレイヤー名を入力してください。' : 'Please enter a player name.';
+                alert(alertMessage);
+            }
+        }
+
+        function performClubNameSearch(rawNameValue) {
+            const query = rawNameValue.trim();
+            if (query) {
+                const params = new URLSearchParams();
+                params.append('q', query);
+                window.location.href = `/${currentLang}/club/search?${params.toString()}`;
+            } else {
+                const alertMessage = currentLang === "ja" ? 'クラブ名を入力してください。' : 'Please enter a club name.';
+                alert(alertMessage);
+            }
+        }
+
+        function alertLoginRequired() {
+            const alertMessage = currentLang === "ja" ? 
+                '検索オプションはログインすると利用可能です。\nアカウントタブよりログイン、またはメールアドレス不要ですぐにアカウントを作成できます。' : 
+                'Search options are available after login.\nYou can log in or create an account immediately without an email via the Account tab.';
+            alert(alertMessage);
+        }
+
+        // --- ブックマーク編集UI ---
+        // グローバルスコープの beforeunload イベントリスナー
+        // (bookmarksEditorインスタンスの状態を参照する方法を改善)
+        let alpineGlobalStoreForUnload = { // Alpine.jsとは独立した簡易ストア。複数のエディタ（ブックマーク等）の状態を個別に保持
+            bookmarks: { isEditing: false, hasChanges: false },
+            history: { isEditing: false, hasChanges: false },
+            clubBookmarks: { isEditing: false, hasChanges: false },
+            clubHistory: { isEditing: false, hasChanges: false }
+        };
+        // 一時的に beforeunload 警告を抑止するフラグ（保存時のリロードで警告を出さないため）
+        let suppressBeforeUnload = false;
+
+        function bookmarksEditor() {
+            return {
+                isEditing: false,
+                hasChanges: false,
+                serverMessage: '',
+                serverSuccess: false,
+                currentLang: '{{ lang }}',
+                initialBookmarks: {{ bookmarked_players | selectattr('is_main', 'false') | list | tojson | safe }},
+                editableBookmarks: [],
+                displayLimit: {{ bookmark_display_limit -1 }},
+                userLimit: {{ current_user.saved_accounts_limit if current_user else 0 }},
+                availableSlots: {{ available_bookmark_slots if current_user else 0 }},
+                canExtend: {{ can_extend_bookmark_slots | lower if current_user else 'false' }},
+                // sortableInstance: null, // SortableJS関連削除
+
+                init() {
+                    this.resetEditableBookmarks();
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('edit_bookmarks') === 'true' && {{ current_user is not none | lower }}) {
+                        this.startEditing();
+                    }
+                    // グローバルストアを更新するウォッチャー
+                    this.$watch('isEditing', value => alpineGlobalStoreForUnload.bookmarks.isEditing = value);
+                    this.$watch('hasChanges', value => alpineGlobalStoreForUnload.bookmarks.hasChanges = value);
+                },
+
+                resetEditableBookmarks() {
+                    this.editableBookmarks = JSON.parse(JSON.stringify(this.initialBookmarks)).map(bm => ({ ...bm, isDeleting: false }));
+                    this.hasChanges = false; // リセット時は変更なし
+                },
+
+                startEditing() {
+                    this.isEditing = true;
+                    this.serverMessage = '';
+                    this.hasChanges = false;
+                    this.resetEditableBookmarks();
+                    // SortableJSの初期化は不要
+                },
+
+                cancelEditing() {
+                    if (this.hasChanges) {
+                        const confirmMsgKey = this.currentLang === 'ja' ? '変更が保存されていません。本当にキャンセルしますか？' : 'You have unsaved changes. Are you sure you want to cancel?';
+                        if (!confirm(confirmMsgKey)) {
+                            return;
+                        }
+                    }
+                    this.isEditing = false;
+                    this.hasChanges = false;
+                    // SortableJSの破棄は不要
+                    this.resetEditableBookmarks();
+                },
+
+                confirmDeleteBookmark(index) {
+                    const bookmarkToDelete = this.editableBookmarks[index];
+                    const confirmMsg = (this.currentLang === 'ja' ? `「${bookmarkToDelete.name}」をブックマークから削除しますか？\n(この変更は「保存」ボタンを押すまで適用されません)` : `Remove "${bookmarkToDelete.name}" from bookmarks?\n(This change will not be applied until you press "Save")`);
+                    if (confirm(confirmMsg)) {
+                        this.editableBookmarks.splice(index, 1);
+                        this.hasChanges = true;
+                    }
+                },
+
+                // 新しいメソッド: ブックマークを上に移動
+                moveBookmarkUp(index) {
+                    if (index > 0) { // 最初の要素でなければ
+                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
+                        this.editableBookmarks.splice(index - 1, 0, itemToMove);
+                        this.hasChanges = true;
+                    }
+                },
+
+                // 新しいメソッド: ブックマークを下に移動
+                moveBookmarkDown(index) {
+                    if (index < this.editableBookmarks.length - 1) { // 最後の要素でなければ
+                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
+                        this.editableBookmarks.splice(index + 1, 0, itemToMove);
+                        this.hasChanges = true;
+                    }
+                },
+
+                async saveBookmarks() {
+                    if (!this.hasChanges && this.isEditing) {
+                        this.serverMessage = (this.currentLang === 'ja' ? '変更はありません。' : 'No changes to save.');
+                        this.serverSuccess = true;
+                        setTimeout(() => this.serverMessage = '', 3000);
+                        this.isEditing = false;
+                        return;
+                    }
+                    if (!this.isEditing) return;
+
+                    this.serverMessage = (this.currentLang === 'ja' ? '保存中...' : 'Saving...');
+                    this.serverSuccess = false;
+
+                    const updatedBookmarkTags = this.editableBookmarks.map(bm => bm.tag);
+
+                    try {
+                        const response = await fetch(`/${this.currentLang}/account/bookmark/update`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', },
+                            body: JSON.stringify({ updated_bookmarks: updatedBookmarkTags })
+                        });
+                        const data = await response.json();
+                        this.serverMessage = data.message;
+                        this.serverSuccess = data.success;
+
+                        if (data.success) {
+                            this.hasChanges = false;
+                            this.isEditing = false;
+                            this.initialBookmarks = JSON.parse(JSON.stringify(this.editableBookmarks));
+                            suppressBeforeUnload = true;
+                            try {
+                                alpineGlobalStoreForUnload.bookmarks.hasChanges = false;
+                                alpineGlobalStoreForUnload.bookmarks.isEditing = false;
+                            } catch (e) {
+                                // silent fail
+                            }
+                            window.location.reload();
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error saving bookmarks:', error);
+                        this.serverMessage = (this.currentLang === 'ja' ? '保存中にエラーが発生しました。' : 'An error occurred while saving.');
+                        this.serverSuccess = false;
+                    }
+                }
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- 拡張ボタンのイベントリスナー ---
+            const expandButtons = document.querySelectorAll('.expand-slots-btn');
+
+            expandButtons.forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    const target = event.currentTarget.dataset.target;
+                    // ログインしているユーザーのトークン数をサーバーから直接取得
+                    const userTokens = {{ current_user.tokens if current_user else 0 }};
+                    const lang = '{{ lang }}';
+
+                    const cost = 10;
+                    let confirmMessage = '';
+                    let successMessage = '';
+                    const slotsToAdd = (target === 'bookmarks' || target === 'club_bookmarks') ? 2 : 3;
+
+                    // --- メッセージ設定 ---
+                    if (target === 'bookmarks') {
+                        if (lang === 'ja') {
+                            confirmMessage = `10トークン消費して、プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しました。`;
+                        } else {
+                            confirmMessage = `Spend 10 tokens to expand bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `Expanded bookmark slots by ${slotsToAdd}.`;
+                        }
+                    } else if (target === 'history') {
+                        if (lang === 'ja') {
+                            confirmMessage = `10トークン消費して、プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
+                        } else {
+                            confirmMessage = `Spend 10 tokens to expand history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `Expanded history display slots by ${slotsToAdd}.`;
+                        }
+                    } else if (target === 'club_bookmarks') {
+                        if (lang === 'ja') {
+                            confirmMessage = `10トークン消費して、クラブのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `クラブのブックマーク枠を${slotsToAdd}枠拡張しました。`;
+                        } else {
+                            confirmMessage = `Spend 10 tokens to expand club bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `Expanded club bookmark slots by ${slotsToAdd}.`;
+                        }
+                    } else if (target === 'club_history') {
+                        if (lang === 'ja') {
+                            confirmMessage = `10トークン消費して、クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
+                        } else {
+                            confirmMessage = `Spend 10 tokens to expand club history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            successMessage = `Expanded club history display slots by ${slotsToAdd}.`;
+                        }
+                    }
+
+                    // --- トークン数チェック ---
+                    if (userTokens < cost) {
+                        let alertMessage = '';
+                        if (lang === 'ja') {
+                            alertMessage = `トークンが足りないため拡張できません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`;
+                        } else {
+                            alertMessage = `Not enough tokens to expand. (Current: ${userTokens})\nFor details on how to get tokens, please check the Account tab.`;
+                        }
+                        alert(alertMessage);
+                        return;
+                    }
+
+                    // --- 確認ダイアログ ---
+                    if (confirm(confirmMessage)) {
+                        try {
+                            const response = await fetch(`/${lang}/account/expand-slots`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ target: target })
+                            });
+
+                            const result = await response.json();
+
+                            if (response.ok && result.success) {
+                                // 成功メッセージをサーバーからのものにする場合は result.message を使用
+                                alert(successMessage);
+                                window.location.reload(); // ページをリロードして変更を反映
+                            } else {
+                                // 失敗時
+                                alert(result.message || (lang === 'ja' ? 'エラーが発生しました。' : 'An error occurred.'));
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert(lang === 'ja' ? '通信中にエラーが発生しました。' : 'An error occurred during communication.');
+                        }
+                    }
+                });
+            });
+        });
+
+        function viewedHistoryEditor() {
+            return {
+                isEditing: false,
+                hasChanges: false,
+                serverMessage: '',
+                serverSuccess: false,
+                currentLang: '{{ lang }}',
+                initialHistory: {{ viewed_players | list | tojson | safe if viewed_players else "[]" }},
+                editableHistory: [],
+                displayLimit: {{ viewed_display_limit }},
+                userLimit: {{ current_user.viewed_accounts_limit if current_user else 0 }},
+
+                init() {
+                    this.resetEditableHistory();
+                    this.$watch('isEditing', value => alpineGlobalStoreForUnload.history.isEditing = value);
+                    this.$watch('hasChanges', value => alpineGlobalStoreForUnload.history.hasChanges = value);
+                },
+
+                resetEditableHistory() {
+                    this.editableHistory = JSON.parse(JSON.stringify(this.initialHistory)).map(h => ({ ...h, isDeleting: false }));
+                    this.hasChanges = false;
+                },
+
+                startEditing() {
+                    this.isEditing = true;
+                    this.serverMessage = '';
+                    this.hasChanges = false;
+                    this.resetEditableHistory();
+                },
+
+                cancelEditing() {
+                    if (this.hasChanges) {
+                        const confirmMsgKey = this.currentLang === 'ja' ? '変更が保存されていません。本当にキャンセルしますか？' : 'You have unsaved changes. Are you sure you want to cancel?';
+                        if (!confirm(confirmMsgKey)) {
+                            return;
+                        }
+                    }
+                    this.isEditing = false;
+                    this.hasChanges = false;
+                    this.resetEditableHistory();
+                },
+
+                confirmDeleteHistory(index) {
+                    const historyToDelete = this.editableHistory[index];
+                    const confirmMsg = (this.currentLang === 'ja' ? `「${historyToDelete.name}」を閲覧履歴から削除しますか？\n(この変更は「保存」ボタンを押すまで適用されません)` : `Remove "${historyToDelete.name}" from viewing history?\n(This change will not be applied until you press "Save")`);
+                    if (confirm(confirmMsg)) {
+                        this.editableHistory.splice(index, 1);
+                        this.hasChanges = true;
+                    }
+                },
+
+                async saveHistory() {
+                    if (!this.hasChanges && this.isEditing) {
+                        this.serverMessage = (this.currentLang === 'ja' ? '変更はありません。' : 'No changes to save.');
+                        this.serverSuccess = true;
+                        setTimeout(() => this.serverMessage = '', 3000);
+                        this.isEditing = false;
+                        return;
+                    }
+                    if (!this.isEditing) return;
+
+                    this.serverMessage = (this.currentLang === 'ja' ? '保存中...' : 'Saving...');
+                    this.serverSuccess = false;
+
+                    const updatedHistoryTags = this.editableHistory.map(h => h.tag);
+
+                    try {
+                        const response = await fetch(`/${this.currentLang}/account/history/update`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', },
+                            body: JSON.stringify({ updated_history: updatedHistoryTags })
+                        });
+                        const data = await response.json();
+                        this.serverMessage = data.message;
+                        this.serverSuccess = data.success;
+
+                        if (data.success) {
+                            this.hasChanges = false;
+                            this.isEditing = false;
+                            this.initialHistory = JSON.parse(JSON.stringify(this.editableHistory));
+                            // beforeunload 警告が出ないようにグローバルストアと抑止フラグを先にクリアする
+                            suppressBeforeUnload = true;
+                            try {
+                                alpineGlobalStoreForUnload.history.hasChanges = false;
+                                alpineGlobalStoreForUnload.history.isEditing = false;
+                            } catch (e) {
+                                // silent fail: alpineGlobalStoreForUnload may be undefined in some contexts
+                            }
+                            window.location.reload();
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error saving history:', error);
+                        this.serverMessage = (this.currentLang === 'ja' ? '保存中にエラーが発生しました。' : 'An error occurred while saving.');
+                        this.serverSuccess = false;
+                    }
+                }
+            };
+        }
+
+        function clubBookmarksEditor() {
+            return {
+                isEditing: false,
+                hasChanges: false,
+                serverMessage: '',
+                serverSuccess: false,
+                currentLang: '{{ lang }}',
+                initialBookmarks: {{ bookmarked_clubs | list | tojson | safe if bookmarked_clubs else "[]" }},
+                editableBookmarks: [],
+                displayLimit: {{ club_bookmark_display_limit }},
+                userLimit: {{ current_user.saved_clubs_limit if current_user else 0 }},
+                availableSlots: {{ available_club_bookmark_slots if current_user else 0 }},
+                canExtend: {{ can_extend_club_bookmark_slots | lower if current_user else 'false' }},
+
+                init() {
+                    this.resetEditableBookmarks();
+                    this.$watch('isEditing', value => alpineGlobalStoreForUnload.clubBookmarks.isEditing = value);
+                    this.$watch('hasChanges', value => alpineGlobalStoreForUnload.clubBookmarks.hasChanges = value);
+                },
+
+                resetEditableBookmarks() {
+                    this.editableBookmarks = JSON.parse(JSON.stringify(this.initialBookmarks)).map(bm => ({ ...bm, isDeleting: false }));
+                    this.hasChanges = false;
+                },
+
+                startEditing() {
+                    this.isEditing = true;
+                    this.serverMessage = '';
+                    this.hasChanges = false;
+                    this.resetEditableBookmarks();
+                },
+
+                cancelEditing() {
+                    if (this.hasChanges) {
+                        const confirmMsgKey = this.currentLang === 'ja' ? '変更が保存されていません。本当にキャンセルしますか？' : 'You have unsaved changes. Are you sure you want to cancel?';
+                        if (!confirm(confirmMsgKey)) {
+                            return;
+                        }
+                    }
+                    this.isEditing = false;
+                    this.hasChanges = false;
+                    this.resetEditableBookmarks();
+                },
+
+                confirmDeleteBookmark(index) {
+                    const bookmarkToDelete = this.editableBookmarks[index];
+                    const confirmMsg = (this.currentLang === 'ja' ? `「${bookmarkToDelete.name}」をブックマークから削除しますか？\n(この変更は「保存」ボタンを押すまで適用されません)` : `Remove "${bookmarkToDelete.name}" from bookmarks?\n(This change will not be applied until you press "Save")`);
+                    if (confirm(confirmMsg)) {
+                        this.editableBookmarks.splice(index, 1);
+                        this.hasChanges = true;
+                    }
+                },
+
+                moveBookmarkUp(index) {
+                    if (index > 0) {
+                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
+                        this.editableBookmarks.splice(index - 1, 0, itemToMove);
+                        this.hasChanges = true;
+                    }
+                },
+
+                moveBookmarkDown(index) {
+                    if (index < this.editableBookmarks.length - 1) {
+                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
+                        this.editableBookmarks.splice(index + 1, 0, itemToMove);
+                        this.hasChanges = true;
+                    }
+                },
+
+                async saveBookmarks() {
+                    if (!this.hasChanges && this.isEditing) {
+                        this.serverMessage = (this.currentLang === 'ja' ? '変更はありません。' : 'No changes to save.');
+                        this.serverSuccess = true;
+                        setTimeout(() => this.serverMessage = '', 3000);
+                        this.isEditing = false;
+                        return;
+                    }
+                    if (!this.isEditing) return;
+
+                    this.serverMessage = (this.currentLang === 'ja' ? '保存中...' : 'Saving...');
+                    this.serverSuccess = false;
+
+                    const updatedBookmarkTags = this.editableBookmarks.map(bm => bm.tag);
+
+                    try {
+                        const response = await fetch(`/${this.currentLang}/account/club-bookmark/update`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', },
+                            body: JSON.stringify({ updated_bookmarks: updatedBookmarkTags })
+                        });
+                        const data = await response.json();
+                        this.serverMessage = data.message;
+                        this.serverSuccess = data.success;
+
+                        if (data.success) {
+                            this.hasChanges = false;
+                            this.isEditing = false;
+                            this.initialBookmarks = JSON.parse(JSON.stringify(this.editableBookmarks));
+                            suppressBeforeUnload = true;
+                            try {
+                                alpineGlobalStoreForUnload.clubBookmarks.hasChanges = false;
+                                alpineGlobalStoreForUnload.clubBookmarks.isEditing = false;
+                            } catch (e) {
+                                // silent fail
+                            }
+                            window.location.reload();
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error saving club bookmarks:', error);
+                        this.serverMessage = (this.currentLang === 'ja' ? '保存中にエラーが発生しました。' : 'An error occurred while saving.');
+                        this.serverSuccess = false;
+                    }
+                }
+            };
+        }
+
+        function clubViewedHistoryEditor() {
+            return {
+                isEditing: false,
+                hasChanges: false,
+                serverMessage: '',
+                serverSuccess: false,
+                currentLang: '{{ lang }}',
+                initialHistory: {{ viewed_clubs | list | tojson | safe if viewed_clubs else "[]" }},
+                editableHistory: [],
+                displayLimit: {{ club_viewed_display_limit }},
+                userLimit: {{ current_user.viewed_clubs_limit if current_user else 0 }},
+
+                init() {
+                    this.resetEditableHistory();
+                    this.$watch('isEditing', value => alpineGlobalStoreForUnload.clubHistory.isEditing = value);
+                    this.$watch('hasChanges', value => alpineGlobalStoreForUnload.clubHistory.hasChanges = value);
+                },
+
+                resetEditableHistory() {
+                    this.editableHistory = JSON.parse(JSON.stringify(this.initialHistory)).map(h => ({ ...h, isDeleting: false }));
+                    this.hasChanges = false;
+                },
+
+                startEditing() {
+                    this.isEditing = true;
+                    this.serverMessage = '';
+                    this.hasChanges = false;
+                    this.resetEditableHistory();
+                },
+
+                cancelEditing() {
+                    if (this.hasChanges) {
+                        const confirmMsgKey = this.currentLang === 'ja' ? '変更が保存されていません。本当にキャンセルしますか？' : 'You have unsaved changes. Are you sure you want to cancel?';
+                        if (!confirm(confirmMsgKey)) {
+                            return;
+                        }
+                    }
+                    this.isEditing = false;
+                    this.hasChanges = false;
+                    this.resetEditableHistory();
+                },
+
+                confirmDeleteHistory(index) {
+                    const historyToDelete = this.editableHistory[index];
+                    const confirmMsg = (this.currentLang === 'ja' ? `「${historyToDelete.name}」を閲覧履歴から削除しますか？\n(この変更は「保存」ボタンを押すまで適用されません)` : `Remove "${historyToDelete.name}" from viewing history?\n(This change will not be applied until you press "Save")`);
+                    if (confirm(confirmMsg)) {
+                        this.editableHistory.splice(index, 1);
+                        this.hasChanges = true;
+                    }
+                },
+
+                async saveHistory() {
+                    if (!this.hasChanges && this.isEditing) {
+                        this.serverMessage = (this.currentLang === 'ja' ? '変更はありません。' : 'No changes to save.');
+                        this.serverSuccess = true;
+                        setTimeout(() => this.serverMessage = '', 3000);
+                        this.isEditing = false;
+                        return;
+                    }
+                    if (!this.isEditing) return;
+
+                    this.serverMessage = (this.currentLang === 'ja' ? '保存中...' : 'Saving...');
+                    this.serverSuccess = false;
+
+                    const updatedHistoryTags = this.editableHistory.map(h => h.tag);
+
+                    try {
+                        const response = await fetch(`/${this.currentLang}/account/club-history/update`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', },
+                            body: JSON.stringify({ updated_history: updatedHistoryTags })
+                        });
+                        const data = await response.json();
+                        this.serverMessage = data.message;
+                        this.serverSuccess = data.success;
+
+                        if (data.success) {
+                            this.hasChanges = false;
+                            this.isEditing = false;
+                            this.initialHistory = JSON.parse(JSON.stringify(this.editableHistory));
+                            suppressBeforeUnload = true;
+                            try {
+                                alpineGlobalStoreForUnload.clubHistory.hasChanges = false;
+                                alpineGlobalStoreForUnload.clubHistory.isEditing = false;
+                            } catch (e) {
+                                // silent fail
+                            }
+                            window.location.reload();
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error saving club history:', error);
+                        this.serverMessage = (this.currentLang === 'ja' ? '保存中にエラーが発生しました。' : 'An error occurred while saving.');
+                        this.serverSuccess = false;
+                    }
+                }
+            };
+        }
+
+        // Alpine.jsの初期化
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('bookmarksEditor', bookmarksEditor);
+            Alpine.data('viewedHistoryEditor', viewedHistoryEditor);
+            Alpine.data('clubBookmarksEditor', clubBookmarksEditor);
+            Alpine.data('clubViewedHistoryEditor', clubViewedHistoryEditor);
+        });
+
+        window.addEventListener('beforeunload', (event) => {
+            const hasUnsavedChanges = (alpineGlobalStoreForUnload.bookmarks.isEditing && alpineGlobalStoreForUnload.bookmarks.hasChanges) ||
+                                      (alpineGlobalStoreForUnload.history.isEditing && alpineGlobalStoreForUnload.history.hasChanges) ||
+                                      (alpineGlobalStoreForUnload.clubBookmarks.isEditing && alpineGlobalStoreForUnload.clubBookmarks.hasChanges) ||
+                                      (alpineGlobalStoreForUnload.clubHistory.isEditing && alpineGlobalStoreForUnload.clubHistory.hasChanges);
+            if (hasUnsavedChanges) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        });
+
+        // --- DOM読み込み完了後に関数を実行 ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // タグ入力フィールドの自動矯正
+            applyTagAutoCorrection('playerTagSearchInput');
+            applyTagAutoCorrection('clubTagSearchInput');
+
+            // 各フォームの送信イベントハンドラを設定
+            setupFormSubmitHandler('form#playerTagSearchForm', 'playerTagSearchInput', performPlayerTagSearch);
+            setupFormSubmitHandler('form#clubTagSearchForm', 'clubTagSearchInput', performClubTagSearch);
+            setupFormSubmitHandler('form#playerNameSearchForm', 'playerNameSearchInput', performPlayerNameSearch);
+            setupFormSubmitHandler('form#clubNameSearchForm', 'clubNameSearchInput', performClubNameSearch);
+        });
+    </script>
+{% endblock %}

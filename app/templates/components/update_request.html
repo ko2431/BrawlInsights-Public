@@ -1,0 +1,21 @@
+{# /app/templates/components/update_request.html #}
+{% if platform == "ios" and (not app_client_version or app_client_version < "14.0") %}
+<a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer">
+    <div class="update-info-box">
+        <p class="update-info-text">
+            {% if lang == "ja" %}
+                【重要なお知らせ】
+                <br>アプリの新しいバージョンが利用可能です。お手数ですが、ストアよりアプリのアップデートをお願いいたします。
+            {% else %}
+                【Important Notice】
+                <br>A new version of the app is now available. Please update the app from the store.
+            {% endif %}
+        </p>
+        <div class="update-button-wrapper">
+            <div class="update-button">
+                <p>{% if lang == "ja" %}アップデートする{% else %}Update{% endif %}</p>
+            </div>
+        </div>
+    </div>
+</a>
+{% endif %}

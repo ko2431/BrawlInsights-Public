@@ -1,0 +1,77 @@
+{# /app/templates/stats/ranking/fragments/club_fragment.html #}
+<div class="ranking-fragment__content">
+    <div class="filters__container">
+        <form method="get" id="regionFilterForm" class="filter-form">
+            <label for="regionSelect" class="filter-form__label">{% if lang == "ja" %}地域:{% else %}Region:{% endif %}</label>
+            <select name="region" id="regionSelect" class="filter-form__select" onchange="document.getElementById('regionFilterForm').submit();">
+                <option value="global" {% if region == 'global' %}selected{% endif %}>{% if lang == "ja" %}グローバル{% else %}Global{% endif %}</option>
+                {% for r in regions %}
+                    <option value="{{ r.code }}" {% if r.code == region %}selected{% endif %}>{{ r.ja if lang == 'ja' else r.en }}</option>
+                {% endfor %}
+            </select>
+             <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+    </div>
+
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">{% if lang == "ja" %}各クラブをクリックすると、そのクラブの情報ページに移動します。ランキングに最新のトロフィーが反映されるまでに最大で約3分かかることがあります。{% else %}Click on a club to go to their profile page. It may take up to 3 minutes for the leaderboards to reflect the latest trophies.{% endif %}</p>
+    </div>
+
+    {% if ranking %}
+        <div class="ranking-list-grid">
+            <div class="ranking-list ranking-list-column">
+                {% for club in ranking[:100] %}
+                    {% if loop.index0 % 10 == 0 and not loop.first %}<div style="margin-bottom: 10px;"></div>{% endif %}
+                    <a href="{{ url_for('get_club_profile', lang=lang, tag=club.tag[1:]) }}" class="card-link ranking-list__item-link">
+                        <div class="card ranking-list__item">
+                            <div class="button ranking-list__item-index button--secondary">{{ club.rank }}</div>
+                            <div class="ranking-list__item-main">
+                                <img src="{{ url_for('static', path='/images/club_badges/' + club.badge_id|string + '.png') }}" alt="{{ club.name }} バッジ" class="ranking-list__item-club-icon" onerror="this.style.display='none'">
+                                <p class="ranking-list__item-name ranking-list__item-name--club">{{ club.name|safe }}</p>
+                                <p class="ranking-list__item-tag">{{ club.tag }}</p>
+                            </div>
+                            <div style="display: flex; flex: 1;"></div>
+                            <div class="ranking-list__item-value">
+                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィーアイコン" class="ranking-list__item-value-icon">
+                                <p class="ranking-list__item-score">{{ "{:,}".format(club.trophies) }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            {% if ranking|length > 100 %}
+            <div class="ranking-list ranking-list-column">
+                {% for club in ranking[100:] %}
+                    {% if loop.index0 % 10 == 0 and not loop.first %}<div style="margin-bottom: 10px;"></div>{% endif %}
+                    <a href="{{ url_for('get_club_profile', lang=lang, tag=club.tag[1:]) }}" class="card-link ranking-list__item-link">
+                        <div class="card ranking-list__item">
+                            <div class="button ranking-list__item-index button--secondary">{{ club.rank }}</div>
+                            <div class="ranking-list__item-main">
+                                <img src="{{ url_for('static', path='/images/club_badges/' + club.badge_id|string + '.png') }}" alt="{{ club.name }} バッジ" class="ranking-list__item-club-icon" onerror="this.style.display='none'">
+                                <p class="ranking-list__item-name ranking-list__item-name--club">{{ club.name|safe }}</p>
+                                <p class="ranking-list__item-tag">{{ club.tag }}</p>
+                            </div>
+                            <div style="display: flex; flex: 1;"></div>
+                            <div class="ranking-list__item-value">
+                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィーアイコン" class="ranking-list__item-value-icon">
+                                <p class="ranking-list__item-score">{{ "{:,}".format(club.trophies) }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <p style="margin-top: 20px; text-align: center;">{% if lang == "ja" %}ランキングデータを取得できませんでした。申し訳ありませんが、しばらく待ってから再度お試しください。{% else %}Could not retrieve leaderboard data. Sorry, please wait a while and try again.{% endif %}</p>
+    {% endif %}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container" x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }" x-show="showManualBackButton" style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>

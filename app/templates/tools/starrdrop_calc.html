@@ -1,0 +1,477 @@
+{# /app/templates/tools/starrdrop_calc.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 各種ドロップ／ボックス期待値計算機{% else %}Drop / Box EV Calculator{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタの各種ドロップ／ボックスの報酬量期待値計算機です。代替報酬も考慮した、高度な計算が可能です。{% else %}An expected value calculator for various drop / box rewards. Advanced calculations that account for substitute rewards are possible.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container" x-data="dropBoxEvCalculatorApp()" x-init="init()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}各種ドロップ／ボックス期待値計算機{% else %}Drop / Box EV Calculator{% endif %}</h1>
+
+    <p class="tools-page__description">
+        {% if lang == "ja" %}
+            スタードロップや各種ドロップ・イベントボックスの報酬期待値を計算できます。上のメニューからドロップ・ボックスを切り替えられます。
+        {% else %}
+            Calculate expected rewards for Starr Drops and various event boxes. Use the menu above to switch boxes.
+        {% endif %}
+    </p>
+
+    <div class="map-rotation-slot-tab__container drop-box-slot-tab__container" x-show="Object.keys(boxes).length > 0" x-cloak>
+        <div class="map-rotation-slot-tab drop-box-slot-tab">
+            <template x-for="boxKey in boxOrder" :key="boxKey">
+                <div class="map-rotation-slot drop-box-slot"
+                     x-show="boxes[boxKey]"
+                     :class="{ 'map-rotation-slot--active': selectedBoxKey === boxKey }"
+                     @click="selectBox(boxKey)">
+                    <img :src="boxes[boxKey].icon"
+                         :alt="getBoxName(boxKey)"
+                         class="map-rotation-slot__icon drop-box-slot__icon"
+                         :class="`drop-box-slot__icon--${boxKey}`">
+                    <p class="map-rotation-slot__text drop-box-slot__text" x-text="getBoxName(boxKey)"></p>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div class="tools-page__section" style="margin-top: 0;">
+        <div class="filters__container cost-calc-filters">
+            <template x-if="isStarrDropSelected()">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div class="filter-form">
+                        <label class="filter-form__label reward-filter-form__label">{% if lang == "ja" %}通常スタードロップ:{% else %}Starr Drops:{% endif %}</label>
+                        <input type="text" class="form-input starrdrop-form-input" placeholder="0" x-model.number="starrDrops" @input.debounce.300ms="calculateEV()">
+                        <p class="starrdrop-form-input-suffix">{% if lang == "ja" %}個{% else %}x{% endif %}</p>
+                    </div>
+                    <div class="filter-form">
+                        <label class="filter-form__label reward-filter-form__label">{% if lang == "ja" %}ウルトラレア確定:{% else %}Guaranteed Mythic:{% endif %}</label>
+                        <input type="text" class="form-input starrdrop-form-input" placeholder="0" x-model.number="mythicDrops" @input.debounce.300ms="calculateEV()">
+                        <p class="starrdrop-form-input-suffix">{% if lang == "ja" %}個{% else %}x{% endif %}</p>
+                    </div>
+                    <div class="filter-form">
+                        <label class="filter-form__label reward-filter-form__label">{% if lang == "ja" %}レジェンドレア確定:{% else %}Guaranteed Legendary:{% endif %}</label>
+                        <input type="text" class="form-input starrdrop-form-input" placeholder="0" x-model.number="legendaryDrops" @input.debounce.300ms="calculateEV()">
+                        <p class="starrdrop-form-input-suffix">{% if lang == "ja" %}個{% else %}x{% endif %}</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="!isStarrDropSelected()">
+                <div class="filter-form">
+                    <label class="filter-form__label reward-filter-form__label" x-text="isJa ? '個数:' : 'Count:'"></label>
+                    <input type="text" class="form-input starrdrop-form-input" placeholder="0" x-model.number="openCount" @input.debounce.300ms="calculateEV()">
+                    <p class="starrdrop-form-input-suffix" x-text="isJa ? '個' : 'x'"></p>
+                </div>
+            </template>
+
+            <div class="pass-filters" x-show="availableSubstituteTypeKeys.length > 0" x-cloak>
+                <p class="pass-filters-label">{% if lang == "ja" %}代替報酬で計算するアイテムを選択{% else %}Select items to calculate with substitute rewards{% endif %}</p>
+                <div class="starrdrop-checkbox-group__container">
+                    <template x-for="typeKey in availableSubstituteTypeKeys" :key="`sub-${typeKey}`">
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" :checked="!!substitutes[typeKey]" @change="toggleSubstitute(typeKey)">
+                            <label class="form-checkbox-label" x-text="getRewardName(typeKey)"></label>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <p class="info-block__text block reward-info-block__text starrdrop-info-block__text" style="margin-bottom: -5px;" x-show="availableSubstituteTypeKeys.length > 0" x-cloak>
+                {% if lang == "ja" %}
+                    チェックを入れたアイテムは、<b>代替報酬</b>で計算されます（例: ガジェット→500コイン）。
+                {% else %}
+                    Checked items are calculated as their <b>substitute rewards</b> (example: Gadgets -> 500 Coins)
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="cost__container drop-reward__container">
+            <h3 class="cost-section-title">{% if lang == "ja" %}合計報酬量の期待値{% else %}Total Expected Rewards{% endif %}</h3>
+            <template x-if="resultTypeKeys.length === 0">
+                <p class="info-block__text block" style="margin-top: 8px;" x-text="isJa ? 'このドロップ・ボックスの報酬データは準備中です。' : 'Reward data for this drop or box is not ready yet.'"></p>
+            </template>
+            <div class="drop-rewards">
+                <template x-for="typeKey in resultTypeKeys" :key="`result-${typeKey}`">
+                    <div class="cost">
+                        <img :src="getRewardType(typeKey).icon" :alt="getRewardName(typeKey)" class="cost-image drop-reward-image">
+                        <p class="cost-text drop-reward-text" x-html="formatNumber(expectedValues[typeKey] || 0)"></p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+        function dropBoxEvCalculatorApp() {
+            return {
+                isJa: '{{ lang }}' === 'ja',
+                data: {{ drop_boxes_data | tojson | safe }},
+                initialBox: {{ initial_box | tojson | safe }},
+                boxOrder: ['starrdrop', 'chaosdrop', 'rankeddrop', 'novadrop', 'angelicdrop', 'demonicdrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'damianbox', 'starrnovabox', 'boltbox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                selectedBoxKey: 'starrdrop',
+
+                starrDrops: '',
+                mythicDrops: '',
+                legendaryDrops: '',
+                openCount: '',
+
+                substitutes: {},
+                expectedValues: {},
+                rewardTypeIndexMap: {},
+
+                init() {
+                    this.initRewardTypeIndexMap();
+                    if (this.initialBox && this.boxes[this.initialBox]) {
+                        this.selectedBoxKey = this.initialBox;
+                    }
+                    this.ensureSubstituteState();
+                        this.calculateEV();
+                },
+
+                initRewardTypeIndexMap() {
+                    // Prefer explicit ordering provided by backend (reward_types_order)
+                    const keys = Array.isArray(this.data.reward_types_order) && this.data.reward_types_order.length > 0
+                        ? this.data.reward_types_order
+                        : Object.keys(this.rewardTypes);
+                    const map = {};
+                    keys.forEach((key, index) => {
+                        map[key] = index;
+                    });
+                    this.rewardTypeIndexMap = map;
+                },
+
+                get boxes() {
+                    return this.data.boxes || {};
+                },
+
+                get rewardTypes() {
+                    return this.data.reward_types || {};
+                },
+
+                get selectedBox() {
+                    return this.boxes[this.selectedBoxKey] || null;
+                },
+
+                get allRarityKeys() {
+                    if (!this.selectedBox || !this.selectedBox.has_rarity_selector || !this.selectedBox.rarities) return [];
+                    const ordered = this.selectedBox.rarity_order || [];
+                    const defined = Object.keys(this.selectedBox.rarities);
+                    return ordered.length > 0 ? ordered.filter((key) => defined.includes(key)) : defined;
+                },
+
+                get availableRewardTypeKeys() {
+                    const typeSet = new Set();
+
+                    const addRewards = (rewards) => {
+                        if (!Array.isArray(rewards)) return;
+                        for (const reward of rewards) {
+                            if (reward && reward.type) typeSet.add(reward.type);
+                        }
+                    };
+
+                    if (!this.selectedBox) return [];
+
+                    if (this.selectedBox.has_rarity_selector && this.selectedBox.rarities) {
+                        for (const rarityKey of this.allRarityKeys) {
+                            const rarity = this.selectedBox.rarities[rarityKey];
+                            if (!rarity) continue;
+                            addRewards(rarity.rewards);
+                            addRewards(rarity.premium_rewards);
+                        }
+                    } else {
+                        addRewards(this.selectedBox.rewards);
+                    }
+
+                    return this.orderTypeKeys(Array.from(typeSet));
+                },
+
+                get availableSubstituteTypeKeys() {
+                    const candidates = this.availableRewardTypeKeys.filter((typeKey) => {
+                        const rewardType = this.rewardTypes[typeKey];
+                        return !!(rewardType && rewardType.substitute && rewardType.substitute.type);
+                    });
+                    return this.orderTypeKeys(candidates);
+                },
+
+                get resultTypeKeys() {
+                    const resultKeys = [];
+                    for (const typeKey of this.availableRewardTypeKeys) {
+                        const rewardType = this.rewardTypes[typeKey] || {};
+                        const substitute = rewardType.substitute;
+                        if (this.substitutes[typeKey] && substitute && substitute.type) {
+                            resultKeys.push(substitute.type);
+                        } else {
+                            resultKeys.push(typeKey);
+                        }
+                    }
+                    // Deduplicate while preserving order
+                    const dedup = [];
+                    for (const k of resultKeys) {
+                        if (!dedup.includes(k)) dedup.push(k);
+                    }
+                    return this.orderTypeKeys(dedup);
+                },
+
+                selectBox(boxKey) {
+                    this.selectedBoxKey = boxKey;
+                    this.ensureSubstituteState();
+                    this.calculateEV();
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('box', boxKey);
+                    history.replaceState({}, '', url);
+                },
+
+                isStarrDropSelected() {
+                    return this.selectedBoxKey === 'starrdrop';
+                },
+
+                toggleSubstitute(typeKey) {
+                    this.substitutes[typeKey] = !this.substitutes[typeKey];
+                    this.calculateEV();
+                },
+
+                ensureSubstituteState() {
+                    for (const typeKey of this.availableSubstituteTypeKeys) {
+                        if (typeof this.substitutes[typeKey] !== 'boolean') {
+                            this.substitutes[typeKey] = false;
+                        }
+                    }
+                },
+
+                getBoxName(boxKey) {
+                    const box = this.boxes[boxKey];
+                    if (!box) return boxKey;
+                    return this.isJa ? box.name_ja : box.name_en;
+                },
+
+                getRewardType(typeKey) {
+                    return this.rewardTypes[typeKey] || {
+                        name_ja: typeKey,
+                        name_en: typeKey,
+                        icon: '{{ url_for('static', path='/images/ui/starrdrop.png') }}'
+                    };
+                },
+
+                getRewardName(typeKey) {
+                    const rewardType = this.getRewardType(typeKey);
+                    return this.isJa ? (rewardType.name_ja || typeKey) : (rewardType.name_en || typeKey);
+                },
+
+                orderTypeKeys(typeKeys) {
+                    return [...typeKeys].sort((a, b) => {
+                        const ai = this.rewardTypeIndexMap[a] ?? Number.MAX_SAFE_INTEGER;
+                        const bi = this.rewardTypeIndexMap[b] ?? Number.MAX_SAFE_INTEGER;
+                        if (ai === bi) return a.localeCompare(b);
+                        return ai - bi;
+                    });
+                },
+
+                parseAmount(value) {
+                    if (typeof value === 'number') return value;
+                    if (typeof value !== 'string') return Number(value) || 0;
+                    const trimmed = value.trim();
+                    if (trimmed.includes('-')) {
+                        const [minRaw, maxRaw] = trimmed.split('-', 2);
+                        const min = Number(minRaw);
+                        const max = Number(maxRaw);
+                        if (Number.isFinite(min) && Number.isFinite(max)) {
+                            return (min + max) / 2;
+                        }
+                    }
+                    const parsed = Number(trimmed);
+                    return Number.isFinite(parsed) ? parsed : 0;
+                },
+
+                toPositiveNumber(value) {
+                    const parsed = Number(value);
+                    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+                    return parsed;
+                },
+
+                getSplitMultiplier() {
+                    if (!this.selectedBox || !this.selectedBox.split || !this.selectedBox.split.enabled) {
+                        return 1;
+                    }
+                    const distribution = this.selectedBox.split.distribution || [];
+                    if (!Array.isArray(distribution) || distribution.length === 0) return 1;
+                    return distribution.reduce((sum, item) => {
+                        const count = Number(item.count) || 0;
+                        const probability = Number(item.probability) || 0;
+                        return sum + count * probability;
+                    }, 0);
+                },
+
+                getRarityItemCounts(rarity) {
+                    const totalItems = Number(rarity.items_per_open || this.selectedBox.items_per_open || 1) || 1;
+                    const premiumDrops = Number(rarity.premium_drops || 0) || 0;
+                    const premiumCount = Math.min(Math.max(premiumDrops, 0), totalItems);
+                    const normalCount = Math.max(totalItems - premiumCount, 0);
+                    return { normalCount, premiumCount };
+                },
+
+                applyRewardsToTotals(totals, rewards, openMultiplier) {
+                    if (!Array.isArray(rewards) || openMultiplier <= 0) return;
+                    for (const reward of rewards) {
+                        if (!reward || !reward.type) continue;
+                        const probability = Number(reward.probability) || 0;
+                        const amount = this.parseAmount(reward.amount);
+                        if (probability <= 0 || amount <= 0) continue;
+
+                        const rewardTypeDef = this.rewardTypes[reward.type] || {};
+                        const substitute = rewardTypeDef.substitute;
+
+                        let finalType = reward.type;
+                        let finalAmount = amount;
+                        if (this.substitutes[reward.type] && substitute && substitute.type) {
+                            finalType = substitute.type;
+                            finalAmount = this.parseAmount(substitute.amount);
+                        }
+
+                        if (!totals[finalType]) totals[finalType] = 0;
+                        totals[finalType] += finalAmount * probability * openMultiplier;
+                    }
+                },
+
+                applyGenericBoxEV(totals, openCount) {
+                    if (!this.selectedBox) return;
+                    const splitMultiplier = this.getSplitMultiplier();
+
+                    if (this.selectedBox.has_rarity_selector && this.selectedBox.rarities) {
+                        for (const rarityKey of this.allRarityKeys) {
+                            const rarity = this.selectedBox.rarities[rarityKey];
+                            if (!rarity) continue;
+                            const rarityProbability = Number(rarity.drop_probability) || 0;
+                            if (rarityProbability <= 0) continue;
+                            const { normalCount, premiumCount } = this.getRarityItemCounts(rarity);
+                            const baseMultiplier = openCount * splitMultiplier * rarityProbability;
+                            this.applyRewardsToTotals(totals, rarity.rewards, baseMultiplier * normalCount);
+                            this.applyRewardsToTotals(totals, rarity.premium_rewards, baseMultiplier * premiumCount);
+                        }
+                        return;
+                    }
+
+                    const itemsPerOpen = Number(this.selectedBox.items_per_open || 1) || 1;
+                    const premiumDrops = Number(this.selectedBox.premium_drops || 0) || 0;
+                    const normalCount = Math.max(itemsPerOpen - premiumDrops, 0);
+                    const baseMultiplier = openCount * splitMultiplier;
+
+                    if (premiumDrops > 0 && this.selectedBox.premium_rewards) {
+                        this.applyRewardsToTotals(totals, this.selectedBox.premium_rewards, baseMultiplier * premiumDrops);
+                    }
+                    if (normalCount > 0 && this.selectedBox.rewards) {
+                        this.applyRewardsToTotals(totals, this.selectedBox.rewards, baseMultiplier * normalCount);
+                    }
+                },
+
+                applyStarrDropEV(totals) {
+                    if (!this.selectedBox || !this.selectedBox.rarities) return;
+                    const splitMultiplier = this.getSplitMultiplier();
+                    const normalCount = this.toPositiveNumber(this.starrDrops);
+                    const mythicCount = this.toPositiveNumber(this.mythicDrops);
+                    const legendaryCount = this.toPositiveNumber(this.legendaryDrops);
+
+                    if (normalCount > 0) {
+                        for (const rarityKey of this.allRarityKeys) {
+                            const rarity = this.selectedBox.rarities[rarityKey];
+                            if (!rarity) continue;
+                            const rarityProbability = Number(rarity.drop_probability) || 0;
+                            if (rarityProbability <= 0) continue;
+                            const { normalCount: rarityNormalCount, premiumCount } = this.getRarityItemCounts(rarity);
+                            const baseMultiplier = normalCount * splitMultiplier * rarityProbability;
+                            this.applyRewardsToTotals(totals, rarity.rewards, baseMultiplier * rarityNormalCount);
+                            this.applyRewardsToTotals(totals, rarity.premium_rewards, baseMultiplier * premiumCount);
+                        }
+                    }
+
+                    const applyGuaranteedRarity = (rarityKey, count) => {
+                        if (count <= 0) return;
+                        const rarity = this.selectedBox.rarities[rarityKey];
+                        if (!rarity) return;
+                        const { normalCount: rarityNormalCount, premiumCount } = this.getRarityItemCounts(rarity);
+                        const baseMultiplier = count * splitMultiplier;
+                        this.applyRewardsToTotals(totals, rarity.rewards, baseMultiplier * rarityNormalCount);
+                        this.applyRewardsToTotals(totals, rarity.premium_rewards, baseMultiplier * premiumCount);
+                    };
+
+                    applyGuaranteedRarity('mythic', mythicCount);
+                    applyGuaranteedRarity('legendary', legendaryCount);
+                },
+
+                calculateEV() {
+                    const totals = {};
+
+                    if (this.isStarrDropSelected()) {
+                        this.applyStarrDropEV(totals);
+                    } else {
+                        const openCount = this.toPositiveNumber(this.openCount);
+                        if (openCount > 0) {
+                            this.applyGenericBoxEV(totals, openCount);
+                        }
+                    }
+
+                    this.expectedValues = totals;
+                },
+
+                formatNumber(value) {
+                    const numeric = Number(value) || 0;
+                    let str;
+                    if (numeric === 0) str = '0.0000';
+                    else if (numeric >= 1000) str = numeric.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    else if (numeric >= 100) str = numeric.toFixed(1);
+                    else if (numeric >= 10) str = numeric.toFixed(2);
+                    else if (numeric >= 1) str = numeric.toFixed(3);
+                    else str = numeric.toFixed(4);
+
+                    const parts = str.split('.');
+                    if (parts.length > 1) {
+                        return `${parts[0]}<span class="cost-text-decimal">.${parts[1]}</span>`;
+                    }
+                    return str;
+                }
+            }
+        }
+    </script>
+{% endblock %}

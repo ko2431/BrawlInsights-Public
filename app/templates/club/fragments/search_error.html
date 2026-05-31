@@ -1,0 +1,12 @@
+{# app/templates/club/fragments/search_error.html #}
+<div class="search-results__error">
+    {% if error_type == "no_query" %}
+        <p class="search-results__text">
+            {% if lang == "ja" %}検索語句が指定されていません。{% else %}No search query specified.{% endif %}
+        </p>
+    {% else %}
+        <p class="search-results__text">
+            {% if lang == "ja" %}検索中にエラーが発生しました。しばらくしてからもう一度お試しください。{% else %}An error occurred during search. Please try again later.{% endif %}
+        </p>
+    {% endif %}
+</div>

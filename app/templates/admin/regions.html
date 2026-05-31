@@ -1,0 +1,450 @@
+{# /app/templates/admin/regions.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / 地域情報管理{% endblock %}
+{% block og_description %}地域情報を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="regionAdmin()"> {# ページ全体のコンテナ #}
+    <h1 class="page-title--main">地域情報管理</h1>
+
+    <p class="admin-page__description">
+        地域総数: <b>{{ regions|length }}</b>
+    </p>
+
+    {# --- 新規追加フォーム --- #}
+    <div class="add-new-item-form">
+        <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 10px 0;">新しい地域を追加</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="new_region_code" class="form-label">地域コード (例: JP)</label>
+                <input type="text" id="new_region_code" class="form-input" x-model="newRegion.code" @input="validateNewRegionCode()">
+                <div class="form-field-status" x-html="newRegionStatus.code"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_region_en" class="form-label">英語名 (例: Japan)</label>
+                <input type="text" id="new_region_en" class="form-input" x-model="newRegion.en" @input="validateNewRegionEn()">
+                <div class="form-field-status" x-html="newRegionStatus.en"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_region_ja" class="form-label">日本語名 (例: 日本)</label>
+                <input type="text" id="new_region_ja" class="form-input" x-model="newRegion.ja" @input="validateNewRegionJa()">
+                <div class="form-field-status" x-html="newRegionStatus.ja"></div>
+            </div>
+            <div class="form-group form-actions">
+                <button type="button" class="button button--primary" @click="confirmAddRegion()" :disabled="!isNewRegionFormValid">追加</button>
+            </div>
+        </div>
+        <div x-show="addStatus.message" class="form-field-status server-response"
+             :class="{ 'success': addStatus.success, 'error': !addStatus.success && addStatus.message }"
+             x-text="addStatus.message" style="margin-top: 5px;">
+        </div>
+    </div>
+
+
+    {# --- 既存の地域編集テーブル --- #}
+    <div class="save-changes-block" style="margin-top: 25px;">
+        <p>既存の地域情報を編集できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table region-table"> {# region-table クラスを追加 #}
+            <thead>
+                <th @click="sortBy('id')">
+                    <span>ID</span>
+                    <span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('code')">
+                    <span>コード</span>
+                    <span x-show="sortColumn === 'code'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('en')">
+                    <span>英語名</span>
+                    <span x-show="sortColumn === 'en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('ja')">
+                    <span>日本語名</span>
+                    <span x-show="sortColumn === 'ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th>操作</th> {# 削除ボタン用 #}
+            </thead>
+            <tbody>
+                <template x-for="region_item in regionsData" :key="region_item.id">
+                    <tr x-data="regionRow(region_item)" x-init="initComponent()" :key="id">
+                        <td x-text="region_item.id" style="text-align: center;"></td>
+                        <td contenteditable="true" class="is-editable"
+                            :class="{ 'changed': isCodeDirty, 'invalid': !isCodeValid && isCodeDirty }"
+                            @focus="handleFocus($el, 'code')"
+                            @blur="isFocused.code = false; handleInputOrBlur($el, 'code')"
+                            @input.debounce.200ms="handleInputOrBlur($el, 'code')"
+                            x-text="currentCode">
+                        </td>
+                        <td contenteditable="true" class="is-editable"
+                            :class="{ 'changed': isEnDirty, 'invalid': !isEnValid && isEnDirty }"
+                            @focus="handleFocus($el, 'en')"
+                            @blur="isFocused.en = false; handleInputOrBlur($el, 'en')"
+                            @input.debounce.200ms="handleInputOrBlur($el, 'en')"
+                            x-text="currentEn">
+                        </td>
+                        <td contenteditable="true" class="is-editable"
+                            :class="{ 'changed': isJaDirty, 'invalid': !isJaValid && isJaDirty }"
+                            @focus="handleFocus($el, 'ja')"
+                            @blur="isFocused.ja = false; handleInputOrBlur($el, 'ja')"
+                            @input.debounce.200ms="handleInputOrBlur($el, 'ja')"
+                            x-text="currentJa">
+                        </td>
+                        <td style="text-align: center;">
+                            <button type="button" class="button button--danger button--small" @click="$dispatch('confirm-delete-region', { id: id, code: currentCode })">削除</button>
+                        </td>
+                    </tr>
+                </template>
+                {# データがない場合の表示 #}
+                <template x-if="regionsData.length === 0">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #777;">地域データがありません</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="save-changes-block" style="margin-top: 0;">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+        :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+        x-text="saveStatus.message" style="margin-top: -5px;">
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function regionAdmin() {
+            return {
+                regionsData: {{ regions | tojson | safe }},
+                sortColumn: 'id',
+                sortDirection: 'asc',
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                addStatus: { message: '', success: false },
+                newRegion: { code: '', en: '', ja: '' },
+                newRegionStatus: { code: '', en: '', ja: '' },
+                isNewRegionCodeValid: false,
+                isNewRegionEnValid: false,
+                isNewRegionJaValid: false,
+
+                init() {
+                    this.sortBy(this.sortColumn, true); // 初期ソートを実行 (第2引数 true で初期ソートを示す)
+                    this.checkForAnyChanges();
+                    this.$root.addEventListener('rowinputchanged', () => this.checkForAnyChanges());
+                    this.$root.addEventListener('confirm-delete-region', (event) => this.confirmDeleteRegion(event.detail.id, event.detail.code));
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault();
+                            event.returnValue = '';
+                        }
+                    });
+                },
+
+                get isNewRegionFormValid() {
+                    return this.isNewRegionCodeValid && this.isNewRegionEnValid && this.isNewRegionJaValid;
+                },
+
+                validateNewRegionCode() {
+                    const code = this.newRegion.code.trim().toUpperCase();
+                    this.newRegion.code = code; // 整形した値を反映
+                    if (code.length === 0) {
+                        this.newRegionStatus.code = '<span class="text-red-500">地域コードは必須です。</span>';
+                        this.isNewRegionCodeValid = false;
+                    } else if (code.length !== 2) { // 2文字必須
+                        this.newRegionStatus.code = '<span class="text-red-500">地域コードは2文字で指定してください。</span>';
+                        this.isNewRegionCodeValid = false;
+                    } else if (this.regionsData.some(r => r.code.toUpperCase() === code)) {
+                        this.newRegionStatus.code = '<span class="text-red-500">この地域コードは既に使用されています。</span>';
+                        this.isNewRegionCodeValid = false;
+                    }
+                    else {
+                        this.newRegionStatus.code = '<span class="text-green-500">OK</span>';
+                        this.isNewRegionCodeValid = true;
+                    }
+                },
+                validateNewRegionEn() {
+                    const enName = this.newRegion.en.trim();
+                    if (enName.length === 0) {
+                        this.newRegionStatus.en = '<span class="text-red-500">英語名は必須です。</span>';
+                        this.isNewRegionEnValid = false;
+                    } else {
+                        this.newRegionStatus.en = '<span class="text-green-500">OK</span>';
+                        this.isNewRegionEnValid = true;
+                    }
+                },
+                validateNewRegionJa() {
+                    const jaName = this.newRegion.ja.trim();
+                    if (jaName.length === 0) {
+                        this.newRegionStatus.ja = '<span class="text-red-500">日本語名は必須です。</span>';
+                        this.isNewRegionJaValid = false;
+                    } else {
+                        this.newRegionStatus.ja = '<span class="text-green-500">OK</span>';
+                        this.isNewRegionJaValid = true;
+                    }
+                },
+
+                async confirmAddRegion() {
+                    this.validateNewRegionCode();
+                    this.validateNewRegionEn();
+                    this.validateNewRegionJa();
+                    if (!this.isNewRegionFormValid) {
+                        this.addStatus.message = '入力内容を確認してください。';
+                        this.addStatus.success = false;
+                        return;
+                    }
+                    if (confirm(`新しい地域コード「${this.newRegion.code}」を追加しますか？`)) {
+                        this.addRegion();
+                    }
+                },
+
+                async addRegion() {
+                    this.addStatus.message = '追加中...';
+                    this.addStatus.success = false;
+                    try {
+                        const response = await fetch("{{ url_for('admin_add_region', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.newRegion)
+                        });
+                        const data = await response.json();
+                        this.addStatus.message = data.message;
+                        this.addStatus.success = data.success;
+                        if (data.success) {
+                            this.hasUnsavedChanges = false; // 追加後は変更なしとみなす
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.addStatus.message = '追加処理中にエラーが発生しました。';
+                        this.addStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.addStatus.message = '', 5000);
+                    }
+                },
+
+
+                checkForAnyChanges() {
+                    let changesFound = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty && rowData.isRowCompletelyValid) { // isRowCompletelyValidもチェック
+                            changesFound = true;
+                        }
+                    });
+                    this.hasUnsavedChanges = changesFound;
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+                    this.regionsData.sort((a, b) => {
+                        let valA = a[column];
+                        let valB = b[column];
+                        if (column === 'id') { // IDは数値として比較
+                            valA = parseInt(valA, 10);
+                            valB = parseInt(valB, 10);
+                        } else if (typeof valA === 'string') {
+                            valA = valA.toLowerCase();
+                        }
+                        if (typeof valB === 'string') {
+                            valB = valB.toLowerCase();
+                        }
+                        let comparison = 0;
+                        if (valA > valB) comparison = 1;
+                        else if (valA < valB) comparison = -1;
+                        return this.sortDirection === 'asc' ? comparison : comparison * -1;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.checkForAnyChanges();
+                    let invalidRowsExist = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty && !rowData.isRowCompletelyValid) {
+                            invalidRowsExist = true;
+                        }
+                    });
+
+                    if (invalidRowsExist) {
+                        this.saveStatus.message = 'エラー: 未入力または不正な値の項目があります。修正してください。';
+                        this.saveStatus.success = false;
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                        return;
+                    }
+
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus.message = '変更点はありません。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    const changedRegions = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const alpineData = Alpine.$data(rowEl);
+                        if (alpineData.isDirty && alpineData.isRowCompletelyValid) {
+                            changedRegions.push({
+                                id: alpineData.id,
+                                code: alpineData.currentCode.trim(), // 送信する値もtrim
+                                en: alpineData.currentEn.trim(),
+                                ja: alpineData.currentJa.trim()
+                            });
+                        }
+                    });
+
+                    if (changedRegions.length === 0) {
+                        this.saveStatus.message = '有効な変更点はありませんでした。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    if (confirm(`${changedRegions.length}件の地域情報が変更されています。すべての変更を保存しますか？`)) {
+                        this.saveChanges(changedRegions);
+                    }
+                },
+
+                async saveChanges(regionsToUpdate) {
+                    this.saveStatus.message = '保存中...';
+                    this.saveStatus.success = false;
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_regions', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ regions: regionsToUpdate })
+                        });
+                        const data = await response.json();
+                        this.saveStatus.message = data.message;
+                        this.saveStatus.success = data.success;
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.saveStatus.message = '保存中にエラーが発生しました。';
+                        this.saveStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                    }
+                },
+
+                confirmDeleteRegion(id, code) {
+                    if (confirm(`地域コード「${code}」(ID: ${id}) を本当に削除しますか？この操作は取り消せません。`)) {
+                        this.deleteRegion(id);
+                    }
+                },
+                async deleteRegion(id) {
+                    this.saveStatus.message = '削除中...'; // saveStatusを共用
+                    this.saveStatus.success = false;
+                    try {
+                        const response = await fetch("{{ url_for('admin_delete_region', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        });
+                        const data = await response.json();
+                        this.saveStatus.message = data.message;
+                        this.saveStatus.success = data.success;
+                        if (data.success) {
+                            this.hasUnsavedChanges = false; // 変更がなくなった可能性
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.saveStatus.message = '削除処理中にエラーが発生しました。';
+                        this.saveStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                    }
+                }
+            }
+        }
+
+        function regionRow(regionItem) {
+            return {
+                id: regionItem.id,
+                initialCode: regionItem.code,
+                initialEn: regionItem.en,
+                initialJa: regionItem.ja,
+                currentCode: regionItem.code,
+                currentEn: regionItem.en,
+                currentJa: regionItem.ja,
+                isFocused: { code: false, en: false, ja: false },
+
+                get isCodeDirty() { return this.initialCode !== this.currentCode.trim(); },
+                get isEnDirty() { return this.initialEn !== this.currentEn.trim(); },
+                get isJaDirty() { return this.initialJa !== this.currentJa.trim(); },
+                get isDirty() { return this.isCodeDirty || this.isEnDirty || this.isJaDirty; },
+
+                get isCodeValid() { return this.currentCode.trim().length > 0 && this.currentCode.trim().length <= 10; }, // 例: コードは1-10文字
+                get isEnValid() { return this.currentEn.trim().length > 0; },
+                get isJaValid() { return this.currentJa.trim().length > 0; },
+                get isRowCompletelyValid() { return this.isCodeValid && this.isEnValid && this.isJaValid; },
+
+
+                initComponent() {
+                    ['code', 'en', 'ja'].forEach(field => {
+                        const tdElement = this.$el.querySelector(`td:nth-child(${this.getColumnIndex(field)})`);
+                        if (tdElement) {
+                            tdElement.textContent = this[`current${field.charAt(0).toUpperCase() + field.slice(1)}`];
+                        }
+                    });
+                    this.$watch('currentCode', () => this.updateAndNotify());
+                    this.$watch('currentEn', () => this.updateAndNotify());
+                    this.$watch('currentJa', () => this.updateAndNotify());
+                },
+                getColumnIndex(field) {
+                    if (field === 'code') return 2;
+                    if (field === 'en') return 3;
+                    if (field === 'ja') return 4;
+                    return 0;
+                },
+                handleInputOrBlur(eventTarget, field) {
+                    const trimmedValue = eventTarget.textContent.trim();
+                    const capitalizedField = field.charAt(0).toUpperCase() + field.slice(1);
+                    // コードの場合は大文字に変換
+                    if (field === 'code') {
+                        this.currentCode = trimmedValue.toUpperCase();
+                        eventTarget.textContent = this.currentCode; // 表示も更新
+                    } else {
+                        this[`current${capitalizedField}`] = trimmedValue;
+                    }
+                },
+                handleFocus(eventTarget, field) {
+                    this.isFocused[field] = true;
+                },
+                updateAndNotify() {
+                    this.$dispatch('rowinputchanged');
+                }
+            }
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('regionAdmin', regionAdmin);
+            Alpine.data('regionRow', regionRow);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,25 @@
+alembic==1.16.4
+asyncpg==0.30.0
+APScheduler==3.11.0
+bcrypt==4.3.0
+BrawlPlex==24.7.0
+brawlstats==4.2.0
+cachetools==5.5.0
+colorlog==6.9.0
+fastapi==0.115.12
+python-dotenv==1.1.0
+psycopg2-binary==2.9.10
+redis==6.1.0
+Requests==2.32.3
+starlette==0.46.2
+itsdangerous==2.2.0
+python-multipart==0.0.20
+uvicorn[standard]==0.34.2  # <-- 手動で追記 (バージョンは適宜調整)
+gunicorn==23.0.0
+Jinja2==3.1.6 # <-- FastAPIの依存関係でカバーされる場合も
+httpx[http2]==0.28.1 # <-- MeowAPI用
+ua-parser==1.0.1
+user-agents==2.2.0
+pillow==11.2.1
+cairosvg>=2.7.0  # SVG→PNG 変換 (image_renderer.py で使用)
+tdigest==0.5.2

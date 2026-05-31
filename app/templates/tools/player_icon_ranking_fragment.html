@@ -1,0 +1,33 @@
+{# /app/templates/tools/player_icon_ranking_fragment.html #}
+
+{% if all_icons %}
+<div class="skin-card-grid icon-card-grid">
+    {% for icon in all_icons %}
+    <div class="skin-card icon-card">
+        <div class="skin-card__img-wrapper skin-card__img-wrapper--ranked">
+            <span class="skin-card__rank-badge icon-card__rank-badge">#{{ loop.index }}</span>
+            <img src="/static/images/player_icon/{{ icon.id }}.webp"
+                 alt="{% if lang == 'ja' %}プレイヤーアイコン {{ icon.id }}{% else %}Player Icon {{ icon.id }}{% endif %}"
+                 class="skin-card__img"
+                 style="object-fit: contain; padding: 5px; border-radius: 10px;"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+        </div>
+        <div class="skin-card__rate-row icon-card__rate-row">
+            {% if icon.equip_rate is not none %}
+                {% if icon.equip_rate < 0.1 %}
+                    {{ "%.4f"|format(icon.equip_rate) }}%
+                {% else %}
+                    {{ "%.3f"|format(icon.equip_rate) }}%
+                {% endif %}
+            {% else %}
+                --
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p style="text-align: center; color: var(--color-888, #888); padding: 30px 0; margin: 0;">
+    {% if lang == "ja" %}条件に一致するプレイヤーアイコンはありません。{% else %}No player icons match the selected criteria.{% endif %}
+</p>
+{% endif %}

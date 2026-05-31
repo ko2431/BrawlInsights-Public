@@ -1,0 +1,1184 @@
+{# /app/templates/tools/brawler_guide.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 {{ brawler.name_ja }} キャラクター図鑑{% else %}{{ brawler.name_en }} Brawler Stats Guide{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタの{{ brawler.name_ja }}のキャラクターステータス/統計図鑑です。{{ brawler.name_ja }}のスキン一覧や使用率、詳細ステータスやおすすめガジェット/スターパワー/ギア、おすすめモード/マップなどを閲覧でき、毎日膨大なデータをもとに自動で更新されます。{% else %}This is the {{ brawler.name_en }} Stats Guide for Brawl Stars. You can view skins, usage rates, detailed stats, recommended gadgets/star powers/gears, recommended modes/maps, and more for {{ brawler.name_en }}, automatically updated daily based on massive amounts of match data.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranked_stats.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container" x-data>
+    {# 戻るボタン (アプリのみ) #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="margin-bottom: 10px; display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    {# ^ 1. ヘッダー #}
+    <header class="brawler-header">
+        {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+            <img src="{{ url_for('static', path='/images/brawler_portraits/' + brawler.id|string + '.png') }}"
+                alt="キャラクターアイコン"
+                class="brawler-header__icon"
+                onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
+        <div class="brawler-header__identity"> {# 名前とレア度 #}
+            <h1 class="brawler-header__name">{{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}</h1>
+            {% set rarity_ja = {0: "-", 1: "先発キャラクター", 2: "レア", 3: "スーパーレア", 4: "ハイパーレア", 5: "ウルトラレア", 6: "レジェンドレア", 7: "ウルトラレジェンドレア"} %}
+            {% set rarity_en = {0: "-", 1: "Starting Brawler", 2: "Rare", 3: "Super Rare", 4: "Epic", 5: "Mythic", 6: "Legendary", 7: "Ultra Legendary"} %}
+            <p class="brawler-header__rarity brawler-header__rarity--{{ brawler.rarity }}">{{ rarity_ja[brawler.rarity] if lang == "ja" else rarity_en[brawler.rarity] }}</p>
+        </div>
+    </header>
+
+    {# 目次 #}
+    <nav class="brawler-guide-toc">
+        <div class="brawler-guide-toc__title">{% if lang == "ja" %}目次{% else %}Contents{% endif %}</div>
+        <ol class="brawler-guide-toc__list">
+            <li><a href="#section-status">{% if lang == "ja" %}ステータス{% else %}Status{% endif %}</a></li>
+            <li><a href="#section-gadgets">{% if lang == "ja" %}ガジェット{% else %}Gadgets{% endif %}</a></li>
+            <li><a href="#section-starpowers">{% if lang == "ja" %}スターパワー{% else %}Star Powers{% endif %}</a></li>
+            <li><a href="#section-gears">{% if lang == "ja" %}ギア{% else %}Gears{% endif %}</a></li>
+            <li><a href="#section-hypercharge">{% if lang == "ja" %}ハイパーチャージ{% else %}Hypercharge{% endif %}</a></li>
+            <li><a href="#section-skin-usage">{% if lang == "ja" %}スキン使用率{% else %}Skin Usage{% endif %}</a></li>
+            <li><a href="#section-skins">{% if lang == "ja" %}スキン一覧{% else %}Skins{% endif %}</a></li>
+            <li><a href="#section-performance">{% if lang == "ja" %}評価{% else %}Performance{% endif %}</a></li>
+        </ol>
+    </nav>
+
+    {# ^ 2. ステータス #}
+    <section id="section-status" class="brawler-guide-section" x-data="brawlerStatusManager()">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}ステータス{% else %}Status{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="status-section" x-show="open" x-transition>
+            {% if brawler.has_bsinfo_data %}
+                {% set class_display = (brawler.class_ja if lang == "ja" and brawler.class_ja else brawler.class_en) or "-" %}
+                {% set title_mastery_display = (brawler.title_mastery_ja if lang == "ja" and brawler.title_mastery_ja else brawler.title_mastery_en) or "-" %}
+                {% set title_prestige_display = (brawler.title_prestige_ja if lang == "ja" and brawler.title_prestige_ja else brawler.title_prestige_en) or "-" %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}このキャラクターの詳細ステータスをまとめています。メニューより<b>パワーレベル</b>や<b>パワーキューブ</b>、<b>ギア</b>の有無などを選択して、その条件でのステータスを確認することも可能です。
+                        {% else %}This section summarizes the detailed stats for this brawler. You can also use the menu to select the <b>Power Level</b>, number of <b>Power Cubes</b>, and whether <b>Gears</b> are equipped to check the stats under those specific conditions.
+                        {% endif %}
+                    </p>
+                </div>
+                {# ^ 2-1. 条件選択 #}
+                <div class="filters__container">
+                    {# パワーレベル (1から11まで、デフォルトは11) #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}パワーレベル:{% else %}Power Level:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="powerLevel">
+                            {% for i in range(11) %}
+                                <option value="{{ i + 1 }}">{{ i + 1 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {# パワーキューブ (0から20まで、デフォルトは0) #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}パワーキューブ:{% else %}Power Cubes:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="powerCubes">
+                            {% for i in range(21) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {# スピードギア #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}スピードギア:{% else %}Speed Gear:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model="speedGearActive">
+                            <option value="true">{% if lang == "ja" %}有効{% else %}Active{% endif %}</option>
+                            <option value="false">{% if lang == "ja" %}無効{% else %}Inactive{% endif %}</option>
+                        </select>
+                    </div>
+                    {# ダメージギア #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}ダメージギア:{% else %}Damage Gear:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model="damageGearActive">
+                            <option value="true">{% if lang == "ja" %}有効{% else %}Active{% endif %}</option>
+                            <option value="false">{% if lang == "ja" %}無効{% else %}Inactive{% endif %}</option>
+                        </select>
+                    </div>
+                </div>
+                {# ^ 2-2. ステータス #}
+                <div class="table-wrapper" style="margin-bottom: 0;">
+                    <table class="data-table key-value-table">
+                        <tbody>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}タイプ{% else %}Class{% endif %}</b></td>
+                                <td>
+                                    <div class="td-content-flex" style="font-weight: bold;">
+                                        <img src="{{ url_for('static', path='/images/class/' + brawler.class_id|string + '.png') }}" alt="HP" class="icon--stat">
+                                        {{ class_display }}
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}キャッチフレーズ (1000){% else %}Title (1000){% endif %}</b></td>
+                                <td>{{ title_mastery_display }}</td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}キャッチフレーズ (3000){% else %}Title (3000){% endif %}</b></td>
+                                <td>{{ title_prestige_display }}</td>
+                            </tr>
+                            <tr>
+                                <td><b>HP</b></td>
+                                <td>
+                                    {% if brawler.hp is not none %}
+                                        <div class="td-content-flex">
+                                            <img src="{{ url_for('static', path='/images/ui/hp.png') }}" alt="HP" class="icon--stat icon--stat-big">
+                                            <span x-text="calculatedHp(baseStatus.hp)"></span>
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}移動速度{% else %}Movement Speed{% endif %}</b></td>
+                                <td>
+                                    {% if brawler.speed is not none %}
+                                        <div class="td-content-flex">
+                                            <span class="brawler-status-label" :class="speedLabelClass(calculatedSpeed(baseStatus.speed))" x-text="speedLabelText(calculatedSpeed(baseStatus.speed))"></span>
+                                            <span x-text="calculatedSpeed(baseStatus.speed)"></span>
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>{% if lang == "ja" %}ハイパーチャージ発動時{% else %}with Hypercharge{% endif %}</td>
+                                <td>
+                                    {% if brawler.hypercharge and brawler.speed is not none %}
+                                        <div class="td-content-flex">
+                                            <span class="brawler-status-label" :class="speedLabelClass(calculatedSpeed(baseStatus.speed * 1.2))" x-text="speedLabelText(calculatedSpeed(baseStatus.speed * 1.2))"></span>
+                                            <span x-text="calculatedSpeed(baseStatus.speed * 1.2)"></span>
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}射程{% else %}Range{% endif %}</b></td>
+                                <td>
+                                    {% if brawler.range is not none %}
+                                        <div class="td-content-flex">
+                                            {% if brawler.range < 4 %}
+                                                {% set label_text = "短距離" if lang == "ja" else "Short" %}
+                                                {% set label_rank = "C" %}
+                                            {% elif 4 <= brawler.range < 7 %}
+                                                {% set label_text = "普通" if lang == "ja" else "Normal" %}
+                                                {% set label_rank = "B" %}
+                                            {% elif 7 <= brawler.range <= 9 %}
+                                                {% set label_text = "長距離" if lang == "ja" else "Long" %}
+                                                {% set label_rank = "A" %}
+                                            {% else %}
+                                                {% set label_text = "超長距離" if lang == "ja" else "Very Long" %}
+                                                {% set label_rank = "S" %}
+                                            {% endif %}
+                                            <div class="brawler-status-label brawler-card__rank-grade--{{ label_rank }}">{{ label_text }}</div>
+                                            {{ "%.1f"|format(brawler.range) }}
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}リロード速度{% else %}Reload{% endif %}</b></td>
+                                <td>
+                                    {% if brawler.reload_speed is not none %}
+                                        <div class="td-content-flex">
+                                            {% if brawler.reload_speed >= 2.3 %}
+                                                {% set label_text = "超低速" if lang == "ja" else "Very Slow" %}
+                                                {% set label_rank = "D" %}
+                                            {% elif 1.9 < brawler.reload_speed < 2.3 %}
+                                                {% set label_text = "低速" if lang == "ja" else "Slow" %}
+                                                {% set label_rank = "C" %}
+                                            {% elif 1.5 <= brawler.reload_speed <= 1.9 %}
+                                                {% set label_text = "普通" if lang == "ja" else "Normal" %}
+                                                {% set label_rank = "B" %}
+                                            {% elif 1.3 < brawler.reload_speed < 1.5 %}
+                                                {% set label_text = "高速" if lang == "ja" else "Fast" %}
+                                                {% set label_rank = "A" %}
+                                            {% else %}
+                                                {% set label_text = "超高速" if lang == "ja" else "Very Fast" %}
+                                                {% set label_rank = "S" %}
+                                            {% endif %}
+                                            <div class="brawler-status-label brawler-card__rank-grade--{{ label_rank }}">{{ label_text }}</div>
+                                            {{ "%.2f"|format(brawler.reload_speed) }}{% if lang == "ja" %}秒{% else %}s{% endif %}
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}最大リロード数{% else %}Max Ammo{% endif %}</b></td>
+                                <td>{{ brawler.max_ammo if brawler.max_ammo is not none else "-" }}</td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}通常攻撃のダメージ{% else %}Attack Damage{% endif %}</b></td>
+                                <td>
+                                    {% if brawler.damage is not none %}
+                                        <div class="td-content-flex">
+                                            <img src="{{ url_for('static', path='/images/ui/attack_gen.png') }}" alt="Attack" class="icon--stat icon--stat-big">
+                                            <span x-text="calculatedDamage(baseStatus.damage)"></span>
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>{% if lang == "ja" %}ハイパーチャージ発動時{% else %}with Hypercharge{% endif %}</td>
+                                <td>
+                                    {% if brawler.hypercharge and brawler.damage is not none %}
+                                        <div class="td-content-flex">
+                                            <img src="{{ url_for('static', path='/images/ui/attack_gen.png') }}" alt="Attack" class="icon--stat icon--stat-big">
+                                            <span x-text="calculatedDamage(baseStatus.damage * 1.05)"></span>
+                                        </div>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>{% if lang == "ja" %}通常攻撃の拡散角度{% else %}Attack Spread{% endif %}</b></td>
+                                <td>
+                                    {% if brawler.spread is not none %}
+                                        {{ brawler.spread }}°
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターの射程やリロード速度などの正確な値をまとめた<b>キャラクターステータス表</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}Here, a <b>Brawler Status Chart</b> will be displayed, summarizing precise values such as this brawler's range and reload speed. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# バナー広告 (アプリのみ) #}
+    {% if platform != "web" %}
+    {% include "components/ad_banner.html" %}
+    {% endif %}
+
+    {# ^ 3. ガジェット #}
+    <section id="section-gadgets" class="brawler-guide-section" x-data="brawlerStatusManager()">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}ガジェット{% else %}Gadgets{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="accessory-section gadget-section" x-show="open" x-transition>
+            {% if brawler.gadgets %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ガジェットの情報と、多くのプレイヤーデータから集計した<b>所持率</b>をまとめています。どちらのガジェットを購入するかの参考にご活用ください。所持率は毎日更新されます。ガジェット・スターパワーはギアと異なり、2つともコンプリートしようとするプレイヤーが相当数いるため、所持率は拮抗しやすくなります。数%の差であっても、所持率の高い方がおすすめになる場合が多いです。
+                        {% else %}This section provides information on gadgets and their <b>ownership rates</b>, aggregated from a large amount of player data. Use this as a reference to help you decide which gadget to purchase. Ownership rates are updated daily.
+                        {% endif %}
+                    </p>
+                </div>
+                {% if accessory_stats and accessory_stats.buffies and accessory_stats.buffies.get('gadget', 0) > 0 %}
+                <div class="accessory-item buffie-item buffie-item--gadget">
+                    <div class="accessory-item__body buffie-item__body">
+                        <div class="accessory-ownership-rate buffie-ownership-rate">
+                            <p class="accessory-ownership-rate__label">{% if lang == "ja" %}バフィーの所持率{% else %}Buffie Ownership Rate{% endif %}</p>
+                            <p class="accessory-ownership-rate__value">{{ "%.2f"|format(accessory_stats.buffies['gadget']) }}%</p>
+                            <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="accessory-grid gadget-grid">
+                    {% for gadget in brawler.gadgets %}
+                        <div class="accessory-item gadget-item">
+                            <div class="accessory-item__header gadget-item__header">
+                                <img src="{{ url_for('static', path='/images/' + ('gadgets/' + gadget.id|string + '.png')) }}" alt="{{ gadget.name.ja if lang == 'ja' else gadget.name.en }}" class="accessory-image gadget-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/accessories/gadget.png') }}';">
+                                <p class="accessory-name gadget-name">{{ gadget.name.ja if lang == "ja" and gadget.name.ja else gadget.name.en if gadget.name.en else "-" }}</p>
+                            </div>
+                            <div class="accessory-item__body gadget-item__body">
+                                <div class="accessory-ownership-rate gadget-ownership-rate">
+                                    <p class="accessory-ownership-rate__label">{% if lang == "ja" %}所持率{% else %}Ownership Rate{% endif %}</p>
+                                    <p class="accessory-ownership-rate__value">{% if accessory_stats and accessory_stats.gadgets and gadget.id in accessory_stats.gadgets %}{{ "%.2f"|format(accessory_stats.gadgets[gadget.id]) }}%{% else %}--{% endif %}</p>
+                                    <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                                </div>
+                                <p class="accessory-description gadget-description">{{ (gadget.description.ja if lang == "ja" else gadget.description.en) | bold_numbers }}</p>
+                                {% if not gadget.description_with_buffie %}
+                                <div class="gadget-cooldown">
+                                    <p class="gadget-cooldown__label">{% if lang == "ja" %}クールダウン{% else %}Cooldown{% endif %}</p>
+                                    <p class="gadget-cooldown__value">{{ gadget.cooldown | int or "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                    <img src="https://cdn.brawlify.com/gears/regular/62000017.png" alt="Gadget Cooldown Gear" class="gadget-cooldown__icon">
+                                    <p class="gadget-cooldown__gear-label">{% if lang == "ja" %}装備時{% else %}With Gear -{% endif %}</p>
+                                    <p class="gadget-cooldown__value">{{ "%.1f"|format((gadget.cooldown or 0) * 0.85) if gadget.cooldown else "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% if gadget.description_with_buffie %}
+                            <div class="accessory-item__body gadget-item__body">
+                                <p class="accessory-description gadget-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - {{ (gadget.description_with_buffie.ja if lang == "ja" else gadget.description_with_buffie.en) | bold_numbers }}</p>
+                                <div class="gadget-cooldown">
+                                    <p class="gadget-cooldown__label">{% if lang == "ja" %}クールダウン{% else %}Cooldown{% endif %}</p>
+                                    <p class="gadget-cooldown__value">{{ gadget.cooldown_with_buffie | int or "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                    <img src="https://cdn.brawlify.com/gears/regular/62000017.png" alt="Gadget Cooldown Gear" class="gadget-cooldown__icon">
+                                    <p class="gadget-cooldown__gear-label">{% if lang == "ja" %}装備時{% else %}With Gear -{% endif %}</p>
+                                    <p class="gadget-cooldown__value">{{ "%.1f"|format((gadget.cooldown_with_buffie or 0) * 0.85) if gadget.cooldown_with_buffie else "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターのガジェットの情報と多くのプレイヤーデータから集計した<b>所持率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's gadgets and their <b>ownership rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# ^ 4. スターパワー #}
+    <section id="section-starpowers" class="brawler-guide-section" x-data="brawlerStatusManager()">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}スターパワー{% else %}Star Powers{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="accessory-section starpower-section" x-show="open" x-transition>
+            {% if brawler.star_powers %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}スターパワーの情報と、多くのプレイヤーデータから集計した<b>所持率</b>をまとめています。どちらのスターパワーを購入するかの参考にご活用ください。所持率は毎日更新されます。ガジェット・スターパワーはギアと異なり、2つともコンプリートしようとするプレイヤーが相当数いるため、所持率は拮抗しやすくなります。数%の差であっても、所持率の高い方がおすすめになる場合が多いです。
+                        {% else %}This section provides information on star powers and their <b>ownership rates</b>, aggregated from a large amount of player data. Use this as a reference to help you decide which star power to purchase. Ownership rates are updated daily.
+                        {% endif %}
+                    </p>
+                </div>
+                {% if accessory_stats and accessory_stats.buffies and accessory_stats.buffies.get('star_power', 0) > 0 %}
+                <div class="accessory-item buffie-item buffie-item--starpower">
+                    <div class="accessory-item__body buffie-item__body">
+                        <div class="accessory-ownership-rate buffie-ownership-rate">
+                            <p class="accessory-ownership-rate__label">{% if lang == "ja" %}バフィーの所持率{% else %}Buffie Ownership Rate{% endif %}</p>
+                            <p class="accessory-ownership-rate__value">{{ "%.2f"|format(accessory_stats.buffies['star_power']) }}%</p>
+                            <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="accessory-grid starpower-grid">
+                    {% for star_power in brawler.star_powers %}
+                        <div class="accessory-item starpower-item">
+                            <div class="accessory-item__header starpower-item__header">
+                                <img src="{{ url_for('static', path='/images/' + ('starpowers/' + star_power.id|string + '.png')) }}" alt="{{ star_power.name.ja if lang == 'ja' else star_power.name.en }}" class="accessory-image starpower-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/accessories/starpower.png') }}';">
+                                <p class="accessory-name starpower-name">{{ star_power.name.ja if lang == "ja" and star_power.name.ja else star_power.name.en if star_power.name.en else "-" }}</p>
+                            </div>
+                            <div class="accessory-item__body starpower-item__body">
+                                <div class="accessory-ownership-rate starpower-ownership-rate">
+                                    <p class="accessory-ownership-rate__label">{% if lang == "ja" %}所持率{% else %}Ownership Rate{% endif %}</p>
+                                    <p class="accessory-ownership-rate__value">{% if accessory_stats and accessory_stats.star_powers and star_power.id in accessory_stats.star_powers %}{{ "%.2f"|format(accessory_stats.star_powers[star_power.id]) }}%{% else %}--{% endif %}</p>
+                                    <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                                </div>
+                                <p class="accessory-description starpower-description">{{ (star_power.description.ja if lang == "ja" else star_power.description.en) | bold_numbers }}</p>
+                            </div>
+                            {% if star_power.description_with_buffie %}
+                            <div class="accessory-item__body starpower-item__body">
+                                <p class="accessory-description starpower-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - {{ (star_power.description_with_buffie.ja if lang == "ja" else star_power.description_with_buffie.en) | bold_numbers }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターのスターパワーの情報と多くのプレイヤーデータから集計した<b>所持率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's star powers and their <b>ownership rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# ^ 5. ギア #}
+    <section id="section-gears" class="brawler-guide-section" x-data="gearSectionManager()">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}ギア{% else %}Gears{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="accessory-section gear-section" x-show="open" x-transition>
+            {% set valid_gears = brawler.gears | rejectattr('is_invalid') | list %}
+            {% if valid_gears %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ギアの情報と、多くのプレイヤーデータから集計した<b>所持率</b>をまとめています。どのギアを購入するかの参考にご活用ください。所持率は毎日更新されます。
+                        {% else %}This section provides information on gears and their <b>ownership rates</b>, aggregated from a large amount of player data. Use this as a reference to help you decide which gear to purchase. Ownership rates are updated daily.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="sorting-buttons-container" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div class="sorting-button" 
+                         :class="{ 'sorting-button--active': sortMode === 'default' }"
+                         @click="sortMode = 'default'">
+                        <span>{% if lang == "ja" %}デフォルト順{% else %}Default{% endif %}</span>
+                    </div>
+                    <div class="sorting-button" 
+                         :class="{ 'sorting-button--active': sortMode === 'rate' }"
+                         @click="sortMode = 'rate'">
+                        <span>{% if lang == "ja" %}所持率順{% else %}By Usage{% endif %}</span>
+                    </div>
+                </div>
+                <div class="accessory-grid gear-grid">
+                    {% for gear in valid_gears %}
+                        {% set rarity_class = "gear-item--rarity-3" %}
+                        {% if gear.rarity and gear.rarity == 4 %}
+                            {% set rarity_class = "gear-item--rarity-4" %}
+                        {% elif gear.rarity and gear.rarity >= 5 %}
+                            {% set rarity_class = "gear-item--rarity-5" %}
+                        {% endif %}
+                        <div class="accessory-item gear-item {{ rarity_class }}" :style="{'order': getGearOrder('{{ gear.id }}', {{ loop.index0 }})}">
+                            <div class="accessory-item__header gear-item__header">
+                                <img src="https://cdn.brawlify.com/gears/regular/{{ gear.id }}.png" alt="{{ gear.name.ja if lang == 'ja' else gear.name.en }}" class="accessory-image gear-image">
+                                <p class="accessory-name gear-name">{{ gear.name.ja if lang == "ja" and gear.name.ja else gear.name.en if gear.name.en else "-" }}</p>
+                            </div>
+                            <div class="accessory-item__body gear-item__body">
+                                <div class="accessory-ownership-rate gear-ownership-rate">
+                                    <p class="accessory-ownership-rate__label">{% if lang == "ja" %}所持率{% else %}Ownership Rate{% endif %}</p>
+                                    <p class="accessory-ownership-rate__value">{% if accessory_stats and accessory_stats.gears and gear.id in accessory_stats.gears %}{{ "%.2f"|format(accessory_stats.gears[gear.id]) }}%{% else %}--{% endif %}</p>
+                                    <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                                </div>
+                                <p class="accessory-description gear-description">{{ (gear.description.ja if lang == "ja" else gear.description.en) | bold_numbers }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターのギアの情報と多くのプレイヤーデータから集計した<b>所持率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's gears and their <b>ownership rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# ^ 6. ハイパーチャージ #}
+    <section id="section-hypercharge" class="brawler-guide-section" x-data="brawlerStatusManager()">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}ハイパーチャージ{% else %}Hypercharge{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="accessory-section hypercharge-section" x-show="open" x-transition>
+            {% if brawler.hypercharge %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ハイパーチャージの情報と、多くのプレイヤーデータから集計した<b>所持率</b>をまとめています。どのハイパーチャージを購入するかの参考にご活用ください。所持率は毎日更新されます。
+                        {% else %}This section provides information on hypercharge and their <b>ownership rates</b>, aggregated from a large amount of player data. Use this as a reference to help you decide which hypercharge to purchase. Ownership rates are updated daily.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="accessory-item hypercharge-item">
+                    <div class="accessory-item__header hypercharge-item__header">
+                        <img src="{{ url_for('static', path='/images/' + ('hypercharge/' + brawler.hypercharge.id|string + '.png')) }}" alt="Hypercharge" class="accessory-image hypercharge-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/hypercharge.webp') }}';">
+                        <p class="accessory-name hypercharge-name">{{ brawler.hypercharge.name.ja if lang == "ja" and brawler.hypercharge.name.ja else brawler.hypercharge.name.en if brawler.hypercharge.name.en else "-" }}</p>
+                    </div>
+                    <div class="accessory-item__body hypercharge-item__body">
+                        <div class="accessory-ownership-rate gear-ownership-rate">
+                            <p class="accessory-ownership-rate__label">{% if lang == "ja" %}所持率{% else %}Ownership Rate{% endif %}</p>
+                            <p class="accessory-ownership-rate__value">{% if accessory_stats and accessory_stats.hyper_charges and brawler.hypercharge.id in accessory_stats.hyper_charges %}{{ "%.2f"|format(accessory_stats.hyper_charges[brawler.hypercharge.id]) }}%{% else %}--{% endif %}</p>
+                            <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                        </div>
+                        {% if accessory_stats and accessory_stats.buffies and accessory_stats.buffies.get('hyper_charge', 0) > 0 %}
+                        <div class="accessory-ownership-rate buffie-ownership-rate" style="margin-top: 5px; margin-bottom: 5px;">
+                            <p class="accessory-ownership-rate__label">{% if lang == "ja" %}バフィーの所持率{% else %}Buffie Ownership Rate{% endif %}</p>
+                            <p class="accessory-ownership-rate__value">{{ "%.2f"|format(accessory_stats.buffies['hyper_charge']) }}%</p>
+                            <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
+                        </div>
+                        {% endif %}
+                        <p class="accessory-description hypercharge-description">{% if lang == "ja" %}スピード：<b>+20%</b>、ダメージ：<b>+5%</b>、シールド：<b>+5%</b>{% else %}Speed: <b>+20%</b> Damage: <b>+5%</b> Shield: <b>+5%</b>{% endif %}<br>{{ (brawler.hypercharge.description.ja if lang == "ja" else brawler.hypercharge.description.en) | bold_numbers }}</p>
+                        <div class="hypercharge-duration">
+                            <p class="hypercharge-duration__label">{% if lang == "ja" %}効果時間{% else %}Duration{% endif %}</p>
+                            <p class="hypercharge-duration__value">{{ brawler.hypercharge.duration | int }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                        </div>
+                    </div>
+                    {% if brawler.hypercharge.description_with_buffie.ja or brawler.hypercharge.description_with_buffie.en %}
+                    <div class="accessory-item__body hypercharge-item__body">
+                        <p class="accessory-description hypercharge-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - {{ (brawler.hypercharge.description_with_buffie.ja if lang == "ja" else brawler.hypercharge.description_with_buffie.en) | bold_numbers }}</p>
+                        <div class="hypercharge-duration">
+                            <p class="hypercharge-duration__label">{% if lang == "ja" %}効果時間{% else %}Duration{% endif %}</p>
+                            <p class="hypercharge-duration__value">{{ brawler.hypercharge.duration_with_buffie | int }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターのハイパーチャージの情報が掲載されます。このキャラクターのデータは現在準備中、またはキャラクター自体にまだハイパーチャージが実装されていません。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's hypercharge. Data for this brawler is currently being prepared, or the brawler does not have a hypercharge. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# ^ 7. スキン使用率 #}
+    <section id="section-skin-usage" class="brawler-guide-section" x-data="{ open: true }">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}スキン使用率{% else %}Skin Usage{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="skins-section" x-show="open" x-transition>
+            {% if brawler.all_skins %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}【グラフは触って確認できます！】多くのアクティブなプレイヤーデータから集計した、<b>スキンの使用率</b>をグラフでまとめています。データは毎日更新されます。
+                        {% else %}This section provides information on skin usage, aggregated from a large amount of active player data. Skin usage rates are updated daily.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="skin-usage-chart-wrapper">
+                    <canvas id="skinUsageChart"></canvas>
+                </div>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターのスキン使用率の情報が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's skin usage. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# ^ 8. スキン一覧 #}
+    <section id="section-skins" class="brawler-guide-section" x-data="skinListManager()">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}スキン一覧{% else %}Skins{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="skins-section" x-show="open" x-transition>
+            {% if brawler.all_skins %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ゲーム内のカタログにも載っていない限定スキンを含む、<b>実装済みの全スキン</b>をまとめています。どのくらいコンプリートしたかの確認などにご活用ください。
+                        {% else %}This section lists all implemented skins for this brawler, including limited skins that are not shown in the in-game catalog. Use this section to check your skin collection progress.
+                        {% endif %}
+                    </p>
+                </div>
+
+                {# 1. 並び替えボタン #}
+                <div class="skin-list-sort-buttons">
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rarity_asc' }" @click="sortMode = 'rarity_asc'">
+                        <span>{% if lang == "ja" %}レア度が低い順{% else %}Rarity (Low→High){% endif %}</span>
+                    </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rarity_desc' }" @click="sortMode = 'rarity_desc'">
+                        <span>{% if lang == "ja" %}レア度が高い順{% else %}Rarity (High→Low){% endif %}</span>
+                    </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_asc' }" @click="sortMode = 'rate_asc'">
+                        <span>{% if lang == "ja" %}使用率が低い順{% else %}Usage (Low→High){% endif %}</span>
+                    </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_desc' }" @click="sortMode = 'rate_desc'">
+                        <span>{% if lang == "ja" %}使用率が高い順{% else %}Usage (High→Low){% endif %}</span>
+                    </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'own_asc' }" @click="sortMode = 'own_asc'">
+                        <span>{% if lang == "ja" %}所持率が低い順{% else %}Ownership (Low→High){% endif %}</span>
+                    </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'own_desc' }" @click="sortMode = 'own_desc'">
+                        <span>{% if lang == "ja" %}所持率が高い順{% else %}Ownership (High→Low){% endif %}</span>
+                    </div>
+                </div>
+
+                {# 2. フィルタ #}
+                <div class="skin-list-filter-row">
+                    <label>{% if lang == "ja" %}表示するスキン:{% else %}Show:{% endif %}</label>
+                    <select x-model="filterMode">
+                        <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
+                        <option value="normal">{% if lang == "ja" %}通常スキン{% else %}Regular Skins{% endif %}</option>
+                        <option value="limited">{% if lang == "ja" %}限定スキン{% else %}Limited Skins{% endif %}</option>
+                    </select>
+                </div>
+
+                {# 3. スキンカードグリッド #}
+                <div class="skin-card-grid">
+                    {% for skin in brawler.all_skins %}
+                    {# レアリティアイコン判定 (Jinja2側) #}
+                    {% set r = skin.rarity %}
+                    {% if r is none or r == 0 %}
+                        {% set rarity_icon = 'skin_other.png' %}
+                    {% elif r <= 10 %}
+                        {% set rarity_icon = 'skin_rare.png' %}
+                    {% elif r <= 20 %}
+                        {% set rarity_icon = 'skin_super_rare.png' %}
+                    {% elif r <= 30 %}
+                        {% set rarity_icon = 'skin_epic.png' %}
+                    {% elif r <= 40 %}
+                        {% set rarity_icon = 'skin_mythic.png' %}
+                    {% elif r <= 50 %}
+                        {% set rarity_icon = 'skin_legendary.png' %}
+                    {% elif r <= 60 %}
+                        {% set rarity_icon = 'skin_hypercharge.png' %}
+                    {% elif r <= 70 %}
+                        {% set rarity_icon = 'pro_pass.png' %}
+                    {% elif r <= 80 %}
+                        {% set rarity_icon = 'skin_true_silver.png' %}
+                    {% else %}
+                        {% set rarity_icon = 'skin_true_gold.png' %}
+                    {% endif %}
+                    {# 表示名 #}
+                    {% if lang == "ja" %}
+                        {% set skin_display_name = skin.ja or skin.en or none %}
+                    {% else %}
+                        {% set skin_display_name = skin.en or skin.ja or none %}
+                    {% endif %}
+                    {# 説明文 #}
+                    {% if lang == "ja" %}
+                        {% set skin_desc = skin.description_ja or skin.description_en or '' %}
+                    {% else %}
+                        {% set skin_desc = skin.description_en or skin.description_ja or '' %}
+                    {% endif %}
+                    <div class="skin-card"
+                        :style="{'order': getSkinOrder({{ loop.index0 }}, {{ skin.rarity | default(0) or 0 }}, {{ skin.equip_rate | default(0) or 0 }}, {{ skin.ownership_rate | default(0) or 0 }})}"
+                         x-show="showSkin({{ 'true' if skin.is_limited else 'false' }})">
+                        {# 画像 #}
+                        <div class="skin-card__img-wrapper">
+                            <img src="{{ url_for('static', path='/images/skins/' + brawler.id|string + '/' + skin.id|string + '.webp') }}"
+                                 alt="{{ skin_display_name or ('（通常スキン）' if lang == 'ja' else 'Default Skin') }}"
+                                 class="skin-card__img"
+                                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}'; this.style.objectFit='contain'; this.style.padding='10px';">
+                        </div>
+                        {# レアリティ+スキン名 #}
+                        <div class="skin-card__info-row">
+                            <img src="{{ url_for('static', path='/images/ui/' + rarity_icon) }}" alt="" class="skin-card__rarity-icon">
+                            <span class="skin-card__name">
+                                {% if skin_display_name %}{{ skin_display_name }}{% else %}{% if lang == "ja" %}（通常スキン）{% else %}Default Skin{% endif %}{% endif %}
+                            </span>
+                        </div>
+                        {# [限定]ラベル+説明文 #}
+                        <div class="skin-card__label-row">
+                            {% if skin.is_limited %}
+                            <span class="skin-card__limited-badge">{% if lang == "ja" %}限定{% else %}Limited{% endif %}</span>
+                            {% endif %}
+                            {% if skin_desc %}
+                            <span class="skin-card__description">{{ skin_desc }}</span>
+                            {% endif %}
+                        </div>
+                        {# 使用率 / 所持率 #}
+                        <div class="skin-card__rate-row">
+                            {% if lang == "ja" %}使用率:{% else %}Usage:{% endif %}
+                            {% if skin.equip_rate is not none %}
+                                {% if skin.equip_rate < 0.1 %}
+                                    {{ "%.3f"|format(skin.equip_rate) }}%
+                                {% elif skin.equip_rate < 99.95 %}
+                                    {{ "%.2f"|format(skin.equip_rate) }}%
+                                {% else %}
+                                    {{ "%.1f"|format(skin.equip_rate) }}%
+                                {% endif %}
+                            {% else %}
+                                --
+                            {% endif %}
+                            <br>
+                            {% if lang == "ja" %}所持率:{% else %}Ownership:{% endif %}
+                            {% if skin.ownership_rate is not none %}
+                                {% if skin.ownership_rate < 0.1 %}
+                                    {{ "%.3f"|format(skin.ownership_rate) }}%
+                                {% elif skin.ownership_rate < 99.95 %}
+                                    {{ "%.2f"|format(skin.ownership_rate) }}%
+                                {% else %}
+                                    {{ "%.1f"|format(skin.ownership_rate) }}%
+                                {% endif %}
+                            {% else %}
+                                --
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {# 限定スキンが0件でlimitedフィルタのとき空メッセージ #}
+                {% set has_limited_skins = brawler.all_skins | selectattr('is_limited', 'equalto', true) | list %}
+                <p x-show="filterMode === 'limited' && {{ 'false' if has_limited_skins else 'true' }}"
+                   style="text-align: center; color: var(--color-888, #888); padding: 20px 0; margin: 0;">
+                    {% if lang == "ja" %}このキャラクターの限定スキンはありません。{% else %}No limited skins available for this brawler.{% endif %}
+                </p>
+            {% else %}
+                <div class="info-block" style="padding: 0;">
+                    <p class="info-block__text">
+                        {% if lang == "ja" %}ここには、このキャラクターのスキンの情報が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's skins. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# ^ 9. 総合／モード／マップ別評価 #}
+    <section id="section-performance" class="brawler-guide-section" x-data="{ open: true }">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}総合／モード／マップ別評価{% else %}Overall / Mode / Map Performance{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="mode-map-section" x-show="open" x-transition>
+            <div class="info-block" style="padding: 0;">
+                <p class="info-block__text">
+                    {% set brawler_name = brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en %}
+                    {% if lang == "ja" %}5000万件以上の<b>ガチバトル</b>の勝敗データを集計し、使用率・勝率・MVP率・推定BAN率などから算出した<b>総合スコア</b>と、<b>使用率</b>を総合・モード別・マップ別のそれぞれ掲載しています。総合スコアの高いモード・マップほど、おすすめのモード・マップとなります。データは毎日更新されます。
+                    {% else %}This section shows the <b>Strength Score</b> and <b>Use Rate</b> for this Brawler, calculated from over 50 million <b>Ranked</b> match records, considering factors like win rate, star player rate, and estimated ban rate. The data is available for overall, per-mode, and per-map performance. Modes and maps with a higher Strength Score are recommended. Data is updated daily.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="overall-stats">
+                <div class="overall-stat__name">{% if lang == "ja" %}総合評価{% else %}Overall Stats{% endif %}</div>
+                <span style="flex: 1;"></span>
+                <div class="overall-stat__rank brawler-card__rank-grade--{{ analysis.overall_stats.rank_grade }}">{{ analysis.overall_stats.rank_grade }}</div>
+                <div class="overall-stat__score">{{ "%.1f"|format(analysis.overall_stats.strength_score) }}</div>
+                <div class="overall-stat__use-rate--index">{% if lang == "ja" %}使用率{% else %}Use Rate{% endif %}</div>
+                <div class="overall-stat__use-rate--value">{{ "%.2f"|format(analysis.overall_stats.use_rate) }}%</div>
+            </div>
+            <div class="mode-stats__title">{% if lang == "ja" %}モード別評価{% else %}Performance by Mode{% endif %}</div>
+            <div class="mode-stats">
+                {% for mode in analysis.performance_by_mode %}
+                <div class="mode-stat">
+                    <div class="mode-stat__name">{{ mode.mode_ja if mode.mode_ja and lang == "ja" else mode.mode_en }}</div>
+                    <span style="flex: 1;"></span>
+                    <div class="mode-stat__rank brawler-card__rank-grade--{{ mode.rank_grade }}">{{ mode.rank_grade }}</div>
+                    <div class="mode-stat__score">{{ "%.1f"|format(mode.strength_score) }}</div>
+                    <div class="mode-stat__use-rate--index">{% if lang == "ja" %}使用率{% else %}Use Rate{% endif %}</div>
+                    <div class="mode-stat__use-rate--value">{{ "%.2f"|format(mode.use_rate) }}%</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="map-stats__title">{% if lang == "ja" %}マップ別評価{% else %}Performance by Map{% endif %}</div>
+            <div class="map-stats">
+                {% for map in analysis.performance_by_map %}
+                <div class="map-stat">
+                    <div class="map-stat__name">{{ map.map_ja if map.map_ja and lang == "ja" else map.map_en }}</div>
+                    <span style="flex: 1;"></span>
+                    <div class="map-stat__rank brawler-card__rank-grade--{{ map.rank_grade }}">{{ map.rank_grade }}</div>
+                    <div class="map-stat__score">{{ "%.1f"|format(map.strength_score) }}</div>
+                    <div class="map-stat__use-rate--index">{% if lang == "ja" %}使用率{% else %}Use Rate{% endif %}</div>
+                    <div class="map-stat__use-rate--value">{{ "%.2f"|format(map.use_rate) }}%</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    {# ^ 10. 組み合わせおすすめキャラ (現在は管理者のみに解放) #}
+    {% if current_user and current_user.is_admin %}
+    <section class="brawler-guide-section" x-data="{ open: true }">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}組み合わせおすすめキャラ{% else %}Recommended Brawler Synergies{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="synergy-section" x-show="open" x-transition>
+            {# 説明文 #}
+            <div class="info-block" style="padding: 0;">
+                <p class="info-block__text">
+                    {% if lang == "ja" %}5000万件以上の勝敗データを集計し、{{ brawler.name_ja if brawler.name_ja else brawler.name_en }}と組み合わせた時に高いパフォーマンスを発揮していたキャラをTier表形式でまとめています。データは毎日自動で更新されます。
+                    {% else %}Based on over 50 million match records, this tier list shows Brawlers who perform well when teamed up with {{ brawler.name_en }}. Data is automatically updated daily.
+                    {% endif %}
+                </p>
+            </div>
+
+            {# Tier表 #}
+            <div class="brawler-tier-list">
+                {% for group in grouped_matchups %}
+                <div class="tier-row">
+                    {# 左側にランクグレードのラベルを配置 #}
+                    <div class="tier-rank-label brawler-card__rank-grade--{{ group.synergy_rank_grade }}">
+                        <p>{{ group.synergy_rank_grade }}</p>
+                    </div>
+                    
+                    {# 右側にそのランクのキャラクターグリッドを配置 #}
+                    <div class="brawler-grid">
+                        {% for brawler in group.matchups %}
+                        <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.partner_brawler_id) }}">
+                            <div class="brawler-card brawler-card--rarity-{{ brawler.partner_rarity }}">
+                                {# アイコン #}
+                                {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+                                <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.partner_brawler_id|string + '.png') }}"
+                                    alt="キャラクターアイコン"
+                                    class="brawler-card__brawler-portrait"
+                                    onerror="this.onerror=null; this.src='{{ default_icon }}';">
+                                {# ランクと総合スコア #}
+                                <div class="brawler-card__score">{{ "%.1f"|format(brawler.synergy_score) }}</div>
+                                <div class="brawler-card__rank-grade brawler-card__rank-grade--{{ brawler.synergy_rank_grade }}"><p>{{ brawler.synergy_rank_grade }}</p></div>
+                                {# キャラクター名 #}
+                                <div class="brawler-card__name">{{ brawler.partner_name_ja if brawler.partner_name_ja and lang == "ja" else brawler.partner_name_en }}</div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# ^ 9. 得意/苦手なキャラ (現在は管理者のみに解放) #}
+    {% if current_user and current_user.is_admin %}
+    <section class="brawler-guide-section" x-data="{ open: true }">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}相性の良い・悪いキャラ{% else %}Good & Bad Matchups{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="counter-section" x-show="open" x-transition>
+            {# 説明文 #}
+            <div class="info-block" style="padding: 0;">
+                <p class="info-block__text">
+                    {% set brawler_name = brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en %}
+                    {% if lang == "ja" %}5000万件以上の勝敗データを集計し、{{ brawler_name }}が各キャラと対戦した時の平均勝率をまとめています。この値が高いキャラほど、{{ brawler_name }}にとって相性のいいキャラということになります。データは毎日自動で更新されます。
+                    {% else %}This section summarizes the average win rates when {{ brawler_name }} faces each Brawler, based on over 50 million match records. Brawlers with higher values are considered favorable matchups for {{ brawler_name }}. Data is automatically updated daily.
+                    {% endif %}
+                </p>
+            </div>
+
+            {# キャラクターグリッド #}
+            <div class="brawler-grid">
+                {% for brawler in analysis.matchups | sort(attribute="counter_win_rate", reverse=true) %}
+                <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.partner_brawler_id) }}">
+                    <div class="brawler-card brawler-card--rarity-{{ brawler.partner_rarity }}">
+                        {# アイコン #}
+                        {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+                        <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.partner_brawler_id|string + '.png') }}"
+                            alt="キャラクターアイコン"
+                            class="brawler-card__brawler-portrait"
+                            onerror="this.onerror=null; this.src='{{ default_icon }}';">
+                        {# ランクと総合スコア #}
+                        <div class="brawler-card__value">{{ "%.2f"|format(brawler.counter_win_rate) }}%</div>
+                        {# キャラクター名 #}
+                        <div class="brawler-card__name">{{ brawler.partner_name_ja if brawler.partner_name_ja and lang == "ja" else brawler.partner_name_en }}</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン (アプリのみ) #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function gearSectionManager() {
+            // サーバーから渡されたギアの所持率データ (IDをキーとした辞書)
+            const gearRates = {{ (accessory_stats.gears if accessory_stats and accessory_stats.gears else {}) | tojson | safe }};
+            // サーバーから渡されたギアのリスト (順序を保持するため)
+            const gears = {{ (brawler.gears | rejectattr('is_invalid') | list) | tojson | safe }};
+            
+            // 所持率順のインデックスマップを作成
+            // 1. ギアリストをコピーしてソート
+            const sortedGears = [...gears].sort((a, b) => {
+                const rateA = gearRates[String(a.id)] || 0;
+                const rateB = gearRates[String(b.id)] || 0;
+                return rateB - rateA; // 降順
+            });
+            
+            // 2. ギアID -> ソート後のインデックス のマップを作成
+            const sortedIndices = {};
+            sortedGears.forEach((gear, index) => {
+                sortedIndices[String(gear.id)] = index;
+            });
+
+            return {
+                open: true,
+                sortMode: 'rate', // 'default' or 'rate'
+                
+                getGearOrder(gearId, defaultIndex) {
+                    if (this.sortMode === 'default') {
+                        return defaultIndex;
+                    } else {
+                        return sortedIndices[String(gearId)] ?? 999;
+                    }
+                }
+            };
+        }
+    </script>
+    {% if brawler.has_bsinfo_data %}
+    <script>
+        function brawlerStatusManager() {
+            return {
+                open: true,
+                baseStatus: {{ brawler | tojson | safe }},
+                powerLevel: 11,
+                powerCubes: 0,
+                speedGearActive: "false",
+                damageGearActive: "false",
+
+                get powerLevelMultiplier() {
+                    return 1 + (this.powerLevel - 1) * 0.1;
+                },
+                get powerCubeDamageMultiplier() {
+                    return 1 + this.powerCubes * 0.1;
+                },
+                get speedGearMultiplier() {
+                    return this.speedGearActive === "true" ? 1.15 : 1;
+                },
+                get damageGearMultiplier() {
+                    return this.damageGearActive === "true" ? 1.15 : 1;
+                },
+                calculatedHp(baseValue) {
+                    const calculated = baseValue * this.powerLevelMultiplier + this.powerCubes * 400;
+                    return Math.round(calculated);
+                },
+                calculatedSpeed(baseValue) {
+                    const calculated = baseValue * this.speedGearMultiplier;
+                    return Math.round(calculated);
+                },
+                calculatedDamage(baseValue) {
+                    const calculated = baseValue * this.powerLevelMultiplier * this.powerCubeDamageMultiplier * this.damageGearMultiplier;
+                    return Math.round(calculated);
+                },
+                speedLabelText(speed) {
+                    if (speed <= 580) return {% if lang == "ja" %}"超低速"{% else %}"Very Slow"{% endif %};
+                    if (speed <= 650) return {% if lang == "ja" %}"低速"{% else %}"Slow"{% endif %};
+                    if (speed <= 720) return {% if lang == "ja" %}"普通"{% else %}"Normal"{% endif %};
+                    if (speed <= 770) return {% if lang == "ja" %}"高速"{% else %}"Fast"{% endif %};
+                    return {% if lang == "ja" %}"超高速"{% else %}"Very Fast"{% endif %};
+                },
+                speedLabelClass(speed) {
+                    if (speed <= 580) return "brawler-card__rank-grade--D";
+                    if (speed <= 650) return "brawler-card__rank-grade--C";
+                    if (speed <= 720) return "brawler-card__rank-grade--B";
+                    if (speed <= 770) return "brawler-card__rank-grade--A";
+                    return "brawler-card__rank-grade--S";
+                },
+            }
+        }
+    </script>
+    {% else %}
+    <script>
+        // statusオブジェクトがない場合でもエラーにならないように空の関数を定義します
+        function brawlerStatusManager() {
+            return {
+                open: true,
+            }
+        }
+    </script>
+    {% endif %}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+
+    {# セクション7: スキン使用率 Chart.js + セクション8: skinListManager #}
+    {% if brawler.all_skins %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    // Chart.jsのグローバルデフォルトフォント設定
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Segoe UI', 'Yu Gothic UI', 'Meiryo', Roboto, 'Noto Sans JP', sans-serif";
+    
+    // ===== セクション8: スキン一覧 Alpine.js コンポーネント =====
+    function skinListManager() {
+        // Jinja2 で出力したスキンデータ (JavaScript の配列として保持)
+        const ALL_SKINS = {{ brawler.all_skins | tojson | safe }};
+
+        return {
+            open: true,
+            sortMode: 'rarity_asc',
+            filterMode: 'all',
+
+            // フィルタ判定
+            showSkin(isLimited) {
+                if (this.filterMode === 'all') return true;
+                if (this.filterMode === 'limited') return isLimited;
+                if (this.filterMode === 'normal') return !isLimited;
+                return true;
+            },
+
+            // order値を返す (CSS orderプロパティでソート)
+            getSkinOrder(originalIndex, rarity, equipRate, ownershipRate) {
+                const r = rarity ?? 0;
+                const rate = equipRate ?? 0;
+                const ownRate = ownershipRate ?? 0;
+                if (this.sortMode === 'rarity_asc')  return r * 1000 + originalIndex;
+                if (this.sortMode === 'rarity_desc') return (1000 - r) * 1000 + originalIndex;
+                if (this.sortMode === 'rate_asc')    return Math.round(rate * 1e5) + originalIndex;
+                if (this.sortMode === 'rate_desc')   return -Math.round(rate * 1e5) + originalIndex;
+                if (this.sortMode === 'own_asc')     return Math.round(ownRate * 1e5) + originalIndex;
+                if (this.sortMode === 'own_desc')    return -Math.round(ownRate * 1e5) + originalIndex;
+                return originalIndex;
+            }
+        };
+    }
+
+    // ===== セクション7: スキン使用率 円グラフ =====
+    (function() {
+        const isDark = document.documentElement.classList.contains('dark');
+
+        // レア度別カラー (base / alt の2パターン、同レア度が連続するとき交互)
+        const RARITY_COLORS = {
+            0:  { base: isDark ? 'rgba(160,160,160,0.85)' : 'rgba(150,150,150,0.80)',
+                  alt:  isDark ? 'rgba(190,190,190,0.85)' : 'rgba(180,180,180,0.80)' },
+            10: { base: isDark ? 'rgba(120,210,50,0.85)'  : 'rgba(100,190,40,0.80)',
+                  alt:  isDark ? 'rgba(160,230,80,0.85)'  : 'rgba(140,215,70,0.80)' },
+            20: { base: isDark ? 'rgba(80,130,255,0.85)'  : 'rgba(60,110,240,0.80)',
+                  alt:  isDark ? 'rgba(100,160,255,0.85)' : 'rgba(85,140,255,0.80)' },
+            30: { base: isDark ? 'rgba(175,70,235,0.85)'  : 'rgba(155,50,220,0.80)',
+                  alt:  isDark ? 'rgba(200,100,255,0.85)' : 'rgba(185,80,245,0.80)' },
+            40: { base: isDark ? 'rgba(240,60,60,0.85)'   : 'rgba(220,45,45,0.80)',
+                  alt:  isDark ? 'rgba(255,95,95,0.85)'   : 'rgba(240,75,75,0.80)' },
+            50: { base: isDark ? 'rgba(255,210,40,0.85)'  : 'rgba(240,195,30,0.80)',
+                  alt:  isDark ? 'rgba(255,230,90,0.85)'  : 'rgba(255,215,70,0.80)' },
+            60: { base: isDark ? 'rgba(245,90,175,0.85)'  : 'rgba(225,70,155,0.80)',
+                  alt:  isDark ? 'rgba(255,120,200,0.85)' : 'rgba(245,100,180,0.80)' },
+            70: { base: isDark ? 'rgba(45,195,100,0.85)'  : 'rgba(35,175,85,0.80)',
+                  alt:  isDark ? 'rgba(80,220,130,0.85)'  : 'rgba(65,205,110,0.80)' },
+            80: { base: isDark ? 'rgba(195,210,225,0.85)' : 'rgba(170,185,200,0.80)',
+                  alt:  isDark ? 'rgba(215,225,235,0.85)' : 'rgba(195,208,220,0.80)' },
+            90: { base: isDark ? 'rgba(230,185,50,0.85)'  : 'rgba(210,165,35,0.80)',
+                  alt:  isDark ? 'rgba(245,205,85,0.85)'  : 'rgba(235,190,65,0.80)' },
+        };
+        const DEFAULT_COLOR = RARITY_COLORS[0];
+
+        // レア度の値を RARITY_COLORS のキーに正規化
+        function normalizeRarity(r) {
+            if (r == null || r === 0) return 0;
+            const steps = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+            for (const s of steps) {
+                if (r <= s) return s;
+            }
+            return 0;
+        }
+
+        // スキンデータ取得 (Jinja2 から渡される)
+        const allSkins = {{ brawler.all_skins | tojson | safe }};
+        const lang = "{{ lang }}";
+
+        // equip_rate があるスキンのみ対象、使用率降順ソート
+        const validSkins = allSkins
+            .filter(s => s.equip_rate != null)
+            .sort((a, b) => b.equip_rate - a.equip_rate);
+
+        if (validSkins.length === 0) return; // データなし
+
+        // ラベル・データ・色を組み立て
+        const labels = [];
+        const data = [];
+        const colors = [];
+
+        // 同レア度連続カウンタ
+        const rarityCounters = {};
+        for (const skin of validSkins) {
+            const nr = normalizeRarity(skin.rarity);
+            rarityCounters[nr] = (rarityCounters[nr] || 0);
+
+            const palette = RARITY_COLORS[nr] || DEFAULT_COLOR;
+            const color = rarityCounters[nr] % 2 === 0 ? palette.base : palette.alt;
+            rarityCounters[nr]++;
+
+            let name = (lang === 'ja' ? (skin.ja || skin.en) : (skin.en || skin.ja));
+            if (!name) name = lang === 'ja' ? '（通常スキン）' : 'Default Skin';
+
+            labels.push(name);
+            data.push(skin.equip_rate);
+            colors.push(color);
+        }
+
+        const MAX_LEGEND = 10;
+        const legendSet = new Set(labels.slice(0, MAX_LEGEND));
+
+        const borderColor = isDark ? 'rgba(40,40,40,0.7)' : 'rgba(255,255,255,0.8)';
+        const legendTextColor = isDark ? 'rgba(220,220,220,0.9)' : '#333';
+
+        const ctx = document.getElementById('skinUsageChart');
+        if (!ctx) return;
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: colors,
+                    borderColor,
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 9,
+                            font: { size: 11 },
+                            color: legendTextColor,
+                            filter: (item) => legendSet.has(item.text)
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const val = ctx.parsed;
+                                const formatted = val < 0.1 ? val.toFixed(3) : val.toFixed(2);
+                                return ` ${ctx.label}: ${formatted}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+    </script>
+    {% endif %}
+
+{% endblock %}

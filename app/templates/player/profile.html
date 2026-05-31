@@ -1,0 +1,115 @@
+{# /app/templates/player/profile.html - シェルページ #}
+{% extends "base.html" %}
+
+{% block title %}{{ tag }} {% if lang == "ja" %}プロフィール{% else %}Profile{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのプロフィールです。{% else %}{{ tag }} Brawl Stars profile.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    {# プレイヤーページ固有のCSSを読み込む #}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/player.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="player-page__container"
+     x-data="playerFragmentLoader('{{ url_for('get_player_profile_fragment', lang=lang, tag=tag[1:]) }}?sort={{ sort }}', '{% if lang == "ja" %}プロフィール{% else %}Profile{% endif %}')"
+     x-init="load()">
+
+    {# --- ローディング状態 --- #}
+    <template x-if="isLoading">
+        <div class="player-shell__loading">
+            <div class="player-shell__spinner"></div>
+            <p class="player-shell__loading-text">{% if lang == "ja" %}プレイヤーデータを読み込み中...{% else %}Loading player data...{% endif %}</p>
+        </div>
+    </template>
+
+    {# --- エラー状態 --- #}
+    <template x-if="hasError">
+        <div class="player-shell__error">
+            <p>{% if lang == "ja" %}データの読み込みに失敗しました。{% else %}Failed to load data.{% endif %}</p>
+            <button class="button button--secondary" @click="load()">
+                {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+            </button>
+        </div>
+    </template>
+
+    {# --- コンテンツ挿入エリア --- #}
+    <div x-show="!isLoading && !hasError" x-ref="content"></div>
+
+    {# バナー広告 #}
+    <div style="margin: 0 5%">
+    {% include "components/ad_banner.html" %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function playerFragmentLoader(url, pageLabel) {
+    return {
+        isLoading: true,
+        hasError: false,
+        pendingScrollTarget: null,
+        updatePageTitle(container) {
+            const nameEl = container.querySelector('.profile-header__name');
+            const tagEl = container.querySelector('.profile-header__tag');
+            if (!nameEl || !tagEl) return;
+
+            const playerName = nameEl.textContent.trim();
+            const playerTag = tagEl.textContent.trim();
+            if (!playerName || !playerTag) return;
+            document.title = `${playerName} (${playerTag}) ${pageLabel} - Brawl Insights`;
+        },
+        applyScroll(scrollTarget) {
+            const target = scrollTarget || (window.location.hash ? window.location.hash.substring(1) : null);
+            if (!target) return;
+            const normalizedTarget = target.startsWith('#') ? target.substring(1) : target;
+            const el = document.getElementById(normalizedTarget);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        },
+        async load(scrollTarget) {
+            this.isLoading = true;
+            this.hasError = false;
+            try {
+                const res = await fetch(url, { credentials: 'same-origin' });
+                const html = await res.text();
+                if (!html || !html.trim()) throw new Error('Empty response');
+                const container = this.$refs.content;
+                container.innerHTML = html;
+                // フラグメント内のscriptタグを再実行
+                // ※外部script(src属性あり)は指定された場合だけ再読み込み、シェル側で事前ロード済みのものは除去
+                container.querySelectorAll('script').forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    if (!oldScript.src) {
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    } else {
+                        oldScript.remove();
+                    }
+                });
+                this.updatePageTitle(container);
+                this.pendingScrollTarget = scrollTarget || (window.location.hash ? window.location.hash.substring(1) : null);
+
+                // 4xx/5xxでもフラグメント内の専用エラーUIが返るため、UIがある場合は表示を優先
+                if (!res.ok && !container.querySelector('.player-error-msg')) {
+                    throw new Error('HTTP ' + res.status);
+                }
+            } catch (e) {
+                console.error('Fragment load error:', e);
+                this.hasError = true;
+            } finally {
+                this.isLoading = false;
+                this.$nextTick(() => {
+                    requestAnimationFrame(() => {
+                        this.applyScroll(this.pendingScrollTarget);
+                    });
+                });
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

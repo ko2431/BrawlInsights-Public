@@ -1,0 +1,115 @@
+{# /app/templates/announcements.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}お知らせ{% else %}News{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}このサイトのお知らせを掲載しています。{% else %}This page contains news about this site.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/announcements.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="announcements-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main announcements-page-title--main">{% if lang == "ja" %}お知らせ{% else %}News{% endif %}</h1>
+
+    {# 絞り込みメニュー #}
+    <div x-data="announcements()">
+        <div class="filters__container" style="margin-bottom: 20px;">
+            <div class="filter-form" style="width: 100%;">
+                <label for="categoryFilter" class="filter-form__label">{% if lang == "ja" %}カテゴリー:{% else %}Category:{% endif %}</label>
+                <select id="categoryFilter" class="filter-form__select" x-model="categoryFilter">
+                    <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
+                    <option value="1">{% if lang == "ja" %}緊急のお知らせ{% else %}Urgent Notice{% endif %}</option>
+                    <option value="2">{% if lang == "ja" %}お知らせ{% else %}Notice{% endif %}</option>
+                    <option value="3">{% if lang == "ja" %}アップデート{% else %}Update{% endif %}</option>
+                    <option value="4">{% if lang == "ja" %}プレゼント企画{% else %}Giveaway{% endif %}</option>
+                    <option value="5">{% if lang == "ja" %}当選発表{% else %}Giveaway Results{% endif %}</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+        {% for announcement in announcements %}
+            {# 各お知らせをdivで囲み、Alpine.jsのスコープを設定。id属性を追加。 #}
+            <div x-data="{ open: true }" 
+                 x-show="categoryFilter === 'all' || categoryFilter === '{{ announcement.category or 'none' }}'"
+                 id="{{ announcement.id }}" class="announcement-item">
+                {# タイトル部分をクリック可能にし、アイコンを追加 #}
+                <h2 class="section-title announcements-page__section-title" @click="open = !open">
+                    {{ announcement.ja_title|safe if lang == "ja" and announcement.ja_title else announcement.en_title|safe }}
+                    <span class="announcement-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                </h2>
+                <p>{{ announcement.datetime_jst_str[:16] if lang == "ja" else announcement.datetime_utc_str[:16] }}</p>
+                {# 本文を x-show で表示/非表示 #}
+                <div class="announcements-page__text" x-show="open" x-transition>
+                    {{ announcement.ja_text|safe if lang == "ja" and announcement.ja_text else announcement.en_text|safe }}
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+        // Alpine.jsのコンポーネントロジック
+        function announcements() {
+            return {
+                categoryFilter: 'all'
+            }
+        }
+
+        // ページ読み込み完了後にアンカーへのスクロールを実行
+        document.addEventListener('DOMContentLoaded', (event) => {
+            if (window.location.hash) {
+                const element = document.querySelector(window.location.hash);
+                if (element) {
+                    // 少し遅延させてからスクロールすると、より確実
+                    setTimeout(() => {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                }
+            }
+        });
+    </script>
+{% endblock %}

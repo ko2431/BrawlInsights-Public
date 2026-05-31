@@ -1,0 +1,461 @@
+{# /app/templates/admin/stats.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / 統計データ確認{% endblock %}
+{% block og_description %}サービスに関する統計データを確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/battles.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="statsPage()">
+    <h1 class="page-title--main">サービス統計データ</h1>
+
+    {# 日付選択UI #}
+    <div class="battle-log-filters__container" style="margin-top: 15px; width: 100%;">
+        <form method="get" id="statsFilterForm" class="battle-log-filters">
+            <div class="filter-item date-range-filter">
+                <div class="date-range-filter__line-1">
+                    <label class="sort-options__label date-range-filter__main-label">期間で絞り込み:</label>
+                    <input type="date" name="after" id="afterDate" value="{{ after_date_filter if after_date_filter else '' }}" class="sort-options__select filter-item__date-input">
+                    <span class="sort-options__label date-range-filter__separator">から</span>
+                </div>
+                <div class="date-range-filter__line-2">
+                    <input type="date" name="before" id="beforeDate" value="{{ before_date_filter if before_date_filter else '' }}" class="sort-options__select filter-item__date-input">
+                    <span class="sort-options__label date-range-filter__separator">まで</span>
+                    <div class="date-range-filter__actions">
+                        <button type="submit" class="button button--primary filter-item__submit">適用</button>
+                        <a href="{{ url_for('admin_stats', lang=lang) }}" class="button button--secondary filter-item__reset">リセット</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {# 統計期間の表示 #}
+    <div id="stats-period-display" style="margin: 15px 0;"></div>
+
+    {# グラフ描画エリア #}
+    {% if stats_data %}
+    <div class="stats-grid">
+        <div class="stats-chart-block">
+            <h2 class="section-title">ユーザー数推移</h2>
+            <div class="chart-wrapper"><canvas id="usersChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">合計PV数推移</h2>
+            <div class="chart-wrapper"><canvas id="pvChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">投稿数推移</h2>
+            <div class="chart-wrapper"><canvas id="postsChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">メッセージ／リアクション数推移</h2>
+            <div class="chart-wrapper"><canvas id="messagesChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">プレイヤー数推移</h2>
+            <div class="chart-wrapper"><canvas id="playersChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">プレイヤーログ数推移</h2>
+            <div class="chart-wrapper"><canvas id="playerLogsChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">バトル数推移</h2>
+            <div class="chart-wrapper"><canvas id="battlesChart"></canvas></div>
+        </div>
+        <div class="stats-chart-block">
+            <h2 class="section-title">クラブ数推移</h2>
+            <div class="chart-wrapper"><canvas id="clubsChart"></canvas></div>
+        </div>
+        {% if image_gen_stats %}
+        <div class="stats-chart-block">
+            <h2 class="section-title">画像生成数推移</h2>
+            <div class="chart-wrapper"><canvas id="imageGenChart"></canvas></div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <p>統計データがありません。</p>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script>
+        // Chart.jsのグローバルデフォルトフォント設定
+        Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Segoe UI', 'Yu Gothic UI', 'Meiryo', Roboto, 'Noto Sans JP', sans-serif";
+        
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('statsPage', () => ({
+                // サーバーから渡された全期間の統計データ
+                allStatsData: {{ stats_data | tojson | safe }},
+                // 画像生成累計データ（フィルタリング対象外: 全期間表示）
+                allImageGenData: {{ image_gen_stats | tojson | safe if image_gen_stats else 'null' }},
+                // フィルタリングされた後のデータ
+                filteredStatsData: null,
+                // フィルターの現在の値
+                afterDate: '{{ after_date_filter or "" }}',
+                beforeDate: '{{ before_date_filter or "" }}',
+                // Chart.jsのインスタンスを保持するオブジェクト
+                charts: {},
+
+                init() {
+                    // 初期化時に日付フィルタリングとグラフ描画を実行
+                    this.filterDataAndRenderCharts();
+                },
+
+                filterDataAndRenderCharts() {
+                    if (!this.allStatsData || !this.allStatsData.dates) {
+                        this.filteredStatsData = null;
+                        this.updateStatsPeriodDisplay(null);
+                        this.renderAllCharts(); // データがない状態で呼び出し、"データなし"メッセージを表示
+                        return;
+                    }
+
+                    // 日付でデータをフィルタリング
+                    const after = this.afterDate ? new Date(this.afterDate) : null;
+                    const before = this.beforeDate ? new Date(this.beforeDate) : null;
+                    // JSTでの日付比較のため、UTCの0時を基準にする
+                    if(after) after.setUTCHours(0,0,0,0);
+                    if(before) before.setUTCHours(23,59,59,999);
+
+                    const filteredIndices = this.allStatsData.dates
+                        .map((date, index) => ({ date: new Date(date + 'T00:00:00Z'), index })) // Safariでも解釈可能な形式に変更
+                        .filter(({ date }) => {
+                            const isAfter = after ? date >= after : true;
+                            const isBefore = before ? date <= before : true;
+                            return isAfter && isBefore;
+                        })
+                        .map(({ index }) => index);
+                    
+                    if (filteredIndices.length === 0) {
+                        this.filteredStatsData = { dates: [] }; // 空のデータ
+                    } else {
+                        const filtered = {};
+                        for (const key in this.allStatsData) {
+                            if (Array.isArray(this.allStatsData[key])) {
+                                filtered[key] = filteredIndices.map(i => this.allStatsData[key][i]);
+                            }
+                        }
+                        this.filteredStatsData = filtered;
+                    }
+                    
+                    // 統計期間表示を更新
+                    this.updateStatsPeriodDisplay(this.filteredStatsData);
+                    // 全てのグラフを再描画
+                    this.renderAllCharts();
+                },
+                
+                updateStatsPeriodDisplay(data) {
+                    const displayEl = document.getElementById('stats-period-display');
+                    if (!displayEl) return;
+
+                    if (data && data.dates && data.dates.length > 0) {
+                        const startDate = data.dates[0];
+                        const endDate = data.dates[data.dates.length - 1];
+                        const duration = data.dates.length;
+                        displayEl.textContent = `統計期間: ${startDate} 〜 ${endDate} (${duration}日間)`;
+                    } else {
+                        displayEl.textContent = '指定された期間のデータはありません。';
+                    }
+                },
+
+                renderAllCharts() {
+                    const data = this.filteredStatsData;
+
+                    // Y軸を動的に変更するための特別なonClickハンドラ
+                    const playersChartLegendOnClick = (e, legendItem, legend) => {
+                        const chart = legend.chart;
+                        // デフォルトの凡例クリック動作を実行（表示/非表示の切り替え）
+                        Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+
+                        let yValuesForScale = [];
+                        // 現在表示されているデータセットの値をすべて集める
+                        chart.data.datasets.forEach((dataset, index) => {
+                            if (chart.isDatasetVisible(index)) {
+                                yValuesForScale.push(...dataset.data);
+                            }
+                        });
+                        
+                        yValuesForScale = yValuesForScale.filter(v => v !== null && v !== undefined);
+
+                        if (yValuesForScale.length > 0) {
+                            const minY = Math.min(...yValuesForScale);
+                            const maxY = Math.max(...yValuesForScale);
+                            const padding = (maxY - minY) > 0 ? (maxY - minY) * 0.1 : Math.max(10, maxY * 0.1);
+                            
+                            chart.options.scales.y.suggestedMin = Math.max(0, minY - padding);
+                            chart.options.scales.y.suggestedMax = maxY + padding;
+                        } else {
+                            // 表示するデータがなければデフォルトに戻す
+                            chart.options.scales.y.min = 0;
+                            chart.options.scales.y.max = 100;
+                        }
+                        // グラフを更新してY軸の変更を適用
+                        chart.update();
+                    };
+
+                    // 各グラフの描画関数を呼び出す
+                    this.renderChart('usersChart', 'ユーザー数推移', data, [
+                        { label: 'ユーザー数', dataKey: 'users', color: 'rgb(110, 110, 110)' },
+                        { label: '日本語ユーザー数', dataKey: 'ja_users', color: 'rgb(255, 99, 132)' },
+                        { label: '英語ユーザー数', dataKey: 'en_users', color: 'rgb(54, 162, 235)' },
+                        { label: '無効ユーザー数', dataKey: 'invalid_users', color: 'rgb(153, 102, 255)' },
+                        { label: '広告非表示ユーザー数', dataKey: 'delete_ads_users', color: 'rgb(255, 159, 64)' }
+                    ], playersChartLegendOnClick);
+                    
+                    this.renderChart('pvChart', '合計PV数推移', data, [
+                        { label: '合計PV数', dataKey: 'total_user_pv_count', color: 'rgb(75, 192, 192)' }
+                    ]);
+
+                    this.renderChart('postsChart', '投稿数推移', data, [
+                        { label: 'すべて', dataKey: 'posts', color: 'rgb(110, 110, 110)' },
+                        { label: 'チーム募集', dataKey: 'team_posts', color: 'rgb(73, 116, 245)' },
+                        { label: 'フレンド募集', dataKey: 'friend_posts', color: 'rgb(232, 202, 70)' },
+                        { label: 'クラブ募集', dataKey: 'club_posts', color: 'rgb(232, 49, 49)' },
+                        { label: 'なんでも掲示板', dataKey: 'general_posts', color: 'rgb(153, 102, 255)' }
+                    ], playersChartLegendOnClick);
+
+                    this.renderChart('messagesChart', 'メッセージ／リアクション数推移', data, [
+                        { label: 'メッセージ数', dataKey: 'messages', color: 'rgb(54, 162, 235)' },
+                        { label: 'リアクション数', dataKey: 'reactions', color: 'rgb(232, 49, 49)' }
+                    ], playersChartLegendOnClick);
+
+                    this.renderChart('playersChart', 'プレイヤー数推移', data, [
+                        { label: 'プレイヤー数', dataKey: 'players', color: 'rgb(110, 110, 110)' },
+                        { label: '閲覧済み', dataKey: 'viewed_players', color: 'rgb(255, 99, 132)' },
+                        { label: '自動追跡有効', dataKey: 'acquire_automatically_players', color: 'rgb(54, 162, 235)' },
+                        { label: '無効', dataKey: 'invalid_players', color: 'rgb(153, 102, 255)' },
+                        { label: '非アクティブ', dataKey: 'inactive_players', color: 'rgb(255, 159, 64)' }
+                    ], playersChartLegendOnClick);
+                    
+                    this.renderChart('playerLogsChart', 'プレイヤーログ数推移', data, [
+                        { label: 'プレイヤーログ数', dataKey: 'player_logs', color: 'rgb(75, 192, 192)' }
+                    ]);
+                    
+                    this.renderChart('battlesChart', 'バトル数推移', data, [
+                        { label: 'バトル数', dataKey: 'battles', color: 'rgb(232, 202, 70)' }
+                    ]);
+
+                    this.renderChart('clubsChart', 'クラブ数推移', data, [
+                        { label: 'クラブ数', dataKey: 'clubs', color: 'rgb(232, 49, 49)' }
+                    ]);
+
+                    // 画像生成数推移（別データソース・フィルタリング適用）
+                    this.renderImageGenChart(data);
+                },
+
+                renderImageGenChart(filteredData) {
+                    const canvasId = 'imageGenChart';
+                    const canvas = document.getElementById(canvasId);
+                    if (!canvas) return;
+
+                    if (this.charts[canvasId]) {
+                        this.charts[canvasId].destroy();
+                    }
+
+                    if (!this.allImageGenData || !this.allImageGenData.dates || this.allImageGenData.dates.length === 0) {
+                        canvas.style.display = 'none';
+                        return;
+                    }
+
+                    // 日付フィルタを画像生成データにも適用
+                    const after = this.afterDate ? new Date(this.afterDate) : null;
+                    const before = this.beforeDate ? new Date(this.beforeDate) : null;
+                    if (after) after.setUTCHours(0, 0, 0, 0);
+                    if (before) before.setUTCHours(23, 59, 59, 999);
+
+                    const filteredIndices = this.allImageGenData.dates
+                        .map((date, index) => ({ date: new Date(date + 'T00:00:00Z'), index }))
+                        .filter(({ date }) => {
+                            const isAfter = after ? date >= after : true;
+                            const isBefore = before ? date <= before : true;
+                            return isAfter && isBefore;
+                        })
+                        .map(({ index }) => index);
+
+                    if (filteredIndices.length === 0) {
+                        canvas.style.display = 'none';
+                        const parent = canvas.parentElement;
+                        if (!parent.querySelector('.no-data-msg')) {
+                            const noDataMsg = document.createElement('p');
+                            noDataMsg.textContent = '表示するデータがありません。';
+                            noDataMsg.className = 'no-data-msg';
+                            noDataMsg.style.textAlign = 'center';
+                            noDataMsg.style.marginTop = '20px';
+                            parent.appendChild(noDataMsg);
+                        } else {
+                            parent.querySelector('.no-data-msg').style.display = 'block';
+                        }
+                        return;
+                    }
+                    canvas.style.display = 'block';
+                    const parent = canvas.parentElement;
+                    if (parent.querySelector('.no-data-msg')) parent.querySelector('.no-data-msg').style.display = 'none';
+
+                    const filteredDates = filteredIndices.map(i => this.allImageGenData.dates[i]);
+
+                    const datasetsConfig = [
+                        { label: '合計',           dataKey: 'total',            color: 'rgb(110, 110, 110)' },
+                        { label: '通常プロフィール', dataKey: 'standard_profile', color: 'rgb(232, 49, 49)' },
+                        { label: '最多トロフィー',  dataKey: 'highest_trophies', color: 'rgb(54, 162, 235)' },
+                        { label: '現在トロフィー',  dataKey: 'current_trophies', color: 'rgb(232, 202, 70)' },
+                        { label: '育成状況',        dataKey: 'power_progress',   color: 'rgb(199, 75, 142)' },
+                        { label: '最大連勝数',      dataKey: 'max_winstreak',    color: 'rgb(255, 140, 0)' },
+                        { label: '現在連勝数',      dataKey: 'current_winstreak',color: 'rgb(0, 191, 255)' },
+                        { label: '旧マスタリー',    dataKey: 'legacy_mastery',   color: 'rgb(218, 165, 32)' },
+                        { label: '装備スキン一覧',  dataKey: 'equipment_skins',  color: 'rgb(75, 192, 192)' },
+                    ];
+
+                    const datasets = datasetsConfig.map(cfg => ({
+                        label: cfg.label,
+                        data: filteredIndices.map(i => (this.allImageGenData[cfg.dataKey] ?? [])[i] ?? null),
+                        borderColor: cfg.color,
+                        tension: 0.1,
+                        fill: false,
+                        pointRadius: filteredDates.length === 1 ? 5 : (filteredDates.length < 60 ? 3 : 1.5),
+                        pointHoverRadius: 8,
+                        hitRadius: 10,
+                    }));
+
+                    const yValues = datasets.flatMap(ds => ds.data).filter(v => v !== null);
+                    const chartData = { labels: filteredDates, datasets };
+                    const config = this.createBaseChartConfig(chartData, yValues, '画像生成数推移', null);
+                    this.charts[canvasId] = new Chart(canvas, config);
+                },
+
+                renderChart(canvasId, title, data, datasetsConfig, legendOnClick = null) {
+                    const canvas = document.getElementById(canvasId);
+                    if (!canvas) return;
+                    
+                    if (this.charts[canvasId]) {
+                        this.charts[canvasId].destroy();
+                    }
+
+                    if (!data || !data.dates || data.dates.length === 0) {
+                        canvas.style.display = 'none';
+                        const parent = canvas.parentElement;
+                        if(parent.querySelector('.no-data-msg')) {
+                            parent.querySelector('.no-data-msg').style.display = 'block';
+                        } else {
+                            const noDataMsg = document.createElement('p');
+                            noDataMsg.textContent = '表示するデータがありません。';
+                            noDataMsg.className = 'no-data-msg';
+                            noDataMsg.style.textAlign = 'center';
+                            noDataMsg.style.marginTop = '20px';
+                            parent.appendChild(noDataMsg);
+                        }
+                        return;
+                    }
+                    canvas.style.display = 'block';
+                     const parent = canvas.parentElement;
+                    if(parent.querySelector('.no-data-msg')) parent.querySelector('.no-data-msg').style.display = 'none';
+
+                    const datasets = datasetsConfig.map(config => ({
+                        label: config.label,
+                        data: data[config.dataKey],
+                        borderColor: config.color,
+                        tension: 0.1, fill: false,
+                        pointRadius: data.dates.length === 1 ? 5 : (data.dates.length < 60 ? 3 : 1.5),
+                        pointHoverRadius: 8,
+                        hitRadius: 10
+                    }));
+
+                    const chartData = {
+                        labels: data.dates,
+                        datasets: datasets
+                    };
+
+                    const yValuesForScale = datasets.flatMap(ds => ds.data).filter(v => v !== null);
+
+                    const config = this.createBaseChartConfig(chartData, yValuesForScale, title, legendOnClick); // legendOnClickを渡す
+
+                    this.charts[canvasId] = new Chart(canvas, config);
+                },
+
+                createBaseChartConfig(chartData, yValues, title, legendOnClick = null) {
+                    let minY = 0; let maxY = 100;
+                    if (yValues && yValues.length > 0) {
+                        minY = Math.min(...yValues);
+                        maxY = Math.max(...yValues);
+                    }
+                    const padding = (maxY - minY) > 0 ? (maxY - minY) * 0.1 : Math.max(10, maxY * 0.1);
+                    const suggestedMin = Math.max(0, minY - padding);
+                    const suggestedMax = maxY + padding;
+
+                    return {
+                        type: 'line',
+                        data: chartData,
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    // カスタムハンドラがあればそれを使い、なければデフォルトの動作
+                                    onClick: legendOnClick || Chart.defaults.plugins.legend.onClick
+                                },
+                                title: { display: false }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: this.determineTimeUnit(chartData.labels),
+                                        tooltipFormat: 'yyyy/MM/dd',
+                                        displayFormats: {
+                                            day: 'MM/dd',
+                                            month: 'yyyy/MM',
+                                            year: 'yyyy'
+                                        }
+                                    },
+                                    ticks: {
+                                        source: 'auto',
+                                        maxTicksLimit: this.determineMaxTicks(chartData.labels.length)
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: false,
+                                    suggestedMin: suggestedMin,
+                                    suggestedMax: suggestedMax,
+                                    ticks: {
+                                        precision: 0,
+                                        callback: (value) => value.toLocaleString()
+                                    }
+                                }
+                            }
+                        }
+                    };
+                },
+                determineTimeUnit(dates) {
+                    if (!dates || dates.length <= 1) return 'day';
+                    const firstDate = new Date(dates[0]);
+                    const lastDate = new Date(dates[dates.length - 1]);
+                    const diffDays = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
+                    if (diffDays <= 31) return 'day';
+                    if (diffDays <= 365 * 2) return 'month';
+                    return 'year';
+                },
+                determineMaxTicks(dataLength) {
+                    if (dataLength <= 7) return dataLength;
+                    if (dataLength <= 31) return 15;
+                    return 12;
+                }
+            }));
+        });
+    </script>
+{% endblock %}

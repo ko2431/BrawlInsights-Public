@@ -1,0 +1,493 @@
+{# /app/templates/tools/cost_calc.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 育成計算機{% else %}Level-Up Cost Calculator{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタの育成計算機です。{% else %}Brawl Stars Level-Up Cost Calculator.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}育成計算機{% else %}Level-Up Cost Calculator{% endif %}</h1>
+
+    <div x-data>
+        {# カスタム計算セクション #}
+        <div class="tools-page__section" x-data="customCostCalculator()">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}カスタム計算{% else %}Custom Calculation{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div x-show="open" x-transition>
+                <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}下のメニューから、パワーレベルをいくつからいくつまでアップグレードするか、ガジェットやギアなどのアクセサリーをいくつ購入するかを選択して、必要な育成コストを計算できます。{% else %}From the menu below, you can calculate the required upgrade costs by selecting the power level range to upgrade and the number of gadgets, gears, and other accessories to purchase.{% endif %}</p>
+                
+                {# 選択メニュー #}
+                <div class="filters__container cost-calc-filters">
+                    {# パワーレベル --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}パワー:{% else %}Power:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="power.from">
+                            <template x-for="level in 10">
+                                <option :value="level" x-text="level"></option>
+                            </template>
+                            <option value="11" disabled>11</option>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}から{% else %}to{% endif %}</span>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="power.to">
+                            <template x-for="level in 11">
+                                <option :value="level" x-text="level" :disabled="level <= power.from" :selected="level == power.to"></option>
+                            </template>
+                        </select>
+                         <span class="filter-form__label">{% if lang == "ja" %}まで{% else %}&nbsp;{% endif %}</span>
+                    </div>
+                    {# ガジェット --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}ガジェット:{% else %}Gadgets:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.gadget" :disabled="power.to < 7">
+                            <template x-for="i in 3" :key="i-1">
+                                <option :value="i-1" x-text="i-1"></option>
+                            </template>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                    {# スターパワー --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}スターパワー:{% else %}Star Powers:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.starPower" :disabled="power.to < 9">
+                            <template x-for="i in 3" :key="i-1">
+                                <option :value="i-1" x-text="i-1"></option>
+                            </template>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                    {# 通常ギア --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}通常ギア:{% else %}Super Rare Gears:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.normalGear" :disabled="power.to < 8">
+                            <template x-for="i in 7" :key="i-1">
+                                <option :value="i-1" x-text="i-1"></option>
+                            </template>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                    {# ハイパーレアギア --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}ハイパーレアギア:{% else %}Epic Gears:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.hyperrareGear" :disabled="power.to < 8">
+                            <option value="0">0</option><option value="1">1</option>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                    {# ウルトラレアギア --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}ウルトラレアギア:{% else %}Mythic Gears:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.mythicGear" :disabled="power.to < 10">
+                            <option value="0">0</option><option value="1">1</option>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                    {# ハイパーチャージ --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}ハイパーチャージ:{% else %}Hypercharges:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.hypercharge" :disabled="power.to < 11">
+                            <option value="0">0</option><option value="1">1</option>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                    {# バフィー --- #}
+                    <div class="filter-form">
+                        <label class="filter-form__label">{% if lang == "ja" %}バフィー:{% else %}Buffies:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="accessories.buffie">
+                            <template x-for="i in 4" :key="i-1">
+                                <option :value="i-1" x-text="i-1"></option>
+                            </template>
+                        </select>
+                        <span class="filter-form__label">{% if lang == "ja" %}個購入{% else %}purchase(s){% endif %}</span>
+                    </div>
+                </div>
+
+                <div class="cost__container {% if lang != 'ja' %}cost__container--en{% endif %}">
+                    <h3 class="cost-section-title" style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                        {% if lang == "ja" %}
+                            <select class="filter-form__select" style="font-size: 1.1rem; padding: 2px 5px; min-width: 0;" x-model.number="brawlerCount">
+                                <template x-for="i in totalBrawlersMenu">
+                                    <option :value="i" x-text="i"></option>
+                                </template>
+                            </select>体分の必要コスト
+                        {% else %}
+                            Required Cost for <select class="filter-form__select" style="font-size: 1.1rem; padding: 2px 5px; min-width: 0;" x-model.number="brawlerCount">
+                                <template x-for="i in totalBrawlersMenu">
+                                    <option :value="i" x-text="i"></option>
+                                </template>
+                            </select>&nbsp;Brawler(s)
+                        {% endif %}
+                    </h3>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/power_point.png') }}" alt="{% if lang == 'ja' %}パワーポイント{% else %}Power Points{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totalCost.powerPoints.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/coin.png') }}" alt="{% if lang == 'ja' %}コイン{% else %}Coins{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totalCost.coins.toLocaleString()"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# 残り必要コスト計算セクション #}
+        <div class="tools-page__section" x-data="remainingCostCalculator()">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}残り必要コスト計算{% else %}Remaining Cost Calculation{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div x-show="open" x-transition>
+                {% if current_user and main_account %}
+                    <p class="tools-page__description" style="margin-top: 10px;">
+                        {% if lang == "ja" %}
+                        あなたのメインアカウント({{ main_account.name }})の、残りの育成に必要なコストを計算できます。下のメニューから、どこまでのコストを計算するか選択できます。
+                        <br><span style="display: block; font-size: 0.9em; color: var(--color-555); line-height: 1.5;">※データの更新には数時間程度の遅延があることがありますが、その際はプレイヤーページにアクセスすることで最新のデータが反映されます。</span>
+                        {% else %}
+                        You can calculate the remaining cost to upgrade your main account ({{ main_account.name }}). From the menu below, select the scope of the calculation.
+                        <br><span style="display: block; font-size: 0.9em; color: var(--color-555); line-height: 1.5;">*There may be a delay of several hours in updating the data, but accessing the player page will reflect the latest data.</span>
+                        {% endif %}
+                    </p>
+                    
+                    {# 計算範囲選択メニュー #}
+                    <div class="filters__container cost-calc-filters">
+                        <div class="filter-form">
+                            <label class="filter-form__label">{% if lang == "ja" %}パワーレベル:{% else %}Power Level:{% endif %}</label>
+                            <select class="filter-form__select cost-calc-filter-form__select" x-model="scope.power">
+                                <option value="none">{% if lang == "ja" %}計算対象にしない{% else %}Exclude{% endif %}</option>
+                                <option value="max">{% if lang == "ja" %}全キャラを最大パワーレベルにする{% else %}Max all brawlers{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="filter-form">
+                            <label class="filter-form__label">{% if lang == "ja" %}ガジェット:{% else %}Gadgets:{% endif %}</label>
+                            <select class="filter-form__select cost-calc-filter-form__select" x-model="scope.gadget">
+                                <option value="none">{% if lang == "ja" %}計算対象にしない{% else %}Exclude{% endif %}</option>
+                                <option value="at_least_one">{% if lang == "ja" %}全キャラに少なくとも1つ装備{% else %}At least 1 per brawler{% endif %}</option>
+                                <option value="complete">{% if lang == "ja" %}コンプリートする{% else %}Complete{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="filter-form">
+                            <label class="filter-form__label">{% if lang == "ja" %}スターパワー:{% else %}Star Powers:{% endif %}</label>
+                            <select class="filter-form__select cost-calc-filter-form__select" x-model="scope.starPower">
+                                <option value="none">{% if lang == "ja" %}計算対象にしない{% else %}Exclude{% endif %}</option>
+                                <option value="at_least_one">{% if lang == "ja" %}全キャラに少なくとも1つ装備{% else %}At least 1 per brawler{% endif %}</option>
+                                <option value="complete">{% if lang == "ja" %}コンプリートする{% else %}Complete{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="filter-form">
+                            <label class="filter-form__label">{% if lang == "ja" %}ギア:{% else %}Gears:{% endif %}</label>
+                            <select class="filter-form__select cost-calc-filter-form__select" x-model="scope.gear">
+                                <option value="none">{% if lang == "ja" %}計算対象にしない{% else %}Exclude{% endif %}</option>
+                                <option value="1">{% if lang == "ja" %}全キャラに少なくとも1つ装備{% else %}At least 1 per brawler{% endif %}</option>
+                                <option value="2">{% if lang == "ja" %}全キャラに少なくとも2つ装備{% else %}At least 2 per brawler{% endif %}</option>
+                                <option value="3">{% if lang == "ja" %}全キャラに少なくとも3つ装備{% else %}At least 3 per brawler{% endif %}</option>
+                                <option value="4">{% if lang == "ja" %}全キャラに少なくとも4つ装備{% else %}At least 4 per brawler{% endif %}</option>
+                                <option value="5">{% if lang == "ja" %}全キャラに少なくとも5つ装備{% else %}At least 5 per brawler{% endif %}</option>
+                                <option value="complete">{% if lang == "ja" %}コンプリートする{% else %}Complete{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="filter-form">
+                            <label class="filter-form__label">{% if lang == "ja" %}ハイパーチャージ:{% else %}Hypercharges:{% endif %}</label>
+                            <select class="filter-form__select cost-calc-filter-form__select" x-model="scope.hypercharge">
+                                <option value="none">{% if lang == "ja" %}計算対象にしない{% else %}Exclude{% endif %}</option>
+                                <option value="complete">{% if lang == "ja" %}コンプリートする{% else %}Complete{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="filter-form">
+                            <label class="filter-form__label">{% if lang == "ja" %}バフィー:{% else %}Buffies:{% endif %}</label>
+                            <select class="filter-form__select cost-calc-filter-form__select" x-model="scope.buffie">
+                                <option value="none">{% if lang == "ja" %}計算対象にしない{% else %}Exclude{% endif %}</option>
+                                <option value="complete">{% if lang == "ja" %}コンプリートする{% else %}Complete{% endif %}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="cost__container">
+                        <h3 class="cost-section-title">{% if lang == "ja" %}必要コスト{% else %}Required Cost{% endif %}</h3>
+                        <div class="cost">
+                            <img src="{{ url_for('static', path='/images/ui/power_point.png') }}" alt="{% if lang == 'ja' %}パワーポイント{% else %}Power Points{% endif %}" class="cost-image">
+                            <p class="cost-text" x-text="remainingCost.powerPoints.toLocaleString()"></p>
+                        </div>
+                        <div class="cost">
+                            <img src="{{ url_for('static', path='/images/ui/coin.png') }}" alt="{% if lang == 'ja' %}コイン{% else %}Coins{% endif %}" class="cost-image">
+                            <p class="cost-text" x-text="remainingCost.coins.toLocaleString()"></p>
+                        </div>
+                    </div>
+                {% elif current_user %}
+                    <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}メインアカウントのプレイヤーデータが取得できなかったため、<b>残り必要コスト計算</b>はご利用いただけません。ブロスタがメンテナンス中の場合は、メンテナンスが終了してからお試しください。メインアカウントが無効になっている場合は、アカウントタブより変更できます。{% else %}The <b>Remaining Cost Calculation</b> is unavailable because your main account's player data could not be retrieved. If Brawl Stars is under maintenance, please try again after the maintenance is complete. If your main account is invalid, you can change it in the Account tab.{% endif %}</p>
+                {% else %}
+                    <div class="not-logged-in-block">
+                        <div class="not-logged-in-block__text">
+                            <p>{% if lang == "ja" %}ログインすると、あなたのブロスタのアカウントの残りの必要育成コストの合計が、自動で計算されて表示されます。{% else %}Log in to automatically calculate and display the total remaining upgrade cost for your Brawl Stars account.{% endif %}</p>
+                            <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address or other information is required to create an account. You can create an account immediately with any user name and password.{% endif %}</p>
+                        </div>
+                        <div class="auth-actions">
+                            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                            <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+    // カスタム計算機のAlpine.jsコンポーネント
+    function customCostCalculator() {
+        return {
+            open: true,
+            brawlerCount: 1,
+            totalBrawlersMenu: {{ num_of_available_brawlers or 85 }},
+            power: { from: 1, to: 11 },
+            accessories: {
+                gadget: 0,
+                starPower: 0,
+                normalGear: 0,
+                hyperrareGear: 0,
+                mythicGear: 0,
+                hypercharge: 0,
+                buffie: 0,
+            },
+            // パワーレベルごとのアップグレードコスト
+            costs: {
+                powerPoints: [0, 20, 30, 50, 80, 130, 210, 340, 550, 890, 1440],
+                coins: [0, 20, 35, 75, 140, 290, 480, 800, 1250, 1875, 2800]
+            },
+            accessoryCosts: {
+                gadget: { coins: 1000 },
+                starPower: { coins: 2000 },
+                normalGear: { coins: 1000 },
+                hyperrareGear: { coins: 1500 },
+                mythicGear: { coins: 2000 },
+                hypercharge: { coins: 5000 },
+                buffie: { powerPoints: 2000, coins: 1000 }
+            },
+            // 算出プロパティで合計コストを計算
+            get totalCost() {
+                let ppCost = 0;
+                let coinCost = 0;
+
+                // パワーレベルのコスト
+                for (let i = this.power.from; i < this.power.to; i++) {
+                    ppCost += this.costs.powerPoints[i];
+                    coinCost += this.costs.coins[i];
+                }
+
+                // アクセサリーのコスト
+                if (this.power.to >= 7) coinCost += this.accessories.gadget * this.accessoryCosts.gadget.coins;
+                if (this.power.to >= 9) coinCost += this.accessories.starPower * this.accessoryCosts.starPower.coins;
+                if (this.power.to >= 8) coinCost += this.accessories.normalGear * this.accessoryCosts.normalGear.coins;
+                if (this.power.to >= 8) coinCost += this.accessories.hyperrareGear * this.accessoryCosts.hyperrareGear.coins;
+                if (this.power.to >= 10) coinCost += this.accessories.mythicGear * this.accessoryCosts.mythicGear.coins;
+                if (this.power.to >= 11) coinCost += this.accessories.hypercharge * this.accessoryCosts.hypercharge.coins;
+                
+                // バフィーのコスト追加
+                coinCost += this.accessories.buffie * this.accessoryCosts.buffie.coins;
+                ppCost += this.accessories.buffie * this.accessoryCosts.buffie.powerPoints;
+
+                return { 
+                    powerPoints: ppCost * this.brawlerCount, 
+                    coins: coinCost * this.brawlerCount 
+                };
+            },
+
+            // watchでパワーレベルの選択肢を監視し、無効な場合はアクセサリーをリセット
+            init() {
+                this.$watch('power.to', (newVal) => {
+                    if (newVal < 7) this.accessories.gadget = 0;
+                    if (newVal < 9) this.accessories.starPower = 0;
+                    if (newVal < 8) {
+                         this.accessories.normalGear = 0;
+                         this.accessories.hyperrareGear = 0;
+                    }
+                    if (newVal < 10) this.accessories.mythicGear = 0;
+                    if (newVal < 11) this.accessories.hypercharge = 0;
+                });
+            }
+        }
+    }
+
+    // 残り必要コスト計算機のAlpine.jsコンポーネント
+    function remainingCostCalculator() {
+        return {
+            open: true,
+            scope: {
+                power: 'max',
+                gadget: 'at_least_one',
+                starPower: 'at_least_one',
+                gear: '2',
+                hypercharge: 'complete',
+                buffie: 'complete'
+            },
+            // サーバーから渡されたJinja2変数
+            requiredPPsForMax: {{ required_pps or 0 }},
+            requiredCoinsForMax: {{ required_coins or 0 }},
+            totalBrawlers: {{ num_of_available_brawlers or 0 }},
+            currentGadgets: {{ (main_account.gadgets if main_account else 0) or 0 }},
+            currentStarPowers: {{ (main_account.star_powers if main_account else 0) or 0 }},
+            currentGears: {{ (main_account.gears if main_account else 0) or 0 }},
+            currentHCs: {{ (main_account.hyper_charges if main_account else 0) or 0 }},
+            currentBuffies: {{ (main_account.buffies if main_account else 0) or 0 }},
+            // get_max_accessory_counts() は players テーブルから最大所持数を返す（キー名に注意）
+            maxGadgets: {{ max_accessory_counts.get('gadgets', 0) if max_accessory_counts else 0 }},
+            maxStarPowers: {{ max_accessory_counts.get('star_powers', 0) if max_accessory_counts else 0 }},
+            maxGears: {{ max_accessory_counts.get('gears', 0) if max_accessory_counts else 0 }},
+            maxHCs: {{ max_accessory_counts.get('hyper_charges', 0) if max_accessory_counts else 0 }},
+            maxBuffies: {{ max_accessory_counts.get('buffies', 0) if max_accessory_counts else 0 }},
+            
+            brawlersStats: [
+                {% if main_account and main_account.brawlers %}
+                    {% for b in main_account.brawlers %}
+                    { gadget: {{ b.gadget if b.gadget is not none else 'null' }}, starPower: {{ b.star_power if b.star_power is not none else 'null' }}, gear: {{ b.gear if b.gear is not none else 'null' }} },
+                    {% endfor %}
+                {% endif %}
+            ],
+
+            get remainingCost() {
+                let pp = 0;
+                let coin = 0;
+                const ownedBrawlers = this.brawlersStats.length;
+                const missingBrawlers = Math.max(0, this.totalBrawlers - ownedBrawlers);
+                const hasPerBrawlerAccessoryCounts =
+                    this.brawlersStats.length > 0
+                    && this.brawlersStats.every(b => b.gadget !== null && b.starPower !== null && b.gear !== null);
+
+                // Power Level
+                if (this.scope.power === 'max') {
+                    pp += this.requiredPPsForMax;
+                    coin += this.requiredCoinsForMax;
+                }
+
+                // Gadget (Costs 1000 Coins)
+                if (this.scope.gadget === 'at_least_one') {
+                    let needed = 0;
+                    if (hasPerBrawlerAccessoryCounts) {
+                        this.brawlersStats.forEach(b => {
+                            needed += Math.max(0, 1 - b.gadget);
+                        });
+                        needed += missingBrawlers * 1;
+                    } else {
+                        // per-brawlerの所持数が欠落している場合は、集計値ベースで不足分を推定する
+                        const target = this.totalBrawlers * 1;
+                        needed = Math.max(0, target - (this.currentGadgets || 0));
+                    }
+                    coin += needed * 1000;
+                } else if (this.scope.gadget === 'complete') {
+                    const target = this.maxGadgets || (this.totalBrawlers * 2);
+                    const needed = Math.max(0, target - this.currentGadgets);
+                    coin += needed * 1000;
+                }
+
+                // Star Power (Costs 2000 Coins)
+                if (this.scope.starPower === 'at_least_one') {
+                    let needed = 0;
+                    if (hasPerBrawlerAccessoryCounts) {
+                        this.brawlersStats.forEach(b => {
+                            needed += Math.max(0, 1 - b.starPower);
+                        });
+                        needed += missingBrawlers * 1;
+                    } else {
+                        const target = this.totalBrawlers * 1;
+                        needed = Math.max(0, target - (this.currentStarPowers || 0));
+                    }
+                    coin += needed * 2000;
+                } else if (this.scope.starPower === 'complete') {
+                    const target = this.maxStarPowers || (this.totalBrawlers * 2);
+                    const needed = Math.max(0, target - this.currentStarPowers);
+                    coin += needed * 2000;
+                }
+
+                // Gear (Costs 1000 Coins)
+                if (this.scope.gear !== 'none') {
+                    if (this.scope.gear === 'complete') {
+                        const target = this.maxGears || (this.totalBrawlers * 6); // Usually 6 basic gears
+                        const needed = Math.max(0, target - this.currentGears);
+                        coin += needed * 1000;
+                    } else {
+                        const targetCount = parseInt(this.scope.gear);
+                        let needed = 0;
+                        if (hasPerBrawlerAccessoryCounts) {
+                            this.brawlersStats.forEach(b => {
+                                needed += Math.max(0, targetCount - b.gear);
+                            });
+                            needed += missingBrawlers * targetCount;
+                        } else {
+                            const target = this.totalBrawlers * targetCount;
+                            needed = Math.max(0, target - (this.currentGears || 0));
+                        }
+                        coin += needed * 1000;
+                    }
+                }
+
+                // Hypercharge (Costs 5000 Coins)
+                if (this.scope.hypercharge === 'complete') {
+                    const target = this.maxHCs || (this.totalBrawlers * 1);
+                    const needed = Math.max(0, target - this.currentHCs);
+                    coin += needed * 5000;
+                }
+
+                // Buffie (Costs 2000 PP + 1000 Coins)
+                if (this.scope.buffie === 'complete') {
+                    const target = this.maxBuffies || (this.totalBrawlers * 3);
+                    const needed = Math.max(0, target - this.currentBuffies);
+                    pp += needed * 2000;
+                    coin += needed * 1000;
+                }
+
+                return { powerPoints: pp, coins: coin };
+            }
+        }
+    }
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('customCostCalculator', customCostCalculator);
+        Alpine.data('remainingCostCalculator', remainingCostCalculator);
+    });
+    </script>
+{% endblock %}

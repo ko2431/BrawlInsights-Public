@@ -1,0 +1,174 @@
+{# /app/templates/tools/skin_ranking.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 スキン使用率ランキング (スキン一覧){% else %}Skin Usage Ranking{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのスキン使用率ランキングです。キャラクターごと、または全キャラクターのスキンについて、使用率の高い順・低い順でランキングを閲覧できます。全スキンが掲載されているので、スキン一覧としてもご利用いただけます。データは毎日更新されます。{% else %}Brawl Stars skin usage ranking. Filter by brawler/skin type and sort by highest or lowest usage rate. Updated daily.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranked_stats.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container"
+     x-data="skinRankingShell()"
+     x-init="fetchFragment()">
+    {# 戻るボタン (上) #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    {# タイトル #}
+    <h1 class="page-title--main skin-ranking-page-title--main">{% if lang == "ja" %}スキン使用率ランキング{% else %}Skin Usage Ranking{% endif %}</h1>
+
+    {# フィルタ #}
+    <div class="filters__container" style="flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+        {# 1. キャラクターフィルタ #}
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <label class="filter-form__label">{% if lang == "ja" %}キャラクター:{% else %}Brawler:{% endif %}</label>
+            <select class="filter-form__select" x-model="selectedBrawlerId" @change="fetchFragment()">
+                <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
+                {% for brawler in brawlers %}
+                <option value="{{ brawler.id }}" {% if loop.first %}selected{% endif %}>
+                    {{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {# 2. スキン種別フィルタ #}
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <label class="filter-form__label">{% if lang == "ja" %}表示するスキン:{% else %}Show:{% endif %}</label>
+            <select class="filter-form__select" x-model="filterMode" @change="fetchFragment()">
+                <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
+                <option value="normal">{% if lang == "ja" %}通常スキン{% else %}Regular Skins{% endif %}</option>
+                <option value="limited">{% if lang == "ja" %}限定スキン{% else %}Limited Skins{% endif %}</option>
+            </select>
+        </div>
+        {# 3. レア度フィルタ #}
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <label class="filter-form__label">{% if lang == "ja" %}レア度:{% else %}Rarity:{% endif %}</label>
+            <select class="filter-form__select" x-model="filterRarity" @change="fetchFragment()">
+                <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
+                <option value="none">{% if lang == "ja" %}レア度なし{% else %}No Rarity{% endif %}</option>
+                <option value="10">{% if lang == "ja" %}レア{% else %}Rare{% endif %}</option>
+                <option value="20">{% if lang == "ja" %}スーパーレア{% else %}Super Rare{% endif %}</option>
+                <option value="30">{% if lang == "ja" %}ハイパーレア{% else %}Epic{% endif %}</option>
+                <option value="40">{% if lang == "ja" %}ウルトラレア{% else %}Mythic{% endif %}</option>
+                <option value="50">{% if lang == "ja" %}レジェンドレア{% else %}Legendary{% endif %}</option>
+                <option value="60">{% if lang == "ja" %}ハイパーチャージスキン{% else %}Hypercharge{% endif %}</option>
+                <option value="70">{% if lang == "ja" %}プロパススキン{% else %}Pro Pass{% endif %}</option>
+                <option value="silver_gold">{% if lang == "ja" %}トゥルーシルバー／ゴールド{% else %}True Silver/Gold{% endif %}</option>
+                <option value="80">{% if lang == "ja" %}トゥルーシルバー{% else %}True Silver{% endif %}</option>
+                <option value="90">{% if lang == "ja" %}トゥルーゴールド{% else %}True Gold{% endif %}</option>
+            </select>
+        </div>
+    </div>
+
+    {# 説明文 #}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">
+            {% if lang == "ja" %}多くのアクティブなプレイヤーデータから集計した、<b>スキンの使用率と所持率</b>をランキングでまとめています。アクティブプレイヤーのデータを集計しているため、データは若干上位プレイヤーに偏っており、実際にゲーム内で遭遇する確率に近くなっています。データは毎日更新されます。
+            {% else %}This section provides a <b>skin usage and ownership rate ranking</b>, aggregated from a large amount of active player data. As we collect data primarily from active players, the data tends to be slightly skewed towards top players, making it closer to the probability of encountering them in-game. Updated daily.
+            {% endif %}
+        </p>
+    </div>
+
+    {# 並び替えボタン #}
+    <div class="skin-list-sort-buttons" style="margin-bottom: 12px;">
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_desc' }" @click="sortMode = 'rate_desc'; fetchFragment()">
+            <span>{% if lang == "ja" %}使用率が高い順{% else %}Usage (High→Low){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_asc' }" @click="sortMode = 'rate_asc'; fetchFragment()">
+            <span>{% if lang == "ja" %}使用率が低い順{% else %}Usage (Low→High){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'own_desc' }" @click="sortMode = 'own_desc'; fetchFragment()">
+            <span>{% if lang == "ja" %}所持率が高い順{% else %}Ownership (High→Low){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'own_asc' }" @click="sortMode = 'own_asc'; fetchFragment()">
+            <span>{% if lang == "ja" %}所持率が低い順{% else %}Ownership (Low→High){% endif %}</span>
+        </div>
+    </div>
+
+    {# ローディングスピナー #}
+    <div x-show="loading" style="display: flex; flex-direction: column; width: 100%; align-items: center; justify-content: center; min-height: 200px; gap: 14px; padding: 40px 0;">
+        <div style="width: 48px; height: 48px; background-color: var(--color-888, #888); margin: 0 auto;
+            -webkit-mask-image: url(&quot;data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E&quot;);
+            mask-image: url(&quot;data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E&quot;);
+            -webkit-mask-size: cover; mask-size: cover;
+            animation: skin-rank-spin 1s steps(12) infinite;"></div>
+    </div>
+
+    {# フラグメントコンテナ (fetchで差し替え) #}
+    <div x-ref="content" x-show="!loading" style="display: none;"></div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン (下) #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none; margin-top: 20px;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    function skinRankingShell() {
+        const BRAWLERS = {{ brawlers | map(attribute='id') | list | tojson | safe }};
+        const defaultBrawlerId = BRAWLERS.length > 0 ? String(BRAWLERS[0]) : 'all';
+        const FRAGMENT_BASE = '{{ url_for("skin_ranking_fragment", lang=lang) }}';
+
+        return {
+            selectedBrawlerId: defaultBrawlerId,
+            filterMode: 'all',
+            filterRarity: 'all',
+            sortMode: 'rate_desc',
+            loading: true,
+
+            async fetchFragment() {
+                this.loading = true;
+
+                // クエリパラメータを構築
+                const params = new URLSearchParams();
+                if (this.selectedBrawlerId !== 'all') {
+                    params.set('brawler_id', this.selectedBrawlerId);
+                }
+                params.set('filter_mode', this.filterMode);
+                params.set('filter_rarity', this.filterRarity);
+                params.set('sort', this.sortMode);
+
+                const url = FRAGMENT_BASE + '?' + params.toString();
+
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(res.statusText);
+                    const html = await res.text();
+                    this.$refs.content.innerHTML = html;
+                } catch (e) {
+                    console.error('フラグメント取得エラー:', e);
+                    this.$refs.content.innerHTML = '<p style="text-align:center;color:#888;padding:30px 0;">データの取得に失敗しました。</p>';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.back-button').forEach(btn => {
+            btn.addEventListener('click', () => history.back());
+        });
+    });
+    </script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{# /app/templates/stats/ranking/player.html - シェル（即時表示、フラグメントはクライアントで取得） #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}総合トロフィー{% if type == 'alltime' %}歴代{% endif %}ランキング{% else %}Player Leaderboards{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタの総合トロフィーのランキング(プレイヤーランキング)です。グローバルランキングとローカルランキングのどちらも閲覧でき、さらに現在のランキングと歴代のランキングの両方を確認できます。{% else %}Brawl Stars player leaderboards. View global and local leaderboards for both current and all-time rankings.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranking.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="stats-page__container ranking-page__container ranking-shell__container"
+     x-data="rankingFragmentLoader('{{ url_for("player_ranking_fragment", lang=lang) }}?type={{ type }}&region={{ region }}')"
+     x-init="load()">
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main ranking-page-title--main">{% if lang == "ja" %}総合トロフィーランキング{% else %}Player Leaderboards{% endif %}</h1>
+
+    <template x-if="isLoading">
+        <div class="ranking-shell__loading">
+            <div class="ranking-shell__spinner"></div>
+            <p class="ranking-shell__loading-text">{% if lang == "ja" %}ランキングを読み込み中...{% else %}Loading leaderboard...{% endif %}</p>
+        </div>
+    </template>
+
+    <template x-if="hasError">
+        <div class="ranking-shell__error">
+            <p>{% if lang == "ja" %}データの読み込みに失敗しました。{% else %}Failed to load data.{% endif %}</p>
+            <button class="button button--secondary" @click="load()">
+                {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+            </button>
+        </div>
+    </template>
+
+    <div x-show="!isLoading && !hasError" x-ref="content"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    function rankingFragmentLoader(url) {
+        return {
+            isLoading: true,
+            hasError: false,
+            async load() {
+                this.isLoading = true;
+                this.hasError = false;
+                try {
+                    const res = await fetch(url, { credentials: 'same-origin' });
+                    const html = await res.text();
+                    if (!html || !html.trim()) throw new Error('Empty response');
+                    const container = this.$refs.content;
+                    container.innerHTML = html;
+
+                    container.querySelectorAll('script').forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        if (!oldScript.src) {
+                            newScript.textContent = oldScript.textContent;
+                            oldScript.parentNode.replaceChild(newScript, oldScript);
+                        } else {
+                            oldScript.remove();
+                        }
+                    });
+
+                    if (!res.ok && !container.querySelector('.club-error-msg')) {
+                        throw new Error('HTTP ' + res.status);
+                    }
+                } catch (e) {
+                    console.error('Ranking fragment load error:', e);
+                    this.hasError = true;
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+        };
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelector('.ranking-shell__container')?.addEventListener('click', (e) => {
+            if (e.target.closest('.back-button')) history.back();
+        });
+    });
+    </script>
+{% endblock %}

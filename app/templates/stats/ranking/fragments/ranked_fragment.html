@@ -1,0 +1,101 @@
+{# /app/templates/stats/ranking/fragments/ranked_fragment.html #}
+<div class="ranking-fragment__content">
+    <nav class="tab-nav ranking-tab-nav">
+        <ul class="tab-nav__list">
+            <li class="tab-nav__item ranking-tab-nav__item">
+                <a {% if season == -1 %}href="?season=0&region={{ region }}"{% else %}href=""{% endif %} class="tab-nav__link {% if season != -1 %}tab-nav__link--active{% endif %}">{% if lang == "ja" %}シーズンごと{% else %}Season{% endif %}</a>
+            </li>
+            <li class="tab-nav__item ranking-tab-nav__item">
+                <a {% if season != -1 %}href="?season=-1&region={{ region }}"{% else %}href=""{% endif %} class="tab-nav__link {% if season == -1 %}tab-nav__link--active{% endif %}">{% if lang == "ja" %}歴代{% else %}All Time{% endif %}</a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="filters__container ranking-filters--ranked">
+        <form method="get" id="regionFilterForm" class="filter-form">
+            <input type="hidden" name="season" value="{{ season }}">
+            <label for="regionSelect" class="filter-form__label">{% if lang == "ja" %}地域:{% else %}Region:{% endif %}</label>
+            <select name="region" id="regionSelect" class="filter-form__select" onchange="document.getElementById('regionFilterForm').submit();">
+                <option value="global" {% if region == 'global' %}selected{% endif %}>{% if lang == "ja" %}グローバル{% else %}Global{% endif %}</option>
+                {% for r in (regions if season != -1 else regions[:1]) %}
+                    <option value="{{ r.code }}" {% if r.code == region %}selected{% endif %}>{{ r.ja if lang == 'ja' else r.en }}</option>
+                {% endfor %}
+            </select>
+             <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+        {% if season != -1 %}
+        <form method="get" id="seasonFilterForm" class="filter-form">
+            <input type="hidden" name="region" value="{{ region }}">
+            <label for="seasonSelect" class="filter-form__label">{% if lang == "ja" %}シーズン:{% else %}Season:{% endif %}</label>
+            <select name="season" id="seasonSelect" class="filter-form__select" onchange="document.getElementById('seasonFilterForm').submit();">
+                {% for s in seasons %}
+                    <option value="{{ s.index }}" {% if s.index == season %}selected{% endif %}>{% if lang == "ja" %}シーズン{% else %}Season {% endif %}{{ s.index }} {% if s.description_ja %}({{ s.description_ja if lang == 'ja' else s.description_en }}){% endif %}</option>
+                {% endfor %}
+            </select>
+             <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">{% if lang == "ja" %}各プレイヤーをクリックすると、そのプレイヤーのプロフィールページに移動します。ランキングに最新のポイントが反映されるまでに最大で約3分かかることがあります。{% if season != -1 %}シーズン番号は、旧パワーリーグが始まってからの通し番号となります。旧パワーリーグ時代のランキングは、ポイントの代わりに内部レートが掲載されています。{% else %}歴代ランキングにおいては、一部のプレイヤーのポイントが実際の最高ポイントより若干低く表示されることがあります。その場合は、一度でもBrawl Insightsで閲覧されれば正しい最高ポイントが反映されます。{% endif %}{% else %}Click on a player to go to their profile page. It may take up to 3 minutes for the leaderboards to reflect the latest score.{% if season == -1 %} On the all time leaderboards, some players' points may be displayed as slightly lower than their actual highest points. In that case, their correct highest points will be reflected once they have been viewed on Brawl Insights.{% endif %}{% endif %}</p>
+    </div>
+
+    {% if ranking %}
+        <div class="ranking-list-grid">
+            <div class="ranking-list ranking-list-column">
+                {% for player in ranking[:half_index] %}
+                    {% if loop.index0 % 10 == 0 and not loop.first %}<div style="margin-bottom: 10px;"></div>{% endif %}
+                    <a href="{{ url_for('get_player_profile', lang=lang, tag=player.tag[1:]) }}" class="card-link ranking-list__item-link">
+                        <div class="card ranking-list__item">
+                            <div class="button ranking-list__item-index button--secondary">{{ player.rank }}</div>
+                            <div class="ranking-list__item-main">
+                                <img src="{{ player.icon_path }}" alt="{{ player.name }} アイコン" class="ranking-list__item-player-icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                                <p class="ranking-list__item-name ranking-list__item-name--ranked">{{ player.name }}</p>
+                                <p class="ranking-list__item-tag">{{ player.tag }}</p>
+                            </div>
+                            <div style="display: flex; flex: 1;"></div>
+                            <div class="ranking-list__item-value">
+                                <img src="{{ url_for('static', path='/images/ranked_icons/' + player.ranked_rank|string + '.png') }}" alt="ガチバトルランク" class="ranking-list__item-ranked-icon" {% if player.ranked_rank == 22 %}style="height: 18px;"{% endif %}>
+                                <p class="ranking-list__item-score">{{ "{:,}".format(player.ranked_score) }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            {% if ranking|length > half_index %}
+            <div class="ranking-list ranking-list-column">
+                {% for player in ranking[half_index:] %}
+                    {% if loop.index0 % 10 == 0 and not loop.first %}<div style="margin-bottom: 10px;"></div>{% endif %}
+                    <a href="{{ url_for('get_player_profile', lang=lang, tag=player.tag[1:]) }}" class="card-link ranking-list__item-link">
+                        <div class="card ranking-list__item">
+                            <div class="button ranking-list__item-index button--secondary">{{ player.rank }}</div>
+                            <div class="ranking-list__item-main">
+                                <img src="{{ player.icon_path }}" alt="{{ player.name }} アイコン" class="ranking-list__item-player-icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                                <p class="ranking-list__item-name ranking-list__item-name--ranked">{{ player.name }}</p>
+                                <p class="ranking-list__item-tag">{{ player.tag }}</p>
+                            </div>
+                            <div style="display: flex; flex: 1;"></div>
+                            <div class="ranking-list__item-value">
+                                <img src="{{ url_for('static', path='/images/ranked_icons/' + player.ranked_rank|string + '.png') }}" alt="ガチバトルランク" class="ranking-list__item-ranked-icon" {% if player.ranked_rank == 22 %}style="height: 18px;"{% endif %}>
+                                <p class="ranking-list__item-score">{{ "{:,}".format(player.ranked_score) }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <p style="margin-top: 20px; text-align: center;">{% if lang == "ja" %}ランキングデータを取得できませんでした。申し訳ありませんが、しばらく待ってから再度お試しください。{% else %}Could not retrieve leaderboard data. Sorry, please wait a while and try again.{% endif %}</p>
+    {% endif %}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container" x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }" x-show="showManualBackButton" style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,109 @@
+{# /app/templates/help/about_the_technology.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}このサービスで使用している技術について{% else %}About the Technology Used on This Service{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}このサービスで使用している技術について紹介しています。{% else %}Learn about the technology used on this service.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/help.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="help-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main help-page-title--main">{% if lang == "ja" %}このサービスで使用している技術について{% else %}About the Technology Used on This Service{% endif %}</h1>
+
+    <div class="help-page__text">
+        {% if lang == "ja" %}
+            このページでは、このサービスに使用している技術やサービスについて紹介します。このサービスは、多くのオープンソースソフトウェアや開発者の方々の努力の上に成り立っています。この場を借りて、すべての貢献者の皆様に心より感謝申し上げます。
+        {% else %}
+            This page introduces the technologies and services used on this service. This service is built upon the efforts of many open-source software and developers. We would like to take this opportunity to express our sincere gratitude to all contributors.
+        {% endif %}
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">{% if lang == "ja" %}外部サービス・API{% else %}External Services & APIs{% endif %}</h2>
+    <div class="help-page__text">
+        {% if lang == "ja" %}
+            このサービスで表示されるデータの一部は、以下の外部サービス・APIから取得しています。
+            <div class="line-space"></div>
+            ・<b>Brawl Stars API</b> : プレイヤー、クラブ、ランキング等の公式ゲームデータの取得に使用。
+            <div class="line-space"></div>
+            ・<b>BrawlAPI</b> : 公式APIを補完する詳細なデータの取得に使用。
+            <div class="line-space"></div>
+            ・<b>BSInfo API</b> : 公式APIを補完する詳細なデータの取得に使用。
+            <div class="line-space"></div>
+            ・<b>BSInfo CDN</b> : 一部の画像アセットのホスティングと配信に使用。
+            <div class="line-space"></div>
+            ・<b>Brawlify CDN</b> : 一部の画像アセットのホスティングと配信に使用。
+        {% else %}
+            Some of the data displayed on this service is retrieved from the following external services and APIs.
+            <div class="line-space"></div>
+            ・<b>Brawl Stars API</b>: Used to retrieve official game data such as players, clubs, and rankings.
+            <div class="line-space"></div>
+            ・<b>BrawlAPI</b>: Used to retrieve detailed data that complements the official API.
+            <div class="line-space"></div>
+            ・<b>BSInfo API</b>: Used to retrieve detailed data that complements the official API.
+            <div class="line-space"></div>
+            ・<b>BSInfo CDN</b>: Used for hosting and delivering some of the image assets.
+            <div class="line-space"></div>
+            ・<b>Brawlify CDN</b>: Used for hosting and delivering some of the image assets.
+        {% endif %}
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">{% if lang == "ja" %}コア技術{% else %}Core Technologies{% endif %}</h2>
+    <div class="help-page__text">
+        {% if lang == "ja" %}
+            <div class="line-space"></div>
+            ・<b>バックエンド</b> : Python, FastAPI
+            <div class="line-space"></div>
+            ・<b>フロントエンド</b> : HTML, CSS, JavaScript
+            <div class="line-space"></div>
+            ・<b>データベース</b> : PostgreSQL, Redis
+        {% else %}
+            <div class="line-space"></div>
+            ・<b>Backend</b> : Python, FastAPI
+            <div class="line-space"></div>
+            ・<b>Frontend</b> : HTML, CSS, JavaScript
+            <div class="line-space"></div>
+            ・<b>Database</b> : PostgreSQL, Redis
+        {% endif %}
+    </div>
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

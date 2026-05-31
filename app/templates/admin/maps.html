@@ -1,0 +1,331 @@
+{# /app/templates/admin/maps.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / マップ情報管理{% endblock %}
+{% block og_description %}マップ情報を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="mapAdmin()"> {# ページ全体のコンテナ #}
+    <h1 class="page-title--main">マップ情報管理</h1>
+
+    <p class="admin-page__description">
+        マップ総数: <b>{{ maps|length }}</b>
+        <span style="display: inline-block; width: 5px;"></span>
+        うち日本語名未設定: <b>{{ maps | rejectattr('ja') | list | length }}</b>
+    </p>
+
+    <div class="save-changes-block">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table map-table">
+            <thead>
+                <th @click="sortBy('en')">
+                    <span>英語名</span>
+                    <span x-show="sortColumn === 'en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('ja')">
+                    <span>日本語名</span>
+                    <span x-show="sortColumn === 'ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+            </thead>
+            <tbody>
+                <template x-for="map_item in mapsData" :key="map_item.en">
+                    <tr x-data="mapRow(map_item)" x-init="initComponent()" :key="id">
+                        <td x-text="map_item.en"></td>
+                        <td
+                            contenteditable="true"
+                            class="is-editable"
+                            :class="{ 'changed': isDirty, 'show-placeholder': shouldShowPlaceholder && !isFocused }"
+                            :data-placeholder="(normalizeValue(currentJa) === '' && !isFocused) ? '未設定' : ''"
+                            @focus="handleFocus($el)"
+                            @blur="isFocused = false; handleInputOrBlur($el)"
+                            @input.debounce.200ms="handleInputOrBlur($el)"
+                        >
+                            {# 初期表示は initComponent で行うので、ここは空でOK #}
+                        </td>
+                    </tr>
+                </template>
+                {# マップデータがない場合の表示 #}
+                <template x-if="mapsData.length === 0">
+                    <tr>
+                        <td colspan="2" style="text-align: center; color: #777;">マップデータがありません</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="save-changes-block" style="margin-top: 0;">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+        :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+        x-text="saveStatus.message" style="margin-top: -5px;">
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }} {# base.htmlのscriptsブロックを継承する場合 #}
+    <script>
+        function mapAdmin() {
+            return {
+                mapsData: {{ maps | tojson | safe }}, // 初期データ
+                sortColumn: null, // 現在ソート中の列 ('en' または 'ja')
+                sortDirection: 'asc', // 'asc' または 'desc'
+
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+
+                init() {
+                    this.checkForAnyChanges();
+                    // 各行からの変更通知を受け取るために、イベントリスナーをルート要素に追加
+                    this.$root.addEventListener('rowinputchanged', () => {
+                        this.$nextTick(() => {
+                            this.checkForAnyChanges();
+                        });
+                    });
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault();
+                            event.returnValue = '';
+                        }
+                    });
+                },
+
+                checkForAnyChanges() {
+                    // console.log("checkForAnyChanges called");
+                    let changesFound = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData) { // rowData が取得できるか確認
+                            // console.log(`Checking row ${rowData.id}, isDirty: ${rowData.isDirty}`); // 追加
+                            if (rowData.isDirty) {
+                                changesFound = true;
+                            }
+                        }
+                    });
+                    this.hasUnsavedChanges = changesFound;
+                    // console.log(`hasUnsavedChanges set to: ${this.hasUnsavedChanges}`);
+                },
+
+                sortBy(column) {
+                    if (this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+
+                    this.mapsData.sort((a, b) => {
+                        // 比較する値を取得 (null や空文字列を考慮)
+                        // ここでは normalizeValue は使わず、直接値を比較し、null を最後に持っていく
+                        let valA = a[column];
+                        let valB = b[column];
+
+                        // null または "None" (文字列) または空文字列を評価
+                        const isEmpty = (val) => val === null || val === "None" || String(val).trim() === "";
+                        
+                        const aIsEmpty = isEmpty(valA);
+                        const bIsEmpty = isEmpty(valB);
+
+                        if (aIsEmpty && bIsEmpty) return 0;
+                        // 空の値を常に最初にする
+                        if (aIsEmpty) return -1; // aが空ならbより大きい(前)
+                        if (bIsEmpty) return 1; // bが空ならaより大きい(前) -> aが小さい(後)
+
+                        // 文字列としてロケール依存の比較
+                        let comparison = String(valA).localeCompare(String(valB), 'ja-JP-u-kf-upper', { sensitivity: 'base', numeric: true });
+
+                        return this.sortDirection === 'asc' ? comparison : comparison * -1;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.checkForAnyChanges(); // 確認前に最新の状態を反映
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus.message = '変更点はありません。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    const changedMaps = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const alpineData = Alpine.$data(rowEl);
+                        if (alpineData.isDirty) { // isDirty は getter
+                            changedMaps.push({
+                                en: alpineData.id,
+                                ja: alpineData.normalizeValue(alpineData.currentJa)
+                            });
+                        }
+                    });
+
+                    if (changedMaps.length === 0) {
+                        // このケースは hasUnsavedChanges が false のはずなので、通常は通らない
+                        this.saveStatus.message = '変更点はありませんでした。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    if (confirm(`${changedMaps.length}件のマップ名が変更されています。すべての変更を保存しますか？`)) {
+                        this.saveChanges(changedMaps);
+                    }
+                },
+
+                async saveChanges(mapsToUpdate) {
+                    this.saveStatus.message = '保存中...';
+                    this.saveStatus.success = false;
+
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_maps', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ maps: mapsToUpdate })
+                        });
+                        const data = await response.json();
+                        this.saveStatus.message = data.message;
+                        this.saveStatus.success = data.success;
+
+                        if (data.success) {
+                            // 保存成功後、ページをリロード (警告なし)
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        console.error('Error saving map names:', error);
+                        this.saveStatus.message = '保存中にエラーが発生しました。';
+                        this.saveStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                    }
+                }
+            }
+        }
+
+        function mapRow(mapItemFromFor) {
+            return {
+                id: mapItemFromFor.en,
+                initialJa: null, // x-init で設定
+                currentJa: null, // x-init で設定
+                isDirty: false,
+                isFocused: false,
+                shouldShowPlaceholder: false,
+                
+                // x-for から渡された初期の map_item を保持 (ソートによる変更の影響を受けないように)
+                // ただし、この mapItemDataForInit も x-for の map_item を参照するため、
+                // ソートで map_item が変わると、この参照も変わってしまう。
+                // 根本的には、initialJa はコンポーネントがDOMにアタッチされた瞬間の値で固定する必要がある。
+                // x-init がキーによる再利用時にも再実行されないことを利用する。
+                
+                normalizeValue(value) {
+                    if (value === null || typeof value === "undefined" || String(value).trim() === "" || String(value).trim() === "None") {
+                        return "";
+                    }
+                    return String(value).trim();
+                },
+
+                updatePlaceholderVisibility() {
+                    this.shouldShowPlaceholder = this.normalizeValue(this.currentJa) === "";
+                },
+
+                calculateIsDirty() {
+                    // normalizeValue を使わずに、より厳密な比較を試す
+                    let initial = this.initialJa; // initComponentで正規化済みのはず
+                    let current = this.currentJa;
+
+                    // initialJa は initComponent で normalizeValue されているので、"" か実際の値。
+                    // currentJa はユーザー入力の trim() された値か、初期値。
+                    
+                    // currentJa が null や undefined の場合も考慮
+                    let normalizedCurrent = (current === null || typeof current === "undefined") ? "" : String(current).trim();
+                    if (normalizedCurrent === "None") normalizedCurrent = ""; // "None"文字列も空として扱う
+
+                    this.isDirty = initial !== normalizedCurrent;
+                    // console.log(`Row ID: ${this.id}, initial: "${initial}" (type: ${typeof initial}), currentJa: "${current}" (type: ${typeof current}), normalizedCurrent: "${normalizedCurrent}", isDirty: ${this.isDirty}`);
+                },
+
+                handleInputOrBlur(eventTarget) {
+                    const trimmedValue = eventTarget.textContent.trim();
+
+                    // currentJa の更新は、実際の値が変更された場合のみに限定
+                    if (this.currentJa !== trimmedValue) {
+                        this.currentJa = trimmedValue; // これが $watch をトリガーする
+                    }
+                    // $watch が currentJa の変更を検知して calculateIsDirty を呼び出す
+                    
+                    this.updatePlaceholderVisibility(); // isDirty更新後にplaceholder状態を更新
+                    
+                    if (trimmedValue === "") {
+                        this.$nextTick(() => {
+                            if (eventTarget.innerHTML !== "") {
+                                eventTarget.innerHTML = "";
+                            }
+                        });
+                    }
+                },
+
+                handleFocus(eventTarget) {
+                    this.isFocused = true;
+                    this.shouldShowPlaceholder = false;
+                    if (this.normalizeValue(this.currentJa) === "" && eventTarget.textContent.trim() === "未設定") {
+                        eventTarget.textContent = "";
+                    } else if (this.currentJa === "None" && eventTarget.textContent.trim() === "None") {
+                        eventTarget.textContent = "";
+                    }
+                },
+
+                initComponent() {
+                    const tdElement = this.$el.querySelector("td.is-editable");
+                    
+                    // initialJaは、コンポーネント初期化時のmapItemFromFor.jaを正規化したもので固定
+                    this.initialJa = this.normalizeValue(mapItemFromFor.ja === "None" ? null : mapItemFromFor.ja);
+                    this.currentJa = (mapItemFromFor.ja === "None" ? null : mapItemFromFor.ja); // currentJaの初期値
+                    
+                    if (tdElement) {
+                        // tdElement の初期のtextContentは、プレースホルダーロジックも考慮して設定
+                        if (this.normalizeValue(this.currentJa) === "") {
+                            // CSSでdata-placeholderを表示させるので、tdの中身は空にするか、
+                            // もしくはプレースホルダー自体をtextContentに入れるかはCSSの実装による。
+                            // ここでは、プレースホルダーはCSSで表示する前提で空にする。
+                            tdElement.textContent = ""; 
+                        } else {
+                            tdElement.textContent = this.currentJa;
+                        }
+                    }
+
+                    this.calculateIsDirty(); // isDirtyを初期計算
+                    this.updatePlaceholderVisibility(); // 初期プレースホルダー状態
+
+                    this.$watch('currentJa', (newValue, oldValue) => {
+                        // currentJa が変更されたら isDirty を再計算し、親に通知
+                        this.calculateIsDirty();
+                        this.updatePlaceholderVisibility();
+                        this.$dispatch('rowinputchanged');
+                    });
+                }
+            }
+        }
+
+        // Alpine.jsの初期化
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('mapAdmin', mapAdmin);
+            Alpine.data('mapRow', mapRow); // 新しいコンポーネントを登録
+        });
+        </script>
+{% endblock %}

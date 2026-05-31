@@ -1,0 +1,455 @@
+{# /app/templates/tools/reward_calc.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 報酬量計算機{% else %}Brawl Pass Reward Calculator{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタパス／プロパスの報酬量計算機です。現在のグレードから、残りの報酬量を簡単に計算できます。{% else %}Brawl Pass / Pro Pass reward calculator. You can easily calculate the remaining rewards from your current tier.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}報酬量計算機{% else %}Reward Calculator{% endif %}</h1>
+
+    <div x-data>
+        {#^ ブロスタパスセクション #}
+        <div class="tools-page__section" x-data="brawlPassCalculator()" x-init="calculateRewards()">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}ブロスタパス{% else %}Brawl Pass{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div x-show="open" x-transition>
+                <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}下のメニューから、現在のグレードや無料／有料分のどれを適用するかを選択して、ブロスタパスの残りの合計報酬量を計算できます。{% else %}From the menu below, you can select your current tier and which passes to include (free/paid) to calculate the total remaining rewards for the Brawl Pass.{% endif %}</p>
+                
+                <div class="filters__container cost-calc-filters">
+                    <div class="filter-form">
+                        <label class="filter-form__label reward-filter-form__label">{% if lang == "ja" %}現在のグレード:{% else %}Current Tier:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="currentTier" @change="calculateRewards()">
+                            <option value="-1">-</option>
+                            {% for i in range(61) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <p class="info-block__text block reward-info-block__text">
+                        {% if lang == "ja" %}
+                            <template x-if="currentTier < maxTier">
+                                <span x-html="`<b>グレード${currentTier + 1}</b>以降の報酬量が計算されて表示されます。`"></span>
+                            </template>
+                            <template x-if="currentTier >= maxTier">
+                                <span>現在のグレードが最大グレードであるため、残りの報酬量は0となります。</span>
+                            </template>
+                        {% else %}
+                            <template x-if="currentTier < maxTier">
+                                <span x-html="`The rewards from <b>Tier ${currentTier + 1}</b> onwards will be calculated and displayed.`"></span>
+                            </template>
+                            <template x-if="currentTier >= maxTier">
+                                <span>Since the current tier is the maximum, the remaining rewards will be 0.</span>
+                            </template>
+                        {% endif %}
+                    </p>
+                    <div class="pass-filters">
+                        <p class="pass-filters-label">{% if lang == "ja" %}含めるパスの種類{% else %}Pass Types to Include{% endif %}</p>
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="includeFree" @change="calculateRewards()" checked>
+                            <label class="form-checkbox-label">{% if lang == "ja" %}無料パス{% else %}Free Pass{% endif %}</label>
+                        </div>
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="includeBrawlPass" @change="calculateRewards()" checked>
+                            <label class="form-checkbox-label">{% if lang == "ja" %}ブロスタパス{% else %}Brawl Pass{% endif %}</label>
+                        </div>
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="includeBrawlPassPlus" @change="calculateRewards()" checked>
+                            <label class="form-checkbox-label">{% if lang == "ja" %}ブロスタパス＋{% else %}Brawl Pass Plus{% endif %}</label>
+                        </div>
+                    </div>
+                    <div class="pass-filters">
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="calculatePaidFromStart" @change="calculateRewards()">
+                            <label class="form-checkbox-label">{% if lang == "ja" %}有料分はグレード0からの全報酬を計算{% else %}Calculate paid rewards from Tier 0{% endif %}</label>
+                        </div>
+                    </div>
+                    <p class="info-block__text block reward-info-block__text" style="margin-top: -7px;">
+                        {% if lang == "ja" %}
+                            有効にすると、有料パスの報酬分に限り、上で設定した現在のグレードにかかわらずグレード0からの全報酬が計算されます。シーズン途中まで無料パスのみで進めたものの、後から有料パスを購入して報酬を受け取るケースの計算に便利です。
+                        {% else %}
+                            When enabled, rewards for paid passes will be calculated from Tier 0, regardless of the current tier set above. This is useful for calculating the total rewards if you purchase a paid pass after progressing partway through the season with only the free pass.
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="cost__container">
+                    <h3 class="cost-section-title">{% if lang == "ja" %}合計報酬量{% else %}Total Reward{% endif %}</h3>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/power_point.png') }}" alt="{% if lang == 'ja' %}パワーポイント{% else %}Power Points{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.powerPoints.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/coin.png') }}" alt="{% if lang == 'ja' %}コイン{% else %}Coins{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.coins.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/credit.png') }}" alt="{% if lang == 'ja' %}クレジット{% else %}Credits{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.credits.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/bling.png') }}" alt="{% if lang == 'ja' %}ジュエルチップ{% else %}Bling{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.bling.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/gem.png') }}" alt="{% if lang == 'ja' %}エメラルド{% else %}Gems{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.gems.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}スタードロップ{% else %}Starr Drops{% endif %}" class="cost-image cost-image--big">
+                        <p class="cost-text" x-text="totals.starrDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}スタードロップ{% else %}Starr Drops{% endif %}" class="cost-image cost-image--big">
+                        <p class="cost-label cost-label--legendary">{% if lang == "ja" %}レジェンドレア{% else %}Legendary{% endif %}</p>
+                        <p class="cost-text" x-text="totals.legendaryStarrDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/chaosdrop.png') }}" alt="{% if lang == 'ja' %}カオスドロップ{% else %}Chaos Drops{% endif %}" class="cost-image cost-image--big">
+                        <p class="cost-text" x-text="totals.chaosDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/megabox.png') }}" alt="{% if lang == 'ja' %}メガボックス{% else %}Mega Boxes{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.megaBoxes.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/vault_key_ressources.png') }}" alt="{% if lang == 'ja' %}資源のカギ{% else %}Resource Keys{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.resourceKeys.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/vault_key_buffies.png') }}" alt="{% if lang == 'ja' %}バフィーのカギ{% else %}Buffie Keys{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.buffieKeys.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/vault_key_brawlers.png') }}" alt="{% if lang == 'ja' %}キャラクターのカギ{% else %}Brawler Keys{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.brawlerKeys.toLocaleString()"></p>
+                    </div>
+                </div>
+                <p class="info-block__text block total-reward-info-block__text">
+                    {% if lang == "ja" %}
+                        スキンやピンズなどの資源以外の報酬、パス完了後のボーナス報酬は掲載していません。資源のカギは<b>2,000パワーポイント</b>、<b>2,000コイン</b>、<b>5,000ジュエルチップ</b>のいずれかと、バフィーのカギは好きなバフィーと、キャラクターのカギは<b>1つ</b>で<b>ハイパーレア</b>キャラ、<b>2つ</b>で<b>ウルトラレア</b>キャラ、<b>4つ</b>で<b>レジェンドレア</b>キャラ、<b>6つ</b>で<b>ウルトラレジェンドレア</b>キャラと交換できます。
+                    {% else %}
+                        Rewards other than resources, such as skins and pins, and bonus rewards after pass completion are not listed.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        {#^ プロパスセクション #}
+        <div class="tools-page__section" x-data="proPassCalculator()" x-init="calculateRewards()">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}プロパス{% else %}Pro Pass{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div x-show="open" x-transition>
+                <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}下のメニューから、現在のグレードや無料／有料分のどれを適用するかを選択して、プロパスの残りの合計報酬量を計算できます。{% else %}From the menu below, you can select your current tier and which passes to include (free/paid) to calculate the total remaining rewards for the Pro Pass.{% endif %}</p>
+                
+                <div class="filters__container cost-calc-filters">
+                    <div class="filter-form">
+                        <label class="filter-form__label reward-filter-form__label">{% if lang == "ja" %}現在のグレード:{% else %}Current Tier:{% endif %}</label>
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="currentTier" @change="calculateRewards()">
+                            {% for i in range(101) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <p class="info-block__text block reward-info-block__text">
+                        {% if lang == "ja" %}
+                            <template x-if="currentTier < maxTier">
+                                <span x-html="`<b>グレード${currentTier + 1}</b>以降の報酬量が計算されて表示されます。`"></span>
+                            </template>
+                            <template x-if="currentTier >= maxTier">
+                                <span>現在のグレードが最大グレードであるため、残りの報酬量は0となります。</span>
+                            </template>
+                        {% else %}
+                            <template x-if="currentTier < maxTier">
+                                <span x-html="`The rewards from <b>Tier ${currentTier + 1}</b> onwards will be calculated and displayed.`"></span>
+                            </template>
+                            <template x-if="currentTier >= maxTier">
+                                <span>Since the current tier is the maximum, the remaining rewards will be 0.</span>
+                            </template>
+                        {% endif %}
+                    </p>
+                    <div class="pass-filters">
+                        <p class="pass-filters-label">{% if lang == "ja" %}含めるパスの種類{% else %}Pass Types to Include{% endif %}</p>
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="includeFree" @change="calculateRewards()" checked>
+                            <label class="form-checkbox-label">{% if lang == "ja" %}無料パス{% else %}Free Pass{% endif %}</label>
+                        </div>
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="includeProPass" @change="calculateRewards()" checked>
+                            <label class="form-checkbox-label">{% if lang == "ja" %}プロパス{% else %}Pro Pass{% endif %}</label>
+                        </div>
+                    </div>
+                    <div class="pass-filters">
+                        <div class="form-checkbox-group">
+                            <input type="checkbox" class="form-checkbox" x-model="calculatePaidFromStart" @change="calculateRewards()">
+                            <label class="form-checkbox-label">{% if lang == "ja" %}有料分はグレード1からの全報酬を計算{% else %}Calculate paid rewards from Tier 1{% endif %}</label>
+                        </div>
+                    </div>
+                    <p class="info-block__text block reward-info-block__text" style="margin-top: -7px;">
+                        {% if lang == "ja" %}
+                            有効にすると、有料パスの報酬分に限り、上で設定した現在のグレードにかかわらずグレード1からの全報酬が計算されます。シーズン途中まで無料パスのみで進めたものの、後から有料パスを購入して報酬を受け取るケースの計算に便利です。
+                        {% else %}
+                            When enabled, rewards for paid passes will be calculated from Tier 1, regardless of the current tier set above. This is useful for calculating the total rewards if you purchase a paid pass after progressing partway through the season with only the free pass.
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="cost__container">
+                    <h3 class="cost-section-title">{% if lang == "ja" %}合計報酬量{% else %}Total Reward{% endif %}</h3>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/coin.png') }}" alt="{% if lang == 'ja' %}コイン{% else %}Coins{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.coins.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/gem.png') }}" alt="{% if lang == 'ja' %}エメラルド{% else %}Gems{% endif %}" class="cost-image">
+                        <p class="cost-text" x-text="totals.gems.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}スタードロップ{% else %}Starr Drops{% endif %}" class="cost-image cost-image--big">
+                        <p class="cost-text" x-text="totals.starrDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}スタードロップ{% else %}Starr Drops{% endif %}" class="cost-image cost-image--big">
+                        <p class="cost-label cost-label--mythic">{% if lang == "ja" %}ウルトラレア{% else %}Mythic{% endif %}</p>
+                        <p class="cost-text" x-text="totals.mythicStarrDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}スタードロップ{% else %}Starr Drops{% endif %}" class="cost-image cost-image--big">
+                        <p class="cost-label cost-label--legendary">{% if lang == "ja" %}レジェンドレア{% else %}Legendary{% endif %}</p>
+                        <p class="cost-text" x-text="totals.legendaryStarrDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="{% if lang == 'ja' %}ガチバトルスタードロップ{% else %}Ranked Starr Drops{% endif %}" class="cost-image cost-image--semi-big">
+                        <p class="cost-text" x-text="totals.rankedStarrDrops.toLocaleString()"></p>
+                    </div>
+                    <div class="cost">
+                        <img src="{{ url_for('static', path='/images/ui/hypercharge_drop.png') }}" alt="{% if lang == 'ja' %}ハイパーチャージスタードロップ{% else %}Hypercharge Starr Drops{% endif %}" class="cost-image cost-image--semi-big">
+                        <p class="cost-text" x-text="totals.hyperchargeStarrDrops.toLocaleString()"></p>
+                    </div>
+                </div>
+                <p class="info-block__text block total-reward-info-block__text">
+                    {% if lang == "ja" %}
+                        スキンやピンズなどの資源以外の報酬、パス完了後のボーナス報酬は掲載していません。
+                    {% else %}
+                        Rewards other than resources, such as skins and pins, and bonus rewards after pass completion are not listed.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+        // ブロスタパスの報酬データ
+        const brawlPassRewards = {
+            free: {
+                coins: {2: 1000, 8: 1000, 14: 1000, 20: 1000, 22: 1000, 30: 1000, 34: 1000, 36: 1000, 40: 1000, 44: 1000, 48: 500, 52: 1000, 58: 1000},
+                powerPoints: {1: 1000, 10: 1000, 24: 500, 49: 200, 54: 200, 57: 200, 59: 500},
+                credits: {4: 200, 12: 200, 16: 100, 25: 500, 28: 100, 32: 200, 46: 100},
+                bling: {56: 200},
+                gems: {6: 10, 18: 10, 26: 10, 38: 10, 42: 10},
+                starrDrops: {7: 1, 9: 1, 11: 1, 13: 1, 15: 1, 17: 1, 19: 1, 23: 1, 27: 1, 31: 1, 33: 1, 35: 1, 39: 1, 41: 1, 45: 1, 47: 1, 51: 1, 53: 1},
+                legendaryStarrDrops: {50: 1},
+                chaosDrops: {5: 1, 21: 1, 29: 1, 37: 1, 43: 1, 60: 1},
+                megaBoxes: {3: 1, 55: 1},
+                resourceKeys: {0: 1}
+            },
+            brawlPass: {
+                coins: {1: 1000, 14: 500, 20: 1000, 34: 1000, 40: 500, 42: 1000, 44: 1000, 48: 1000, 51: 500, 55: 1000, 57: 1000},
+                powerPoints: {2: 500, 10: 500, 24: 500, 30: 500, 50: 500},
+                credits: {4: 100, 8: 100, 12: 100, 16: 100, 22: 100, 25: 1000, 28: 100, 32: 100, 33: 200, 36: 100, 46: 100, 49: 100, 53: 100, 58: 200},
+                bling: {3: 1000, 7: 100, 9: 500, 11: 100, 15: 100, 19: 500, 23: 100, 27: 100, 31: 100, 35: 100, 39: 100, 43: 100, 47: 100, 52: 100, 56: 100},
+                gems: {6: 10, 18: 10, 26: 10, 38: 10, 41: 10},
+                resourceKeys: {0: 1},
+                brawlerKeys: {54: 1}
+            },
+            brawlPassPlus: {
+                coins: {5: 3000},
+                powerPoints: {6: 1500},
+                bling: {7: 1500},
+                gems: {1: 100},
+                resourceKeys: {3: 1},
+                buffieKeys: {0: 1},
+                brawlerKeys: {4: 1}
+            }
+        };
+
+        // 旧バージョン (使用しない)
+        const oldBrawlPassRewards = {
+            free: {
+                coins: {0: 1000, 2: 1000, 14: 1000, 20: 1000, 30: 1000, 34: 1000, 40: 1000, 44: 1000, 48: 3500},
+                powerPoints: {1: 1000, 10: 1000, 24: 1000},
+                credits: {4: 100, 8: 100, 12: 100, 16: 100, 22: 100, 25: 300, 28: 100, 32: 100, 36: 100, 46: 100, 49: 100},
+                bling: {},
+                gems: {6: 10, 18: 10, 26: 10, 38: 10, 42: 10},
+                starrDrops: {3: 1, 5: 1, 7: 1, 9: 1, 11: 1, 13: 1, 15: 1, 17: 1, 19: 1, 21: 1, 23: 1, 27: 1, 29: 1, 31: 1, 33: 1, 35: 1, 37: 1, 39: 1, 41: 1, 43: 1, 45: 1, 47: 1},
+                legendaryStarrDrops: {50: 1}
+            },
+            brawlPass: {
+                coins: {2: 1000, 14: 1000, 20: 1000, 30: 1000, 34: 1000, 40: 1000, 44: 1000, 48: 1000},
+                powerPoints: {10: 1000, 24: 1000},
+                credits: {4: 100, 8: 100, 12: 100, 16: 100, 22: 100, 25: 1000, 28: 100, 32: 100, 36: 100, 46: 100, 49: 100},
+                bling: {0: 1000, 3: 100, 7: 100, 11: 100, 15: 100, 19: 100, 23: 100, 27: 100, 31: 100, 35: 100, 39: 100, 43: 100, 47: 100},
+                gems: {6: 10, 18: 10, 26: 10, 38: 10, 42: 10}
+            },
+            brawlPassPlus: {
+                coins: {2: 1500, 44: 1500},
+                powerPoints: {10: 1500},
+                bling: {0: 1500},
+                gems: {6: 10, 18: 10, 26: 10, 38: 10, 42: 10}
+            }
+        };
+
+        // プロパスの報酬データ
+        const proPassRewards = {
+            free: {
+                gems: {14: 5, 21: 5, 34: 5, 41: 5, 54: 5, 61: 5, 74: 5, 81: 5, 94: 5, 98: 5},
+                starrDrops: {3: 1, 7: 1, 9: 1, 11: 1, 13: 1, 17: 1, 23: 1, 27: 1, 29: 1, 31: 1, 33: 1, 37: 1, 43: 1, 47: 1, 49: 1, 51: 1, 53: 1, 57: 1, 59: 1, 63: 1, 67: 1, 69: 1, 71: 1, 73: 1, 77: 1, 79: 1, 83: 1, 87: 1, 89: 1, 93: 1, 97: 1},
+                mythicStarrDrops: {15: 1, 25: 1, 45: 1, 55: 1, 65: 1, 75: 1, 85: 1, 95: 1},
+                legendaryStarrDrops: {5: 1, 20: 1, 35: 1, 40: 1, 50: 1, 70: 1, 90: 1, 99: 1},
+                rankedStarrDrops: {2: 1, 4: 1, 6: 1, 8: 1, 12: 1, 16: 1, 18: 1, 22: 1, 24: 1, 26: 1, 28: 1, 32: 1, 36: 1, 38: 1, 42: 1, 44: 1, 46: 1, 48: 1, 52: 1, 56: 1, 58: 1, 62: 1, 64: 1, 66: 1, 68: 1, 72: 1, 76: 1, 78: 1, 82: 1, 84: 1, 86: 1, 88: 1, 92: 1, 96: 1},
+                hyperchargeStarrDrops: {1: 1}
+            },
+            proPass: {
+                coins: {1: 10000},
+                gems: {2: 10, 3: 5, 4: 10, 6: 10, 7: 5, 8: 10, 9: 5, 11: 5, 12: 10, 13: 5, 14: 10, 16: 10, 17: 5, 18: 10, 19: 5, 21: 5, 22: 10, 23: 5, 24: 10, 26: 10, 27: 5, 28: 10, 29: 5, 31: 5, 32: 10, 33: 5, 34: 10, 36: 10, 37: 5, 38: 10, 39: 5, 41: 5, 42: 10, 43: 5, 44: 10, 46: 10, 47: 5, 48: 10, 49: 5, 51: 5, 52: 10, 53: 5, 54: 10, 56: 10, 57: 5, 58: 10, 59: 5, 61: 5, 62: 10, 63: 5, 64: 10, 66: 10, 67: 5, 68: 10, 69: 5, 71: 5, 72: 10, 73: 5, 74: 10, 76: 10, 77: 5, 78: 10, 79: 5, 81: 5, 82: 10, 83: 5, 84: 10, 86: 10, 87: 5, 88: 10, 89: 5, 91: 5, 92: 10, 93: 5, 94: 10, 96: 10, 97: 5, 98: 10, 99: 10}
+            }
+        };
+
+        // ブロスタパス計算機コンポーネント
+        function brawlPassCalculator() {
+            return {
+                open: true,
+                currentTier: -1,
+                maxTier: 60,
+                includeFree: true,
+                includeBrawlPass: true,
+                includeBrawlPassPlus: true,
+                calculatePaidFromStart: false,
+                totals: {
+                    powerPoints: 0, coins: 0, credits: 0,
+                    bling: 0, gems: 0, starrDrops: 0, legendaryStarrDrops: 0,
+                    chaosDrops: 0, megaBoxes: 0, resourceKeys: 0, buffieKeys: 0, brawlerKeys: 0
+                },
+
+                calculateRewards() {
+                    // 合計をリセット
+                    for (let key in this.totals) { this.totals[key] = 0; }
+
+                    const freeStartTier = this.currentTier + 1;
+                    const paidStartTier = this.calculatePaidFromStart ? 0 : this.currentTier + 1;
+                    
+                    const passesToCalculate = [];
+                    if (this.includeFree) passesToCalculate.push({ type: 'free', start: freeStartTier });
+                    if (this.includeBrawlPass) passesToCalculate.push({ type: 'brawlPass', start: paidStartTier });
+                    if (this.includeBrawlPassPlus) passesToCalculate.push({ type: 'brawlPassPlus', start: paidStartTier });
+
+                    for (const pass of passesToCalculate) {
+                        const passData = brawlPassRewards[pass.type];
+                        if (!passData) continue;
+
+                        for (const resource in this.totals) {
+                            if (!passData[resource]) continue;
+                            for (let i = pass.start; i <= this.maxTier; i++) {
+                                if (passData[resource][i] !== undefined) {
+                                    this.totals[resource] += passData[resource][i];
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        // プロパス計算機コンポーネント
+        function proPassCalculator() {
+            return {
+                open: true,
+                currentTier: 0,
+                maxTier: 100,
+                includeFree: true,
+                includeProPass: true,
+                calculatePaidFromStart: false,
+                totals: {
+                    coins: 0, gems: 0, starrDrops: 0, mythicStarrDrops: 0,
+                    legendaryStarrDrops: 0, rankedStarrDrops: 0, hyperchargeStarrDrops: 0
+                },
+
+                calculateRewards() {
+                    // 合計をリセット
+                    for (let key in this.totals) { this.totals[key] = 0; }
+
+                    const freeStartTier = this.currentTier + 1;
+                    const paidStartTier = this.calculatePaidFromStart ? 1 : this.currentTier + 1;
+
+                    const passesToCalculate = [];
+                    if (this.includeFree) passesToCalculate.push({ type: 'free', start: freeStartTier });
+                    if (this.includeProPass) passesToCalculate.push({ type: 'proPass', start: paidStartTier });
+
+                    for (const pass of passesToCalculate) {
+                        const passData = proPassRewards[pass.type];
+                        if (!passData) continue;
+
+                        for (const resource in this.totals) {
+                            if (!passData[resource]) continue;
+                            for (let i = pass.start; i <= this.maxTier; i++) {
+                                if (passData[resource][i] !== undefined) {
+                                    this.totals[resource] += passData[resource][i];
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+        }
+    </script>
+{% endblock %}

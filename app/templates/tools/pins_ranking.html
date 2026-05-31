@@ -1,0 +1,110 @@
+{# /app/templates/tools/pins_ranking.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 ピンズ使用率ランキング{% else %}Battle Card Pin Usage Ranking{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのバトルカードのピンズ使用率ランキングです。使用率の高い順・低い順でランキングを閲覧できます。データは毎日更新されます。{% else %}Brawl Stars battle card pin usage ranking. Sort by highest or lowest usage rate. Updated daily.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranked_stats.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container"
+     x-data="pinsRankingShell()"
+     x-init="fetchFragment()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main skin-ranking-page-title--main">{% if lang == "ja" %}バトルカードピンズ使用率ランキング{% else %}Battle Card Pin Usage Ranking{% endif %}</h1>
+
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">
+            {% if lang == "ja" %}多くのアクティブなプレイヤーデータから集計した、バトルカードの装備ピンズの使用率をランキングでまとめています。データは毎日更新されます。
+            <br>「？」マークで表示されているピンズは、新しいピンズのため、画像準備中となります。申し訳ございません。
+            <br>キャラに装備しているピンズではなく、バトルカードに装備しているピンズのランキングとなります。キャラに装備しているピンズの情報は外部から取得できないため、ランキングを見ることはできません。ご了承ください。
+            {% else %}This ranking summarizes the usage rate of battle card pins, aggregated from a large amount of active player data. Updated daily.
+            <br>If a pin is shown with a '?', that pin is newly added and its image is still being prepared. We apologize for the inconvenience.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="skin-list-sort-buttons" style="grid-template-columns: 1fr 1fr; margin-bottom: 12px;">
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_desc' }" @click="sortMode = 'rate_desc'; fetchFragment()">
+            <span>{% if lang == "ja" %}使用率が高い順{% else %}Usage (High→Low){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_asc' }" @click="sortMode = 'rate_asc'; fetchFragment()">
+            <span>{% if lang == "ja" %}使用率が低い順{% else %}Usage (Low→High){% endif %}</span>
+        </div>
+    </div>
+
+    <div x-show="loading" style="display: flex; flex-direction: column; width: 100%; align-items: center; justify-content: center; min-height: 200px; gap: 14px; padding: 40px 0;">
+        <div style="width: 48px; height: 48px; background-color: var(--color-888, #888); margin: 0 auto;
+            -webkit-mask-image: url(&quot;data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E&quot;);
+            mask-image: url(&quot;data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E&quot;);
+            -webkit-mask-size: cover; mask-size: cover;
+            animation: skin-rank-spin 1s steps(12) infinite;"></div>
+    </div>
+
+    <div x-ref="content" x-show="!loading" style="display: none;"></div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none; margin-top: 20px;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    function pinsRankingShell() {
+        const FRAGMENT_BASE = '{{ url_for("pins_ranking_fragment", lang=lang) }}';
+
+        return {
+            sortMode: 'rate_desc',
+            loading: true,
+
+            async fetchFragment() {
+                this.loading = true;
+
+                const params = new URLSearchParams();
+                params.set('sort', this.sortMode);
+
+                const url = FRAGMENT_BASE + '?' + params.toString();
+
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(res.statusText);
+                    const html = await res.text();
+                    this.$refs.content.innerHTML = html;
+                } catch (e) {
+                    console.error('フラグメント取得エラー:', e);
+                    this.$refs.content.innerHTML = '<p style="text-align:center;color:#888;padding:30px 0;">データの取得に失敗しました。</p>';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.back-button').forEach(btn => {
+            btn.addEventListener('click', () => history.back());
+        });
+    });
+    </script>
+{% endblock %}

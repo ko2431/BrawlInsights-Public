@@ -1,0 +1,26 @@
+{# /app/templates/club/fragments/profile_error.html #}
+{% if error_type == "not_found" %}
+<div class="club-page__container">
+    <div class="club-error-msg">
+        {% if lang == "ja" %}
+        <h2>クラブが見つかりませんでした</h2>
+        <p>クラブタグ<b>{{ tag }}</b>に一致するクラブは見つかりませんでした。<br>クラブタグをもう一度ご確認ください。</p>
+        {% else %}
+        <h2>Club Not Found</h2>
+        <p>No club matching tag <b>{{ tag }}</b> was found.<br>Please check the club tag again.</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="club-page__container">
+    <div class="club-error-msg">
+        {% if lang == "ja" %}
+        <h2>エラーが発生しました</h2>
+        <p>クラブデータの取得中に予期せぬエラーが発生しました。しばらく待ってから再試行してください。</p>
+        {% else %}
+        <h2>An Error Occurred</h2>
+        <p>An unexpected error occurred while fetching club data. Please try again later.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

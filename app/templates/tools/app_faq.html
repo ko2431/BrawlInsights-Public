@@ -1,0 +1,91 @@
+{# /app/templates/tools/app_faq.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}よくある質問{% else %}FAQ{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}Brawl Insightsに関するよくある質問と回答です。{% else %}Frequently asked questions about Brawl Insights.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}よくある質問{% else %}Frequently Asked Questions{% endif %}</h1>
+
+    {% if faq_groups|length == 0 %}
+    <p class="tools-page__description">
+        {% if lang == "ja" %}現在、よくある質問は登録されていません。{% else %}No FAQs are available at this time.{% endif %}
+    </p>
+    {% endif %}
+
+    <div x-data>
+        {% for group in faq_groups %}
+        {# カテゴリセクション (デフォルトで開いている) #}
+        <div class="tools-page__section" x-data="{ open: true }">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{{ group.category }}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="faq-category-contents" x-show="open" x-transition>
+                {% for faq in group.faqs %}
+                {# 個別のFAQ項目 (デフォルトで閉じている) #}
+                <div class="faq-item" x-data="{ open: false }">
+                    <div class="faq-item__title" @click="open = !open">
+                        <span class="faq-item__title-icon" x-text="open ? '−' : '＋'"></span>
+                        <span class="faq-item__title-text">{% if lang == "ja" %}{{ faq.title_ja | safe }}{% else %}{{ faq.title_en | safe }}{% endif %}</span>
+                    </div>
+                    <div class="faq-item__body" x-show="open" x-transition x-cloak>
+                        {% if lang == "en" and not faq.body_en %}
+                        <p class="faq-item__fallback-notice">The answer to this question is available in Japanese only.</p>
+                        {% endif %}
+                        <div class="faq-item__body-content">
+                            {% if lang == "ja" %}
+                                {{ faq.body_ja | safe }}
+                            {% else %}
+                                {% if faq.body_en %}
+                                    {{ faq.body_en | safe }}
+                                {% else %}
+                                    {{ faq.body_ja | safe }}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

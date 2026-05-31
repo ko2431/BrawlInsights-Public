@@ -1,0 +1,840 @@
+/* /app/static/css/pages/profile_image.css */
+/* =============================================== */
+/* プロフィール画像生成ツール 固有スタイル           */
+/* =============================================== */
+
+/* =============================================== */
+/* フェーズタブナビゲーション                        */
+/* =============================================== */
+.profile-image-tool__tab-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.profile-image-tool__tab-button {
+    border: 1px solid var(--color-ddd);
+    background: var(--bg-f8f8f8);
+    color: var(--color-333);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 18px;
+    font-weight: bold;
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.profile-image-tool__tab-button--active {
+    background: #222;
+    border-color: #222;
+    color: #fff;
+}
+
+.profile-image-tool__tab-button--disabled {
+    opacity: 0.55;
+}
+
+.dark .profile-image-tool__tab-button {
+    background: #262626;
+    border-color: #333;
+    color: #ddd;
+}
+
+.dark .profile-image-tool__tab-button--active {
+    background: #fff;
+    border-color: #ccc;
+    color: #333;
+}
+
+/* =============================================== */
+/* 生成セクション                                   */
+/* =============================================== */
+.profile-image-tool__gen-placeholder {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #d8d8d8 0%, #b0b0b0 50%, #c0c0c0 100%);
+    overflow: hidden;
+}
+
+.dark .profile-image-tool__gen-placeholder {
+    background: linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 50%, #222222 100%);
+}
+
+.profile-image-tool__gen-placeholder--landscape {
+    aspect-ratio: 16 / 9;
+    min-height: 350px;
+    max-width: 100%;
+}
+
+.profile-image-tool__gen-placeholder--portrait {
+    aspect-ratio: 9 / 16;
+    width: 50%;
+    min-width: 250px;
+    margin: 0 auto;
+}
+
+/* (3) ボタン群 */
+.profile-image-tool__gen-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    z-index: 1;
+}
+
+.profile-image-tool__gen-btn--primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 20px;
+    border-radius: 12px;
+    border: 1px solid #111;
+    background-color: #222;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+    white-space: nowrap;
+}
+
+.profile-image-tool__gen-btn--primary:hover {
+    background-color: #333;
+}
+
+.profile-image-tool__gen-btn--primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dark .profile-image-tool__gen-btn--primary {
+    background-color: #f0f0f0;
+    border-color: #ddd;
+    color: #111;
+}
+
+.dark .profile-image-tool__gen-btn--primary:hover {
+    background-color: #e0e0e0;
+}
+
+.profile-image-tool__gen-btn--secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 16px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: #333;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+    white-space: normal;
+    text-align: center;
+}
+
+.profile-image-tool__gen-btn--secondary:hover {
+    background-color: #f5f5f5;
+}
+
+.dark .profile-image-tool__gen-btn--secondary {
+    background-color: #2a2a2a;
+    border-color: #444;
+    color: #ddd;
+}
+
+.dark .profile-image-tool__gen-btn--secondary:hover {
+    background-color: #333;
+}
+
+.profile-image-tool__gen-btn--disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    /* pointer-events: none; を削除 (JSアラートを表示できるようにするため) */
+}
+
+.profile-image-tool__gen-ticket-info {
+    font-size: 12px;
+    color: #555;
+    text-align: center;
+    line-height: 1.35;
+}
+
+.dark .profile-image-tool__gen-ticket-info {
+    color: #999;
+}
+
+/* (4) ローディング */
+.profile-image-tool__gen-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    z-index: 1;
+}
+
+.profile-image-tool__gen-spinner {
+    width: 40px;
+    height: 40px;
+    background-color: #fff;
+    -webkit-mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(240 50 50)' opacity='.9'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(240 50 50)' opacity='.9'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-size: cover;
+    mask-size: cover;
+    animation: profile-gen-spin 1s steps(12) infinite;
+}
+
+.dark .profile-image-tool__gen-spinner {
+    background-color: #ccc;
+}
+
+@keyframes profile-gen-spin {
+    to { transform: rotate(360deg); }
+}
+
+.profile-image-tool__gen-loading-text {
+    color: #fff;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.6;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.dark .profile-image-tool__gen-loading-text {
+    color: #ccc;
+}
+
+/* (5) エラーボックス */
+.profile-image-tool__gen-error-box {
+    padding: 16px 20px;
+    border-radius: 12px;
+    background-color: rgba(220, 38, 38, 0.15);
+    border: 1px solid rgba(220, 38, 38, 0.5);
+    color: #991b1b;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    z-index: 1;
+    margin: 16px;
+}
+
+.dark .profile-image-tool__gen-error-box {
+    background-color: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #fca5a5;
+}
+
+/* (6) 完成画像 */
+.profile-image-tool__gen-result-image {
+    width: 100%;
+    height: auto;
+    border-radius: 13px;
+    display: block;
+}
+
+.profile-image-tool__gen-result-image--portrait {
+    width: 50%;
+    min-width: 250px;
+    margin: 0 auto;
+}
+
+/* (7) 結果アクション群 */
+.profile-image-tool__gen-result-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+/* 保存済みボタン */
+.profile-image-tool__gen-btn--saved {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 20px;
+    border-radius: 12px;
+    background-color: rgba(40, 167, 69, 0.15);
+    border: 1px solid rgba(40, 167, 69, 0.6);
+    color: #084f17;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.dark .profile-image-tool__gen-btn--saved {
+    background-color: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.5);
+    color: #25be46;
+}
+
+.profile-image-tool__gen-btn--saved .profile-image-tool__gen-check-icon {
+    height: 1.2em;
+    width: auto;
+}
+
+/* 保存ヒント */
+.profile-image-tool__gen-save-hint {
+    font-size: 12px;
+    color: var(--color-555);
+    text-align: center;
+    line-height: 1.5;
+}
+
+/* =============================================== */
+/* パネル（各セクションコンテナ）                   */
+/* =============================================== */
+.profile-image-tool__panel {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--color-eee);
+    background: var(--bg-fefefe);
+}
+.profile-image-tool__panel--generation {
+    border-radius: 16px;
+}
+.profile-image-tool__panel--type,
+.profile-image-tool__panel--orientation {
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.dark .profile-image-tool__panel {
+    background: #1f1f1f;
+    border-color: #333;
+}
+
+
+
+.profile-image-tool__type-description {
+    margin-top: 15px;
+    font-size: 20px;
+    font-weight: bold;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--color-eee);
+}
+
+/* =============================================== */
+/* プレイヤータグ検索                               */
+/* =============================================== */
+.profile-image-tool__search-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.profile-image-tool__search-input-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-image-tool__search-input {
+    width: 100%;
+    font-size: 20px;
+}
+
+.profile-image-tool__tag-status {
+    font-size: 13px;
+    margin-top: 5px;
+    min-height: 1.3em;
+    color: var(--color-555);
+}
+
+.profile-image-tool__search-btn {
+    flex-shrink: 0;
+    height: 35px;
+    /* form-inputと高さを揃える */
+    align-self: flex-start;
+    margin-top: 0;
+    padding: 0 16px;
+    font-size: 18px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+/* =============================================== */
+/* プレイヤー選択エリア (ブックマーク・履歴)           */
+/* =============================================== */
+.profile-image-tool__picker-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* タブレット幅以上で2列 */
+@media (min-width: 840px) {
+    .profile-image-tool__picker-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.profile-image-tool__picker-block {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-fefefe);
+    border: 1px solid var(--color-eee);
+    border-radius: 14px;
+    padding: 14px;
+    min-width: 0;
+}
+
+.dark .profile-image-tool__picker-block {
+    background: #1a1a1a;
+    border-color: #333;
+}
+
+.profile-image-tool__picker-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+    color: var(--color-111);
+    padding-bottom: 8px;
+    text-align: center;
+}
+
+.dark .profile-image-tool__picker-title {
+    border-color: #333;
+}
+
+/* =============================================== */
+/* プレイヤーリスト（ホームのplayer-listスタイルに倣う）*/
+/* =============================================== */
+.profile-image-tool__player-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.profile-image-tool__player-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-f8f8f8);
+    border: 1px solid var(--color-eee);
+    border-radius: 8px;
+    padding: 1px 8px 1px 6px;
+    min-height: 38px;
+    width: 100%;
+    text-align: left;
+    gap: 8px;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+}
+
+.profile-image-tool__player-item:hover {
+    background-color: var(--bg-f0f0f0);
+    border-color: var(--color-ddd);
+    box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .profile-image-tool__player-item {
+    background-color: #262626;
+    border-color: #333;
+}
+
+.dark .profile-image-tool__player-item:hover {
+    background-color: #2e2e2e;
+    border-color: #444;
+    box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.3);
+}
+
+.profile-image-tool__player-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.profile-image-tool__player-texts {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.profile-image-tool__player-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.profile-image-tool__player-name {
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--color-111);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.dark .profile-image-tool__player-name {
+    color: #e8e8e8;
+}
+
+.profile-image-tool__player-badge {
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #222;
+    border: 1px solid #222;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-height: 18px;
+    align-items: center;
+    max-height: 16px;
+}
+
+.dark .profile-image-tool__player-badge {
+    background: #fff;
+    color: #222;
+    border-color: #ccc;
+}
+
+.profile-image-tool__player-tag {
+    margin-top: -3px;
+    font-size: 11px;
+    color: var(--color-555);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-image-tool__player-action {
+    color: #1b5f99;
+    font-size: 13px;
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 4px;
+}
+
+.dark .profile-image-tool__player-action {
+    color: #6aaee0;
+}
+
+/* =============================================== */
+/* 空表示                                          */
+/* =============================================== */
+.profile-image-tool__empty {
+    border: 1px dashed var(--color-ccc);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--bg-fefefe);
+    color: var(--color-555);
+    font-size: 14px;
+    line-height: 1.7;
+    text-align: center;
+}
+
+.dark .profile-image-tool__empty {
+    background: #1f1f1f;
+    border-color: #444;
+}
+
+/* =============================================== */
+/* 未ログイン時ブロック (not-logged-in-blockを内包)  */
+/* =============================================== */
+.profile-image-tool__not-logged-in {
+    text-align: center;
+    background-color: var(--bg-f8f8f8);
+    border: 1px solid var(--color-eee);
+    border-radius: 12px;
+    padding: 14px 14px 18px;
+}
+
+.dark .profile-image-tool__not-logged-in {
+    background-color: #212121;
+    border-color: #333;
+}
+
+.profile-image-tool__not-logged-in-text {
+    font-size: 14px;
+    color: var(--color-444);
+    line-height: 1.65;
+    margin-bottom: 0;
+}
+
+.dark .profile-image-tool__not-logged-in-text {
+    color: #aaa;
+}
+
+.profile-image-tool__not-logged-in-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+/* =============================================== */
+/* 生成フェーズ: 選択中プレイヤー表示                 */
+/* =============================================== */
+.profile-image-tool__selected-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.profile-image-tool__selected-player-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.profile-image-tool__selected-player-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--color-111);
+}
+
+.dark .profile-image-tool__selected-player-name {
+    color: #e8e8e8;
+}
+
+.profile-image-tool__selected-player-tag {
+    font-size: 14px;
+    color: var(--color-555);
+    margin-top: -5px;
+}
+
+/* =============================================== */
+/* 画像タイプ選択グリッド (starrdrop_chances仕様)       */
+/* =============================================== */
+.profile-image-tool__type-container,
+.profile-image-tool__orientation-container {
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: var(--bg-f8f8f8);
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+
+.dark .profile-image-tool__type-container,
+.dark .profile-image-tool__orientation-container {
+    background-color: #1a1a1a;
+    border-color: #111;
+}
+
+.profile-image-tool__orientation-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-image-tool__type-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+@media (max-width: 639px){
+    .profile-image-tool__type-grid {
+        gap: 6px;
+    }
+}
+
+.profile-image-tool__type-card,
+.profile-image-tool__orientation-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 5px 3px;
+    border-radius: 8px;
+    border: 1px solid var(--color-ddd);
+    background-color: #f0f0f0;
+    color: #555;
+    cursor: pointer;
+    min-width: 65px;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-image-tool__orientation-card {
+    padding: 3px 5px;
+    font-weight: bold;
+}
+
+.dark .profile-image-tool__type-card,
+.dark .profile-image-tool__orientation-card {
+    background-color: #262626;
+    color: #ccc;
+    border-color: #333;
+}
+
+.profile-image-tool__type-card:hover,
+.profile-image-tool__orientation-card:hover {
+    background-color: #e8e8e8;
+}
+
+.dark .profile-image-tool__type-card:hover,
+.dark .profile-image-tool__orientation-card:hover {
+    background-color: #333;
+}
+
+.profile-image-tool__type-card--active,
+.profile-image-tool__orientation-card--active {
+    background-color: #fff !important;
+    color: #333 !important;
+    cursor: default;
+    border-color: var(--color-ddd);
+}
+
+.dark .profile-image-tool__type-card--active,
+.dark .profile-image-tool__orientation-card--active {
+    background-color: #1c1c1c !important;
+    color: #fff !important;
+    border-color: #444;
+}
+
+.profile-image-tool__type-icon {
+    height: 36px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* アイコン別の微調整 */
+.profile-image-tool__type-icon--standard-profile { height: 36px; }
+.profile-image-tool__type-icon--highest-trophies { height: 32px; margin: 2px 0; }
+.profile-image-tool__type-icon--current-trophies { height: 34px; margin: 1px 0; }
+.profile-image-tool__type-icon--power-progress { height: 34px; margin: 1px 0; }
+.profile-image-tool__type-icon--max-winstreak { height: 40px; margin: -2px 0; }
+.profile-image-tool__type-icon--current-winstreak { height: 40px; margin: -2px 0; }
+.profile-image-tool__type-icon--legacy-mastery { height: 38px; margin: -1px 0; }
+
+@media (max-width: 539px) {
+    .profile-image-tool__type-icon {
+        height: 24px;
+    }
+    /* スマホ表示時の微調整 */
+    .profile-image-tool__type-icon--standard-profile { height: 24px; }
+    .profile-image-tool__type-icon--highest-trophies { height: 21px; margin: 1.5px 0; }
+    .profile-image-tool__type-icon--current-trophies { height: 22.5px; margin: 0.75px 0; }
+    .profile-image-tool__type-icon--power-progress { height: 22.5px; margin: 0.75px 0; }
+    .profile-image-tool__type-icon--max-winstreak { height: 27px; margin: -1.5px 0; }
+    .profile-image-tool__type-icon--current-winstreak { height: 27px; margin: -1.5px 0; }
+    .profile-image-tool__type-icon--legacy-mastery { height: 25.5px; margin: -0.75px 0; }
+
+    .profile-image-tool__type-card {
+        min-width: 52px;
+    }
+}
+
+.profile-image-tool__type-title {
+    font-size: 12px;
+    margin-top: 2px;
+    color: inherit;
+    line-height: 1.25;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.dark .profile-image-tool__type-title {
+    color: inherit; /* アクティブ時の文字色変化に合わせる */
+}
+
+@media (max-width: 539px) {
+    .profile-image-tool__type-title {
+        font-size: 9px;
+    }
+}
+
+/* =============================================== */
+/* 向き                                            */
+/* =============================================== */
+.profile-image-tool__orientation-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* =============================================== */
+/* レスポンシブ                                     */
+/* =============================================== */
+
+@media (max-width: 679px) {
+    .profile-image-tool__panel {
+        padding: 10px;
+        margin-top: 12px;
+    }
+
+    .profile-image-tool__panel--type,
+    .profile-image-tool__panel--orientation {
+        padding: 0;
+    }
+
+    .profile-image-tool__tab-button {
+        padding: 7px 10px;
+        font-size: 15px;
+        border-radius: 9px;
+    }
+}
+
+@media (max-width: 639px) {
+    .profile-image-tool__type-title {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 539px) {
+    .not-logged-in-block .auth-actions .button {
+        padding: 6px 14px;
+        font-size: 15px;
+        border-radius: 8px;
+    }
+
+    .profile-image-tool__tab-nav {
+        margin-top: 15px;
+        gap: 8px;
+    }
+
+    .profile-image-tool__tab-button {
+        font-size: 14px;
+    }
+
+    .profile-image-tool__player-name {
+        font-size: 14px;
+    }
+
+    .profile-image-tool__type-description {
+        font-size: 18px;
+        margin-top: 10px;
+    }
+
+    .profile-image-tool__search-row {
+        flex-wrap: wrap;
+    }
+
+    .profile-image-tool__gen-btn--use-ticket {
+        font-size: 13px;
+    }
+
+    .profile-image-tool__gen-ticket-info {
+        font-size: 11px;
+    }
+}
+
+/* =============================================== */
+/* ユーティリティ                                   */
+/* =============================================== */
+.cursor-default { cursor: default; }
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }

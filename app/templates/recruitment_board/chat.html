@@ -1,0 +1,1207 @@
+{# /app/templates/recruitment_board/chat.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}チャット{% else %}Chat{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}募集掲示板のチャット画面です。{% else %}Recruitment board chat thread.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/boards.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/chat.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+{% if post.type == "team" %}
+    {% if post.category == "ranked" %}
+        {% set image_path = "/images/ui/ranked.png" %}
+        {% set title = "ガチバトル" if lang == "ja" else "Ranked" %}
+        {% set color1 = "#ffd4d4" %}
+        {% set color2 = "#d4d7ff" %}
+    {% elif post.category == "friendly" %}
+        {% set image_path = "/images/mode_icons/friendly.png" %}
+        {% set title = "フレンドバトル" if lang == "ja" else "Friendly" %}
+        {% set color1 = "#fff0d4" %}
+        {% set color2 = "#eeffd4" %}
+    {% elif post.category == "event" %}
+        {% set image_path = "/images/mode_icons/event.png" %}
+        {% set title = "特別イベント" if lang == "ja" else "Event" %}
+        {% set color1 = "#ffd4e6" %}
+        {% set color2 = "#ffd4d4" %}
+    {% elif post.mode == "others" %}
+        {% set image_path = "/images/ui/trophy.png" %}
+        {% set title = "トロフィー" if lang == "ja" else "Trophy" %}
+        {% set color1 = "#ffe7d4" %}
+        {% set color2 = "#fff6d4" %}
+    {% elif post.mode == "5v5" %}
+        {% set image_path = "/images/ui/friends_old.png" %}
+        {% set title = "5対5ゲームモード" if lang == "ja" else "5v5 Game Mode" %}
+        {% set color1 = "#d4f6ff" %}
+        {% set color2 = "#ffd4f9" %}
+    {% else %}
+        {% set image_path = "/images/mode_icons/" + post.mode + ".png" %}
+        {% if post.mode == "duoShowdown" %}
+            {% set title = "デュオ バトルロイヤル" if lang == "ja" else "Duo Showdown" %}
+            {% set color1 = "#e4ffd4" %}
+            {% set color2 = "#d4ffd4" %}
+        {% elif post.mode == "trioShowdown" %}
+            {% set title = "トリオ バトルロイヤル" if lang == "ja" else "Trio Showdown" %}
+            {% set color1 = "#d4ffe2" %}
+            {% set color2 = "#d4ffec" %}
+        {% elif post.mode == "gemGrab" %}
+            {% set title = "エメラルドハント" if lang == "ja" else "Gem Grab" %}
+            {% set color1 = "#eed4ff" %}
+            {% set color2 = "#f9d4ff" %}
+        {% elif post.mode == "brawlBall" %}
+            {% set title = "ブロストライカー" if lang == "ja" else "Brawl Ball" %}
+            {% set color1 = "#d4d4ff" %}
+            {% set color2 = "#dfd4ff" %}
+        {% elif post.mode == "heist" %}
+            {% set title = "強奪" if lang == "ja" else "Heist" %}
+            {% set color1 = "#fed4ff" %}
+            {% set color2 = "#ffd4ec" %}
+        {% elif post.mode == "bounty" %}
+            {% set title = "賞金稼ぎ" if lang == "ja" else "Bounty" %}
+            {% set color1 = "#d4fffd" %}
+            {% set color2 = "#d4f9ff" %}
+        {% elif post.mode == "hotZone" %}
+            {% set title = "ホットゾーン" if lang == "ja" else "Hot Zone" %}
+            {% set color1 = "#ffd4e4" %}
+            {% set color2 = "#ffd4d4" %}
+        {% elif post.mode == "knockout" %}
+            {% set title = "ノックアウト" if lang == "ja" else "Knockout" %}
+            {% set color1 = "#ffe7d4" %}
+            {% set color2 = "#fff1d4" %}
+        {% endif %}
+    {% endif %}
+{% elif post.type == "general" %}
+    {% if post.category == "chat" %}
+        {% set image_path = "/images/ui/family_friendly.png" %}
+        {% set title = "雑談" if lang == "ja" else "Chat" %}
+        {% set color1 = "#d4e6ff" %}
+        {% set color2 = "#d4f0ff" %}
+        {% set dark = false %}
+    {% elif post.category == "question" %}
+        {% set image_path = "/images/ui/mystery.png" %}
+        {% set title = "質問" if lang == "ja" else "Question" %}
+        {% set color1 = "#fff6d4" %}
+        {% set color2 = "#ffeed4" %}
+        {% set dark = false %}
+    {% elif post.category == "brawl_info" %}
+        {% set image_path = "/images/ui/starrdrop.png" %}
+        {% set title = "ブロスタ情報" if lang == "ja" else "Brawl Info" %}
+        {% set color1 = "#d8f7cb" %}
+        {% set color2 = "#c5f2b1" %}
+        {% set dark = false %}
+    {% elif post.category == "x" %}
+        {% set image_path = "/images/ui/x.png" %}
+        {% set title = "X" %}
+        {% set color1 = "#3a3a3a" %}
+        {% set color2 = "#4a4a4a" %}
+        {% set dark = true %}
+    {% elif post.category == "discord" %}
+        {% set image_path = "/images/ui/discord.svg" %}
+        {% set title = "Discord" %}
+        {% set color1 = "#4752c4" %}
+        {% set color2 = "#5865f2" %}
+        {% set dark = true %}
+    {% elif post.category == "youtube" %}
+        {% set image_path = "/images/ui/youtube.png" %}
+        {% set title = "YouTube" %}
+        {% set color1 = "#ffd4d4" %}
+        {% set color2 = "#ffd4de" %}
+        {% set dark = false %}
+    {% elif post.category == "tiktok" %}
+        {% set image_path = "/images/ui/tiktok_white.png" %}
+        {% set title = "TikTok" %}
+        {% set color1 = "#ffd4ef" %}
+        {% set color2 = "#ffd4e6" %}
+        {% set dark = false %}
+    {% endif %}
+{% endif %}
+<div class="chat-page__container {% if post.type in ['team', 'general'] %}team-chat{% endif %}">
+    {# ヘッダー部分 (スレッド情報) #}
+    <header class="chat-header" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
+        <div class="chat-header__content">
+            {% if post.hostplayer %}
+            <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}" {% if post.type == 'general' %}{% if dark %}style="filter: brightness(0) invert(1);"{% elif post.category == 'tiktok' %}style="filter: brightness(0);"{% endif %}{% endif %}>
+            <div class="chat-header__details">
+                {% if post.type == "friend" %}
+                <p class="chat-header__host-name">{{ post.hostplayer.name }}</p>
+                <p class="chat-header__comment">{% if lang == "ja" %}フレンド募集{% else %}Friend Recruitment{% endif %}</p>
+                {% elif post.type == "general" %}
+                <p class="chat-header__host-name" {% if dark %}style="color: #fff;"{% endif %}>{{ title }}</p>
+                <p class="chat-header__comment" {% if dark %}style="color: rgba(255,255,255,0.7);"{% endif %}>{% if lang == "ja" %}なんでも掲示板{% else %}General Board{% endif %}</p>
+                {% else %}
+                <p class="chat-header__host-name">{{ title }}</p>
+                <p class="chat-header__comment">{% if lang == "ja" %}チーム募集{% else %}Team Recruitment{% endif %}</p>
+                {% endif %}
+            </div>
+            {% elif post.hostclub %}
+            <img src="{{ url_for('static', path='/images/club_badges/' + post.hostclub.badge_id|string + '.png') }}" alt="Host Icon" class="chat-header__host-icon">
+            <div class="chat-header__details">
+                <p class="chat-header__host-name">{{ post.hostclub.name|safe }}</p>
+                <p class="chat-header__comment">{% if lang == "ja" %}クラブ募集{% else %}Club Recruitment{% endif %}</p>
+            </div>
+            {% endif %}
+            {% if platform != "web" %}
+            <div class="back-button__container"
+                x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+                x-show="showManualBackButton"
+                style="display: none;" {# FOUC(ちらつき)防止 #}>
+                <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    {# メッセージ表示部分 #}
+    <main class="messages__container" id="messages-container">
+        {# 説明文 #}
+        <div class="chat-description">
+            {% if current_user and current_user.id == post.host_id %}
+                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>また、ユーザーのアイコンをタップして<b>リンククリックを個別に許可</b>を選択すると、この募集の条件にかかわらず、その人にリンククリックをできるようにさせることが可能です。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか<b>募集掲示板タブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>Additionally, by tapping the user's icon and selecting <b>Individually Allow Link Clicks</b>, you can enable link clicking for that person regardless of the conditions of this recruitment.{% endif %}</p>
+            {% else %}
+                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか</b><b>募集掲示板タブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
+            {% endif %}
+        </div>
+        {# まず、Postのコメントを表示 #}
+        <div class="post-comment__container">
+            {% if post.comment %}
+                <p class="post-comment"><b>{% if lang == "ja" %}ホストのコメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}</p>
+            {% else %}
+                <p class="post-comment" style="color: #888;"><i>({% if lang == "ja" %}ホストのコメントはありません{% else %}No Comment{% endif %})</i></p>
+            {% endif %}
+        </div>
+        {% for message_id, msg_data in messages.items() %}
+            {% set message = msg_data.data %}
+            {% if not message.is_deleted and message.user_id not in blocked_ids.user_ids %} {# 削除済みメッセージとブロック済みメッセージは表示しない #}
+                <div class="message-bubble {% if current_user and message.user_id == current_user.id %}message-bubble--self{% endif %}"
+                    id="message-{{ message.id }}"
+                    data-message-id="{{ message.id }}"
+                    data-user-id="{{ message.user_id }}"
+                    data-user-name="{{ message.user_name }}"
+                    data-main-account-tag="{{ message.user_main_account_tag }}"
+                    data-main-account-name="{{ message.user_main_account_name }}">
+                    {% if not (current_user and message.user_id == current_user.id) %}
+                        <div class="message-bubble__icon-wrapper {% if message.user_main_account_tag %}message-bubble__icon-wrapper--clickable{% endif %}"><img src="{{ message.user_icon_path }}" alt="User Icon" class="message-bubble__icon"></div>
+                    {% endif %}
+                    <div class="message-bubble__content-wrapper">
+                        {% if not (current_user and message.user_id == current_user.id) %}
+                            {% if message.user_id and message.user_id == post.host_id %}
+                                <span class="message-bubble__user-name"><b>{{ message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') }}</b> ({% if lang == "ja" %}ホスト{% else %}Host{% endif %})</span>
+                            {% else %}
+                                <span class="message-bubble__user-name">{{ message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') }}</span>
+                            {% endif %}
+                        {% endif %}
+                        <div class="message-bubble__content">{{ message.message|censor }}</div>
+                        {# リアクション表示エリア (JSで実装) #}
+                        <div class="reactions__container" id="reactions-for-{{ message.id }}"></div>
+                        <span class="message-bubble__timestamp">{{ message.created_at_text_ja if lang == "ja" else message.created_at_text_en }}{% if loop.last %}<span class="reaction-prompt"> - {% if lang == 'ja' %}メッセージをタップしてリアクション{% else %}Tap message to react{% endif %}</span>{% endif %}</span>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </main>
+    
+    {# フッター (メッセージ入力など) #}
+    <footer class="chat-footer">
+        {# 入力中ユーザー表示エリア #}
+        <div id="typing-indicator" class="typing-indicator">
+            <p><b>ユーザー名</b>が入力中...</p>
+        </div>
+
+        {% if is_permitted_to_chat %}
+            <form id="chat-form" class="chat-input__form">
+                <textarea id="chat-input" class="chat-input__textarea" rows="1" placeholder="{% if lang == 'ja' %}メッセージを送信...{% else %}Send a message...{% endif %}"></textarea>
+                <button type="submit" id="send-button" class="chat-input__send-button" disabled>
+                    <img src="{{ url_for('static', path='/images/ui/send.svg') }}" alt="Send">
+                </button>
+            </form>
+        {% elif post.is_deleted %}
+            <div class="chat-footer__locked-overlay">
+                <p>{% if lang == 'ja' %}このチャットスレッドは削除されました。{% else %}This thread has been deleted.{% endif %}</p>
+            </div>
+        {% elif post.chat_permission_level == 0 %}
+            <div class="chat-footer__locked-overlay">
+                <p>{% if lang == 'ja' %}このチャットは閉鎖されています。{% else %}This chat has been closed.{% endif %}</p>
+            </div>
+        {% elif current_user %}
+            <div class="chat-footer__locked-overlay">
+                <p>{% if lang == 'ja' %}このチャットに参加する権限がありません。{% else %}You do not have permission to join this chat.{% endif %}</p>
+            </div>
+        {% else %}
+            <div class="not-logged-in-block not-logged-in-block--chat">
+                <div class="not-logged-in-block__text not-logged-in-block__text--chat">
+                    <p>{% if lang == "ja" %}<b>ログイン</b>すると、チャットに参加することができます。{% else %}Once logged in, you can join the chat.{% endif %}</p>
+                    <p>{% if lang == "ja" %}アカウント作成にメールアドレス等は不要です。任意のユーザー名とパスワードを設定してすぐに作成できます。{% else %}No email address or other information is required to create an account. You can create an account immediately with any user name and password.{% endif %}</p>
+                </div>
+                <div class="auth-actions" style="gap: 12px; margin-top: 10px;">
+                    <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--primary not-logged-in-block-button--chat">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                    <a href="{{ url_for('register_page', lang=lang) }}" class="button button--secondary not-logged-in-block-button--chat">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                </div>
+            </div>
+        {% endif %}
+    </footer>
+</div>
+
+<div id="message-menu" class="chat-menu">
+    <div id="message-menu-emojis" class="chat-menu__emojis">
+        </div>
+    <div class="chat-menu__separator"></div>
+    <div id="message-menu-actions" class="chat-menu__actions">
+        </div>
+</div>
+
+<div id="host-menu" class="chat-menu">
+    <div id="host-menu-actions" class="chat-menu__actions">
+        </div>
+</div>
+
+<div id="reaction-list-menu" class="chat-menu">
+    <div id="reaction-list-body" class="chat-menu__reaction-list">
+        </div>
+</div>
+
+<div id="report-modal-overlay" class="post-modal-overlay report-modal-overlay">
+    <div class="post-modal-content report-modal-content">
+        <header class="post-modal-header">
+            <button id="report-modal-cancel-btn" class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+            <button id="report-modal-submit-btn" class="button button--primary post-button" disabled>{% if lang == "ja" %}通報{% else %}Report{% endif %}</button>
+        </header>
+        <div class="post-modal-body">
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">1. {% if lang == "ja" %}カテゴリー{% else %}Category{% endif %}</p>
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}このメッセージに問題がある理由を選択してください。{% else %}Please select the reason why this message is problematic.{% endif %}</p>
+                <div class="filters__container post-modal-conditions">
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="report-category" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}カテゴリー:{% else %}Category:{% endif %}</label>
+                        <select id="report-category" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}選択してください{% else %}Select{% endif %}</option>
+                            <option value="unpleasant_content">{% if lang == "ja" %}不快な内容{% else %}Unpleasant Content{% endif %}</option>
+                            <option value="hateful_content">{% if lang == "ja" %}攻撃的な内容{% else %}Hateful Content{% endif %}</option>
+                            <option value="spam">{% if lang == "ja" %}スパム{% else %}Spam{% endif %}</option>
+                            <option value="tos_violation">{% if lang == "ja" %}規約違反行為の呼びかけ{% else %}Incitement of ToS Violation{% endif %}</option>
+                        </select>
+                    </form>
+                </div>
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">2. {% if lang == "ja" %}詳細{% else %}Details{% endif %}</p>
+                <textarea id="report-text-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}詳細を入力 (任意){% else %}Enter details (optional){% endif %}"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- DOM要素の定義 ---
+            const messagesContainer = document.getElementById('messages-container');
+            const textarea = document.getElementById('chat-input');
+            const form = document.getElementById('chat-form');
+            const sendButton = document.getElementById('send-button');
+            const typingIndicator = document.getElementById('typing-indicator');
+
+            const messageMenu = document.getElementById('message-menu');
+            const messageMenuEmojis = document.getElementById('message-menu-emojis');
+            const messageMenuActions = document.getElementById('message-menu-actions');
+            
+            const hostMenu = document.getElementById('host-menu');
+            const hostMenuActions = document.getElementById('host-menu-actions');
+
+            const reportModalOverlay = document.getElementById('report-modal-overlay');
+            const reportModalSubmitBtn = document.getElementById('report-modal-submit-btn');
+            const reportModalCancelBtn = document.getElementById('report-modal-cancel-btn');
+            const reportCategorySelect = document.getElementById('report-category');
+            const reportTextForm = document.getElementById('report-text-form');
+
+            const reactionListMenu = document.getElementById('reaction-list-menu');
+            const reactionListBody = document.getElementById('reaction-list-body');
+            
+            // --- 状態管理とJinja2からの変数 ---
+            let currentPostState = {{ post.to_dict() | tojson }};
+            const currentUserId = {{ current_user.id if current_user else 'null' }};
+            const isPermittedToChat = {{ 'true' if is_permitted_to_chat else 'false' }};
+            const isAdmin = {{ 'true' if current_user and current_user.is_admin else 'false' }};
+            const postHostId = {{ post.host_id if post.host_id else 'null' }};
+            const lang = "{{ lang }}";
+            const threadId = {{ post.id }};
+
+            const EMOJIS = ["❤️", "👀", "😄", "😲", "🥲", "😭", "😡"];
+            let activeMessageId = null;
+            const typingUsers = {};
+            let typingTimeout;
+
+            // リアクションの状態を管理するオブジェクト
+            let messageReactions = {};
+            {% for msg_id, msg_data in messages.items() %}
+                messageReactions[{{ msg_id }}] = {{ msg_data.reactions[0] | tojson }};
+            {% endfor %}
+
+            // --- 初期化処理 ---
+            setTimeout(() => {
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }, 0); // 0msの遅延で、他の描画処理の後に実行させる
+            connectWebSocket(); // WebSocket接続を開始
+
+
+            // ===============================================
+            // 関数定義セクション
+            // ===============================================
+            // --- 入力中表示を更新 ---
+            function updateTypingIndicator() {
+                const userCount = Object.keys(typingUsers).length;
+                const indicatorParagraph = typingIndicator.querySelector('p');
+
+                if (userCount === 0) {
+                    // 誰も入力していない場合は非表示
+                    typingIndicator.classList.remove('typing-indicator--visible');
+                } else {
+                    let text = '';
+                    if (userCount === 1) {
+                        // 1人の場合
+                        const userName = Object.values(typingUsers)[0];
+                        text = lang === 'ja' ? `<b>${userName}</b>が入力中...` : `<b>${userName}</b> is typing...`;
+                    } else {
+                        // 複数人の場合
+                        text = lang === 'ja' ? '<b>複数人</b>が入力中...' : '<b>Multiple people</b> are typing...';
+                    }
+                    indicatorParagraph.innerHTML = text;
+                    // 表示クラスを追加
+                    typingIndicator.classList.add('typing-indicator--visible');
+                }
+            }
+
+            // 初期表示時に全メッセージのリアクションを描画
+            Object.keys(messageReactions).forEach(messageId => {
+                renderReactionSummary(messageId);
+            });
+
+            // --- WebSocket接続とメッセージ処理 ---
+            function connectWebSocket() {
+                // 'http'を'ws'に、'https'を'wss'に変換してWebSocketプロトコルを決定
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/${lang}/boards/ws/chat/${threadId}`;
+                const ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    console.debug('WebSocket connection established.');
+                };
+
+                // サーバーからメッセージを受信したときの処理
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    
+                    // イベントタイプに応じて処理を分岐
+                    switch (data.type) {
+                        case 'new_message':
+                            // メッセージを受信したら、その送信者は入力中ではないとみなす
+                            if (typingUsers[data.data.message.user_id]) {
+                                delete typingUsers[data.data.message.user_id];
+                                updateTypingIndicator();
+                            }
+                            appendNewMessage(data.data.message);
+                            break;
+
+                        case 'delete_message':
+                            const messageIdToDelete = data.data.message_id;
+                            const messageElement = document.getElementById(`message-${messageIdToDelete}`);
+                            if (messageElement) {
+                                // 1. アニメーション用のCSSクラスを追加
+                                messageElement.classList.add('message-bubble--deleting');
+                                
+                                // 2. アニメーション完了後にDOMから完全に削除
+                                setTimeout(() => {
+                                    messageElement.remove();
+                                }, 400); // CSSのtransition時間と合わせる
+                            }
+                            break;
+                        case 'new_reaction': {
+                            const reaction = data.data;
+                            if (messageReactions[reaction.message_id]) {
+                                messageReactions[reaction.message_id].push(reaction);
+                            } else {
+                                messageReactions[reaction.message_id] = [reaction];
+                            }
+                            renderReactionSummary(reaction.message_id);
+                            break;
+                        }
+                        case 'delete_reaction': {
+                            const { reaction_id, message_id } = data.data;
+                            if (messageReactions[message_id]) {
+                                messageReactions[message_id] = messageReactions[message_id].filter(r => r.id !== reaction_id);
+                            }
+                            renderReactionSummary(message_id);
+                            break;
+                        }
+                        // 入力中イベントの処理
+                        case 'user_typing':
+                            // 自分のイベントは無視
+                            if (data.data.id !== currentUserId) {
+                                typingUsers[data.data.id] = data.data.name;
+                                updateTypingIndicator();
+                            }
+                            break;
+                        case 'user_stopped_typing':
+                            if (typingUsers[data.data.id]) {
+                                delete typingUsers[data.data.id];
+                                updateTypingIndicator();
+                            }
+                            break;
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.debug('WebSocket connection closed. Attempting to reconnect...');
+                    // 予期せぬ切断時に再接続を試みる
+                    setTimeout(connectWebSocket, 3000); 
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+
+                // 自分の入力状態をサーバーに送信する処理
+                if (textarea) {
+                    let isTyping = false;
+                    textarea.addEventListener('input', () => {
+                        // ユーザーが初めて入力を開始したときに一度だけ送信
+                        if (!isTyping && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'typing_start' }));
+                            isTyping = true;
+                        }
+                        
+                        // 入力停止タイマーをリセット
+                        clearTimeout(typingTimeout);
+                        
+                        // 2.5秒間入力がなければ「入力停止」とみなす
+                        typingTimeout = setTimeout(() => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'typing_stop' }));
+                                isTyping = false;
+                            }
+                        }, 2500);
+                    });
+                }
+            }
+            
+            // --- 新しいメッセージを画面に追加 ---
+            function appendNewMessage(message) {
+                // 自分のメッセージかどうかを判定
+                const isSelf = message.user_id === currentUserId;
+                const bubbleClass = isSelf ? 'message-bubble message-bubble--self' : 'message-bubble';
+                const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
+
+                // 以前のプロンプトを削除する
+                const existingPrompt = document.querySelector('.reaction-prompt');
+                if (existingPrompt) {
+                    existingPrompt.remove();
+                }
+                
+                // アイコンとユーザー名部分のHTML（他人メッセージのみ）
+                let authorIconHtml = '';
+                if (!isSelf) {
+                    const clickableClass = message.user_main_account_tag ? 'message-bubble__icon-wrapper--clickable' : '';
+                    const iconPath = message.user_icon_path;
+                    authorIconHtml = `
+                        <div class="message-bubble__icon-wrapper ${clickableClass}">
+                            <img src="${iconPath}" alt="User Icon" class="message-bubble__icon">
+                        </div>
+                    `;
+                }
+                const isHost = message.user_id && message.user_id === postHostId;
+                let userNameHtml = '';
+                if (!isSelf) {
+                    const userName = message.user_name || guestName;
+                    if (isHost) {
+                        userNameHtml = `<span class="message-bubble__user-name"><b>${userName}</b> (${lang === 'ja' ? 'ホスト' : 'Host'})</span>`;
+                    } else {
+                        userNameHtml = `<span class="message-bubble__user-name">${userName}</span>`;
+                    }
+                }
+
+                // タイムスタンプの生成
+                const timestampText = lang === 'ja' ? message.created_at_text_ja : message.created_at_text_en;
+                
+                // 新しいメッセージなので、必ずプロンプト付きのタイムスタンプを生成
+                const timestampHtml = `
+                    <span class="message-bubble__timestamp">
+                        ${timestampText}
+                        <span class="reaction-prompt">
+                            - ${lang === 'ja' ? 'メッセージをタップしてリアクション' : 'Tap message to react'}
+                        </span>
+                    </span>
+                `;
+
+                // data-* 属性を含めてメッセージ全体を生成
+                const messageHtml = `
+                    <div class="${bubbleClass}"
+                        id="message-${message.id}"
+                        data-message-id="${message.id}"
+                        data-user-id="${message.user_id}"
+                        data-user-name="${message.user_name}"
+                        data-main-account-tag="${message.user_main_account_tag || ''}"
+                        data-main-account-name="${message.user_main_account_name || ''}">
+                        ${authorIconHtml}
+                        <div class="message-bubble__content-wrapper">
+                            ${userNameHtml}
+                            <div class="message-bubble__content">${message.message.replace(/\n/g, '<br>')}</div>
+                            <div class="reactions__container" id="reactions-for-${message.id}"></div>
+                            ${timestampHtml}
+                        </div>
+                    </div>
+                `;
+                
+                messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+                // 新しいメッセージが表示されるように下にスクロール
+                setTimeout(() => {
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                }, 0);
+            }
+
+            // --- メッセージ削除処理 ---
+            async function handleDeleteMessage(messageId) {
+                const confirmDelete = confirm(lang === 'ja' ? 'このメッセージを本当に削除しますか？\nこの操作は取り消せません。' : 'Are you sure you want to delete this message?\nThis operation cannot be undone.');
+                if (confirmDelete) {
+                    try {
+                        const response = await fetch(`/${lang}/boards/messages/${messageId}`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            throw new Error('Failed to delete message');
+                        }
+                        // 成功した場合、WebSocket経由でDOMが更新されるのを待つ
+                        console.log(`Message ${messageId} delete request sent.`);
+                    } catch (error) {
+                        console.error('Error deleting message:', error);
+                        alert(lang === 'ja' ? 'メッセージの削除に失敗しました。' : 'Failed to delete message.');
+                    }
+                }
+                hideMessageMenu();
+            }
+
+            // --- 通報モーダル制御 ---
+            const openReportModal = (messageId) => {
+                reportModalOverlay.dataset.messageId = messageId;
+                // モーダルを開く前にフォームをリセット
+                reportCategorySelect.value = "";
+                reportTextForm.value = "";
+                reportModalSubmitBtn.disabled = true;
+                
+                document.body.classList.add('modal-open');
+                reportModalOverlay.classList.add('active');
+            };
+            const closeReportModal = () => {
+                document.body.classList.remove('modal-open');
+                reportModalOverlay.classList.remove('active');
+                delete reportModalOverlay.dataset.messageId;
+            };
+
+            // --- メニューを非表示にする ---
+            function hideMessageMenu() {
+                if (messageMenu.style.display === 'block') {
+                    messageMenu.classList.add('chat-menu--hiding');
+                    setTimeout(() => {
+                        messageMenu.style.display = 'none';
+                        messageMenu.classList.remove('chat-menu--hiding'); // 次回表示のためにクラスを削除
+                        activeMessageId = null;
+                    }, 200); // CSSのアニメーション時間と合わせる
+                }
+            }
+            function hideHostMenu() {
+                if (hostMenu.style.display === 'block') {
+                    hostMenu.classList.add('chat-menu--hiding');
+                    setTimeout(() => {
+                        hostMenu.style.display = 'none';
+                        hostMenu.classList.remove('chat-menu--hiding'); // 次回表示のためにクラスを削除
+                    }, 200); // CSSのアニメーション時間と合わせる
+                }
+            }
+
+            // --- メニューの位置を計算して配置 (共通関数) ---
+            function positionMenu(menuElement, targetElement) {
+                // 表示する際にアニメーションクラスを確実に削除
+                menuElement.classList.remove('chat-menu--hiding');
+
+                // メニューの最大幅を画面サイズに合わせて設定する
+                const screenMargin = 10; // 画面端から確保したい余白
+                const availableWidth = window.innerWidth - (screenMargin * 2);
+                
+                // 1. まず、メニューが取りうる最大の幅をCSSで制限する
+                menuElement.style.maxWidth = `${availableWidth}px`;
+
+                // 2. 一時的に表示して、ブラウザに寸法を計算させる
+                menuElement.style.visibility = 'hidden';
+                menuElement.style.display = 'block';
+                
+                const menuRect = menuElement.getBoundingClientRect();
+                const targetRect = targetElement.getBoundingClientRect();
+                
+                // 3. 垂直位置(top)を計算 (ここは変更なし)
+                let top = (targetRect.top > menuRect.height + 10) ? 
+                    (window.scrollY + targetRect.top - menuRect.height - 5) : 
+                    (window.scrollY + targetRect.bottom + 5);
+
+                // 4. 水平位置(left)を計算 (ここは変更なし)
+                let left = targetElement.closest('.message-bubble--self') ? 
+                    (targetRect.right - menuRect.width) : 
+                    targetRect.left;
+                
+                // 5. 最終的な位置調整 (ここを改善)
+                // 左端が画面外にはみ出る場合
+                if (left < screenMargin) {
+                    left = screenMargin;
+                }
+                // 右端が画面外にはみ出る場合
+                if (left + menuRect.width > window.innerWidth - screenMargin) {
+                    // メニューの右端が、画面の右端からマージン分内側にくるようにleftを調整
+                    left = window.innerWidth - menuRect.width - screenMargin;
+                }
+                
+                // 6. 計算した最終的な位置を適用して表示
+                menuElement.style.top = `${top}px`;
+                menuElement.style.left = `${left}px`;
+                menuElement.style.visibility = 'visible';
+            }
+
+            // --- ホストアクションを実行する (共通関数) ---
+            async function hostAction(action, targetUserId, targetUserName) {
+                const linkType = currentPostState.type === 'friend' ? (lang === 'ja' ? 'フレンドリンク' : 'friend link') : (lang === 'ja' ? '招待リンク' : 'invite link');
+                const actions = {
+                    block: { method: 'POST', path: 'prohibited-users', confirm: lang === 'ja' ? `${targetUserName}をこのスレッド内でブロックしますか？\nブロックすると、このユーザーはこのスレッド内でメッセージを送信できなくなります。` : `Block ${targetUserName} in this thread?\nThis will prevent the user from sending messages in this thread.`, success: lang === 'ja' ? `${targetUserName}をこのスレッド内でブロックしました。` : `Blocked ${targetUserName} in this thread.`, fail: lang === 'ja' ? 'エラーが発生しました。ユーザーのブロックに失敗しました。' : 'An error occurred. Failed to block user.' },
+                    unblock: { method: 'DELETE', path: `prohibited-users/${targetUserId}`, confirm: lang === 'ja' ? `${targetUserName}をこのスレッド内でブロック解除しますか？` : `Unblock ${targetUserName} in this thread?`, success: lang === 'ja' ? `${targetUserName}をこのスレッド内でブロック解除しました。` : `Unblocked ${targetUserName} in this thread.`, fail: lang === 'ja' ? 'エラーが発生しました。ユーザーのブロック解除に失敗しました。' : 'An error occurred. Failed to unblock user.' },
+                    permit: { method: 'POST', path: 'permitted-users', confirm: lang === 'ja' ? `${targetUserName}の${linkType}クリックを個別に許可しますか？\nこのユーザーは、この募集で設定していた条件にかかわらず、${linkType}をクリックできるようになります。` : `Individually permit ${targetUserName} to click the ${linkType}?\nThis user will be able to click the ${linkType} regardless of the conditions set for this recruitment.`, success: lang === 'ja' ? `${targetUserName}の${linkType}クリックを個別に許可しました。` : `Individually permitted ${targetUserName} to click the ${linkType}.`, fail: lang === 'ja' ? 'エラーが発生しました。ユーザーの招待リンククリックの個別許可に失敗しました。' : 'An error occurred. Failed to permit user.' },
+                    unpermit: { method: 'DELETE', path: `permitted-users/${targetUserId}`, confirm: lang === 'ja' ? `${targetUserName}の${linkType}クリックの個別許可を取り消しますか？` : `Revoke individual permission for ${targetUserName} to click the ${linkType}?`, success: lang === 'ja' ? `${targetUserName}の${linkType}クリックの個別許可を取り消しました。` : `Revoked individual permission for ${targetUserName}.`, fail: lang === 'ja' ? 'エラーが発生しました。ユーザーの招待リンククリックの個別許可取り消しに失敗しました。' : 'An error occurred. Failed to revoke permission.' }
+                };
+
+                const selectedAction = actions[action];
+                if (confirm(selectedAction.confirm)) {
+                    try {
+                        const url = `/${lang}/boards/posts/${threadId}/${selectedAction.path}`;
+                        const options = { method: selectedAction.method, headers: {'Content-Type': 'application/json'} };
+                        if (selectedAction.method === 'POST') {
+                            options.body = JSON.stringify({ user_id: targetUserId });
+                        }
+                        const response = await fetch(url, options);
+                        if (!response.ok) throw new Error('API response not ok');
+                        
+                        // 成功したらクライアント側の状態を更新
+                        if (action === 'block') currentPostState.prohibited_ids.push(targetUserId);
+                        if (action === 'unblock') currentPostState.prohibited_ids = currentPostState.prohibited_ids.filter(id => id !== targetUserId);
+                        if (action === 'permit') currentPostState.permitted_ids.push(targetUserId);
+                        if (action === 'unpermit') currentPostState.permitted_ids = currentPostState.permitted_ids.filter(id => id !== targetUserId);
+                        
+                        alert(selectedAction.success);
+                    } catch (error) {
+                        console.error(`Error during ${action}:`, error);
+                        alert(selectedAction.fail);
+                    }
+                }
+                hideHostMenu();
+            }
+
+            // --- メッセージメニューをセットアップ ---
+            function setupAndShowMenu(targetElement, messageId, messageUserId) {
+                hideHostMenu(); // もう片方のメニューは隠す
+                activeMessageId = messageId;
+                messageMenuEmojis.innerHTML = '';
+                // 自分のリアクション状態に応じてボタンの見た目を変える
+                const myReaction = messageReactions[messageId]?.find(r => r.user_id === currentUserId);
+                messageMenuActions.innerHTML = '';
+                EMOJIS.forEach(emoji => {
+                    const button = document.createElement('button');
+                    button.className = 'chat-menu__emoji-btn';
+                    button.textContent = emoji;
+                    
+                    if (myReaction && myReaction.emoji === emoji) {
+                        button.classList.add('chat-menu__emoji-btn--selected');
+                    }
+                    
+                    button.onclick = () => handleEmojiClick(emoji, messageId, myReaction);
+                    messageMenuEmojis.appendChild(button);
+                });
+                const isOwnMessage = currentUserId === parseInt(messageUserId, 10);
+                if (isAdmin || isOwnMessage) {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'chat-menu__action-btn';
+                    deleteButton.innerHTML = `<span style="color: #c90808;">${lang === 'ja' ? 'メッセージを削除' : 'Delete Message'}</span>`;
+                    deleteButton.onclick = () => handleDeleteMessage(messageId);
+                    messageMenuActions.appendChild(deleteButton);
+                } else {
+                    const reportButton = document.createElement('button');
+                    reportButton.className = 'chat-menu__action-btn';
+                    reportButton.innerHTML = `<span style="color: #9d0759;">${lang === 'ja' ? 'メッセージを通報' : 'Report Message'}</span>`;
+                    reportButton.onclick = () => { openReportModal(messageId); hideMessageMenu(); };
+                    messageMenuActions.appendChild(reportButton);
+                }
+                
+                // 共通関数を呼び出す
+                positionMenu(messageMenu, targetElement);
+            }
+
+            const handleGlobalBlockUser = async (targetUserId) => {
+                // ユーザーに最終確認
+                const confirmMessage = lang === 'ja' ? 'このユーザーを本当にブロックしますか？\nブロックすると、このユーザーの投稿やメッセージがサービス全体で表示されなくなります。' : 'Are you sure you want to block this user?\nTheir posts and messages will no longer be visible anywhere in the app.';
+                if (!confirm(confirmMessage)) return;
+
+                try {
+                    const response = await fetch(`/${lang}/boards/users/block`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            blocked_user_id: parseInt(targetUserId, 10),
+                            blocked_anonymous_id: null // チャットの投稿者は必ずログイン済み
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            // 成功時は即時リロード
+                            window.location.reload();
+                        } else {
+                            // 既にブロック済みの場合
+                            alert(lang === 'ja' ? 'このユーザーはすでにブロックされています。' : 'This user is already blocked.');
+                            window.location.reload();
+                        }
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Server error');
+                    }
+                } catch (error) {
+                    console.error('Error during global block action:', error);
+                    alert(lang === 'ja' ? 'ユーザーのブロックに失敗しました。' : 'Failed to block user.');
+                }
+            };
+
+            // --- ホストメニューをセットアップ ---
+            function setupAndShowHostMenu(targetBubble) {
+                hideMessageMenu(); // もう片方のメニューは隠す
+                const targetIcon = targetBubble.querySelector('.message-bubble__icon-wrapper');
+                const messageData = targetBubble.dataset;
+                hostMenuActions.innerHTML = '';
+
+                let itemCount = 0;
+                // 1. プロフィールを見るメニュー
+                if (messageData.mainAccountTag && messageData.mainAccountName) {
+                    itemCount++;
+                    const profileLink = document.createElement('a');
+                    profileLink.href = `/${lang}/player/profile/${messageData.mainAccountTag.substring(1)}`;
+                    const profileButton = document.createElement('button');
+                    profileButton.className = 'chat-menu__action-btn';
+                    profileButton.style.color = '#111';
+                    profileButton.style.gap = '0';
+                    profileButton.style.display = 'flex';      // ボタンをFlexコンテナ化
+                    profileButton.style.flexWrap = 'wrap';     // 中身が長ければ自然に折り返す
+                    profileButton.style.alignItems = 'center'; // 折り返した際の垂直位置を中央に
+                    profileButton.innerHTML = lang === 'ja' ? `このユーザーのメインアカウント("<b style="white-space: normal; overflow-wrap: normal; word-break: keep-all;">${messageData.mainAccountName}</b>")の情報を見る` : `View main account ("<b style="white-space: normal; overflow-wrap: normal; word-break: keep-all;">${messageData.mainAccountName}</b>") profile`;
+                    profileLink.appendChild(profileButton);
+                    hostMenuActions.appendChild(profileLink);
+                }
+
+                // 2. グローバルブロックメニュー
+                if (messageData.userId) {
+                    if (itemCount > 0) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
+                    itemCount++;
+
+                    const globalBlockButton = document.createElement('button');
+                    globalBlockButton.className = 'chat-menu__action-btn';
+                    globalBlockButton.style.color = '#c90808';
+                    globalBlockButton.textContent = lang === 'ja' ? 'このユーザーをブロック' : 'Block this user';
+                    globalBlockButton.onclick = () => {
+                        handleGlobalBlockUser(messageData.userId);
+                        hideHostMenu();
+                    };
+                    hostMenuActions.appendChild(globalBlockButton);
+                }
+
+                // 3. ホスト専用メニュー
+                if (currentUserId === postHostId && messageData.userId) {
+                    // リンククリックの個別許可メニュー
+                    const targetUserId = parseInt(messageData.userId, 10);
+                    const isPermitted = currentPostState.permitted_ids.includes(targetUserId);
+                    const linkType = currentPostState.type === 'friend' ? (lang === 'ja' ? 'フレンドリンク' : 'friend link') : (lang === 'ja' ? '招待リンク' : 'invite link');
+                    const permitButton = document.createElement('button');
+                    permitButton.className = 'chat-menu__action-btn';
+                    if (isPermitted) {
+                        permitButton.style.color = '#c90808';
+                        permitButton.textContent = lang === 'ja' ? `このユーザーの${linkType}クリックの個別許可を取り消し` : `Revoke individual permission for this user's ${linkType}`;
+                        permitButton.onclick = () => hostAction('unpermit', targetUserId, messageData.userName);
+                    } else {
+                        permitButton.style.color = '#01b43f';
+                        permitButton.textContent = lang === 'ja' ? `このユーザーの${linkType}クリックを個別に許可` : `Individually permit this user to click the ${linkType}`;
+                        permitButton.onclick = () => hostAction('permit', targetUserId, messageData.userName);
+                    }
+                    if (itemCount > 0 && !hostMenuActions.querySelector('.chat-menu__separator')) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
+                    else if (itemCount > 1) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
+                    hostMenuActions.appendChild(permitButton);
+                }
+                
+                positionMenu(hostMenu, targetIcon);
+            }
+
+            // --- 絵文字クリック時のメイン処理 ---
+            async function handleEmojiClick(clickedEmoji, messageId, myCurrentReaction) {
+                hideMessageMenu(); // 先にメニューを閉じる
+
+                // 1. リアクションが無く、新規追加する場合
+                if (!myCurrentReaction) {
+                    await addReaction(clickedEmoji, messageId);
+                    return;
+                }
+
+                // 2. 既に同じリアクションがあり、削除する場合
+                if (myCurrentReaction.emoji === clickedEmoji) {
+                    await deleteReaction(myCurrentReaction.id, messageId);
+                    return;
+                }
+
+                // 3. 別のリアクションに付け替える場合 (削除 -> 追加)
+                const deleteSuccess = await deleteReaction(myCurrentReaction.id, messageId, true);
+                if (deleteSuccess) {
+                    await addReaction(clickedEmoji, messageId);
+                } else {
+                    // 削除に失敗した場合は追加も行わない (エラー文は自然にするため追加に失敗したとして出す)
+                    const errorMsg = lang === 'ja' ? 'エラーが発生しました。リアクションの追加に失敗しました。' : 'An error occurred. Failed to add reaction.';
+                    alert(errorMsg);
+                }
+            }
+
+            // --- リアクションを追加するAPIを叩く関数 ---
+            async function addReaction(emoji, messageId) {
+                try {
+                    const response = await fetch(`/${lang}/boards/messages/${messageId}/reactions`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ emoji: emoji })
+                    });
+                    if (!response.ok) throw new Error('Failed to add reaction');
+                    // 成功時はWebSocket経由で更新されるので何もしない
+                } catch (error) {
+                    console.error('Error adding reaction:', error);
+                    const errorMsg = lang === 'ja' ? 'エラーが発生しました。リアクションの追加に失敗しました。' : 'An error occurred. Failed to add reaction.';
+                    alert(errorMsg);
+                }
+            }
+
+            // --- リアクションを削除するAPIを叩く関数 ---
+            async function deleteReaction(reactionId, messageId, isPartOfChange = false) {
+                try {
+                    const response = await fetch(`/${lang}/boards/reactions/${reactionId}`, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) throw new Error('Failed to delete reaction');
+                    return true; // 成功
+                } catch (error) {
+                    console.error('Error deleting reaction:', error);
+                    // 付け替え処理の一部で失敗した場合は、専用のエラーを内部で処理するのでアラートを出さない
+                    if (!isPartOfChange) {
+                        const errorMsg = lang === 'ja' ? 'エラーが発生しました。リアクションの削除に失敗しました。' : 'An error occurred. Failed to delete reaction.';
+                        alert(errorMsg);
+                    }
+                    return false; // 失敗
+                }
+            }
+
+            // --- リアクション集計表示を描画する関数 ---
+            function renderReactionSummary(messageId) {
+                const container = document.getElementById(`reactions-for-${messageId}`);
+                if (!container) return;
+                
+                const reactions = messageReactions[messageId] || [];
+                if (reactions.length === 0) {
+                    container.innerHTML = '';
+                    container.onclick = null;
+                    return;
+                }
+
+                // 絵文字ごとにカウント
+                const counts = {};
+                reactions.forEach(r => {
+                    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+                });
+                
+                let summaryHtml = '';
+                // EMOJISの順番で表示
+                EMOJIS.forEach(emoji => {
+                    if (counts[emoji]) {
+                        const countText = reactions.length >= 1 ? `<span class="reaction-summary__count">${counts[emoji]}</span>` : ''; // リアクション総数が1以上の時、総数を表示(以前は2以上にしていたが変更、一応残しておく)
+                        summaryHtml += `
+                            <div class="reaction-summary">
+                                <span class="reaction-summary__emoji">${emoji}</span>
+                                ${countText}
+                            </div>
+                        `;
+                    }
+                });
+
+                container.innerHTML = summaryHtml;
+                container.onclick = () => setupAndShowReactionMenu(container, messageId);
+            }
+
+            function setupAndShowReactionMenu(targetElement, messageId) {
+                hideMessageMenu();
+                hideHostMenu();
+                
+                const reactions = messageReactions[messageId] || [];
+                reactionListBody.innerHTML = ''; // 中身をクリア
+
+                let lastEmoji = null;
+                reactions.forEach(reaction => {
+                    if (lastEmoji && reaction.emoji !== lastEmoji) {
+                        const separator = document.createElement('div');
+                        separator.className = 'reaction-list__separator';
+                        reactionListBody.appendChild(separator);
+                    }
+                    const row = document.createElement('div');
+                    row.className = 'reaction-list__row';
+                    const iconPath = reaction.user_icon_path;
+                    row.innerHTML = `
+                        <div class="message-bubble__icon-wrapper message-bubble__icon-wrapper-reaction-menu">
+                            <img src="${iconPath}" alt="User Icon" class="message-bubble__icon">
+                        </div>
+                        <b class="reaction-list__user-name">${reaction.user_name}</b>
+                        <span class="reaction-list__emoji">${reaction.emoji}</span>
+                    `;
+                    reactionListBody.appendChild(row);
+                    lastEmoji = reaction.emoji;
+                });
+
+                positionMenu(reactionListMenu, targetElement);
+            }
+
+            // リアクション一覧メニューを非表示にする
+            function hideReactionMenu() {
+                if (reactionListMenu.style.display === 'block') {
+                    reactionListMenu.classList.add('chat-menu--hiding');
+                    setTimeout(() => {
+                        reactionListMenu.style.display = 'none';
+                        reactionListMenu.classList.remove('chat-menu--hiding');
+                    }, 200);
+                }
+            }
+
+            // ===============================================
+            // イベントリスナーセクション
+            // ===============================================
+            // --- メッセージコンテナのクリックイベント ---
+            messagesContainer.addEventListener('click', function(event) {
+                const messageContent = event.target.closest('.message-bubble__content');
+                const iconWrapper = event.target.closest('.message-bubble__icon-wrapper');
+                const reactionContainer = event.target.closest('.reactions__container');
+                
+                if (messageContent) {
+                    const messageBubble = messageContent.closest('.message-bubble');
+                    if (messageBubble && isPermittedToChat) {
+                        setupAndShowMenu(messageBubble, messageBubble.dataset.messageId, messageBubble.dataset.userId);
+                    }
+                    return; 
+                }
+                if (iconWrapper && iconWrapper.classList.contains('message-bubble__icon-wrapper--clickable')) {
+                    const messageBubble = iconWrapper.closest('.message-bubble');
+                    if (messageBubble) {
+                        setupAndShowHostMenu(messageBubble);
+                    }
+                    return;
+                }
+                if (reactionContainer) {
+                    // リアクション表示部には専用のonclick処理があるので、ここでは何もしない
+                    return;
+                }
+
+                hideMessageMenu();
+                hideHostMenu();
+                hideReactionMenu();
+            });
+
+            // --- メニュー外のクリックとスクロール ---
+            document.addEventListener('click', function(event) {
+                if (!messageMenu.contains(event.target) && !hostMenu.contains(event.target) && !reactionListMenu.contains(event.target) && !event.target.closest('.message-bubble') && !event.target.closest('.reactions__container')) {
+                    hideMessageMenu();
+                    hideHostMenu();
+                    hideReactionMenu();
+                }
+            });
+            messagesContainer.addEventListener('scroll', () => {
+                hideMessageMenu();
+                hideHostMenu();
+                hideReactionMenu();
+            });
+
+            // --- その他のイベントリスナー ---
+            if (textarea) {
+                textarea.addEventListener('input', () => {
+                    sendButton.disabled = textarea.value.trim() === '';
+                    textarea.style.height = 'auto';
+                    textarea.style.height = (textarea.scrollHeight) + 'px';
+                });
+
+                textarea.addEventListener('keydown', function(event) {
+                    // Shiftキーが押されていて、かつEnterキーが押された場合
+                    if (event.shiftKey && event.key === 'Enter') {
+                        event.preventDefault(); // デフォルトの改行動作をキャンセル
+                        if (!sendButton.disabled) {
+                            sendButton.click(); // 送信ボタンのクリックイベントを発火させる
+                        }
+                    }
+
+                    if (event.key === 'Escape') {
+                        // 最初にアクティブなモーダルを閉じることを試みる
+                        if (reportModalOverlay.classList.contains('active')) {
+                            closeReportModal();
+                        } 
+                        // モーダルが開いていなければ、メッセージメニューを閉じる
+                        else {
+                            hideMessageMenu();
+                        }
+                    }
+                });
+
+                // blurイベントの処理を、再描画を促す方法に
+                textarea.addEventListener('blur', () => {
+                    // Step 1: iOS Safariにビューポートの再計算を強制させる
+                    window.scrollTo(0, 0);
+
+                    // Step 2: チャットコンテナを最下部にスクロールする
+                    // setTimeoutを使い、ブラウザの再描画処理の後に実行されるようにする
+                    setTimeout(() => {
+                        if (messagesContainer) {
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    }, 0); // 0ミリ秒の遅延でも、実行タイミングを遅らせる効果がある
+                });
+            }
+
+            if (form) {
+                form.addEventListener('submit', async function(event) {
+                    event.preventDefault(); // フォームのデフォルト送信をキャンセル
+                    
+                    const messageText = textarea.value.trim();
+                    if (messageText === '' || sendButton.disabled) {
+                        return;
+                    }
+
+                    // 1. 送信ボタンを1秒間無効化
+                    sendButton.disabled = true;
+                    setTimeout(() => {
+                        // textareaが空でなければ有効に戻す
+                        if (textarea.value.trim() !== '') {
+                            sendButton.disabled = false;
+                        }
+                    }, 1000);
+
+                    try {
+                        const response = await fetch(`/${lang}/boards/chat/${threadId}/messages`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ message: messageText }),
+                        });
+
+                        if (!response.ok) {
+                            // HTTPステータスが2xxでない場合はエラーとみなす
+                            throw new Error('Server responded with an error.');
+                        }
+                        
+                        // 送信成功後、textareaをクリアして高さをリセット
+                        textarea.value = '';
+                        textarea.style.height = 'auto';
+
+                    } catch (error) {
+                        console.error('Failed to send message:', error);
+                        // 2. 送信失敗時にアラートを表示
+                        alert(lang === 'ja' ? 'エラーが発生しました。メッセージの送信に失敗しました。' : 'An error has occurred. Failed to send message.');
+                        // エラーが起きてもボタンは1秒後に有効になる
+                    }
+                });
+            }
+
+            // --- 通報モーダル ---
+            // カテゴリー選択で通報ボタンを有効化
+            reportCategorySelect.addEventListener('change', () => {
+                reportModalSubmitBtn.disabled = !reportCategorySelect.value;
+            });
+
+            reportTextForm.addEventListener('blur', () => {
+                // iOS/iPad Safariで、仮想キーボードを閉じた後に
+                // クリック位置がずれる描画バグを強制的に再描画させて修正する
+                window.scrollTo(0, 0);
+            });
+
+            // 通報送信ボタンのクリック処理
+            reportModalSubmitBtn.addEventListener('click', async () => {
+                const messageId = reportModalOverlay.dataset.messageId;
+                const category = reportCategorySelect.value;
+                const text = reportTextForm.value.trim();
+
+                if (!messageId || !category) return;
+
+                const payload = { category: category, text: text || null };
+
+                try {
+                    reportModalSubmitBtn.disabled = true; // 連打防止
+                    const url = `{{ url_for('report_message', lang=lang, message_id=0) }}`.replace('/0', `/${messageId}`);
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        closeReportModal();
+                        alert("{% if lang == 'ja' %}通報が完了しました。{% else %}Report submitted successfully.{% endif %}");
+                    } else {
+                        const errorText = await response.text();
+                        let errorDetail = errorText; // デフォルトは生のテキスト
+                        try {
+                            // 読み取ったテキストをJSONとして解析してみる
+                            const errorData = JSON.parse(errorText);
+                            // detailキーがあればそれを使う
+                            if (errorData.detail) {
+                                errorDetail = errorData.detail;
+                            }
+                        } catch (e) {
+                            // JSONとして解析できなくても、errorTextはそのまま使えるので何もしない
+                        }
+                        alert(`{% if lang == 'ja' %}${errorDetail}{% else %}${errorDetail}{% endif %}`);
+                        reportModalSubmitBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Error submitting report:', error);
+                    alert(`{% if lang == "ja" %}通報中にエラーが発生しました: ${error.message}{% else %}An error occurred while reporting: ${error.message}{% endif %}`);
+                    reportModalSubmitBtn.disabled = false;
+                }
+            });
+
+            // モーダル外のクリックやキャンセルボタンで閉じる
+            reportModalCancelBtn.addEventListener('click', closeReportModal);
+            reportModalOverlay.addEventListener('click', (event) => {
+                if (event.target === reportModalOverlay) {
+                    closeReportModal();
+                }
+            });
+        });
+    </script>
+{% endblock %}

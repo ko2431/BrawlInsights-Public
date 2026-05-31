@@ -1,0 +1,199 @@
+{# /app/templates/tools/tools.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ツール{% else %}Tools{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのさまざまなツールを利用できます。{% else %}A variety of tools related to Brawl Stars are available.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# ^ アップデートのお願い #}
+    {% include "components/update_request.html" %}
+    
+    <h1 class="page-title--main">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</h1>
+
+    <p class="tools-page__description">
+        {% if lang == "ja" %}このタブでは、ブロスタに関連するさまざまなツールを利用できます。<br><b>【New】</b>ボックス確率表・期待値計算機で、<b>各種トロフィーボックスの確率</b>も見られるようになりました！
+        {% else %}On this tab, a variety of tools related to Brawl Stars are available.<br><b>【New】</b>You can now check the drop rates of <b>various trophy boxes</b> in the Box Chances & EV Calculator!
+        {% endif %}
+    </p>
+
+    <div x-data>
+        {# ガチバトル関連 #}
+        <div class="tools-page__section" x-data="{ open: sessionStorage.getItem('bi_tools_ranked_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_tools_ranked_open', val))">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}ガチバトル関連{% else %}Ranked{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="tools-page__contents-box" x-show="open" x-transition>
+                <a href="{{ url_for('pick_tool', lang=lang) }}">
+                    <div class="tools-page__content">
+                        <img src="{{ url_for('static', path='/images/banners/ranked_pick_tool_banner_' + lang + '.png') }}" alt="ガチバトルピック提案ツール" class="tools-page__content-image">
+                    </div>
+                </a>
+                <a href="{{ url_for('ranked_maps', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/ranked_maps_banner_' + lang + '.png') }}" alt="ガチバトルマップ一覧" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/ranked_maps_banner_slim_' + lang + '.png') }}" alt="ガチバトルマップ一覧" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# キャラクター関連 #}
+        <div class="tools-page__section" x-data="{ open: sessionStorage.getItem('bi_tools_brawler_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_tools_brawler_open', val))">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}キャラクター関連{% else %}Brawler{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="tools-page__contents-box" x-show="open" x-transition>
+                {% if (platform == "ios" and app_client_version and app_client_version >= "14.0") or platform == "web" %}
+                <a href="{{ url_for('profile_image_tool', lang=lang) }}">
+                    <div class="tools-page__content">
+                        <img src="{{ url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %}" class="tools-page__content-image">
+                    </div>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('brawler_guide_menu', lang=lang) }}">
+                    <div class="tools-page__content">
+                        <img src="{{ url_for('static', path='/images/banners/brawler_guide_banner_new_' + lang + '.png') }}" alt="キャラクター図鑑" class="tools-page__content-image">
+                    </div>
+                </a>
+                <a href="{{ url_for('cost_calc', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/cost_calc_banner_' + lang + '.png') }}" alt="育成計算機" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/cost_calc_banner_slim_' + lang + '.png') }}" alt="育成計算機" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+                <a href="{{ url_for('random_brawler', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/random_brawler_banner_' + lang + '.png') }}" alt="キャラクタールーレット" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/random_brawler_banner_slim_' + lang + '.png') }}" alt="キャラクタールーレット" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# トロフィー関連 #}
+        <div class="tools-page__section" x-data="{ open: sessionStorage.getItem('bi_tools_trophy_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_tools_trophy_open', val))">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}トロフィー関連{% else %}Trophy{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="tools-page__contents-box" x-show="open" x-transition>
+                {% if lang == "ja" %}
+                <a href="{{ url_for('map_rotation', lang=lang) }}">
+                    <div class="tools-page__content">
+                        <img src="{{ url_for('static', path='/images/banners/map_rotation_banner_' + lang + '.png') }}" alt="マップ周期" class="tools-page__content-image">
+                    </div>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('trophy_table', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/trophy_table_banner_' + lang + '.png') }}" alt="トロフィー増減表" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/trophy_table_banner_slim_' + lang + '.png') }}" alt="トロフィー増減表" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# 報酬関連 #}
+        <div class="tools-page__section" x-data="{ open: sessionStorage.getItem('bi_tools_rewards_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_tools_rewards_open', val))">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}報酬関連{% else %}Rewards{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="tools-page__contents-box" x-show="open" x-transition>
+                <a href="{{ url_for('reward_calc', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/brawlpass_calc_banner_' + lang + '.png') }}" alt="報酬量計算機" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/brawlpass_calc_banner_slim_' + lang + '.png') }}" alt="報酬量計算機" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+                <a href="{{ url_for('starrdrop_chances', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/drop_chances_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}各種ドロップ/ボックス確率表{% else %}Drop / Box Chances{% endif %}" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/drop_chances_banner_slim_' + lang + '.png') }}" alt="{% if lang == 'ja' %}各種ドロップ/ボックス確率表{% else %}Drop / Box Chances{% endif %}" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+                <a href="{{ url_for('starrdrop_calc', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/drop_calc_banner_' + lang + '.png') }}" alt="各種ドロップ/ボックス期待値計算機" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/drop_calc_banner_slim_' + lang + '.png') }}" alt="各種ドロップ/ボックス期待値計算機" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# その他 #}
+        <div class="tools-page__section" x-data="{ open: sessionStorage.getItem('bi_tools_others_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_tools_others_open', val))">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}その他{% else %}Others{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="tools-page__contents-box" x-show="open" x-transition>
+                <a href="{{ url_for('brawl_videos', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/brawl_videos_banner_' + lang + '.png') }}" alt="ブロスタ動画" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/brawl_videos_banner_slim_' + lang + '.png') }}" alt="ブロスタ動画" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+                <a href="{{ url_for('app_faq', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/app_faq_banner_' + lang + '.png') }}" alt="アプリFAQ" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/app_faq_banner_slim_' + lang + '.png') }}" alt="アプリFAQ" class="tools-page__content-image--slim">
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# お役立ち外部リンク #}
+        <div class="tools-page__section" x-data="{ open: sessionStorage.getItem('bi_tools_links_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_tools_links_open', val))">
+            <h2 class="section-title tools-page__section-title" @click="open = !open">
+                <span>{% if lang == "ja" %}お役立ち外部リンク{% else %}Useful External Links{% endif %}</span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="tools-page__contents-box" x-show="open" x-transition>
+                <a href="https://store.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars" target="_blank">
+                    <div class="tools-page__content tools-page__content--small">
+                        <img src="{{ url_for('static', path='/images/banners/link_store_banner_' + lang + '.png') }}" alt="Supercell Store" class="tools-page__content-image tools-page__content-image--small">
+                    </div>
+                </a>
+                <a href="https://id.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars/" target="_blank">
+                    <div class="tools-page__content tools-page__content--small">
+                        <img src="{{ url_for('static', path='/images/banners/link_rewards_banner_' + lang + '.png') }}" alt="Supercell ID Rewards" class="tools-page__content-image tools-page__content-image--small">
+                    </div>
+                </a>
+                <a href="https://event.supercell.com/brawlstars/{% if lang == 'ja' %}jp{% else %}en{% endif %}/" target="_blank">
+                    <div class="tools-page__content tools-page__content--small">
+                        <img src="{{ url_for('static', path='/images/banners/link_champ_banner_' + lang + '.png') }}" alt="Brawl Stars Championship" class="tools-page__content-image tools-page__content-image--small">
+                    </div>
+                </a>
+                <a href="https://fankit.supercell.com/d/YvtsWV4pUQVm/game-assets" target="_blank">
+                    <div class="tools-page__content tools-page__content--small">
+                        <img src="{{ url_for('static', path='/images/banners/link_fankit_banner_' + lang + '.png') }}" alt="Brawl Stars Fan Kit" class="tools-page__content-image tools-page__content-image--small">
+                    </div>
+                </a>
+                <a href="https://pinmaker.supercell.com/{% if lang == 'ja' %}jp{% else %}en{% endif %}" target="_blank">
+                    <div class="tools-page__content tools-page__content--small">
+                        <img src="{{ url_for('static', path='/images/banners/link_pinmaker_banner_' + lang + '.png') }}" alt="Brawl Stars Pin Maker" class="tools-page__content-image tools-page__content-image--small">
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        {# バナー広告 #}
+        {% include "components/ad_banner.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+
+    </script>
+{% endblock %}

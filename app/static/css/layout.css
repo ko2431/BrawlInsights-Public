@@ -1,0 +1,528 @@
+/* /app/static/css/layout.css */
+/* =============================================== */
+/* ページ全体のレイアウト                           */
+/* =============================================== */
+
+/* --- メインコンテンツエリア --- */
+.main-content {
+    /* ページの主要なコンテンツ部分のコンテナ */
+    /* paddingなどは各ページのコンテナで設定 */
+    /* 必要であれば最小高さなどを設定 */
+    min-height: calc(100dvh - (85px + env(safe-area-inset-bottom))); /* ヘッダー/フッターを除いたビューポート高さ(仮) */
+}
+
+/* --- PC用ヘッダー (固定) --- */
+.header-pc {
+    /* PC表示時に画面上部に固定されるヘッダー */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(40px + env(safe-area-inset-top)); /* ヘッダーの高さ */
+    background-color: #eee; /* 背景色 */
+    z-index: 1000; /* 他の要素より手前に表示 */
+    /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 必要なら影 */
+    display: none; /* モバイルファースト: デフォルトは非表示 */
+    /* 上部に、セーフエリア分だけ内側の余白（padding）を追加 */
+    padding-top: env(safe-area-inset-top);
+}
+.dark .header-pc {
+    background-color: #333;
+}
+
+.header-pc__container {
+    /* ヘッダー内容の最大幅と中央揃え */
+    max-width: 1194px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 30px; /* 左右の余白 */
+    display: flex;
+    align-items: center; /* 垂直方向中央揃え */
+}
+
+.header-pc__brand {
+    /* ロゴとサービス名 */
+    display: inline-flex;
+    align-items: center;
+}
+
+.header-pc__logo {
+    height: 25px; /* ロゴの高さ */
+    width: auto;
+}
+
+.header-pc__service-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin-left: 6px; /* ロゴとの隙間 */
+    color: #333;
+    transition: color 0.2s ease;
+}
+.dark .header-pc__service-name {
+    color: #fff;
+}
+.header-pc__brand:hover .header-pc__service-name {
+    color: #6c757d; /* ホバー時の文字色 */
+}
+.dark .header-pc__brand:hover .header-pc__service-name {
+    color: #ddd; /* ホバー時の文字色 */
+}
+
+.header-pc__nav {
+    /* PCヘッダー内のナビゲーション */
+    margin-left: 15px; /* ブランド部分との隙間 */
+    display: flex;
+    align-items: center;
+    gap: 11px; /* ナビゲーション項目間の隙間 */
+}
+
+.header-pc__nav-link {
+    /* ナビゲーションの各リンク */
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 0; /* クリック領域確保 */
+}
+
+.header-pc__nav-icon {
+    height: 23px; /* ナビゲーションアイコンの高さ */
+    width: auto;
+}
+
+.header-pc__nav-text {
+    font-size: 18px;
+    font-weight: 600;
+    margin-left: 5px; /* アイコンとの隙間 */
+    color: #333;
+    transition: color 0.2s ease;
+}
+.dark .header-pc__nav-text {
+    color: #fff;
+}
+.header-pc__nav-link:hover .header-pc__nav-text {
+    color: #6c757d; /* ホバー時の文字色 */
+}
+.dark .header-pc__nav-link:hover .header-pc__nav-text {
+    color: #ddd; /* ホバー時の文字色 */
+}
+
+@media (max-width: 859px) {
+    .header-pc__service-name {
+        font-size: 19px;
+    }
+    .header-pc__nav-text {
+        font-size: 17px;
+    }
+}
+
+/* =============================================== */
+/* Language Switcher Styles                      */
+/* =============================================== */
+
+/* ヘッダーコンテナ内の要素配置 */
+/*.header-pc__container {
+    /* display: flex; align-items: center; は既存のはず */
+    /* ナビゲーションとスイッチャーを左右に振り分ける */
+    /* justify-content: space-between; */ /* これだとナビが左端になる */
+/*}*/
+.header-pc__nav {
+    /* ... 既存のスタイル ... */
+    margin-right: auto; /* ナビゲーションとスイッチャーの間にスペースを空ける */
+}
+
+
+/* 言語切り替え全体コンテナ */
+.lang-switcher {
+    position: relative; /* ドロップダウンメニューの位置決めの基準 */
+    margin-left: 15px; /* ナビゲーションとの間の最小マージン */
+    margin-top: 1px; /* 微調整 */
+}
+
+/* 言語切り替えボタン本体 */
+.lang-switcher__button {
+    display: inline-flex;   /* アイコンと矢印を横並び */
+    align-items: center;    /* 垂直中央揃え */
+    padding: 4px 10px;       /* 内側の余白 */
+    background-color: #fff; /* ボタン背景色 */
+    border: 1px solid #ccc;  /* 枠線 (灰色) */
+    border-radius: 6px;     /* 角丸 */
+    cursor: pointer;
+    font-size: inherit;     /* 文字サイズを継承 */
+    line-height: 1;         /* 行の高さを詰める */
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.dark .lang-switcher__button {
+    background-color: #222;
+    border-color: #181818;
+}
+.lang-switcher__button:hover {
+    background-color: #f8f8f8; /* ホバー時背景 */
+    border-color: #bbb;
+}
+.dark .lang-switcher__button:hover {
+    background-color: #252525;
+    border-color: #1a1a1a;
+}
+
+.lang-switcher__icon {
+    height: 20px; /* アイコンサイズ */
+    width: auto;
+    margin-right: 6px; /* アイコンと矢印の間のスペース */
+    display: block; /* 画像下の隙間削除 */
+}
+
+.lang-switcher__arrow {
+    font-size: 10px; /* 下向き三角のサイズ */
+    color: #555;    /* 矢印の色 */
+}
+
+/* ドロップダウンメニュー */
+.lang-switcher__menu {
+    display: none; /* デフォルト非表示 */
+    position: absolute;
+    top: calc(100% + 4px); /* ボタンの下、4px離す */
+    right: 0; /* 右端に合わせる */
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    list-style: none;
+    margin: 0;
+    padding: 5px 0; /* 上下のパディング */
+    min-width: 130px; /* メニューの最小幅 */
+    z-index: 1001; /* ヘッダーより手前に */
+}
+.dark .lang-switcher__menu {
+    background-color: #222;
+    border-color: #181818;
+}
+
+/* JavaScriptで is-open クラスが付いたらメニューを表示 */
+.lang-switcher.is-open .lang-switcher__menu {
+    display: block;
+}
+
+/* メニュー項目 */
+.lang-switcher__item {
+    display: flex;         /* アイコンとテキストを横並び */
+    align-items: center;   /* 垂直中央揃え */
+    padding: 8px 15px;      /* 項目のパディング */
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    white-space: nowrap;   /* 折り返さない */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    min-width: 128px;
+}
+.dark .lang-switcher__item {
+    color: #fff;
+}
+.lang-switcher__item:hover {
+    background-color: #f0f0f0; /* ホバー時の背景色 */
+}
+.dark .lang-switcher__item:hover {
+    background-color: #363636;
+}
+/* 現在選択中の言語 */
+.lang-switcher__item.is-active {
+    font-weight: bold;
+    background-color: #e9ecef;
+    cursor: default;
+    pointer-events: none; /* クリックを無効化 */
+}
+.dark .lang-switcher__item.is-active {
+    background-color: #555;
+}
+
+.lang-switcher__item-icon-en {
+    height: 20px; /* メニュー内アイコンサイズ */
+    width: auto;
+    object-fit: contain; /* アスペクト比を保ちつつ、指定サイズ内に収める */
+    margin-right: 8px; /* アイコンとテキストの間隔 */
+    display: block;
+    flex-shrink: 0; /* アイコンが縮まないように */
+}
+.lang-switcher__item-icon-ja {
+    height: 17px; /* メニュー内アイコンサイズ */
+    width: auto;
+    object-fit: contain; /* アスペクト比を保ちつつ、指定サイズ内に収める */
+    margin-right: 8px; /* アイコンとテキストの間隔 */
+    display: block;
+    flex-shrink: 0; /* アイコンが縮まないように */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* --- モバイル用フッター (下部タブバー) --- */
+.footer-mobile-nav {
+    /* モバイル表示時に画面下部に固定されるタブバー */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #eee; /* 背景色 */
+    z-index: 1000;
+    display: flex; /* タブアイテムを横並びにする（デフォルトで表示） */
+    /* box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1); /* 必要なら影 */
+    height: calc(85px + env(safe-area-inset-bottom));
+}
+.dark .footer-mobile-nav {
+    background-color: #333;
+}
+
+.footer-mobile-nav__item {
+    /* 各タブアイテム */
+    flex-grow: 1; /* 幅を均等に分割 */
+    flex-basis: 0;
+    display: flex;
+    flex-direction: column; /* アイコンとテキストを縦積み */
+    align-items: center; /* 水平方向中央揃え */
+    justify-content: center; /* 垂直方向中央揃え */
+    padding: 9.5px 0 calc(14.5px + env(safe-area-inset-bottom)) 0; /* 上下パディング */
+    color: #333; /* 通常時の文字色 */
+    background-color: transparent;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.dark .footer-mobile-nav__item {
+    color: #fff;
+}
+
+.footer-mobile-nav__icon {
+    height: 40px; /* タブアイコンの高さ */
+    width: auto;
+    margin-bottom: 5px; /* アイコンとテキストの隙間 */
+}
+
+.footer-mobile-nav__text {
+    font-size: 14px; /* タブテキストのサイズ */
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+/* --- アクティブなタブ --- */
+.footer-mobile-nav__item--active {
+    background-color: #333; /* アクティブ時の背景色 */
+    color: #fff; /* アクティブ時の文字色 */
+}
+.dark .footer-mobile-nav__item--active {
+    background-color: #fcfcfc;
+    color: #111;
+}
+/* アイコンの色も変える場合 (SVGやアイコンフォント向け) */
+/* .footer-mobile-nav__item--active .footer-mobile-nav__icon { filter: brightness(0) invert(1); } */
+
+
+/* =============================================== */
+/* レスポンシブ: ヘッダー/フッターの表示切り替え    */
+/* =============================================== */
+
+/* モバイル（デフォルト） */
+/* .header-pc は display: none がデフォルト */
+/* .footer-mobile-nav は display: flex がデフォルト */
+body {
+    /* JSから設定されるCSS変数を定義（デフォルトは0px） */
+    --banner-ad-height: 0px;
+    --bottom-nav-height: 85px; /* モバイルでのデフォルトのタブバーの高さを設定 */
+}
+
+/* 広告表示時は固定値の高さを割り当てる */
+body.has-bottom-banner {
+    --banner-ad-height: 55px; /* スマホのAdaptive Bannerの標準的な高さ+少し余裕 */
+}
+@media (min-width: 600px) {
+    body.has-bottom-banner {
+        --banner-ad-height: 90px; /* タブレットの標準的な高さ */
+    }
+}
+
+body {
+
+    padding-bottom: calc(var(--bottom-nav-height) + var(--banner-ad-height) + env(safe-area-inset-bottom)); /* モバイル用フッターの高さ分を確保 */
+    transition: padding-bottom 0.3s ease; /* transitionを追加して、広告表示時のレイアウト変更を滑らかにする */
+}
+
+/* タブレット/PC (例: 840px以上) */
+@media (min-width: 840px) {
+    .header-pc {
+        display: block; /* PCヘッダーを表示 */
+        /* もし header-pc__container が flex を使うなら display: flex; でも良い */
+    }
+    .footer-mobile-nav {
+        display: none; /* モバイル用フッターを非表示 */
+    }
+    body {
+        padding-top: calc(40px + env(safe-area-inset-top)); /* PCヘッダーの高さ分を確保 */
+        --bottom-nav-height: 0px;
+        padding-bottom: var(--banner-ad-height);
+    }
+    .main-content {
+        min-height: calc(100dvh - (40px + env(safe-area-inset-top))); /* フッターのみ考慮 */
+    }
+}
+
+@media (max-width: 839px) {
+    body {
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+/* 小さいスマホ (例: 539px以下) 用の微調整 */
+@media (max-width: 539px) {
+    .footer-mobile-nav {
+        height: calc(73px + env(safe-area-inset-bottom));
+    }
+    .footer-mobile-nav__item {
+        padding-top: 9.5px;
+        padding-bottom: calc(9.5px + env(safe-area-inset-bottom)); /* パディングを詰める */
+    }
+    .footer-mobile-nav__icon {
+        height: 35px; /* アイコンを少し小さく */
+    }
+    .footer-mobile-nav__text {
+        font-size: 12px; /* テキストを少し小さく */
+    }
+    body {
+        --bottom-nav-height: 73px;
+        padding-bottom: calc(var(--bottom-nav-height) + var(--banner-ad-height) + env(safe-area-inset-bottom));
+    }
+    /* メインコンテンツの最小高さも調整が必要なら */
+    .main-content {
+        min-height: calc(100dvh - (73px + env(safe-area-inset-bottom) + env(safe-area-inset-top))); /* フッターのみ考慮 */
+    }
+}
+
+
+/* =============================================== */
+/* フッター                                         */
+/* =============================================== */
+.main-footer {
+    margin-top: 35px;
+    background-color: #eee;
+    font-size: 15px;
+    padding: 30px 0 calc(20px + var(--banner-ad-height));
+    color: #565d64;
+}
+.dark .main-footer {
+    background-color: #333;
+    color: #fcfcfc;
+}
+
+.main-footer__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.main-footer__nav {
+    margin: 25px 0;
+}
+
+.main-footer__nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* リンク間の隙間 */
+    flex-wrap: wrap; /* スマホ表示で折り返す */
+}
+
+.main-footer__nav-link {
+    color: #343a40;
+    text-decoration: none;
+    transition: text-decoration 0.2s ease;
+}
+.main-footer__nav-link--fcp {
+    color: #000;
+}
+.dark .main-footer__nav-link {
+    color: #fff;
+}
+
+.main-footer__nav-link:hover {
+    text-decoration: underline;
+}
+
+.main-footer__copyright {
+    margin: 0;
+}
+
+.main-footer__text {
+    padding-bottom: 5px;
+    font-size: 14px;
+}
+
+.main-footer__disclaimer {
+    padding: 5px 0;
+    font-size: 13.5px;
+}
+
+.main-footer__social {
+    display: flex;
+    gap: 35px;
+    justify-content: center;
+}
+
+.main-footer__social-icon {
+    height: 40px;
+    width: auto;
+}
+.dark .main-footer__social-icon {
+    filter:invert(90%)
+}
+
+.main-footer__app-store-link {
+    display: flex;
+    margin-top: 2px;
+    margin-bottom: 30px;
+}
+.main-footer__app-store-banner {
+    height: 50px;
+    width: auto;
+    margin: 0 auto;
+}
+
+/* モバイル用の調整 */
+@media (max-width: 539px) {
+    .main-footer {
+        font-size: 13.5px;
+        padding: 25px 0 calc(15px + var(--banner-ad-height));
+        margin-top: 25px;
+    }
+    .main-footer__nav-list {
+        gap: 10px;
+    }
+    .main-footer__nav {
+        margin: 20px 0;
+    }
+    .main-footer__disclaimer {
+        font-size: 11px;
+    }
+    .main-footer__text {
+        font-size: 11.5px;
+    }
+    .main-footer__social-icon {
+        height: 35px;
+    }
+    .main-footer__social {
+        gap: 25px;
+    }
+    .main-footer__app-store-banner {
+        height: 44px;
+    }
+}
+
+body.platform-ios .main-footer,
+body.platform-android .main-footer {
+    padding-bottom: 120px;
+}
+
+/* 小さいスマホ用の調整 */
+@media (max-width: 539px) {
+    body.platform-ios .main-footer,
+    body.platform-android .main-footer {
+        /* モバイル用の元々のパディング(15px) + バナー広告の高さ = 65px */
+        padding-bottom: 65px;
+    }
+}

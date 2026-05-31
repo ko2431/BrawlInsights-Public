@@ -1,0 +1,370 @@
+/* /app/static/css/pages/club.css */
+/* =============================================== */
+/* クラブプロフィールページ固有スタイル (/club/...)   */
+/* =============================================== */
+
+/* --- ページコンテナ --- */
+.club-page__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 20px auto 45px auto; /* 上下マージン、左右中央揃え */
+}
+
+.back-button__container {
+    margin: 15px auto;
+}
+
+/* --- クラブヘッダー --- */
+.club-header {
+    display: flex;
+    align-items: center; /* 垂直中央揃え */
+    margin-bottom: 10px; /* 下のマージン */
+}
+
+.club-header__badge-container {
+    flex-shrink: 0; /* バッジが縮まないように */
+}
+
+.club-header__badge {
+    height: 80px; /* バッジの高さ */
+    width: auto;
+    /* margin-top: 5px; 不要なら削除 */
+}
+
+.club-header__identity {
+    margin-left: 20px; /* バッジとの間のスペース */
+}
+
+.club-header__name {
+    /* クラブ名 (h1) - プレイヤー名と同じスタイルを想定 */
+    font-size: 48px;
+    font-weight: bold;
+    margin: 0 0 0 0;
+    line-height: 1.1;
+    /* カラータグ<c*>が適用されることを想定 */
+}
+
+.club-header__tag {
+    /* クラブタグ (p) - プレイヤータグと同じスタイルを想定 */
+    font-size: 24px;
+    font-weight: 400;
+    color: #6c757d;
+    margin: 0;
+}
+
+/* --- クラブブックマークボタン (クラブページ専用) --- */
+.club-bookmark-ui {
+    max-width: 1194px;
+    display: flex;
+    margin: 0 auto 10px;
+}
+
+.club-button--bookmark {
+    width: 100%;
+    font-weight: bold;
+    padding: 3px 15px;
+    border-radius: 12px;
+}
+
+/* --- コンテンツグリッド (説明文 & 基本データ) --- */
+.club-content-grid {
+    display: grid;
+    gap: 20px; /* グリッドアイテム間の隙間 */
+    grid-template-columns: 1fr; /* デフォルト: 1列 (モバイル) */
+    margin-bottom: 20px; /* メンバーセクションとのマージン */
+}
+
+@media (min-width: 840px) { /* PC表示 */
+    .club-content-grid {
+        grid-template-columns: 1fr 1fr; /* 2列 */
+    }
+}
+
+/* --- コンテンツブロック共通 (説明文, 基本データ) --- */
+/*.club-content-block {
+    /* 各ブロックの基本的な設定（必要に応じて） */
+/*}
+
+/* --- 説明文セクション --- */
+.club-description__box {
+    /* 説明文を表示するボックス */
+    border: 1.5px solid #eee;
+    padding: 12px;
+    min-height: 94px; /* 最低限の高さを確保 */
+    background-color: #fdfdfd;
+    /*border-radius: 4px; /* 少し角丸 */
+}
+.dark .club-description__box {
+    border-color: #363636;
+    background-color: #262626;
+}
+.club-description__text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #333;
+    margin: 0;
+    white-space: pre-wrap; /* HTML内の改行(\n)を反映させる (safeフィルタと併用) */
+}
+.dark .club-description__text {
+    color: #fff;
+}
+.club-description__text--empty {
+    /* 説明文がない場合のスタイル */
+    color: var(--color-999);
+    font-style: italic;
+}
+
+/* --- 基本データセクション --- */
+/* テーブル (.data-table, .key-value-table) は components.css を使用 */
+/*.club-data-table .icon--stat {
+    /* 基本データテーブル内のアイコン */
+    /* components.css の .icon--stat を使用 */
+/*}
+
+/* --- メンバーセクション --- */
+.member-section {
+    margin-top: 20px; /* 上のグリッドとのマージン */
+}
+
+/* --- メンバーセクションの説明文 --- */
+.member-section__info {
+    /* components.css の .info-block を流用 */
+    margin-top: 0; /* タイトル直下なので上マージン不要 */
+    margin-bottom: 10px; /* グリッドとのマージン */
+}
+
+/* --- メンバーグリッド --- */
+.member-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr; /* デフォルト: 1列 (モバイル) */
+}
+
+@media (min-width: 840px) { /* PC表示 */
+    .member-grid { grid-template-columns: 1fr 1fr; } /* 2列 */
+}
+@media (min-width: 1194px) { /* さらに広い画面 */
+    .member-grid { grid-template-columns: 1fr 1fr 1fr; } /* 3列 */
+}
+
+/* --- メンバーカード --- */
+/* カード全体を囲むリンク (.card-link を流用) */
+/*.member-card-link { }
+
+/* カード本体 (.card を流用・拡張) */
+.member-card {
+    display: flex;
+    align-items: center;
+    padding: 8px; /* brawler-card と合わせる */
+    gap: 8px; /* brawler-card と合わせる */
+    min-width: 0;
+    /* overflow-x: auto; はみ出しにくいので不要かも */
+}
+
+.member-card__icon {
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background-color: #eee; /* 画像がない場合の背景色 */
+}
+
+.member-card__info {
+    /* 名前とタグ */
+    flex-shrink: 1; /* 縮む */
+    min-width: 0;
+    overflow: hidden;
+}
+
+.member-card__name {
+    /* brawler-card__name と同じスタイルを想定 */
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* カラータグ<c*>適用想定 */
+}
+
+.member-card__tag {
+    /* brawler-cardのタグと同様だが色は薄め */
+    font-size: 14px;
+    font-weight: 400;
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dark .member-card__tag {
+    color: #aaa;
+}
+
+.member-card__spacer {
+    flex-grow: 1;
+}
+
+.member-card__stats {
+    /* トロフィーと役職 */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* 右揃え */
+    flex-shrink: 0;
+    margin-left: 5px; /* スペーサーとの隙間 */
+}
+
+.member-card__trophies {
+    /* brawler-card__trophy-row とほぼ同じ */
+    display: flex;
+    align-items: center;
+    margin-bottom: 0; /* 役職との隙間 */
+}
+.member-card__trophy-icon {
+    /* brawler-card__trophy-icon と同じ */
+    height: 16px;
+    width: auto;
+    margin-right: 4px;
+}
+.member-card__trophy-text {
+    /* brawler-card__trophy-text と同じ */
+    font-size: 15px;
+    font-weight: 400;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.member-card__role {
+    /* 役職バッジ */
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 13px;
+    font-weight: 500; /* 少し太めに */
+    color: white; /* デフォルトの文字色は白 */
+    border-radius: 6px;
+    line-height: 1; /* 高さを抑える */
+    text-align: center;
+}
+/* 役職ごとの背景色 */
+.member-card__role--president { background-color: #e01a2e; } /* 赤 */
+.member-card__role--vicePresident { background-color: #c510c5; } /* 紫 (元の指定に合わせる) */
+.member-card__role--senior { background-color: #0c6bf9; } /* 青 */
+.member-card__role--member { background-color: #6bfa44; color: #333; } /* 明るい緑 (元の指定に合わせる) */
+.member-card__role--open { background-color: #17c9cc; color: #333; }
+.member-card__role--inviteOnly { background-color: #c8c328; color: #333; }
+.member-card__role--closed { background-color: #260a89 }
+
+/* クラブカード(検索結果)用の追加設定 */
+.club-card__badge {
+    width: auto;
+    border-radius: 0;
+    background-color: transparent; /* 背景を透過 */
+}
+
+.club-card-grid {
+    margin-top: 15px;
+    margin-bottom: 5px;
+}
+
+/* --- レスポンシブ調整 (タブレット) --- */
+@media (max-width: 839px) {
+    .club-page__container { margin-top: 20px;}
+}
+
+/* --- レスポンシブ調整 (スマホ) --- */
+@media (max-width: 539px) {
+    .club-page__container { margin-top: 15px; }
+    .club-header { margin-bottom: 20px; }
+    .club-header__badge { height: 60px; }
+    .club-header__identity { margin-left: 15px; }
+    .club-header__name { font-size: 36px; }
+    .club-header__tag { font-size: 20px; }
+
+    .club-content-grid { margin-bottom: 20px; gap: 15px;}
+
+    .club-description__text { font-size: 14px; }
+
+    .member-section { margin-top: 30px; }
+    .member-section__info { margin-bottom: 12px; }
+
+    .member-grid { gap: 7px; }
+    .member-card { padding: 7px; gap: 7px;}
+    /*.member-card__icon { width: 40px; height: 40px; border-radius: 4px;}*/
+    .member-card__name { font-size: 15px; }
+    .member-card__tag { font-size: 13px; }
+    .member-card__stats { margin-right: 1px; }
+    .member-card__trophy-icon { height: 14px; margin-right: 3px; }
+    .member-card__trophy-text { font-size: 14px; }
+    .member-card__role { font-size: 12px; padding: 2.8px 7px; border-radius: 5.5px;}
+
+    .club-bookmark-ui {
+        margin-top: -12px;
+    }
+}
+
+/* ===== シェルページ ローディング・エラースタイル ===== */
+.club-shell__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 16px;
+    padding: 40px 20px;
+}
+
+.club-shell__spinner {
+    width: 48px;
+    height: 48px;
+
+    /* スピナーの色をここで指定（ライト/ダークモード対応もbackground-colorを変えるだけでOK） */
+    background-color: var(--color-888, #888); 
+
+    /* iOS風のスピナー（12本の角丸線と透過の尾を引くグラデーション）をSVGマスクで表現 */
+    -webkit-mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(240 50 50)' opacity='.9'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(240 50 50)' opacity='.9'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-size: cover;
+    mask-size: cover;
+
+    /* 滑らかな回転(linear)から、iOS風のカクカクした回転(steps(12))に変更。速度は1sが見た目自然です */
+    animation: player-spin 1s steps(12) infinite;
+}
+
+@keyframes club-spin {
+    to { transform: rotate(360deg); }
+}
+
+.club-shell__loading-text {
+    color: var(--color-text-secondary, #888);
+    font-size: 14px;
+}
+.club-shell__description-text {
+    color: var(--color-text-secondary, #888);
+    font-size: 13px;
+}
+
+.club-shell__error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-text-secondary, #888);
+}
+
+.club-error-msg {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+[x-ref="content"] {
+    animation: club-fadein 0.25s ease;
+}
+
+@keyframes club-fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

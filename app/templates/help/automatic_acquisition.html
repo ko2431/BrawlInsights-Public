@@ -1,0 +1,170 @@
+{# /app/templates/help/automatic_acquisition.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ヘルプ / プレイヤー自動追跡機能について{% else %}Help / About the player auto-tracking feature{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}プレイヤー自動追跡機能について解説しています。{% else %}Explains the player auto-tracking feature.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/help.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="help-page__container"> {# ページ全体のコンテナ #}
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main help-page-title--main">{% if lang == "ja" %}ヘルプ / プレイヤー自動追跡機能{% else %}Help / Player Auto-Tracking Feature{% endif %}</h1>
+
+    <h2 class="help-page__section-title">{% if lang == "ja" %}プレイヤー自動追跡機能とは{% else %}About the player auto-tracking feature{% endif %}</h2>
+    <div class="help-page__text">{% if lang == "ja" %}プレイヤー自動追跡機能は、本サービスが従来(=プレイヤー自動追跡機能が無効のプレイヤー)よりも高い頻度で該当プレイヤーのデータをバックグラウンド取得・更新することにより、本サービス上で閲覧できる<b>改名履歴、クラブ履歴、バトル履歴、推移グラフ</b>などのデータの欠損を大幅に生じさせにくくする機能です。
+            <div class="line-space"></div>
+            特に<b>バトル履歴</b>に関しては、この機能の有効/無効によって欠損のしにくさが大幅に変わります。ただし、機能が有効になっていても、1試合が短い低トロフィー帯のマルチの連続プレイをした場合などでは、欠損が生じることがあります。欠損を<b>確実に</b>生じさせないようにするには、25戦プレイするごとにページにアクセスまたは再読み込みしてください。
+            <div class="line-space"></div>
+            この機能の有効/無効にかかわらず、定期的にプレイヤーのページに実際にアクセスすれば、そのプレイヤーのデータの欠損は生じません。具体的には、<b>改名履歴、クラブ履歴、推移グラフ</b>については毎日、<b>バトル履歴</b>については25戦プレイするごとにアクセスすれば、データの欠損は生じません。
+            <div class="line-space"></div>
+            また、この機能とは関係なく、本サービス上で閲覧できる各種データは、初めてBrawl Insightsで該当プレイヤーが閲覧された日からのデータとなります。
+        {% else %}
+            The player auto-tracking feature enables Brawl Insights to automatically fetch and update the corresponding player's data more frequently than usual (i.e., for players without auto-tracking enabled), significantly reducing the risk of missing data such as <b>name change logs, club logs, battle logs, and progression graphs</b>.
+            <div class="line-space"></div>
+            In particular, <b>battle logs</b> are highly affected by whether this feature is enabled or not. With auto-tracking, the likelihood of missing data is greatly reduced.
+            <div class="line-space"></div>
+            Regardless of whether auto-tracking is enabled, data loss can be prevented simply by visiting the player's page regularly. Specifically, visiting the page once a day prevents missing data for <b>name change logs, club logs, and progression graphs</b>, and visiting after every 25 battles prevents missing <b>battle logs</b>.
+            <div class="line-space"></div>
+            Note that all data available on Brawl Insights is only recorded from the day the corresponding player was first viewed on this service, regardless of whether the auto-tracking feature is used.
+        {% endif %}
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">{% if lang == "ja" %}プレイヤー自動追跡機能を有効化する方法{% else %}How to enable the player auto-tracking feature{% endif %}</h2>
+    <div class="help-page__text">{% if lang == "ja" %}プレイヤー自動追跡機能を有効化する方法は2つあります。
+            <div class="line-space"></div>
+            1. プレイヤーのページにアクセスして自動で有効化
+            <div class="line-space"></div>
+            2. <b>10トークン</b>消費して<b>24時間</b>、または<b>90トークン</b>消費して<b>10日間</b>有効化 (残り時間が<b>30日間</b>に達するまで重ねがけ可。トークンに関する詳細は<b>アカウント</b>タブをご覧ください)
+            <div class="line-space"></div>
+            このうち、1番については一定のレベル以上のプレイヤーに限ります。一定のレベル以上のプレイヤーは、ページにアクセスされるたびに<b>自動有効化時間</b>まで有効時間が延長されます(負荷軽減のため、一度延長処理が行われると30分間は再度行われません)。
+            <div class="line-space"></div>
+            この<b>自動有効化時間</b>はプレイヤーのレベルが高いほど長くなります。具体的には下表のとおりです。
+            <div class="line-space"></div>
+            表にある4つの項目について、それぞれ対応する<b>自動有効化時間</b>を計算したあと、その4つのうち<b>最も長いもの</b>が適用されます。
+        {% else %}
+            There are two ways to enable the player auto-tracking feature:
+            <div class="line-space"></div>
+            1. Visit the player’s page to enable it automatically
+            <div class="line-space"></div>
+            2. Consumes <b>10 tokens</b> to activate for <b>24 hours</b>, or <b>90 tokens</b> to activate for <b>10 days</b> (Can be stacked until the remaining time reaches <b>30 days</b>. For more information about tokens, please refer to the <b>Account</b> tab.)
+            <div class="line-space"></div>
+            The first method is only available for players above a certain level. When such players' pages are accessed, their tracking duration is automatically extended up to the <b>auto-enable time</b>. (To reduce server load, this extension can only occur once every 30 minutes.)
+            <div class="line-space"></div>
+            The higher the player's level, the longer their <b>auto-enable time</b>. Details are shown in the table below.
+            <div class="line-space"></div>
+            <b>Auto-enable time</b> is calculated separately for four criteria, and the longest among the four is applied.
+        {% endif %}</div>
+
+    <div class="table-wrapper" style="margin-top: 15px;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>{% if lang == "ja" %}自動有効化時間{% else %}Auto Activation Time{% endif %}</th>
+                    <th>{% if lang == "ja" %}最多トロフィー{% else %}Highest Trophies{% endif %}</th>
+                    <th>{% if lang == "ja" %}ガチバトル(最高){% else %}Ranked Highest{% endif %}</th>
+                    <th>{% if lang == "ja" %}ガチバトル(現在){% else %}Ranked Current{% endif %}</th>
+                    <th>{% if lang == "ja" %}旧ソロパワーリーグ{% else %}Solo PL Highest{% endif %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set auto_activate_hours = [
+                    (102, 2000, 15500, 12000, none),
+                    (96, 1960, 14600, 11800, none),
+                    (90, 1920, 13800, 11600, none),
+                    (84, 1880, 13100, 11500, "マスター" if lang == "ja" else "Masters"),
+                    (78, 1840, 12500, 11400, none),
+                    (72, 1800, 12100, 11300, none),
+                    (66, 1760, 11850, 11200, none),
+                    (60, 1720, 11650, 11100, "レジェンド Ⅲ" if lang == "ja" else "Legendary Ⅲ"),
+                    (54, 1680, 11450, 11000, none),
+                    (48, 1640, 11250, 10900, none),
+                    (44, 1600, 11050, 10700, none),
+                    (40, 1570, 10850, 10500, "レジェンド Ⅱ" if lang == "ja" else "Legendary Ⅱ"),
+                    (36, 1540, 10650, 10300, none),
+                    (32, 1510, 10450, 10100, none),
+                    (28, 1480, 10250, 9900, none),
+                    (24, 1450, 10050, 9700, "レジェンド Ⅰ" if lang == "ja" else "Legendary Ⅰ"),
+                    (21, 1420, 9850, 9500, none),
+                    (18, 1390, 9650, 9300, none),
+                    (15, 1360, 9450, 9100, "エリート Ⅲ" if lang == "ja" else "Mythic Ⅲ"),
+                    (12, 1330, 9250, 8900, none),
+                    (9, 1300, 9050, 8700, none),
+                    (7, 1270, 8850, 8500, "エリート Ⅱ" if lang == "ja" else "Mythic Ⅱ"),
+                    (5, 1240, 8650, 8300, none),
+                    (3, 1220, 8450, 8100, none),
+                    (1, 1200, 8250, 7900, "エリート Ⅰ" if lang == "ja" else "Mythic Ⅰ")
+                    ] %}
+                {% for h, highest_trophies, ranked_h, ranked_c, pl in auto_activate_hours %}
+                <tr>
+                    <td>{{ h }}{% if lang == "ja" %}時間{% else %}h{% endif %}</td>
+                    <td>{{ '{:,}'.format(n * highest_trophies) }}{% if lang == "ja" %}以上{% else %}+{% endif %}</td>
+                    <td>{{ '{:,}'.format(ranked_h) }}{% if lang == "ja" %}以上{% else %}+{% endif %}</td>
+                    <td>{{ '{:,}'.format(ranked_c) }}{% if lang == "ja" %}以上{% else %}+{% endif %}</td>
+                    <td>{% if pl %}{{ pl }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="score-change" style="height: 20px;"></div>
+
+    <h2 class="help-page__section-title">{% if lang == "ja" %}ガチバトルポイント変動表示 (ベータ版){% else %}Ranked Score Changes (Beta){% endif %}</h2>
+    <div class="help-page__text">{% if lang == "ja" %}バトル履歴ページのガチバトルタブでは、各バトルセットのポイント変動が表示されます。ただし、この機能は負荷が高いため、<b>プレイヤー自動追跡機能</b>とは関係ない独自の表示条件を設けています。
+            <div class="line-space"></div>
+            ポイント変動を表示するには、各バトルセットの始まる前と後にそれぞれ、実際にプレイヤーのページにアクセスする必要があります。つまり、ガチバトルを回している間、セットが終わるたびにページにアクセス(または再読み込み)すれば、その間のすべてのセットのポイント変動が表示されます。
+            <div class="line-space"></div>
+            なお、この機能はロジックが複雑なため、まれに条件を満たしていてもポイント変動が表示されなかったり、2セットぶんのポイント変動がまとめて表示されてしまったりすることがあります。ご了承ください。
+            <div class="line-space"></div>
+            <b>ガチバトルを回している間、iPadでプレイしている場合はiPadのSlide Over機能(マルチタスク機能)で、スマートフォンでプレイしている場合は別途PC等でガチバトル履歴ページを表示しておき、セットが終わるたびにページをリロードする使い方がおすすめです。そうすれば、すべてのセットのポイント変動が表示され、ポイント変動を振り返りながらガチバトルを回すことができます！</b>
+            <div class="line-space"></div>
+            ※ガチバトル履歴ページの上の方にある<b>ポイント推移</b>グラフについては、取得できなかった部分のガチバトルスコアはスキップされ、自然に点が繋がれてグラフが描画されます。こちらもご利用ください！
+        {% else %}
+            The ranked tab on the battle log page shows the score variation for each battle set. However, due to the high load of this feature, it has its own display requirements that are not related to the <b>player auto-tracking feature</b>.
+            <div class="line-space"></div> 
+            In order to view score fluctuations, the player's page must actually be accessed before and after each battle set begins, respectively. In other words, while playing ranked, if you access (or reload) the page after each set, you will see the score variation for all sets during that time.
+            <div class="line-space"></div> 
+            Please note that due to a glitch or some other reason, score changes may not be displayed even if the conditions are met, or in rare cases, score changes for two sets may be displayed at once. Please be aware of this.
+        {% endif %}</div>
+    
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

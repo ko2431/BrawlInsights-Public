@@ -1,0 +1,133 @@
+{# app/templates/player/search_results.html - シェルページ #}
+{% extends "base.html" %}
+
+{% block title %}
+    "{{ query }}" {% if lang == 'ja' %}プレイヤー検索結果{% else %}Player Search Results{% endif %} - Brawl Insights
+{% endblock %}
+{% block og_description %}
+    {% if lang == 'ja' %}
+        "{{ query }}" のブロスタのプレイヤー検索結果です。各プレイヤーをクリックして、プロフィールやバトル履歴を確認できます。
+    {% else %}
+        Search results for Brawl Stars players with "{{ query }}". Click on each player to view their profile and battlelog.
+    {% endif %}
+{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/player.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/club.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="search-results__container player-search-results__container">
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none; width: 100%;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="section-title">{% if lang == 'ja' %}「{{ query }}」のプレイヤー検索結果{% else %}"{{ query }}" Player Search Results{% endif %}</h1>
+
+    {# フラグメントローダー #}
+    {% set fragment_url = url_for('get_player_search_fragment', lang=lang) ~ '?q=' ~ (query | urlencode) %}
+    {% if page and page > 1 %}{% set fragment_url = fragment_url ~ '&page=' ~ page %}{% endif %}
+    {% if exact_match %}{% set fragment_url = fragment_url ~ '&exact=true' %}{% endif %}
+    {% if include_old_names %}{% set fragment_url = fragment_url ~ '&old=true' %}{% endif %}
+
+    <div x-data="playerSearchFragmentLoader('{{ fragment_url }}')" x-init="load()">
+
+        <template x-if="isLoading">
+            <div class="club-shell__loading">
+                <div class="club-shell__spinner"></div>
+                <p class="club-shell__loading-text">
+                    {% if lang == "ja" %}検索中...{% else %}Searching...{% endif %}
+                </p>
+                <p class="club-shell__description-text">
+                    {% if lang == "ja" %}検索語句が短いほど、検索に時間がかかります。検索語句を<b>3文字以上</b>にすれば、検索が大幅に速くなります。
+                        <br>なお、<b>改名前の名前を含めて検索</b>をオンにしている場合は、検索語句の長さにかかわらず検索に時間がかかります。
+                    {% else %}The shorter the search query, the longer the search takes. Searching with <b>3 or more characters</b> will significantly speed up the search.
+                        <br>Note that if <b>Include previous names</b> is enabled, the search will take longer regardless of the search query length.
+                    {% endif %}
+                </p>
+            </div>
+        </template>
+
+        <template x-if="hasError">
+            <div class="club-shell__error">
+                <p>{% if lang == "ja" %}検索中にエラーが発生しました。{% else %}An error occurred during search.{% endif %}</p>
+                <button class="button button--secondary" @click="load()">
+                    {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+                </button>
+            </div>
+        </template>
+
+        <div x-show="!isLoading && !hasError" x-ref="content"></div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function playerSearchFragmentLoader(url) {
+    return {
+        isLoading: true,
+        hasError: false,
+        async load() {
+            this.isLoading = true;
+            this.hasError = false;
+            try {
+                const res = await fetch(url, { credentials: 'same-origin' });
+                const html = await res.text();
+                if (!html || !html.trim()) throw new Error('Empty response');
+                const container = this.$refs.content;
+                container.innerHTML = html;
+
+                // フラグメント内の <script> を再実行
+                container.querySelectorAll('script').forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    if (!oldScript.src) {
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    } else {
+                        oldScript.remove();
+                    }
+                });
+
+                // ページネーションリンクをフラグメント内で動作するよう書き換え
+                container.querySelectorAll('.pagination a.page-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const newUrl = url.split('?')[0].replace('/api/', '/').replace('/player/search', '/player/search') + '?' + new URL(link.href, location.href).searchParams.toString();
+                        // ページ遷移（通常のナビゲーション）
+                        location.href = link.href;
+                    });
+                });
+
+                if (!res.ok) {
+                    // エラー系フラグメントが返った場合もそのまま表示
+                }
+            } catch (e) {
+                console.error('Fragment load error:', e);
+                this.hasError = true;
+            } finally {
+                this.isLoading = false;
+            }
+        }
+    };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const backButtons = document.querySelectorAll('.back-button');
+    backButtons.forEach(button => {
+        button.addEventListener('click', () => { history.back(); });
+    });
+});
+</script>
+{% endblock %}

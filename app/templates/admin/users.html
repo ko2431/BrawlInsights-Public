@@ -1,0 +1,456 @@
+{# /app/templates/admin/users.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / ユーザー管理{% endblock %}
+{% block og_description %}ユーザーを管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% macro render_pagination(pagination, current_sort) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="ページネーション">
+            <ul class="pagination-list">
+                {% set base_query_parts = [] %}
+                {% if current_sort != 'id_asc' %}{% set _ = base_query_parts.append("sort=" + current_sort) %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {# 表示するページ番号のセットを作成 #}
+                {% set p_current = pagination.current_page %}
+                {% set p_last = pagination.total_pages %}
+                {% set ns = namespace(pages=[1, p_last]) %}
+
+                {# 前後3ページ #}
+                {% for i in range(p_current - 3, p_current + 4) %}
+                    {% if i > 0 and i <= p_last %}
+                        {% set ns.pages = ns.pages + [i] %}
+                    {% endif %}
+                {% endfor %}
+
+                {# 最初のページと現在のページ-3の中間ページ #}
+                {% if p_current - 3 > 1 %}
+                    {% set mid_prev = ((1 + (p_current - 3)) / 2) | round(0, 'common') | int %}
+                    {% if mid_prev > 1 and mid_prev < p_last %}
+                        {% set ns.pages = ns.pages + [mid_prev] %}
+                    {% endif %}
+                {% endif %}
+
+                {# 現在のページ+3と最後のページの中間ページ #}
+                {% if p_current + 3 < p_last %}
+                    {% set mid_next = (((p_current + 3) + p_last) / 2) | round(0, 'common') | int %}
+                    {% if mid_next > 1 and mid_next < p_last %}
+                        {% set ns.pages = ns.pages + [mid_next] %}
+                    {% endif %}
+                {% endif %}
+
+                {# 重複を削除してソート #}
+                {% set sorted_pages = ns.pages | unique | sort %}
+
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {% set ns_loop = namespace(prev_p=0) %}
+                {% for p in sorted_pages %}
+                    {% if ns_loop.prev_p > 0 %}
+                        {% if p - ns_loop.prev_p == 2 %}
+                            {# 1つだけ空いている場合はその数字を表示 #}
+                            <li class="page-item"><a class="page-link" href="{{ query_prefix }}page={{ ns_loop.prev_p + 1 }}">{{ ns_loop.prev_p + 1 }}</a></li>
+                        {% elif p - ns_loop.prev_p > 2 %}
+                            {# 2つ以上空いている場合は ... を表示 #}
+                            <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                        {% endif %}
+                    {% endif %}
+
+                    <li class="page-item {% if p == p_current %}active{% endif %}">
+                        {% if p == p_current %}
+                            <span class="page-link current">{{ p }}</span>
+                        {% else %}
+                            <a class="page-link" href="{{ query_prefix }}page={{ p }}">{{ p }}</a>
+                        {% endif %}
+                    </li>
+                    {% set ns_loop.prev_p = p %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+
+{% block content %}
+<div class="admin-page__container" style="max-width: none;" x-data="userAdmin()">
+    <h1 class="page-title--main">ユーザー管理</h1>
+
+    <p class="admin-page__description">
+        ユーザー総数: <b>{{ '{:,}'.format(pagination.total_items) }}</b> 件
+    </p>
+
+    {{ render_pagination(pagination, current_sort) }}
+
+    <div class="save-changes-block">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table user-table">
+            <thead>
+                <tr>
+                    <th class="col-index"></th>
+                    <th @click="sortBy('id')" class="col-id sortable-header"><span>ID</span><span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('name')" class="col-username sortable-header"><span>ユーザー名</span><span x-show="sortColumn === 'name'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-lang">言語</th>
+                    <th @click="sortBy('registration')" class="col-datetime sortable-header"><span>登録日時 (JST)</span><span x-show="sortColumn === 'registration'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('lastviewed')" class="col-datetime sortable-header"><span>最終利用日時 (JST)</span><span x-show="sortColumn === 'lastviewed'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('pv')" class="col-numeric sortable-header"><span>PV数</span><span x-show="sortColumn === 'pv'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-main-account">メインアカウント</th>
+                    <th @click="sortBy('tokens')" class="col-numeric sortable-header"><span>所持トークン数</span><span x-show="sortColumn === 'tokens'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('tickets')" class="col-numeric sortable-header"><span>所持チケット数</span><span x-show="sortColumn === 'tickets'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-list">プレイヤーブックマーク</th>
+                    <th @click="sortBy('saved_accounts_limit')" class="col-limit sortable-header"><span>上限</span><span x-show="sortColumn === 'saved_accounts_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-list">プレイヤー閲覧履歴</th>
+                    <th @click="sortBy('viewed_accounts_limit')" class="col-limit sortable-header"><span>上限</span><span x-show="sortColumn === 'viewed_accounts_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-list">クラブブックマーク</th>
+                    <th @click="sortBy('saved_clubs_limit')" class="col-limit sortable-header"><span>上限</span><span x-show="sortColumn === 'saved_clubs_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-list">クラブ閲覧履歴</th>
+                    <th @click="sortBy('viewed_clubs_limit')" class="col-limit sortable-header"><span>上限</span><span x-show="sortColumn === 'viewed_clubs_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('is_delete_ads')" class="col-checkbox sortable-header"><span>広告非表示</span><span x-show="sortColumn === 'is_delete_ads'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('is_admin')" class="col-checkbox sortable-header"><span>管理者</span><span x-show="sortColumn === 'is_admin'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('is_invalid')" class="col-checkbox sortable-header"><span>無効</span><span x-show="sortColumn === 'is_invalid'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('is_prohibit_posting')" class="col-checkbox sortable-header"><span>投稿禁止</span><span x-show="sortColumn === 'is_prohibit_posting'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th class="col-json">カスタム設定</th>
+                    <th class="col-limit">トークン所持上限</th>
+                    <th class="col-numeric">トークン受け取り回数</th>
+                    <th class="col-date">トークン最終受取日</th>
+                    <th class="col-numeric">チケット受け取り回数</th>
+                    <th class="col-date">チケット最終受取日</th>
+                    <th class="col-list">秘密の質問</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr x-data="userRow" x-init='initData({{ user.to_dict() | tojson | safe }})' :class="{ 'changed': isDirty() }">
+                    <td class="col-index">{{ loop.index }}</td>
+                    <td class="col-id" x-text="id"></td>
+                    <td class="col-username" x-text="name"></td>
+                    <td class="col-lang" x-text="lang === 'ja' ? '日本語' : 'English'"></td>
+                    <td class="col-datetime" :data-sort-value="registration_datetime">{{ format_display_datetime(user.registration_datetime, 'ja') }}</td>
+                    <td class="col-datetime" :data-sort-value="last_viewd_datetime">{{ format_display_datetime(user.last_viewd_datetime, 'ja') }}</td>
+                    <td class="col-numeric" x-text="pv_count.toLocaleString()"></td>
+                    <td class="col-main-account">
+                        {% if user.main_account and player_names.get(user.main_account) %}
+                            <a href="/{{ lang }}/player/profile/{{ user.main_account | replace('#', '') }}" target="_blank" rel="noopener noreferrer">{{ player_names[user.main_account] }} ({{ user.main_account }})</a>
+                        {% elif user.main_account %}
+                            <a href="/{{ lang }}/player/profile/{{ user.main_account | replace('#', '') }}" target="_blank" rel="noopener noreferrer">{{ user.main_account }}</a>
+                        {% endif %}
+                    </td>
+                    <td class="col-numeric" x-text="tokens.toLocaleString()"></td>
+                    <td class="col-numeric" x-text="ad_skip_tickets.toLocaleString()"></td>
+                    <td class="col-list">
+                        <div class="col-list-content" x-html="getJoinedTagsHtml('saved_accounts')"></div>
+                    </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('saved_accounts_limit')}" x-model.number="saved_accounts_limit" min="0">
+                    </td>
+                    <td class="col-list">
+                         <div class="col-list-content" x-html="getJoinedTagsHtml('viewed_accounts')"></div>
+                    </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('viewed_accounts_limit')}" x-model.number="viewed_accounts_limit" min="0">
+                    </td>
+                    <td class="col-list">
+                        <div class="col-list-content" x-html="getJoinedTagsHtml('saved_clubs', 'club')"></div>
+                    </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('saved_clubs_limit')}" x-model.number="saved_clubs_limit" min="0">
+                    </td>
+                    <td class="col-list">
+                        <div class="col-list-content" x-html="getJoinedTagsHtml('viewed_clubs', 'club')"></div>
+                    </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('viewed_clubs_limit')}" x-model.number="viewed_clubs_limit" min="0">
+                    </td>
+                    <td class="form-checkbox-cell">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_delete_ads')}" x-model="is_delete_ads">
+                    </td>
+                    <td class="form-checkbox-cell">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_admin')}" x-model="is_admin" :disabled="id === {{ current_user.id }}">
+                    </td>
+                    <td class="form-checkbox-cell">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_invalid')}" x-model="is_invalid" :disabled="is_admin">
+                    </td>
+                    <td class="form-checkbox-cell">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_prohibit_posting')}" x-model="is_prohibit_posting">
+                    </td>
+                    <td class="col-json">
+                        <textarea class="form-input is-editable" :class="{'changed-field': isFieldDirty('custom_settings_str'), 'invalid': !isCustomSettingsValid}" x-model="custom_settings_str" @input="validateCustomSettings()"></textarea>
+                    </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('token_limit')}" x-model.number="token_limit" min="0">
+                    </td>
+                    <td class="col-numeric" x-text="token_claim_count"></td>
+                    <td class="col-date" x-text="last_claim_date ? last_claim_date.substring(0, 10) : ''"></td>
+                    <td class="col-numeric" x-text="ticket_claim_count"></td>
+                    <td class="col-date" x-text="last_ticket_claim_date ? last_ticket_claim_date.substring(0, 10) : ''"></td>
+                    <td class="col-list"><div class="col-list-content" x-text="formatSecretQuestions(secret_questions)"></div></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ render_pagination(pagination, current_sort) }}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('userAdmin', () => ({
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                sortColumn: '{{ current_sort.rsplit("_", 1)[0] }}',
+                sortDirection: '{{ "asc" if current_sort.endswith("asc") else "desc" }}',
+
+                init() {
+                    this.$watch('hasUnsavedChanges', (value) => console.log('Unsaved changes:', value));
+                    this.$root.addEventListener('user-row-change', () => this.checkForChanges());
+                    window.addEventListener('beforeunload', (e) => { if (this.hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; } });
+                },
+
+                checkForChanges() {
+                    this.hasUnsavedChanges = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                                                    .some(el => {
+                                                        const rowData = Alpine.$data(el);
+                                                        // isDirty() が true かつ isRowCompletelyValid() も true の場合に変更ありとみなす
+                                                        return rowData.isDirty() && rowData.isRowCompletelyValid();
+                                                    });
+                },
+
+                sortBy(column) {
+                    let newDirection = (this.sortColumn === column)
+                                        ? (this.sortDirection === 'asc' ? 'desc' : 'asc')
+                                        : 'desc';
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('sort', `${column}_${newDirection}`);
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+
+                confirmSaveChanges() {
+                    if (!this.hasUnsavedChanges) return;
+                    let invalidRows = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                                            .filter(el => Alpine.$data(el).isDirty() && !Alpine.$data(el).isRowCompletelyValid())
+                                            .map(el => Alpine.$data(el).id);
+
+                    if (invalidRows.length > 0) {
+                        alert(`ID: ${invalidRows.join(', ')} のカスタム設定のJSON形式が不正です。`);
+                        return;
+                    }
+                    
+                    const itemsToUpdate = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                        .filter(el => Alpine.$data(el).isDirty())
+                        .map(el => Alpine.$data(el).getCurrentData());
+
+                    if (itemsToUpdate.length > 0 && confirm(`${itemsToUpdate.length}件のユーザー情報を更新しますか？`)) {
+                        this.saveChanges(itemsToUpdate);
+                    } else if (itemsToUpdate.length === 0) {
+                        alert('有効な変更点がありません。');
+                    }
+                },
+
+                async saveChanges(items) {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_users', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ users: items })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    } catch (error) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                }
+            }));
+
+            Alpine.data('userRow', () => ({
+                // 元のデータと現在のデータを保持するプロパティ
+                initial: {},
+                id: null, name: '', lang: '', registration_datetime: '', last_viewd_datetime: '', main_account: '',
+                saved_accounts: [], saved_accounts_limit: 0, viewed_accounts: [], viewed_accounts_limit: 0,
+                saved_clubs: [], saved_clubs_limit: 0, viewed_clubs: [], viewed_clubs_limit: 0,
+                is_delete_ads: false, is_admin: false, is_invalid: false, is_prohibit_posting: false,
+                custom_settings_str: '{}', pv_count: 0, tokens: 0, ad_skip_tickets: 0, token_limit: null, token_claim_count: 0,
+                last_claim_date: '', ticket_claim_count: 0, last_ticket_claim_date: '', secret_questions: {},
+                isCustomSettingsValid: true,
+
+                initData(initialData) {
+                    this.initial = JSON.parse(JSON.stringify(initialData)); // Deep copy
+                    // 各プロパティを初期化
+                    Object.keys(initialData).forEach(key => {
+                        if(key === 'custom_settings') {
+                            this.custom_settings_str = JSON.stringify(initialData[key], null, 2);
+                        } else {
+                            this[key] = initialData[key];
+                        }
+                    });
+                    
+                    const watchableProperties = [
+                        'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'is_delete_ads', 'is_admin',
+                        'is_invalid', 'is_prohibit_posting', 'custom_settings_str', 'token_limit'
+                    ];
+
+                    watchableProperties.forEach(key => {
+                        this.$watch(key, (newValue, oldValue) => {
+                            // isDirty()の結果が変わる可能性があるため、イベントを発行
+                            this.$dispatch('user-row-change');
+                        });
+                    });
+                },
+                
+                isDirty() {
+                    // 現在のフォームの状態をオブジェクトとして取得
+                    const currentData = this.getCurrentDataForComparison();
+                    // 初期状態のオブジェクトを取得
+                    const initialData = {
+                        saved_accounts_limit: this.initial.saved_accounts_limit,
+                        viewed_accounts_limit: this.initial.viewed_accounts_limit,
+                        saved_clubs_limit: this.initial.saved_clubs_limit,
+                        viewed_clubs_limit: this.initial.viewed_clubs_limit,
+                        is_delete_ads: this.initial.is_delete_ads,
+                        is_admin: this.initial.is_admin,
+                        is_invalid: this.initial.is_invalid,
+                        is_prohibit_posting: this.initial.is_prohibit_posting,
+                        custom_settings: this.initial.custom_settings,
+                        token_limit: this.initial.token_limit
+                    };
+                    
+                    // オブジェクトをJSON文字列に変換して比較することで、変更を確実に検知する
+                    return JSON.stringify(initialData) !== JSON.stringify(currentData);
+                },
+
+                isFieldDirty(field) {
+                    const initialValue = this.initial[field];
+                    let currentValue = this[field];
+
+                    // 数値型の入力で、空文字列がnullと比較されるケースをハンドリング
+                    if (field === 'token_limit' || field === 'saved_accounts_limit' || field === 'viewed_accounts_limit' || field === 'saved_clubs_limit' || field === 'viewed_clubs_limit') {
+                        const initialValForComp = initialValue === null ? null : Number(initialValue);
+                        const currentValForComp = currentValue === '' || currentValue === null ? null : Number(currentValue);
+                        return initialValForComp !== currentValForComp;
+                    }
+                    
+                    // カスタム設定はJSON文字列として比較
+                    if (field === 'custom_settings_str') {
+                        try {
+                            // フォーマットの違いを無視するため、パースして再度文字列化して比較
+                            return JSON.stringify(this.initial.custom_settings) !== JSON.stringify(JSON.parse(this.custom_settings_str));
+                        } catch (e) {
+                            return true; // 不正なJSONは「変更あり」とみなす
+                        }
+                    }
+
+                    // その他のフィールド（主にチェックボックス）は直接比較
+                    return initialValue !== currentValue;
+                },
+                
+                isRowCompletelyValid() {
+                    this.validateCustomSettings(); // チェックの前に最新の状態を反映
+                    return this.isCustomSettingsValid;
+                },
+
+                validateCustomSettings() {
+                    try {
+                        JSON.parse(this.custom_settings_str);
+                        this.isCustomSettingsValid = true;
+                    } catch (e) {
+                        this.isCustomSettingsValid = false;
+                    }
+                },
+
+                formatJst(utcString) {
+                    if (!utcString) return '';
+                    const date = new Date(utcString.replace('Z', '+00:00'));
+                    return date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-');
+                },
+                
+                formatSecretQuestions(questions) {
+                    if (!questions || Object.keys(questions).length === 0) return '';
+                    return Object.entries(questions).map(([key, value]) => `Q${key}: ${value}`).join('\n');
+                },
+
+                getJoinedTagsHtml(listName, tagType = 'player') {
+                    const list = this[listName];
+                    if (!list || list.length === 0) return '';
+                    return list.map(tag => {
+                        const url = tagType === 'club'
+                            ? `/{{ lang }}/club/profile/${encodeURIComponent(tag.replace('#', ''))}`
+                            : `/{{ lang }}/player/profile/${encodeURIComponent(tag.replace('#', ''))}`;
+                        const safeTag = tag.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${safeTag}</a>`;
+                    }).join(', ');
+                },
+
+                getCurrentData() {
+                    return {
+                        id: this.id,
+                        saved_accounts_limit: this.saved_accounts_limit === '' ? null : Number(this.saved_accounts_limit),
+                        viewed_accounts_limit: this.viewed_accounts_limit === '' ? null : Number(this.viewed_accounts_limit),
+                        saved_clubs_limit: this.saved_clubs_limit === '' ? null : Number(this.saved_clubs_limit),
+                        viewed_clubs_limit: this.viewed_clubs_limit === '' ? null : Number(this.viewed_clubs_limit),
+                        is_delete_ads: this.is_delete_ads,
+                        is_admin: this.is_admin,
+                        is_invalid: this.is_invalid,
+                        is_prohibit_posting: this.is_prohibit_posting,
+                        custom_settings: this.custom_settings_str,
+                        token_limit: this.token_limit === '' || this.token_limit === null ? null : Number(this.token_limit)
+                    };
+                },
+                
+                // isDirty()で比較するための現在のデータオブジェクトを返すヘルパー関数
+                getCurrentDataForComparison() {
+                    this.validateCustomSettings(); // 比較前にバリデーションを実行
+                    let parsedCustomSettings = this.initial.custom_settings; // デフォルトは初期値
+                    if(this.isCustomSettingsValid) {
+                        try {
+                            parsedCustomSettings = JSON.parse(this.custom_settings_str);
+                        } catch (e) { /* パース失敗時は初期値のまま */ }
+                    }
+                    
+                    return {
+                        saved_accounts_limit: this.saved_accounts_limit === '' ? null : Number(this.saved_accounts_limit),
+                        viewed_accounts_limit: this.viewed_accounts_limit === '' ? null : Number(this.viewed_accounts_limit),
+                        saved_clubs_limit: this.saved_clubs_limit === '' ? null : Number(this.saved_clubs_limit),
+                        viewed_clubs_limit: this.viewed_clubs_limit === '' ? null : Number(this.viewed_clubs_limit),
+                        is_delete_ads: this.is_delete_ads,
+                        is_admin: this.is_admin,
+                        is_invalid: this.is_invalid,
+                        is_prohibit_posting: this.is_prohibit_posting,
+                        custom_settings: parsedCustomSettings,
+                        token_limit: this.token_limit === '' || this.token_limit === null ? null : Number(this.token_limit)
+                    };
+                }
+            }));
+        });
+    </script>
+{% endblock %}

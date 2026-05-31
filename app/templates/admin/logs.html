@@ -1,0 +1,140 @@
+{# /app/templates/admin/logs.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / ログ確認{% endblock %}
+{% block og_description %}ログファイルを管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% macro render_pagination(pagination, selected_date) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="ログページネーション">
+            <ul class="pagination-list">
+                {# クエリパラメータの組み立て #}
+                {% set base_query_parts = [] %}
+                {% if selected_date %}{% set _ = base_query_parts.append("date=" + selected_date) %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {# "＜" (前へ) ボタン #}
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {# ページ番号のロジック #}
+                {% set page_numbers = [] %}
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {# 最初と最後、および現在ページ±5のページ番号を表示対象とする #}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 5 and p <= pagination.current_page + 5) %}
+                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
+                        {% if page_numbers and p > page_numbers[-1] + 1 %}
+                            {% set _ = page_numbers.append('...') %}
+                        {% endif %}
+                        {% set _ = page_numbers.append(p) %}
+                    {% endif %}
+                {% endfor %}
+
+                {# ページ番号リストを元にHTMLを生成 #}
+                {% for p in page_numbers %}
+                    {% if p == '...' %}
+                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                    {% elif p == pagination.current_page %}
+                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {# ">" (次へ) ボタン #}
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="admin-page__container">
+    <h1 class="page-title--main">ログ確認</h1>
+
+    <div class="filter-form" style="margin-top: 20px; margin-bottom: 20px;">
+        <form method="get" class="search-form" style="max-width: 500px;">
+            <input type="date" name="date" class="form-input" value="{{ selected_date if selected_date else '' }}" style="margin-bottom: 10px;">
+            <button type="submit" class="button button--primary search-form__button">確定</button>
+            <a href="{{ url_for('admin_logs', lang=lang) }}" class="button button--secondary search-form__button" style="margin-left: 5px;">リセット</a>
+        </form>
+    </div>
+
+    {% if log_file_exists and logs %}
+        <p class="admin-page__description">
+            ファイル: <b>{{ log_file_name }}</b><br>
+            ログ総数: <b>{{ '{:,}'.format(total_logs) }}</b>件
+            {% if pagination.total_pages > 1 %}
+            <br>ページ: <b>{{ pagination.current_page }} / {{ pagination.total_pages }}</b> (新しい順)
+            {% endif %}
+        </p>
+
+        {{ render_pagination(pagination, selected_date) }}
+
+        <div class="table-wrapper" style="margin-top: 15px;">
+            <table class="data-table log-table">
+                <thead>
+                    <tr>
+                        <th style="width: 7%;">番号</th>
+                        <th style="width: 15%;">日時 (JST)</th>
+                        <th style="width: 10%;">サーバー</th>
+                        <th style="width: 8%;">種類</th>
+                        <th style="width: 15%;">場所</th>
+                        <th>内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        {# ログレベルに応じて行のクラスを設定 #}
+                        {% set row_class = 'log-level-' + log.level.lower() %}
+                        <tr class="{{ row_class }}">
+                            <td style="text-align: right;">{{ log.number }}</td>
+                            <td>{{ log.datetime }}</td>
+                            <td><span class="log-server-badge">{{ log.server }}</span></td>
+                            <td><span class="log-level-badge">{{ log.level }}</span></td>
+                            <td>{{ log.location }}</td>
+                            <td style="word-break: break-all;">{{ log.content }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {{ render_pagination(pagination, selected_date) }}
+    {% elif log_file_exists and not logs %}
+        {# ログファイルは存在するが、ログが0件の場合 #}
+        <p class="admin-page__description">
+            ファイル: <b>{{ log_file_name }}</b>
+        </p>
+        <div class="info-block" style="background-color: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; border-radius: 8px;">
+            <p class="info-block__text">
+                ログはまだ記録されていません。
+            </p>
+        </div>
+    {% else %}
+        <div class="info-block" style="background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 8px;">
+            <p class="info-block__text">
+                ログファイル <b>{{ log_file_name }}</b> は見つかりませんでした。
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+
+    </script>
+{% endblock %}

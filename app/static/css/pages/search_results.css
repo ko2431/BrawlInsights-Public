@@ -1,0 +1,140 @@
+/* /app/static/css/pages/search_results.css */
+/* =============================================== */
+/* 検索結果画面のスタイル                              */
+/* =============================================== */
+
+/* --- ページコンテナ --- */
+.search-results__container {
+    /* ホームページ全体のコンテナ */
+    width: 90%; /* 幅 */
+    max-width: 1194px; /* 最大幅 */
+    margin: 0 auto; /* 中央揃え */
+    padding: 5px 0 45px; /* 上下のわずかな余白 */
+}
+
+.search-results__text {
+    margin-left: 5px;
+    font-size: 16px;
+}
+
+.search-results__text-link {
+    margin-top: 3px;
+    text-decoration: underline;
+}
+
+.search-results__text--warning {
+    margin-top: 4px;
+    color: #b45309;
+    font-weight: 500;
+}
+.dark .search-results__text--warning {
+    color: #fbbf24;
+}
+
+@media (max-width: 839px) {
+    .search-results__text {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 539px) {
+    .search-results__text {
+        font-size: 14px;
+    }
+}
+
+/* =============================================== */
+/* ページネーションUIのスタイル                        */
+/* =============================================== */
+
+.pagination {
+    margin-top: 10px;
+    margin-bottom: 0;
+    /* display: flex; */
+    text-align: center;
+}
+
+.pagination-list {
+    display: inline-flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    align-items: center;
+    flex-wrap: wrap; /* 狭い画面で折り返す */
+    justify-content: center;
+    gap: 5px; /* 各要素間の隙間 */
+}
+
+.page-link {
+    display: inline-block;
+    min-width: 40px; /* 最小幅 */
+    padding: 6px 10px;
+    margin: 0;
+    text-align: center;
+    text-decoration: none;
+    font-size: 17px;
+    line-height: 1.5;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    color: #0d6efd; /* リンク色 */
+    background-color: #fff;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    cursor: pointer;
+}
+.dark .page-link {
+    background-color: #262626;
+    border-color: #363636;
+    color: #90bcff;
+}
+
+.page-link:hover {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+}
+.dark .page-link:hover {
+    background-color: #222;
+    border-color: #333;
+}
+
+/* 現在のページ (リンクではない) */
+.page-item.active .page-link.current {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+    cursor: default; /* クリックできないことを示す */
+    font-weight: bold;
+}
+
+/* 無効なボタンや省略記号 */
+.page-item.disabled .page-link,
+.page-link.ellipsis {
+    color: #6c757d;
+    pointer-events: none;
+    background-color: #f8f9fa; /* 少し背景色を変えるなど */
+    border-color: #dee2e6;
+}
+.dark .page-item.disabled .page-link,
+.dark .page-link.ellipsis {
+    color: #aaa;
+    background-color: #1f1f1f;
+    border-color: #303030;
+}
+.page-link.ellipsis {
+    border: none;
+    background-color: transparent;
+    padding-left: 2px; /* 前後のスペース調整 */
+    padding-right: 2px;
+}
+
+/* 矢印ボタン */
+.page-arrow {
+    font-weight: bold;
+    padding: 6px 8px;
+}
+
+@media (max-width: 539px) {
+    .page-link {
+        min-width: 38px;
+        font-size: 16px;
+    }
+}

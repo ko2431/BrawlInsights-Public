@@ -1,0 +1,108 @@
+{# app/templates/club/search_results.html - シェルページ #}
+{% extends "base.html" %}
+
+{% block title %}
+    "{{ query }}" {% if lang == 'ja' %}クラブ検索結果{% else %}Club Search Results{% endif %} - Brawl Insights
+{% endblock %}
+{% block og_description %}
+    {% if lang == 'ja' %}
+        "{{ query }}" のブロスタのクラブ検索結果です。各クラブをクリックして、クラブの情報を確認できます。
+    {% else %}
+        Search results for Brawl Stars clubs with "{{ query }}". Click on each club to see information about the club.
+    {% endif %}
+{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/club.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="search-results__container club-search-results__container">
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none; width: 100%;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="section-title">{% if lang == 'ja' %}「{{ query }}」のクラブ検索結果{% else %}"{{ query }}" Club Search Results{% endif %}</h1>
+
+    {# フラグメントローダー #}
+    {% set fragment_url = url_for('get_club_search_fragment', lang=lang) ~ '?q=' ~ (query | urlencode) %}
+    {% if page and page > 1 %}{% set fragment_url = fragment_url ~ '&page=' ~ page %}{% endif %}
+
+    <div x-data="clubSearchFragmentLoader('{{ fragment_url }}')" x-init="load()">
+
+        <template x-if="isLoading">
+            <div class="club-shell__loading">
+                <div class="club-shell__spinner"></div>
+                <p class="club-shell__loading-text">
+                    {% if lang == "ja" %}検索中...{% else %}Searching...{% endif %}
+                </p>
+            </div>
+        </template>
+
+        <template x-if="hasError">
+            <div class="club-shell__error">
+                <p>{% if lang == "ja" %}検索中にエラーが発生しました。{% else %}An error occurred during search.{% endif %}</p>
+                <button class="button button--secondary" @click="load()">
+                    {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+                </button>
+            </div>
+        </template>
+
+        <div x-show="!isLoading && !hasError" x-ref="content"></div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function clubSearchFragmentLoader(url) {
+    return {
+        isLoading: true,
+        hasError: false,
+        async load() {
+            this.isLoading = true;
+            this.hasError = false;
+            try {
+                const res = await fetch(url, { credentials: 'same-origin' });
+                const html = await res.text();
+                if (!html || !html.trim()) throw new Error('Empty response');
+                const container = this.$refs.content;
+                container.innerHTML = html;
+
+                container.querySelectorAll('script').forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    if (!oldScript.src) {
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    } else {
+                        oldScript.remove();
+                    }
+                });
+            } catch (e) {
+                console.error('Fragment load error:', e);
+                this.hasError = true;
+            } finally {
+                this.isLoading = false;
+            }
+        }
+    };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const backButtons = document.querySelectorAll('.back-button');
+    backButtons.forEach(button => {
+        button.addEventListener('click', () => { history.back(); });
+    });
+});
+</script>
+{% endblock %}

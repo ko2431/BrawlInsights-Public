@@ -1,0 +1,114 @@
+{# app/templates/club/fragments/search_fragment.html #}
+
+{% macro render_new_pagination(pagination, query) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="検索結果ページネーション">
+            <ul class="pagination-list">
+                {% if pagination.current_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link page-arrow" href="?q={{ query | urlencode }}&page={{ pagination.prev_num }}" aria-label="Previous">&lt;</a>
+                    </li>
+                {% endif %}
+                {% if pagination.current_page > 2 %}
+                    <li class="page-item"><a class="page-link" href="?q={{ query | urlencode }}&page=1">1</a></li>
+                {% endif %}
+                {% if pagination.current_page > 3 %}
+                    <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                {% endif %}
+                {% if pagination.current_page > 1 %}
+                    <li class="page-item"><a class="page-link" href="?q={{ query | urlencode }}&page={{ pagination.prev_num }}">{{ pagination.prev_num }}</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link current">{{ pagination.current_page }}</span></li>
+                {% if pagination.current_page < pagination.total_pages %}
+                    <li class="page-item"><a class="page-link" href="?q={{ query | urlencode }}&page={{ pagination.next_num }}">{{ pagination.next_num }}</a></li>
+                {% endif %}
+                {% if pagination.current_page < pagination.total_pages - 2 %}
+                    <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                {% endif %}
+                {% if pagination.current_page < pagination.total_pages - 1 %}
+                    <li class="page-item"><a class="page-link" href="?q={{ query | urlencode }}&page={{ pagination.total_pages }}">{{ pagination.total_pages }}</a></li>
+                {% endif %}
+                {% if pagination.current_page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link page-arrow" href="?q={{ query | urlencode }}&page={{ pagination.next_num }}" aria-label="Next">&gt;</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% if clubs %}
+    {% if lang == 'ja' %}
+        <p class="search-results__text">{{ '{:,}'.format(pagination.total_items) }}件のクラブが見つかりました。( {{ '{:,}'.format(pagination.current_page) }} / {{ '{:,}'.format(pagination.total_pages) }} ページ )
+            <br>検索できるのは、一度でもBrawl Insightsで閲覧されたことのあるプレイヤーが所属していたことのあるクラブのみとなります。探したいクラブが見つからない場合は、初回のみクラブタグでの検索をお試しください。
+        </p>
+    {% else %}
+        <p class="search-results__text">{{ '{:,}'.format(pagination.total_items) }} club{% if pagination.total_items > 1 %}s{% endif %} found. ( {{ '{:,}'.format(pagination.current_page) }} / {{ '{:,}'.format(pagination.total_pages) }} page{% if pagination.total_pages > 1 %}s{% endif %} )
+            <br>You can only search for clubs that have belonged to players who have been viewed in Brawl Insights at least once. If you cannot find the club you are looking for, please try searching by club tag for the first time only.
+        </p>
+    {% endif %}
+
+    {% if result_capped %}
+        <p class="search-results__text search-results__text--warning">
+            {% if lang == 'ja' %}
+                ⚠️ 検索結果が多すぎるため、上位10,000件のみ表示しています。より具体的なキーワードで絞り込んでください。
+            {% else %}
+                ⚠️ Too many results. Only the top 10,000 clubs are shown. Please use a more specific keyword.
+            {% endif %}
+        </p>
+    {% endif %}
+
+    {{ render_new_pagination(pagination, query) }}
+
+    <div class="member-grid club-card-grid">
+        {% for club in clubs %}
+            <a href="{{ url_for('get_club_profile', lang=lang, tag=club.tag[1:]) }}" class="card-link member-card-link club-card-link">
+                <article class="card member-card club-card">
+                    <img src="{{ url_for('static', path='/images/club_badges/' + club.badge_id|string + '.png') }}"
+                        alt="Club Badge"
+                        class="member-card__icon club-card__badge"
+                        onerror="this.style.display='none'">
+                    <div class="member-card__info club-card__info">
+                        <p class="member-card__name club-card__name">{{ club.name|safe }}</p>
+                        <p class="member-card__tag club-card__tag">{{ club.tag }}</p>
+                    </div>
+                    <div class="member-card__spacer"></div>
+                    <div class="member-card__stats club-card__stats">
+                        <div class="member-card__trophies club-card__trophies">
+                            <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="Trophies" class="member-card__trophy-icon">
+                            <span class="member-card__trophy-text club-card__trophy-text">{{ "{:,}".format(club.trophies) if club.trophies != -1 else "不明" if lang == "ja" else "Unknown" }}</span>
+                        </div>
+                        <div class="member-card__role-container club-card__role-container">
+                            {% set type_ja = club.type %}
+                            {% set type_en = club.type[0]|upper + club.type[1:] if club.type else "Unknown" %}
+                            {% set type_class_modifier = "open" %}
+                            {% if club.type == "inviteOnly" %}
+                                {% set type_ja = "承認制" %}
+                                {% set type_class_modifier = "inviteOnly" %}
+                            {% elif club.type == "closed" %}
+                                {% set type_ja = "非公開" %}
+                                {% set type_class_modifier = "closed" %}
+                            {% elif club.type == "open" %}
+                                {% set type_ja = "参加自由" %}
+                            {% elif not club.type %}
+                                {% set type_ja = "不明" %}
+                            {% endif %}
+                            <span class="member-card__role member-card__role--{{ type_class_modifier }}">{{ type_ja if lang == "ja" else type_en }}</span>
+                        </div>
+                    </div>
+                </article>
+            </a>
+        {% endfor %}
+    </div>
+
+    {{ render_new_pagination(pagination, query) }}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+{% else %}
+    <p class="search-results__text">{% if lang == "ja" %}「{{ query }}」を含むクラブは見つかりませんでした。{% else %}No clubs containing "{{ query }}" were found.{% endif %}</p>
+    <p class="search-results__text">{% if lang == "ja" %}検索できるのは、一度でもBrawl Insightsで閲覧されたことのあるプレイヤーが所属していたことのあるクラブのみとなります。<br>クラブ名でヒットしないときは、初回のみクラブタグでの検索をお試しください。
+        {% else %}You can only search for clubs that have belonged to players who have been viewed in Brawl Insights at least once.<br>If you cannot find the club you are looking for, please try searching by club tag for the first time only.{% endif %}</p>
+{% endif %}

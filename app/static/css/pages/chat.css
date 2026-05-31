@@ -1,0 +1,651 @@
+/* /app/static/css/pages/chat.css */
+/* * --- * --- * --- * */
+/* * --- ページコンテナ --- */
+/* * --- * --- * --- * */
+.chat-page__container {
+    display: flex;
+    flex-direction: column;
+    /* 画面全体の高さを基準にする */
+    height: calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); /* PCのグローバルヘッダー高さを引く */
+    width: 90%;
+    max-width: 1194px;
+    margin: 0 auto; /* グローバルヘッダー分のマージンを上にとる */
+    border-left: 1px solid #eee;
+    border-right: 1px solid #eee;
+    transition: height 0.4s ease-out;
+    /* ダブルタップズームを抑制 */
+    touch-action: manipulation;
+}
+.dark .chat-page__container {
+    border-color: #444;
+}
+@media (max-width: 839px) {
+    .chat-page__container {
+        /* モバイルヘッダーの高さを引く */
+        height: calc(100dvh - 85px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        width: 100%;
+        margin-top: 0; /* ヘッダー分のマージン */
+        border: none;
+    }
+}
+@media (max-width: 539px) {
+    .chat-page__container {
+        /* スマホヘッダーの高さを引く */
+        height: calc(100dvh - 73px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        margin-top: 0; /* ヘッダー分のマージン */
+    }
+}
+
+
+/* * --- * --- * --- * */
+/* * --- 共通コンポーネントのフッターはチャット画面では非表示 --- */
+/* * --- * --- * --- * */
+.footer {
+    display: none;
+}
+
+
+/* * --- * --- * --- * */
+/* * --- ヘッダー --- */
+/* * --- * --- * --- * */
+.chat-header {
+    width: 100%; /* 親要素に追従させる */
+    max-width: none; /* 不要なので削除 */
+    border-left: none; /* 不要なので削除 */
+    border-right: none; /* 不要なので削除 */
+    background-color: var(--bg-fefefe);
+    padding: 10px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    z-index: 10;
+    flex-shrink: 0; /* ヘッダーが縮まないようにする */
+}
+.dark .chat-header {
+    border-color: #444;
+}
+@media (max-width: 839px) {
+    .chat-header {
+        width: 100%;
+        top: 0;
+        border-left: none;
+        border-right: none;
+    }
+}
+.chat-header__content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.chat-header__host-icon {
+    width: auto;
+    height: 40px;
+}
+.chat-header__details {
+    flex: 1;
+}
+.chat-header__host-name {
+    font-weight: bold;
+    font-size: 16px;
+    margin: 0;
+}
+.dark .team-chat .chat-header__host-name {
+    color: #000;
+}
+.chat-header__comment {
+    font-size: 14px;
+    color: var(--color-555);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dark .team-chat .chat-header__comment {
+    color: #555;
+}
+@media (max-width: 539px) {
+    .chat-header__host-name { font-size: 15px; }
+    .chat-header__comment { font-size: 13px; }
+}
+
+
+.back-button__container {
+    margin: 0;
+}
+
+.back-button {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+.back-button:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+}
+
+.dark .back-button {
+    background-color: #eee;
+}
+.dark .back-button:hover {
+    background-color: #ddd;
+}
+
+
+/* * --- * --- * --- * */
+/* * --- メッセージエリア --- */
+/* * --- * --- * --- * */
+.messages__container {
+    flex-grow: 1; /* 残りのスペースをすべて埋める */
+    overflow-y: auto; /* このエリアだけをスクロールさせる */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+@media (max-width: 539px) {
+    .messages__container { padding: 15px 10px; }
+}
+
+.chat-description {
+    text-align: center;
+    color: var(--color-888);
+    font-size: 12.5px;
+}
+
+.post-comment__container {
+    background-color: var(--color-eee);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 5px;
+}
+.post-comment {
+    font-size: 13.5px;
+    white-space: pre-wrap;
+    color: var(--color-222);
+}
+
+
+/* * --- * --- * --- * */
+/* * --- メッセージ吹き出し --- */
+/* * --- * --- * --- * */
+.message-bubble {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 85%;
+}
+@media (max-width: 539px) {
+    .message-bubble { gap: 8px; }
+}
+.message-bubble__icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    margin-top: 5px;
+}
+@media (max-width: 539px) {
+    .message-bubble__icon-wrapper { width: 30px; height: 30px; }
+}
+.message-bubble__icon-wrapper-reaction-menu {
+    width: 32px;
+    height: 32px;
+    margin-top: 0;
+}
+@media (max-width: 539px) {
+    .message-bubble__icon-wrapper-reaction-menu { width: 27px; height: 27px; }
+}
+.message-bubble__icon-wrapper--clickable {
+    cursor: pointer;
+}
+.message-bubble__icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.1);
+    transform-origin: center center;
+}
+.message-bubble__content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    /* 子要素を左揃えにし、幅が不必要に伸びるのを防ぐ */
+    align-items: flex-start;
+}
+.message-bubble__user-name {
+    font-size: 13px;
+    color: var(--color-555);
+    margin-left: 3px;
+    margin-bottom: 1px;
+}
+@media (max-width: 539px) {
+    .message-bubble__user-name { font-size: 12px; }
+}
+.message-bubble__content {
+    background-color: #f1f1f1;
+    border-radius: 16px;
+    padding: 10px 15px;
+    font-size: 15px;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+    border-bottom-left-radius: 7px;
+}
+.dark .message-bubble__content {
+    background-color: #333;
+    border: 1px solid #555;
+}
+.message-bubble__timestamp {
+    font-size: 12px;
+    color: var(--color-999);
+}
+@media (max-width: 539px) {
+    .message-bubble__content { padding: 8px 12px; font-size: 14px; }
+    .message-bubble__timestamp { font-size: 11px; }
+}
+
+.message-bubble--deleting {
+    transition: all 0.4s ease-out;
+    opacity: 0;
+    transform: scale(0.95);
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: -10px !important; /* gapを考慮して詰める */
+    overflow: hidden;
+}
+
+/* * 自分のメッセージ * */
+.message-bubble--self {
+    align-self: flex-end;
+    flex-direction: row-reverse; /* アイコンと吹き出しを反転 */
+}
+.message-bubble--self .message-bubble__content-wrapper {
+    /* 子要素を右揃えにする */
+    align-items: flex-end;
+}
+.message-bubble--self .message-bubble__content {
+    background-color: #319fe3;
+    color: #fff;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 7px; /* 右下の角丸を調整 */
+}
+.dark .message-bubble--self .message-bubble__content {
+    border: none;
+}
+.message-bubble--self .message-bubble__timestamp {
+    align-self: flex-end; /* タイムスタンプを右寄せ */
+}
+.message-bubble--self .message-bubble__icon,
+.message-bubble--self .message-bubble__user-name {
+    display: none; /* 自分のアイコンと名前は非表示 */
+}
+
+
+/* * --- * --- * --- * */
+/* * --- フッター (入力欄) --- */
+/* * --- * --- * --- * */
+.chat-footer {
+    width: 100%; /* 親要素に追従させる */
+    max-width: none; /* 不要なので削除 */
+    border-left: none; /* 不要なので削除 */
+    border-right: none; /* 不要なので削除 */
+    background-color: #fefefe;
+    border-top: 1px solid #e0e0e0;
+    padding: 15px;
+    z-index: 10;
+    flex-shrink: 0; /* フッターが縮まないようにする */
+}
+.dark .chat-footer {
+    background-color: #1a1a1a;
+    border-color: #111;
+}
+@media (max-width: 839px) {
+    .chat-footer {
+        width: 100%;
+        border-left: none;
+        border-right: none;
+        padding: 15px 10px;
+    }
+}
+
+.chat-input__form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.chat-input__textarea {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 21px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+    resize: none;
+    max-height: 100px; /* 高くなりすぎないように制限 */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.dark .chat-input__textarea {
+    border-color: #555;
+    background-color: #333;
+    color: #fff;
+}
+.chat-input__textarea:focus {
+    outline: none;
+    border-color: #319fe3;
+    box-shadow: 0 0 0 2px rgba(54, 195, 234, 0.2);
+}
+.chat-input__send-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #319fe3;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 1.5px; /* 微調整 */
+    transition: background-color 0.3s ease;
+}
+.chat-input__send-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+.dark .chat-input__send-button:disabled {
+    background-color: #6668;
+}
+.chat-input__send-button:disabled img {
+    filter: invert(0);
+}
+.chat-input__send-button img {
+    width: 24px;
+    height: 24px;
+    margin: 2px 2px 0 0;
+    filter: invert(100%);
+    transition: filter 0.3s ease;
+}
+.typing-indicator {
+    font-size: 12px;
+    color: var(--color-888);
+    margin-top: -10px;
+    margin-bottom: 10px;
+    padding: 0 5px;
+    /* デフォルトでは非表示にし、アニメーションを設定 */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out, opacity 0.4s ease-in-out, margin-bottom 0.4s ease-in-out;
+}
+/* 表示状態のスタイル */
+.typing-indicator--visible {
+    max-height: 2em; /* pタグの高さに十分な値を設定 */
+    opacity: 1;
+    margin-bottom: 10px; /* 表示時のマージンを再設定 */
+}
+
+.chat-footer__locked-overlay {
+    background-color: #f6f7f8;
+    border-radius: 20px;
+    padding: 8px 12px;
+    text-align: center;
+    color: #6c757d;
+}
+.chat-footer__locked-overlay p {
+    margin: 0;
+    font-size: 15px;
+}
+.not-logged-in-block--chat {
+    border-radius: 20px;
+    padding: 10px 10px 13px;
+}
+.not-logged-in-block__text--chat {
+    font-size: 14.5px;
+}
+@media (max-width: 539px) {
+    .not-logged-in-block__text--chat {
+        font-size: 13.5px;
+    }
+}
+.not-logged-in-block-button--chat {
+    font-size: 15px !important;
+    padding: 5px 9px !important;
+}
+
+
+/* * --- * --- * --- * */
+/* * --- メニューとモーダル --- */
+/* * --- * --- * --- * */
+/* メニューの共通スタイル --- */
+.chat-menu {
+    position: absolute; /* JSで位置を計算 */
+    display: none;      /* デフォルトは非表示 */
+    background-color: #f0f0f0;
+    border: 1px solid #dcdcdc;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    padding: 5px;
+    user-select: none;
+}
+
+/* 絵文字パレット */
+.chat-menu__emojis {
+    display: flex;
+    gap: 5px;
+}
+.chat-menu__emoji-btn {
+    font-size: 22px;
+    padding: 0 4px;
+    border-radius: 12px;
+    cursor: pointer;
+    background-color: transparent;
+    border: 2px solid transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.chat-menu__emoji-btn:hover {
+    background-color: #e0e0e0;
+}
+.chat-menu__emoji-btn--selected {
+    background-color: #d0e8f8;
+    border-color: #a0c8e4;
+}
+/* 自分がつけたリアクションを強調表示するスタイル */
+.chat-menu__emoji-btn--selected {
+    background-color: #bbb;
+    border-color: #aaa;
+}
+/* 強調表示されたボタンのホバー効果 */
+.chat-menu__emoji-btn--selected:hover {
+    background-color: #aaa;
+    border-color: #999;
+}
+
+/* メニュー内の区切り線 */
+.chat-menu__separator {
+    height: 1px;
+    background-color: #dcdcdc;
+    margin: 5px 2px;
+}
+
+/* メニュー内のアクションボタン領域 */
+.chat-menu__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.chat-menu__action-btn {
+    width: 100%;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    background-color: transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.chat-menu__action-btn:hover {
+    background-color: #e0e0e0;
+}
+.chat-menu__action-btn img {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+/* メニュー退場時のアニメーション定義 */
+@keyframes fadeOutMenu {
+    from {
+        opacity: 1;
+        transform: scale(1); /* 最初は元のサイズ */
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.975); /* 少し縮小しながら消える */
+    }
+}
+
+/* アニメーションを適用するためのクラス */
+.chat-menu--hiding {
+    animation: fadeOutMenu 0.2s ease-out forwards;
+}
+
+/* モーダルの共通スタイル --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none; /* デフォルトは非表示 */
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 15px;
+}
+.modal-overlay--visible {
+    display: flex; /* JSでこのクラスを付けて表示 */
+}
+.modal-container {
+    background-color: white;
+    border-radius: 16px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+.modal-close-button {
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1;
+    color: #888;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.modal-body {
+    padding: 16px;
+    overflow-y: auto;
+}
+
+/* リアクション一覧の行スタイル */
+.reaction-list__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+}
+.reaction-list__user-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+.reaction-list__user-name {
+    flex-grow: 1;
+    overflow-wrap: break-word;
+    color: #000;
+}
+.reaction-list__emoji {
+    font-size: 20px;
+}
+@media (max-width: 539px) {
+    .reaction-list__user-name {
+        font-size: 14.5px;
+    }
+    .reaction-list__emoji {
+        font-size: 18px;
+    }
+}
+
+/* リアクション集計表示 */
+.reactions__container {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+.reaction-summary {
+    display: flex;
+    align-items: center;
+    background-color: #e9edef;
+    border: 1px solid #c6d3dc;
+    color: #000;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 13px;
+}
+.reaction-summary__emoji {
+    font-size: 15px;
+    margin-right: 3px;
+}
+.reaction-summary__count {
+    font-weight: 500;
+}
+@media (max-width: 539px) {
+    .reactions__container {
+        gap: 5px;
+    }
+    .reaction-summary__emoji {
+        font-size: 13.75px;
+    }
+    .reaction-summary__count {
+        font-size: 12px;
+    }
+}
+
+/* リアクション一覧モーダル内の区切り線 */
+.reaction-list__separator {
+    height: 1px;
+    background-color: #dcdcdc;
+    margin: 5px 0;
+}
+
+.chat-menu__reaction-list {
+    max-height: 250px; /* メニューの最大の高さを制限 */
+    overflow-y: auto;   /* 内容が多ければスクロールさせる */
+    padding: 5px;
+}
+
+/* カテゴリー別のアイコン */
+.chat-header__host-icon--X { height: 32px; }
+.chat-header__host-icon--Discord { height: 32px; }
+.chat-header__host-icon--brawl_info { height: 40px; margin: -2px 0; }
+.chat-header__host-icon--YouTube { height: 48px; margin: -4px 0; }
+.chat-header__host-icon--TikTok { height: 48px; margin: -4px 0; }

@@ -1,0 +1,44 @@
+{# /app/templates/tools/pins_ranking_fragment.html #}
+
+{% if all_pins %}
+<div class="skin-card-grid icon-card-grid">
+    {% for pin in all_pins %}
+    <div class="skin-card icon-card">
+        <div class="skin-card__img-wrapper skin-card__img-wrapper--ranked">
+            <span class="skin-card__rank-badge icon-card__rank-badge">#{{ loop.index }}</span>
+            <img src="/static/images/pins/{{ pin.id }}.webp"
+                 alt="{% if lang == 'ja' %}ピンズ {{ pin.id }}{% else %}Pin {{ pin.id }}{% endif %}"
+                 class="skin-card__img pin-card__img"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}';">
+        </div>
+        <div class="skin-card__rate-row icon-card__rate-row">
+            {% if pin.equip_rate is not none %}
+                {% if pin.equip_rate < 0.1 %}
+                    {{ "%.4f"|format(pin.equip_rate) }}%
+                {% else %}
+                    {{ "%.3f"|format(pin.equip_rate) }}%
+                {% endif %}
+            {% else %}
+                --
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if unequipped_rate is not none %}
+<div class="info-block" style="padding: 0; margin-top: 14px;">
+    <p class="info-block__text" style="margin: 0;">
+        {% if lang == "ja" %}
+            ちなみに...バトルカードにピンズが未装備の人の割合は<b>{{ "%.3f"|format(unequipped_rate) }}%</b>です。
+        {% else %}
+            By the way... the percentage of players with no pin equipped on their battle card is <b>{{ "%.3f"|format(unequipped_rate) }}%</b>.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% else %}
+<p style="text-align: center; color: var(--color-888, #888); padding: 30px 0; margin: 0;">
+    {% if lang == "ja" %}条件に一致するピンズはありません。{% else %}No pins match the selected criteria.{% endif %}
+</p>
+{% endif %}

@@ -1,0 +1,20 @@
+{# /app/templates/error/server_error.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}サーバーエラー{% else %}Server Error{% endif %} - Brawl Insights{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/exception.css') }}?v={{ app_version }}">
+
+    {# 広告除外タグ #}
+    <meta name="google-adsense-platform-account" content="ca-pub-4627806715879063">
+    <meta name="google-adsense-platform-domain" content="google.com">
+{% endblock %}
+
+{% block content %}
+<div class="error-page__container"> {# ページ全体のコンテナ #}
+    <h1 class="section-title">{% if lang == "ja" %}サーバーエラー{% else %}Server Error{% endif %} ({% if lang == "ja" %}エラーコード{% else %}Error Code{% endif %}: {{ error_code }})</h1>
+    <p class="error__text">{% if lang == "ja" %}申し訳ありませんが、サーバーエラーが発生しました。{% else %}Sorry, a server error has occurred.{% endif %}</p>
+    <p class="error__text error__text-link"><a href="{{ url_for('home', lang=lang) }}">{% if lang == "ja" %}ホームに戻る{% else %}Back to Home{% endif %}</a></p>
+</div>
+{% endblock %}

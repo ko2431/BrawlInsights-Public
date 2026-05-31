@@ -1,0 +1,74 @@
+{# /app/templates/partials/header.html #}
+{# layout.css の .header-pc-* クラス名に合わせる #}
+<header class="header-pc">
+    <div class="header-pc__container">
+        {# ロゴとサービス名 #}
+        <a href="{{ url_for('home', lang=lang) }}" class="header-pc__brand">
+            <img src="{{ url_for('static', path='/images/ui/logo.svg') }}" alt="Logo" class="header-pc__logo">
+            <span class="header-pc__service-name">Brawl Insights</span>
+        </a>
+
+        {# ナビゲーションリンク #}
+        <nav class="header-pc__nav">
+            {# ホーム #}
+            <a href="{{ url_for('home', lang=lang) }}" class="header-pc__nav-link" data-tab-id="home">
+                <img src="{{ url_for('static', path='/images/ui/home.svg') }}" alt="Home" class="header-pc__nav-icon">
+                <span class="header-pc__nav-text">{% if lang == "ja" %}ホーム{% else %}Home{% endif %}</span>
+            </a>
+            {# 統計データ #}
+            <a href="{{ url_for('stats', lang=lang) }}" class="header-pc__nav-link" data-tab-id="stats">
+                <img src="{{ url_for('static', path='/images/ui/statistics.svg') }}" alt="Stats" class="header-pc__nav-icon">
+                <span class="header-pc__nav-text">{% if lang == "ja" %}統計データ{% else %}Stats{% endif %}</span>
+            </a>
+            {# ツール #}
+            <a href="{{ url_for('tools', lang=lang) }}" class="header-pc__nav-link" data-tab-id="tools">
+                <img src="{{ url_for('static', path='/images/ui/tools.svg') }}" alt="Tools" class="header-pc__nav-icon">
+                <span class="header-pc__nav-text">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</span>
+            </a>
+            {# 募集掲示板 #}
+            <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="header-pc__nav-link" data-tab-id="board">
+                <img src="{{ url_for('static', path='/images/ui/boards.svg') }}" alt="Board" class="header-pc__nav-icon">
+                <span class="header-pc__nav-text">{% if lang == "ja" %}募集掲示板{% else %}Boards{% endif %}</span>
+            </a>
+            {# アカウント #}
+            <a href="{{ url_for('account_page', lang=lang) }}" class="header-pc__nav-link" data-tab-id="account">
+                <img src="{{ url_for('static', path='/images/ui/account.svg') }}" alt="Account" class="header-pc__nav-icon">
+                <span class="header-pc__nav-text">{% if lang == "ja" %}アカウント{% else %}Account{% endif %}</span>
+            </a>
+        </nav>
+
+        {% if platform == "web" %}
+        {# 言語切り替えドロップダウン #}
+        <div class="lang-switcher">
+            {# ボタン部分 (クリックでメニューを開閉) #}
+            <button type="button" class="lang-switcher__button" aria-haspopup="true" aria-expanded="false" onclick="toggleLangMenu(event)">
+                {# 言語を示すアイコン (仮) #}
+                <img src="{{ url_for('static', path='/images/ui/lang.svg') }}" alt="Language" class="lang-switcher__icon">
+                {# 下向き矢印 #}
+                <span class="lang-switcher__arrow">&#x25BC;</span> {# HTMLエンティティで▼を表示 #}
+            </button>
+            {# ドロップダウンメニュー部分 (最初は非表示) #}
+            <ul class="lang-switcher__menu" role="menu">
+                <li role="none">
+                    <form action="{{ url_for('account_change_language', lang=lang) }}" method="post" class="lang-switcher__form">
+                        <input type="hidden" name="new_lang" value="ja">
+                        <button type="submit" role="menuitem" class="lang-switcher__item {% if lang == 'ja' %}is-active{% endif %}" {% if lang == 'ja' %}disabled{% endif %}>
+                            <img src="{{ url_for('static', path='/images/ui/ja.svg') }}" alt="JP Flag Icon" class="lang-switcher__item-icon-ja">
+                            <span>日本語</span>
+                        </button>
+                    </form>
+                </li>
+                <li role="none">
+                    <form action="{{ url_for('account_change_language', lang=lang) }}" method="post" class="lang-switcher__form">
+                        <input type="hidden" name="new_lang" value="en">
+                        <button type="submit" role="menuitem" class="lang-switcher__item {% if lang == 'en' %}is-active{% endif %}" {% if lang == 'en' %}disabled{% endif %}>
+                            <img src="{{ url_for('static', path='/images/ui/en.svg') }}" alt="English Icon" class="lang-switcher__item-icon-en">
+                            <span>English</span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</header>

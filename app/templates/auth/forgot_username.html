@@ -1,0 +1,247 @@
+{# /app/templates/auth/forgot_username.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ユーザー名をお忘れですか？{% else %}Forgot Your Username?{% endif %} - Brawl Insights{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/auth.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-page__container">
+    <h1 class="section-title">{% if lang == "ja" %}ユーザー名をお忘れですか？{% else %}Forgot Your Username?{% endif %}</h1>
+    <p class="info-block__text block" style="margin-bottom: 15px;">
+        {% if lang == "ja" %}メインアカウント登録時に使用したプレイヤータグを入力し、アイコン認証を完了することであなたのユーザー名が表示されます。{% else %}Enter your main account player tag, complete the in-game icon verification, and then click "Show Username".{% endif %}
+    </p>
+
+    {% if error %}
+        <div class="auth-error-message global-error-message">
+            <span>{{ error }}</span>
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('forgot_username_lookup', lang=lang) }}" class="auth-form" style="margin-top: 10px;" id="forgot-username-form">
+        <div class="form-group">
+            <label for="player_tag" class="form-label">{% if lang == "ja" %}プレイヤータグ{% else %}Player Tag{% endif %}</label>
+            <input type="text" id="player_tag" name="player_tag" class="form-input" value="{{ player_tag or '' }}" 
+                   placeholder="#XXXXXXX" required autocomplete="off">
+            <div id="tag-status" class="form-field-status"></div>
+        </div>
+        <button type="button" id="request-verification-btn" class="button button--primary auth-button" disabled>
+            {% if lang == "ja" %}認証を開始する{% else %}Start verification{% endif %}
+        </button>
+
+        <div id="verification-panel" style="display: none; margin-top: 14px; padding: 14px 12px 10px; border: 1px solid #ddd; border-radius: 10px; background-color: #fafafa;">
+            <div style="display: flex; gap: 12px; align-items: stretch; justify-content: space-between;">
+                <div style="flex: 1 1 auto; min-width: 0;">
+                    <p class="info-block__text block" style="margin: 0; font-size: 15px; line-height: 1.4;">
+                        {% if lang == "ja" %}
+                            あなたがこのアカウントの所有者であることを確認するため、ブロスタを開いてプレイヤーアイコンをこちらに変更してください。変更後、<b>認証</b>ボタンを押してください。<br>なお、ゲーム内でアイコンを変更してから反映されるまで最大で<span style="color: rgb(217, 16, 16);"><b>3-5分</b></span>程度かかることがありますのでご了承ください。認証できない場合は、少し待ってから再度ボタンを押してみてください。認証完了後、プレイヤーアイコンはもとに戻してかまいません。
+                        {% else %}
+                            To verify that you own the account, please open Brawl Stars and change your player icon to the one shown. After changing it, press the <b>Verify</b> button.<br>Please note that it may take up to <span style="color: rgb(217, 16, 16);"><b>3-5 minutes</b></span> for the change to be reflected. You can change your player icon back after verification is complete.
+                        {% endif %}
+                    </p>
+                </div>
+                <div style="padding: 0 10px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img id="instructed-icon" alt="{% if lang == 'ja' %}指示アイコン{% else %}Instruction icon{% endif %}" style="display: none; width: 64px; height: 64px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; max-width: 64px;">
+                    <button type="button" id="check-verification-btn" class="button button--primary" disabled style="padding: 6px 12px; font-size: 15px;">
+                        <span id="check-verification-label">{% if lang == "ja" %}認証{% else %}Verify{% endif %}</span>
+                    </button>
+                </div>
+            </div>
+            <div id="verification-message" class="form-field-status" style="margin: 4px 0 2px; text-align: center;"></div>
+        </div>
+
+        <button type="submit" id="reveal-btn" class="button button--primary auth-button" disabled style="margin-top: 12px;">
+            {% if lang == "ja" %}ユーザー名を表示{% else %}Show Username{% endif %}
+        </button>
+    </form>
+
+    {% if found_username %}
+        <div class="global-error-message" style="margin-top: 12px; background-color: #ecfdf5; border-color: #34d399; color: #065f46;">
+            <p style="display: block;">
+            {% if lang == "ja" %}あなたのユーザー名は <strong>{{ found_username }}</strong> です。{% else %}Your username is <strong>{{ found_username }}</strong>.{% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+    <div class="auth-links">
+        {% if found_username %}
+            <p><a href="{{ url_for('login_page', lang=lang) }}?username={{ found_username }}">{% if lang == "ja" %}ログインページに進む{% else %}Proceed to Login{% endif %}</a></p>
+        {% else %}
+            <p><a href="{{ url_for('login_page', lang=lang) }}">{% if lang == "ja" %}ログインページに戻る{% else %}Back to Login{% endif %}</a></p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const currentLang = "{{ lang }}";
+    const form = document.getElementById("forgot-username-form");
+    const playerTagInput = document.getElementById("player_tag");
+    const tagStatusEl = document.getElementById("tag-status");
+    const requestBtn = document.getElementById("request-verification-btn");
+    const checkBtn = document.getElementById("check-verification-btn");
+    const checkLabel = document.getElementById("check-verification-label");
+    const revealBtn = document.getElementById("reveal-btn");
+    const msgEl = document.getElementById("verification-message");
+    const instructedIconEl = document.getElementById("instructed-icon");
+    const verificationPanel = document.getElementById("verification-panel");
+    let lastRequestedTag = "";
+    let typingTimer;
+    const doneTypingInterval = 700;
+
+    function setMessage(html, colorClass) {
+        msgEl.innerHTML = html ? html : "";
+        msgEl.className = `form-field-status ${colorClass || ""}`.trim();
+    }
+
+    function setTagStatus(html, colorClass) {
+        tagStatusEl.innerHTML = html ? html : "";
+        tagStatusEl.className = `form-field-status ${colorClass || ""}`.trim();
+    }
+
+    function resetVerificationState(forceMessage) {
+        checkBtn.disabled = true;
+        revealBtn.disabled = true;
+        checkLabel.textContent = `{% if lang == "ja" %}認証{% else %}Verify{% endif %}`;
+        instructedIconEl.style.display = "none";
+        verificationPanel.style.display = "none";
+        if (forceMessage === undefined || forceMessage) {
+            setMessage("");
+        }
+        lastRequestedTag = "";
+    }
+
+    // 入力時の自動矯正とバリデーション
+    playerTagInput.addEventListener("input", function() {
+        let tag = playerTagInput.value.trim().toUpperCase();
+        if (tag && !tag.startsWith("#")) {
+            tag = "#" + tag;
+        }
+        playerTagInput.value = tag;
+
+        if (tag !== lastRequestedTag) {
+            resetVerificationState(false);
+        }
+
+        clearTimeout(typingTimer);
+        // バリデーションの実行
+        if (tag.length >= 5) { // #XXXX
+            typingTimer = setTimeout(validatePlayerTag, doneTypingInterval);
+        } else {
+            setTagStatus("");
+            requestBtn.disabled = true;
+        }
+    });
+
+    async function validatePlayerTag() {
+        const tag = playerTagInput.value.trim();
+        if (tag.length < 5) return;
+
+        try {
+            const response = await fetch(`/${currentLang}/validate/player-tag`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player_tag: tag })
+            });
+            const data = await response.json();
+            if (data.is_valid) {
+                setTagStatus(`✅ ${data.player_name} (${data.formatted_tag})`, "text-green-500");
+                playerTagInput.value = data.formatted_tag;
+                requestBtn.disabled = false;
+            } else {
+                setTagStatus(`❌ ${data.message}`, "text-red-500");
+                requestBtn.disabled = true;
+            }
+        } catch (error) {
+            setTagStatus('<span class="text-red-500">{% if lang == "ja" %}検証エラーが発生しました{% else %}Validation error occurred{% endif %}</span>', "");
+            requestBtn.disabled = true;
+        }
+    }
+
+    requestBtn.addEventListener("click", async function() {
+        const playerTag = playerTagInput.value.trim();
+        if (!playerTag || requestBtn.disabled) return;
+
+        requestBtn.disabled = true;
+        checkBtn.disabled = true;
+        revealBtn.disabled = true;
+        verificationPanel.style.display = "block";
+        setMessage(`{% if lang == "ja" %}指示アイコンを取得中...{% else %}Requesting instruction icon...{% endif %}`, "");
+
+        try {
+            const response = await fetch(`/${currentLang}/account/request-verification`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ player_tag: playerTag })
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success && data.instructed_icon_id) {
+                lastRequestedTag = playerTag;
+                checkBtn.disabled = false;
+                instructedIconEl.src = `/static/images/player_icon/${data.instructed_icon_id}.webp`;
+                instructedIconEl.style.display = "block";
+                setMessage(`ℹ️ {% if lang == "ja" %}アイコンを変更したら、<b>認証</b>ボタンを押してください{% else %}After changing the icon, press the <b>Verify</b> button{% endif %}`, "");
+            } else {
+                setMessage(`<span class="text-red-500">❌ ${data.message || `{% if lang == "ja" %}指示アイコンの取得に失敗しました{% else %}Failed to get instruction icon{% endif %}`}</span>`, "");
+                resetVerificationState(false);
+            }
+        } catch (error) {
+            setMessage(`<span class="text-red-500">❌ {% if lang == "ja" %}通信エラーが発生しました{% else %}A network error occurred{% endif %}</span>`, "");
+            resetVerificationState(false);
+        } finally {
+            // バリデーションが成功している場合は再度有効にする (タグが変わっていなければ)
+            if (playerTag === playerTagInput.value.trim() && tagStatusEl.classList.contains("text-green-500")) {
+                // requestBtn.disabled = false; // 認証開始後は一時的に無効のままにするか検討
+            }
+            requestBtn.disabled = false; 
+        }
+    });
+
+    checkBtn.addEventListener("click", async function() {
+        const playerTag = playerTagInput.value.trim();
+        if (!playerTag) return;
+
+        checkBtn.disabled = true;
+        revealBtn.disabled = true;
+        checkLabel.textContent = `{% if lang == "ja" %}認証中...{% else %}Verifying...{% endif %}`;
+        setMessage(`{% if lang == "ja" %}認証情報を確認しています...{% else %}Checking verification...{% endif %}`, "");
+
+        try {
+            const response = await fetch(`/${currentLang}/account/check-verification`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ player_tag: playerTag })
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success && data.verified) {
+                revealBtn.disabled = false;
+                setMessage(`✅ ${data.message || `{% if lang == "ja" %}認証に成功しました{% else %}Verification completed{% endif %}`}`, "text-green-500");
+            } else {
+                setMessage(`⚠️ ${data.message || `{% if lang == "ja" %}認証に失敗しました。再度お試しください。{% else %}Verification failed. Please try again.{% endif %}`}`, "text-yellow-500");
+                checkBtn.disabled = false;
+            }
+        } catch (error) {
+            setMessage(`<span class="text-red-500">❌ {% if lang == "ja" %}認証処理中にエラーが発生しました{% else %}Error while checking verification{% endif %}</span>`, "");
+            checkBtn.disabled = false;
+        } finally {
+            checkLabel.textContent = `{% if lang == "ja" %}認証{% else %}Verify{% endif %}`;
+        }
+    });
+
+    form.addEventListener("submit", function(event) {
+        if (revealBtn.disabled || !playerTagInput.value.trim()) {
+            event.preventDefault();
+        }
+    });
+
+    // 初期ロード時のバリデーション
+    if (playerTagInput.value.trim().length >= 5) {
+        validatePlayerTag();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{# /app/templates/tools/skin_ranking_fragment.html #}
+{# フラグメント: サーバーでフィルタ・ソート済みのスキンカードを返す #}
+
+{% macro format_rate(rate) -%}
+    {% if rate is not none %}
+        {% if rate < 0.1 %}
+            {{ "%.3f"|format(rate) }}%
+        {% elif rate < 99.95 %}
+            {{ "%.2f"|format(rate) }}%
+        {% else %}
+            {{ "%.1f"|format(rate) }}%
+        {% endif %}
+    {% else %}
+        --
+    {% endif %}
+{%- endmacro %}
+
+{% if all_skins %}
+<div class="skin-card-grid">
+    {% for skin in all_skins %}
+    {# レアリティアイコン判定 #}
+    {% set r = skin.rarity %}
+    {% if r is none or r == 0 %}
+        {% set rarity_icon = 'skin_other.png' %}
+    {% elif r <= 10 %}
+        {% set rarity_icon = 'skin_rare.png' %}
+    {% elif r <= 20 %}
+        {% set rarity_icon = 'skin_super_rare.png' %}
+    {% elif r <= 30 %}
+        {% set rarity_icon = 'skin_epic.png' %}
+    {% elif r <= 40 %}
+        {% set rarity_icon = 'skin_mythic.png' %}
+    {% elif r <= 50 %}
+        {% set rarity_icon = 'skin_legendary.png' %}
+    {% elif r <= 60 %}
+        {% set rarity_icon = 'skin_hypercharge.png' %}
+    {% elif r <= 70 %}
+        {% set rarity_icon = 'pro_pass.png' %}
+    {% elif r <= 80 %}
+        {% set rarity_icon = 'skin_true_silver.png' %}
+    {% else %}
+        {% set rarity_icon = 'skin_true_gold.png' %}
+    {% endif %}
+    {# 表示名 #}
+    {% if lang == "ja" %}
+        {% set skin_display_name = skin.ja or skin.en or none %}
+    {% else %}
+        {% set skin_display_name = skin.en or skin.ja or none %}
+    {% endif %}
+    {# 説明文 #}
+    {% if lang == "ja" %}
+        {% set skin_desc = skin.description_ja or skin.description_en or '' %}
+    {% else %}
+        {% set skin_desc = skin.description_en or skin.description_ja or '' %}
+    {% endif %}
+
+    <div class="skin-card">
+        {# 画像（ランクバッジ付き） #}
+        <div class="skin-card__img-wrapper skin-card__img-wrapper--ranked">
+            <span class="skin-card__rank-badge">#{{ loop.index }}</span>
+            <img src="{{ url_for('static', path='/images/skins/' + (skin.brawler_id or 0)|string + '/' + skin.id|string + '.webp') }}"
+                 alt="{{ skin_display_name or ('（通常スキン）' if lang == 'ja' else 'Default Skin') }}"
+                 class="skin-card__img"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}'; this.style.objectFit='contain'; this.style.padding='10px';">
+        </div>
+        {# レアリティ+スキン名 #}
+        <div class="skin-card__info-row">
+            <img src="{{ url_for('static', path='/images/ui/' + rarity_icon) }}" alt="" class="skin-card__rarity-icon">
+            <span class="skin-card__name">
+                {% if skin_display_name %}{{ skin_display_name }}{% else %}{% if lang == "ja" %}（通常スキン）{% else %}Default Skin{% endif %}{% endif %}
+            </span>
+        </div>
+        {# [限定]ラベル+説明文 #}
+        <div class="skin-card__label-row">
+            {% if skin.is_limited %}
+            <span class="skin-card__limited-badge">{% if lang == "ja" %}限定{% else %}Limited{% endif %}</span>
+            {% endif %}
+            {% if skin_desc %}
+            <span class="skin-card__description">{{ skin_desc }}</span>
+            {% endif %}
+        </div>
+        {# 使用率 / 所持率 #}
+        <div class="skin-card__rate-row">
+            {% if lang == "ja" %}使用率:{% else %}Usage:{% endif %}
+            {{ format_rate(skin.equip_rate) }}
+            <br>
+            {% if lang == "ja" %}所持率:{% else %}Ownership:{% endif %}
+            {{ format_rate(skin.ownership_rate) }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p style="text-align: center; color: var(--color-888, #888); padding: 30px 0; margin: 0;">
+    {% if lang == "ja" %}条件に一致するスキンはありません。{% else %}No skins match the selected criteria.{% endif %}
+</p>
+{% endif %}

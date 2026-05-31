@@ -1,0 +1,166 @@
+/* /app/static/css/base.css */
+/* =============================================== */
+/* 基本スタイル                                    */
+/* =============================================== */
+
+/* --- 文字コード指定 --- */
+@charset "UTF-8";
+
+/* --- ボックスサイジングのリセット --- */
+/* 全要素と疑似要素に適用し、borderとpaddingを要素の幅・高さに含める */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --color-000: #000;
+  --color-111: #111;
+  --color-222: #222;
+  --color-333: #333;
+  --color-444: #444;
+  --color-555: #555;
+  --color-666: #666;
+  --color-777: #777;
+  --color-888: #888;
+  --color-999: #999;
+  --color-aaa: #aaa;
+  --color-bbb: #bbb;
+  --color-ccc: #ccc;
+  --color-ddd: #ddd;
+  --color-eee: #eee;
+  --color-fff: #fff;
+  --bg-main: #fff;
+  --bg-f0f0f0: #f0f0f0;
+  --bg-f8f8f8: #f8f8f8;
+  --bg-fdfdfd: #fdfdfd;
+  --bg-fefefe: #fefefe;
+
+  /* --- カスタムカラータグ用 (ブロスタ) --- */
+  --c-red: rgb(242, 39, 39);
+  --c-green: rgb(18, 181, 18);
+  --c-blue: rgb(60, 60, 253);
+  --c-cyan: rgb(4, 177, 186);
+  --c-pink: rgb(219, 81, 127);
+  --c-yellow: rgb(194, 194, 22);
+  --c-purple: rgb(179, 15, 179);
+  --c-coral: rgb(218, 95, 50);
+}
+
+.dark {
+  --color-000: #fff;
+  --color-111: #f8f8f8;
+  --color-222: #eee;
+  --color-333: #ddd;
+  --color-444: #ccc;
+  --color-555: #bbb;
+  --color-666: #aaa;
+  --color-777: #999;
+  --color-888: #888;
+  --color-999: #777;
+  --color-aaa: #666;
+  --color-bbb: #555;
+  --color-ccc: #444;
+  --color-ddd: #333;
+  --color-eee: #181818;
+  --color-fff: #000;
+  --bg-main: #222;
+  --bg-f0f0f0: #181818;
+  --bg-f8f8f8: #1c1c1c;
+  --bg-fdfdfd: #131313;
+  --bg-fefefe: #111;
+
+  /* --- カスタムカラータグ用 (ダークモード微調整) --- */
+  --c-red: #ff6666;
+  --c-green: #5af05a;
+  --c-blue: #80aaff;
+  --c-cyan: #4eeee3;
+  --c-pink: #ff85ab;
+  --c-yellow: #fef04e;
+  --c-purple: #e080ff;
+  --c-coral: #ff9966;
+}
+
+/* --- 基本的なリセット --- */
+body, h1, h2, h3, h4, h5, h6, p, ul, ol, figure, blockquote, dl, dd {
+    margin: 0; /* デフォルトのマージンをリセット */
+}
+
+ul, ol {
+    padding: 0; /* デフォルトのパディングをリセット */
+    list-style: none; /* リストマーカーを削除 */
+}
+
+a {
+    text-decoration: none; /* デフォルトの下線を削除 */
+    color: inherit; /* 親要素の色を継承 */
+}
+
+img {
+    max-width: 100%; /* 画像が親要素からはみ出ないように */
+    height: auto; /* アスペクト比を維持 */
+    display: block; /* 画像下の余分なスペースを削除 */
+    /* vertical-align: middle; /* 他のインライン要素との位置合わせ（必要に応じて）*/
+}
+
+input, button, textarea, select {
+    font: inherit; /* 親要素のフォントを継承 */
+    margin: 0; /* デフォルトのマージンをリセット */
+}
+
+button {
+    cursor: pointer; /* ボタンにカーソルをポインターに */
+    background: none; /* デフォルトの背景を削除 */
+    border: none; /* デフォルトのボーダーを削除 */
+    padding: 0; /* デフォルトのパディングを削除 */
+    user-select: none;
+    -webkit-user-select: none; /* iOS Safari用 */
+}
+
+/* --- body全体の基本スタイル --- */
+body {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Hiragino Kaku Gothic ProN",
+        "Segoe UI",
+        "Yu Gothic UI",
+        "Meiryo",
+        Roboto,
+        "Noto Sans JP",
+        sans-serif;
+    line-height: 1.6; /* 基本の行間 */
+    color: var(--color-000); /* 基本の文字色 */
+    background-color: var(--bg-main); /* 基本の背景色 */
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased; /* フォントのアンチエイリアス（macOS/iOS向け） */
+    -moz-osx-font-smoothing: grayscale; /* フォントのアンチエイリアス（Firefox向け） */
+}
+
+/* アプリ版（iOSまたはAndroid）でのみ、リンク長押しプレビューを無効化 */
+body.platform-ios,
+body.platform-android {
+    -webkit-touch-callout: none;
+}
+
+/* 進捗バーの設定 */
+#nprogress {
+  transition: opacity 0.3s ease-in-out !important;
+}
+
+/* --- カスタムカラータグ (ブロスタ用) --- */
+/* ゲーム内の<c*>タグに対応するスタイル */
+c0, c1 { color: var(--color-000); } /* 黒（ダークモードでは白に反転済） */
+c2 { color: var(--c-red); }
+c3 { color: var(--c-green); }
+c4 { color: var(--c-blue); }
+c5 { color: var(--c-cyan); }
+c6 { color: var(--c-pink); }
+c7 { color: var(--c-yellow); }
+c8 { color: var(--c-purple); }
+c9 { color: var(--c-coral); }

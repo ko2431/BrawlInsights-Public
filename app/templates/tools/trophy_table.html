@@ -1,0 +1,498 @@
+{# /app/templates/tools/trophy_table.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 トロフィー増減表{% else %}Trophy Change Table{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのトロフィー増減表です。連勝ボーナスの分も含めてわかりやすく確認できます。{% else %}Brawl Stars Trophy Change Table. You can easily check the changes including the win streak bonus.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container" x-data="trophyTable()" @keydown.window="handleKeydown($event)">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}トロフィー増減表{% else %}Trophy Change Table{% endif %}</h1>
+
+    {# サブタブ #}
+    <div class="trophy-table-tab__container">
+        {# サブタブ (ゲームモード区分選択) #}
+        <nav class="sub-tab-nav">
+            <ul class="sub-tab-nav__list">
+                <li class="sub-tab-nav__item">
+                    <a href="#" @click.prevent="selectedMode = 'normal'" :class="{'sub-tab-nav__link--active': selectedMode === 'normal'}" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/3v3.png') }}" alt="通常" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}通常{% else %}Normal{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" @click.prevent="selectedMode = 'duels'" :class="{'sub-tab-nav__link--active': selectedMode === 'duels'}" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/duels.png') }}" alt="デュエル" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}デュエル{% else %}Duels{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" @click.prevent="selectedMode = 'arena'" :class="{'sub-tab-nav__link--active': selectedMode === 'arena'}" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/brawlArena.png') }}" alt="アリーナ" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}アリーナ{% else %}Arena{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" @click.prevent="selectedMode = 'solo'" :class="{'sub-tab-nav__link--active': selectedMode === 'solo'}" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/soloShowdown.png') }}" alt="ソロ" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}ソロ{% else %}Solo{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" @click.prevent="selectedMode = 'duo'" :class="{'sub-tab-nav__link--active': selectedMode === 'duo'}" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/duoShowdown.png') }}" alt="デュオ" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}デュオ{% else %}Duo{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="#" @click.prevent="selectedMode = 'trio'" :class="{'sub-tab-nav__link--active': selectedMode === 'trio'}" class="sub-tab-nav__link">
+                        <img src="{{ url_for('static', path='/images/mode_icons/trioShowdown.png') }}" alt="トリオ" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}トリオ{% else %}Trio{% endif %}</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {# 連勝数選択 #}
+        <nav class="winstreak-nav-container">
+            <div class="winstreak-nav">
+                <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="連勝" class="sub-tab-nav__icon winstreak-nav__icon">
+                <div class="winstreak-item-container">
+                    <div @click="winStreakBonus = 0" :class="{'winstreak-item--active': winStreakBonus === 0}" class="winstreak-item"><p class="winstreak-item-text">{% if lang == "ja" %}なし{% else %}-{% endif %}</p></div>
+                    <div @click="winStreakBonus = 1" :class="{'winstreak-item--active': winStreakBonus === 1}" class="winstreak-item"><p class="winstreak-item-text">2</p></div>
+                    <div @click="winStreakBonus = 2" :class="{'winstreak-item--active': winStreakBonus === 2}" class="winstreak-item"><p class="winstreak-item-text">3</p></div>
+                    <div @click="winStreakBonus = 3" :class="{'winstreak-item--active': winStreakBonus === 3}" class="winstreak-item"><p class="winstreak-item-text">4</p></div>
+                    <div @click="winStreakBonus = 4" :class="{'winstreak-item--active': winStreakBonus === 4}" class="winstreak-item"><p class="winstreak-item-text">5</p></div>
+                    {# スマホではここで改行 #}
+                    <div class="winstreak-break"></div>
+                    <div @click="winStreakBonus = 5" :class="{'winstreak-item--active': winStreakBonus === 5}" class="winstreak-item"><p class="winstreak-item-text">6</p></div>
+                    <div @click="winStreakBonus = 6" :class="{'winstreak-item--active': winStreakBonus === 6}" class="winstreak-item"><p class="winstreak-item-text">7</p></div>
+                    <div @click="winStreakBonus = 7" :class="{'winstreak-item--active': winStreakBonus === 7}" class="winstreak-item"><p class="winstreak-item-text">8</p></div>
+                    <div @click="winStreakBonus = 8" :class="{'winstreak-item--active': winStreakBonus === 8}" class="winstreak-item"><p class="winstreak-item-text">9</p></div>
+                    <div @click="winStreakBonus = 9" :class="{'winstreak-item--active': winStreakBonus === 9}" class="winstreak-item"><p class="winstreak-item-text">10</p></div>
+                    <div @click="winStreakBonus = 10" :class="{'winstreak-item--active': winStreakBonus === 10}" class="winstreak-item"><p class="winstreak-item-text">11+</p></div>
+                </div>
+            </div>
+        </nav>
+        {# トロフィーラッシュ #}
+        <nav class="winstreak-nav-container">
+            <div class="winstreak-nav" style="justify-content: space-between; gap: 10px;">
+                <p class="winstreak-item-text trophy-rush-text">{% if lang == "ja" %}トロフィーラッシュ{% else %}Trophy Rush{% endif %}</p>
+                <div class="winstreak-item-container" style="flex-wrap: nowrap; width: auto;">
+                    <div @click="isTrophyRushEnabled = false" :class="{'winstreak-item--active': !isTrophyRushEnabled}" class="winstreak-item trophy-rush-item"><p class="winstreak-item-text">{% if lang == "ja" %}無効{% else %}Off{% endif %}</p></div>
+                    <div @click="isTrophyRushEnabled = true" :class="{'winstreak-item--active': isTrophyRushEnabled}" class="winstreak-item trophy-rush-item"><p class="winstreak-item-text">{% if lang == "ja" %}有効{% else %}On{% endif %}</p></div>
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    {# トロフィー増減表 #}
+    <div x-cloak>
+        <div x-show="selectedMode === 'normal'">
+            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
+            <table class="trophy-table">
+                <thead>
+                    <tr>
+                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                        <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
+                        <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in normalData" :key="row.range">
+                        <tr>
+                            <td class="trophy-rank" x-text="row.range"></td>
+                            <template x-for="(baseChange, index) in row.changes">
+                                <td :class="getChangeClass(baseChange, index, 'normal', row.range)">
+                                    <span x-text="getFinalChange(baseChange, index, 'normal', row.range)"></span>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div x-show="selectedMode === 'duels'">
+            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。1体あたりのトロフィー増減は、この表の約3分の1となります。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above. The trophy change per brawler is about 1/3 of this table.{% endif %}</p>
+            <table class="trophy-table">
+                <thead>
+                    <tr>
+                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                        <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
+                        <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in duelsData" :key="row.range">
+                        <tr>
+                            <td class="trophy-rank" x-text="row.range"></td>
+                            <template x-for="(baseChange, index) in row.changes">
+                                <td :class="getChangeClass(baseChange, index, 'duels', row.range)">
+                                    <span x-text="getFinalChange(baseChange, index, 'duels', row.range)"></span>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div x-show="selectedMode === 'arena'">
+            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
+            <table class="trophy-table">
+                <thead>
+                    <tr>
+                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                        <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
+                        <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in arenaData" :key="row.range">
+                        <tr>
+                            <td class="trophy-rank" x-text="row.range"></td>
+                            <template x-for="(baseChange, index) in row.changes">
+                                <td :class="getChangeClass(baseChange, index, 'arena', row.range)">
+                                    <span x-text="getFinalChange(baseChange, index, 'arena', row.range)"></span>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        
+        <div x-show="selectedMode === 'solo'">
+            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
+             <table class="trophy-table">
+                <thead>
+                    <tr>
+                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                        <th>#1</th><th>#2</th><th>#3</th><th>#4</th><th>#5</th>
+                        <th>#6</th><th>#7</th><th>#8</th><th>#9</th><th>#10</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in soloData" :key="row.range">
+                        <tr>
+                            <td class="trophy-rank" x-text="row.range"></td>
+                            <template x-for="(baseChange, index) in row.changes">
+                                <td :class="getChangeClass(baseChange, index, 'solo', row.range)">
+                                    <span x-text="getFinalChange(baseChange, index, 'solo', row.range)"></span>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div x-show="selectedMode === 'duo'">
+            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
+             <table class="trophy-table">
+                <thead>
+                    <tr>
+                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                        <th>#1</th><th>#2</th><th>#3</th><th>#4</th><th>#5</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in duoData" :key="row.range">
+                        <tr>
+                            <td class="trophy-rank" x-text="row.range"></td>
+                            <template x-for="(baseChange, index) in row.changes">
+                                <td :class="getChangeClass(baseChange, index, 'duo', row.range)">
+                                    <span x-text="getFinalChange(baseChange, index, 'duo', row.range)"></span>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div x-show="selectedMode === 'trio'">
+            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
+            <table class="trophy-table">
+                <thead>
+                    <tr>
+                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                        <th>#1</th><th>#2</th><th>#3</th><th>#4</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in trioData" :key="row.range">
+                        <tr>
+                            <td class="trophy-rank" x-text="row.range"></td>
+                            <template x-for="(baseChange, index) in row.changes">
+                                <td :class="getChangeClass(baseChange, index, 'trio', row.range)">
+                                    <span x-text="getFinalChange(baseChange, index, 'trio', row.range)"></span>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {#^ フッターテキスト #}
+    <p class="info-block__text block" style="margin-top: 10px;">
+        {% if lang == "ja" %}
+            {% if platform == "web" %}PCの場合、キーボードの←→キーを押すことでゲームモードの切り替え、数字キーを押すことで適用する連勝ボーナス数の切り替え（[-]キーで<b>なし</b>、[2]〜[9]キーで<b>2〜9</b>、[0]キーで<b>10</b>、[1]キーで<b>11+</b>）ができます。{% endif %}
+        {% else %}
+            {% if platform == "web" %}PC users can switch game modes and win streak bonus numbers using the keyboard (← and → keys for game mode switching, [0] to [9] keys for win streak bonus numbers).{% endif %}
+        {% endif %}
+    </p>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+        function trophyTable() {
+            return {
+                selectedMode: 'normal', // 初期表示
+                winStreakBonus: 0, // 0:なし, 1-10: 連勝ボーナス+1〜+10
+                isTrophyRushEnabled: false,
+
+                // 増減データ
+                normalData: [
+                    { range: '0 - 49', changes: [10, 0] },
+                    { range: '50 - 299', changes: [10, -1] },
+                    { range: '300 - 599', changes: [10, -2] },
+                    { range: '600 - 799', changes: [10, -3] },
+                    { range: '800 - 999', changes: [10, -4] },
+                    { range: '1000 - 1099', changes: [10, -5] },
+                    { range: '1100 - 1199', changes: [10, -6] },
+                    { range: '1200 - 1299', changes: [10, -7] },
+                    { range: '1300 - 1499', changes: [10, -8] },
+                    { range: '1500 - 1799', changes: [10, -9] },
+                    { range: '1800 - 1999', changes: [10, -10] },
+                    { range: '2000 - 2499', changes: [8, -10] },
+                    { range: '2500 - 2799', changes: [6, -10] },
+                    { range: '2800 - 2999', changes: [4, -10] },
+                    { range: '3000 - 3099', changes: [2, -10] },
+                    { range: '3100 - 3999', changes: [1, -10] },
+                    { range: '4000 -', changes: [1, -15] }
+                ],
+                duelsData: [
+                    { range: '0 - 49', changes: [12, -1] },
+                    { range: '50 - 799', changes: [12, -3] },
+                    { range: '800 - 1199', changes: [12, -6] },
+                    { range: '1200 - 1799', changes: [12, -9] },
+                    { range: '1800 - 1999', changes: [12, -12] },
+                    { range: '2000 - 2499', changes: [9, -12] },
+                    { range: '2500 - 2999', changes: [6, -12] },
+                    { range: '3000 - 3999', changes: [3, -12] },
+                    { range: '4000 -', changes: [3, -15] }
+                ],
+                soloData: [
+                    { range: '0 - 49', changes: [13, 10, 10, 8, 6, 5, 5, 5, 5, 5] },
+                    { range: '50 - 99', changes: [13, 10, 9, 7, 5 ,4, 3, 2, 1, -1] },
+                    { range: '100 - 199', changes: [13, 10, 9, 7, 4, 3, 2, 1, 0, -1] },
+                    { range: '200 - 299', changes: [13, 10, 8, 5, 3, 2, 1, -1, -1, -1] },
+                    { range: '300 - 499', changes: [13, 10, 8, 5, 3, 2, 1, -1, -2, -2] },
+                    { range: '500 - 599', changes: [13, 10, 8, 5, 2, 1, -1, -1, -2, -2] },
+                    { range: '600 - 799', changes: [13, 10, 8, 5, 2, 1, -2, -2, -3, -4] },
+                    { range: '800 - 999', changes: [13, 10, 8, 5, 2, 1, -2, -3, -4, -5] },
+                    { range: '1000 - 1099', changes: [13, 10, 8, 5, 1, -2, -3, -4, -5, -6] },
+                    { range: '1100 - 1199', changes: [13, 10, 8, 5, 1, -2, -3, -4, -5, -7] },
+                    { range: '1200 - 1299', changes: [13, 10, 8, 5, 1, -2, -4, -5, -6, -8] },
+                    { range: '1300 - 1499', changes: [13, 10, 8, 5, 1, -2, -4, -6, -7, -10] },
+                    { range: '1500 - 1799', changes: [13, 10, 8, 5, 0, -3, -5, -6, -8, -11] },
+                    { range: '1800 - 1999', changes: [13, 10, 8, 5, 0, -3, -5, -7, -9, -12] },
+                    { range: '2000 - 2499', changes: [10, 8, 6, 4, -2, -3, -5, -7, -9, -12] },
+                    { range: '2500 - 2599', changes: [8, 6, 5, 3, -2, -3, -5, -7, -9, -12] },
+                    { range: '2600 - 2699', changes: [8, 6, 5, 2, -2, -3, -5, -7, -9, -12] },
+                    { range: '2700 - 2799', changes: [8, 6, 5, 1, -2, -3, -5, -7, -9, -12] },
+                    { range: '2800 - 2999', changes: [5, 4, 3, 0, -2, -3, -5, -7, -9, -12] },
+                    { range: '3000 - 3099', changes: [4, 3, 2, 0, -2, -3, -5, -7, -9, -12] },
+                    { range: '3100 - 3999', changes: [3, 2, 1, -1, -2, -3, -5, -7, -9, -12] },
+                    { range: '4000 -', changes: [2, 1, 0, -2, -3, -5, -8, -11, -14, -18] }
+                ],
+                duoData: [
+                    { range: '0 - 49', changes: [12, 6, 5, 5, 5] },
+                    { range: '50 - 99', changes: [12, 6, 4, 2, -1] },
+                    { range: '100 - 199', changes: [12, 6, 3, 1, -1] },
+                    { range: '200 - 299', changes: [12, 6, 2, -1, -1] },
+                    { range: '300 - 599', changes: [12, 6, 2, -1, -2] },
+                    { range: '600 - 799', changes: [12, 6, 2, -2, -3] },
+                    { range: '800 - 999', changes: [12, 6, 2, -2, -4] },
+                    { range: '1000 - 1099', changes: [12, 6, -1, -3, -5] },
+                    { range: '1100 - 1199', changes: [12, 6, -1, -4, -6] },
+                    { range: '1200 - 1299', changes: [12, 6, -1, -4, -7] },
+                    { range: '1300 - 1499', changes: [12, 6, -2, -5, -8] },
+                    { range: '1500 - 1799', changes: [12, 6, -2, -5, -9] },
+                    { range: '1800 - 1999', changes: [12, 6, -2, -6, -10] },
+                    { range: '2000 - 2299', changes: [10, 5, -2, -6, -10] },
+                    { range: '2300 - 2399', changes: [10, 4, -2, -6, -10] },
+                    { range: '2400 - 2499', changes: [10, 3, -2, -6, -10] },
+                    { range: '2500 - 2799', changes: [7, 2, -2, -6, -10] },
+                    { range: '2800 - 2999', changes: [5, 1, -2, -6, -10] },
+                    { range: '3000 - 3099', changes: [3, 1, -2, -6, -10] },
+                    { range: '3100 - 3999', changes: [2, 1, -2, -6, -10] },
+                    { range: '4000 -', changes: [2, 0, -3, -9, -15] }
+                ],
+                trioData: [
+                    { range: '0 - 49', changes: [12, 5, 5, 5] },
+                    { range: '50 - 99', changes: [11, 5, 4, -1] },
+                    { range: '100 - 199', changes: [11, 5, 3, -1] },
+                    { range: '200 - 299', changes: [11, 5, 2, -1] },
+                    { range: '300 - 499', changes: [11, 5, 2, -2] },
+                    { range: '500 - 599', changes: [11, 5, 1, -2] },
+                    { range: '600 - 799', changes: [11, 5, 1, -3] },
+                    { range: '800 - 999', changes: [11, 5, 1, -4] },
+                    { range: '1000 - 1099', changes: [11, 5, 0, -6] },
+                    { range: '1100 - 1199', changes: [11, 5, 0, -7] },
+                    { range: '1200 - 1299', changes: [11, 5, 0, -8] },
+                    { range: '1300 - 1499', changes: [11, 5, 0, -9] },
+                    { range: '1500 - 1799', changes: [11, 5, -5, -10] },
+                    { range: '1800 - 1999', changes: [11, 5, -5, -11] },
+                    { range: '2000 - 2199', changes: [9, 4, -5, -11] },
+                    { range: '2200 - 2299', changes: [9, 3, -5, -11] },
+                    { range: '2300 - 2399', changes: [9, 2, -5, -11] },
+                    { range: '2400 - 2499', changes: [9, 1, -5, -11] },
+                    { range: '2500 - 2799', changes: [7, 0, -5, -11] },
+                    { range: '2800 - 2999', changes: [4, 0, -5, -11] },
+                    { range: '3000 - 3099', changes: [3, 0, -5, -11] },
+                    { range: '3100 - 3999', changes: [2, 0, -5, -11] },
+                    { range: '4000 -', changes: [1, 0, -8, -17] }
+                ],
+                arenaData: [
+                    { range: '0 - 49', changes: [15, 0] },
+                    { range: '50 - 299', changes: [15, -1] },
+                    { range: '300 - 599', changes: [15, -2] },
+                    { range: '600 - 799', changes: [15, -4] },
+                    { range: '800 - 999', changes: [15, -5] },
+                    { range: '1000 - 1099', changes: [15, -6] },
+                    { range: '1100 - 1199', changes: [15, -7] },
+                    { range: '1200 - 1299', changes: [15, -8] },
+                    { range: '1300 - 1499', changes: [15, -10] },
+                    { range: '1500 - 1799', changes: [15, -11] },
+                    { range: '1800 - 1999', changes: [15, -12] },
+                    { range: '2000 - 2499', changes: [12, -12] },
+                    { range: '2500 - 2799', changes: [9, -12] },
+                    { range: '2800 - 2999', changes: [6, -12] },
+                    { range: '3000 - 3099', changes: [3, -12] },
+                    { range: '3100 - 3999', changes: [2, -20] },
+                    { range: '4000 -', changes: [2, -30] }
+                ],
+                
+                // 最終的なトロフィー増減を計算する
+                getFinalChange(baseChange, rankIndex, mode, range) {
+                    let bonus = 0;
+                    const adjustedBaseChange = this.isTrophyRushEnabled && baseChange > 0 ? baseChange * 2 : baseChange;
+                    // トロフィーが2000以上の場合はボーナス適用なし
+                    const startTrophy = parseInt(range.split(' - ')[0]);
+                    
+                    // 連勝ボーナス対象の順位か判定
+                    if (this.winStreakBonus > 0 && startTrophy < 2000) {
+                        if (mode === 'solo' && rankIndex < 4) { // ソロは4位まで
+                            bonus = this.winStreakBonus;
+                        }
+                        if ((mode === 'normal' || mode === 'duels' || mode === 'arena') && rankIndex === 0) { // 通常/デュエル/アリーナは勝利(0番目)のみ
+                             bonus = this.winStreakBonus;
+                        }
+                         if ((mode === 'duo' || mode === 'trio') && rankIndex < 2) { // デュオ/トリオは2位まで
+                             bonus = this.winStreakBonus;
+                        }
+                    }
+                    const finalChange = adjustedBaseChange + bonus;
+                    return finalChange > 0 ? `+${finalChange}` : finalChange;
+                },
+
+                // 増減に応じてCSSクラスを返す
+                getChangeClass(baseChange, rankIndex, mode, range) {
+                    let bonus = 0;
+                    const adjustedBaseChange = this.isTrophyRushEnabled && baseChange > 0 ? baseChange * 2 : baseChange;
+                    const startTrophy = parseInt(range.split(' - ')[0]);
+
+                    if (this.winStreakBonus > 0 && startTrophy < 2000) {
+                        if (mode === 'solo' && rankIndex < 4) bonus = this.winStreakBonus;
+                        if ((mode === 'normal' || mode === 'duels' || mode === 'arena') && rankIndex === 0) bonus = this.winStreakBonus;
+                        if ((mode === 'duo' || mode === 'trio') && rankIndex < 2) bonus = this.winStreakBonus;
+                    }
+                    const finalChange = adjustedBaseChange + bonus;
+                    if (finalChange > 0) return 'cell-win';
+                    if (finalChange < 0) return 'cell-loss';
+                    return 'cell-draw';
+                },
+
+                handleKeydown(e) {
+                    // 入力フォームなどにフォーカスがある場合は無視
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+                    const modes = ['normal', 'duels', 'arena', 'solo', 'duo', 'trio'];
+                    
+                    if (e.key === 'ArrowRight') {
+                        const currentIndex = modes.indexOf(this.selectedMode);
+                        this.selectedMode = modes[(currentIndex + 1) % modes.length];
+                    } else if (e.key === 'ArrowLeft') {
+                        const currentIndex = modes.indexOf(this.selectedMode);
+                        this.selectedMode = modes[(currentIndex - 1 + modes.length) % modes.length];
+                    }
+
+                    const bonusMap = {
+                        '-': 0,
+                        '2': 1,
+                        '3': 2,
+                        '4': 3,
+                        '5': 4,
+                        '6': 5,
+                        '7': 6,
+                        '8': 7,
+                        '9': 8,
+                        '0': 9,
+                        '1': 10
+                    };
+
+                    if (e.key in bonusMap) {
+                        this.winStreakBonus = bonusMap[e.key];
+                    }
+                }
+            }
+        }
+    </script>
+{% endblock %}

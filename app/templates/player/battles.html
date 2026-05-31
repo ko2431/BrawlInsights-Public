@@ -1,0 +1,121 @@
+{# /app/templates/player/battles.html - シェルページ #}
+{% extends "base.html" %}
+
+{% block title %}{{ tag }} {% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのバトル履歴です。{% else %}{{ tag }} Brawl Stars battle log.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    {# プレイヤーページ固有のCSSを読み込む #}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/player.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/battles.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+    {# Chart.jsをシェル側で事前ロード（フラグメント内の外部scriptより先に読むため） #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="player-page__container"
+     x-data="playerFragmentLoader('{{ url_for('get_player_battles_fragment', lang=lang, tag=tag[1:]) }}?tab={{ current_tab }}{% if before_date_filter %}&before={{ before_date_filter }}{% endif %}{% if after_date_filter %}&after={{ after_date_filter }}{% endif %}{% if selected_brawler_id %}&brawler_id={{ selected_brawler_id }}{% endif %}&page={{ current_page_num }}', '{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}')"
+     x-init="load()">
+
+    {# --- ローディング状態 --- #}
+    <template x-if="isLoading">
+        <div class="player-shell__loading">
+            <div class="player-shell__spinner"></div>
+            <p class="player-shell__loading-text">{% if lang == "ja" %}バトル履歴を読み込み中...{% else %}Loading battle log...{% endif %}</p>
+        </div>
+    </template>
+
+    {# --- エラー状態 --- #}
+    <template x-if="hasError">
+        <div class="player-shell__error">
+            <p>{% if lang == "ja" %}データの読み込みに失敗しました。{% else %}Failed to load data.{% endif %}</p>
+            <button class="button button--secondary" @click="load()">
+                {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+            </button>
+        </div>
+    </template>
+
+    {# --- コンテンツ挿入エリア --- #}
+    <div x-show="!isLoading && !hasError" x-ref="content"></div>
+
+    {# バナー広告 #}
+    <div style="margin: 0 5%">
+    {% include "components/ad_banner.html" %}
+    </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function playerFragmentLoader(url, pageLabel) {
+    return {
+        isLoading: true,
+        hasError: false,
+        pendingScrollTarget: null,
+        updatePageTitle(container) {
+            const nameEl = container.querySelector('.profile-header__name');
+            const tagEl = container.querySelector('.profile-header__tag');
+            if (!nameEl || !tagEl) return;
+
+            const playerName = nameEl.textContent.trim();
+            const playerTag = tagEl.textContent.trim();
+            if (!playerName || !playerTag) return;
+            document.title = `${playerName} (${playerTag}) ${pageLabel} - Brawl Insights`;
+        },
+        applyScroll(scrollTarget) {
+            const target = scrollTarget || (window.location.hash ? window.location.hash.substring(1) : null);
+            if (!target) return;
+            const normalizedTarget = target.startsWith('#') ? target.substring(1) : target;
+            const el = document.getElementById(normalizedTarget);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        },
+        async load(scrollTarget) {
+            this.isLoading = true;
+            this.hasError = false;
+            try {
+                const res = await fetch(url, { credentials: 'same-origin' });
+                const html = await res.text();
+                if (!html || !html.trim()) throw new Error('Empty response');
+                const container = this.$refs.content;
+                container.innerHTML = html;
+                // フラグメント内のscriptタグを再実行
+                // ※外部スクリプト(src属性あり)はシェル側で事前ロード済みのため読み飛ばす
+                container.querySelectorAll("script").forEach(oldScript => {
+                    const newScript = document.createElement("script");
+                    [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    if (!oldScript.src) {
+                        // インラインscriptのみ再実行
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    } else {
+                        // 外部scriptはDOMから除去するだけ（シェルで先読み済み）
+                        oldScript.remove();
+                    }
+                });
+                this.updatePageTitle(container);
+                this.pendingScrollTarget = scrollTarget || (window.location.hash ? window.location.hash.substring(1) : null);
+
+                // 4xx/5xxでもフラグメント側のエラーUIを優先表示
+                if (!res.ok && !container.querySelector('.player-error-msg')) {
+                    throw new Error("HTTP " + res.status);
+                }
+            } catch (e) {
+                console.error("Fragment load error:", e);
+                this.hasError = true;
+            } finally {
+                this.isLoading = false;
+                this.$nextTick(() => {
+                    requestAnimationFrame(() => {
+                        this.applyScroll(this.pendingScrollTarget);
+                    });
+                });
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

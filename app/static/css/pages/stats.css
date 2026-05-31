@@ -1,0 +1,108 @@
+/* /app/static/css/pages/stats.css */
+
+.stats-page__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 15px auto 45px;
+}
+
+.sort-indicator {
+    font-size: 0.8em;
+    margin-left: 4px;
+}
+th {
+    cursor: pointer;
+    user-select: none;
+}
+
+.stats-page__description {
+    margin-top: 20px;
+}
+
+.stats-page__section {
+    margin-top: 30px;
+}
+
+.stats-page__section-title {
+    cursor: pointer;
+    position: relative;
+    user-select: none; /* テキスト選択を無効化 */
+    display: flex; /* アイコンとテキストを横並びにするため */
+    justify-content: space-between; /* 両端に配置 */
+    align-items: center; /* 垂直方向中央揃え */
+}
+
+.stats-page__contents-box {
+    display: grid;
+    gap: 10px; /* コンテンツカード間の隙間 */
+    grid-template-columns: 1fr; /* デフォルト: 1列 */
+}
+.stats-page__content {
+    width: 100%;
+    aspect-ratio: 7 / 2; /* 幅Aに対して高さB */
+    border-radius: 12px;
+}
+.stats-page__content-image {
+    width: 100%;
+    aspect-ratio: 7 / 2; /* 幅Aに対して高さB */
+    border-radius: 12px;
+}
+.dark .stats-page__content-image,
+.dark .stats-page__content-image--slim {
+    border: 1px solid #ccc;
+}
+
+.stats-page__contents-box a {
+    display: block;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border-radius: 12px; /* 影がはみ出ないように */
+}
+.stats-page__contents-box a:hover {
+    transform: translateY(-0.1px); /* 少し上に移動 */
+    box-shadow: 0 1px 3.5px rgba(0, 0, 0, 0.2); /* 影を追加 */
+}
+
+/* スリムバナー用スタイル */
+.stats-page__content-image--slim {
+    display: none;
+    width: 100%;
+    aspect-ratio: 7 / 1;
+    border-radius: 12px;
+}
+
+@media (max-width: 679px) {
+    /* スリムバナー表示時のコンテナアスペクト比調整 */
+    .stats-page__content--responsive {
+        aspect-ratio: auto;
+    }
+    
+    /* 通常バナー非表示 */
+    .stats-page__content--responsive .stats-page__content-image {
+        display: none;
+    }
+    
+    /* スリムバナー表示 */
+    .stats-page__content--responsive .stats-page__content-image--slim {
+        display: block;
+    }
+}
+
+@media (max-width: 539px){
+    .stats-page__description{
+        font-size: 13.5px;
+        margin-top: 10px;
+    }
+    .stats-page__section {
+        margin-top: 20px;
+    }
+}
+@media (min-width: 680px){
+    .stats-page__contents-box{
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (min-width: 1080px){
+    .stats-page__contents-box{
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

@@ -1,0 +1,145 @@
+{# app/templates/player/fragments/search_fragment.html #}
+
+{# ページネーションUIを描画するマクロ #}
+{% macro render_new_pagination(pagination, query) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="検索結果ページネーション">
+            <ul class="pagination-list">
+
+                {% set base_query_parts = [] %}
+                {% if query %}
+                    {% set _ = base_query_parts.append("q=" + (query | urlencode)) %}
+                {% endif %}
+                {% if exact_match %}
+                    {% set _ = base_query_parts.append("exact=true") %}
+                {% endif %}
+                {% if include_old_names %}
+                    {% set _ = base_query_parts.append("old=true") %}
+                {% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+
+                {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link page-arrow" href="?{{ base_query }}&page={{ pagination.prev_num }}" aria-label="Previous">&lt;</a>
+                    </li>
+                {% endif %}
+
+                {% if pagination.current_page > 2 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{{ base_query }}&page=1">1</a></li>
+                {% endif %}
+
+                {% if pagination.current_page > 3 %}
+                    <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                {% endif %}
+
+                {% if pagination.current_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{{ base_query }}&page={{ pagination.prev_num }}">{{ pagination.prev_num }}</a></li>
+                {% endif %}
+
+                <li class="page-item active"><span class="page-link current">{{ pagination.current_page }}</span></li>
+
+                {% if pagination.current_page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{{ base_query }}&page={{ pagination.next_num }}">{{ pagination.next_num }}</a></li>
+                {% endif %}
+
+                {% if pagination.current_page < pagination.total_pages - 2 %}
+                     <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                {% endif %}
+
+                {% if pagination.current_page < pagination.total_pages - 1 %}
+                     <li class="page-item">
+                         <a class="page-link" href="?{{ base_query }}&page={{ pagination.total_pages }}">{{ pagination.total_pages }}</a></li>
+                {% endif %}
+
+                {% if pagination.has_next %}
+                     <li class="page-item">
+                         <a class="page-link page-arrow" href="?{{ base_query }}&page={{ pagination.next_num }}" aria-label="Next">&gt;</a>
+                     </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{# 検索結果があった場合 #}
+{% if players %}
+    {% if lang == 'ja' %}
+        <p class="search-results__text">{{ '{:,}'.format(pagination.total_items) }}人のプレイヤーが見つかりました。( {{ '{:,}'.format(pagination.current_page) }} / {{ '{:,}'.format(pagination.total_pages) }} ページ )
+            <br>探したいプレイヤーが見つからない場合は、初回のみプレイヤータグでの検索をお試しください。
+        </p>
+    {% else %}
+        <p class="search-results__text">{{ '{:,}'.format(pagination.total_items) }} player{% if pagination.total_items > 1 %}s{% endif %} found. ( {{ '{:,}'.format(pagination.current_page) }} / {{ '{:,}'.format(pagination.total_pages) }} page{% if pagination.total_pages > 1 %}s{% endif %} )
+            <br>If you cannot find the player you are looking for, please try searching by player tag for the first time only.
+        </p>
+    {% endif %}
+
+    {% if result_capped %}
+        <p class="search-results__text search-results__text--warning">
+            {% if lang == 'ja' %}
+                ⚠️ 検索結果が多すぎるため、上位10,000件のみ表示しています。より具体的なキーワードで絞り込んでください。
+            {% else %}
+                ⚠️ Too many results. Only the top 10,000 players are shown. Please use a more specific keyword.
+            {% endif %}
+        </p>
+    {% endif %}
+
+    {{ render_new_pagination(pagination, query) }}
+
+    <div class="member-grid club-card-grid player-card-grid">
+        {% set valid_image_ranks = range(1, 23) %} {# 画像が用意されてるランクのみ指定 #}
+        {% for player in players %}
+            <a href="{{ url_for('get_player_profile', lang=lang, tag=player['tag'][1:]) }}" class="card-link member-card-link player-card-link">
+                <article class="card member-card player-card">
+                    <img src="{{ player.icon_path }}"
+                        alt="Player Icon"
+                        class="member-card__icon player-card__icon"
+                        onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                    <div class="member-card__info player-card__info">
+                        <p class="member-card__name player-card__name">{{ player["name"] }}</p>
+                        <p class="member-card__tag player-card__tag">{{ player["tag"] }}</p>
+                    </div>
+                    <div class="member-card__spacer"></div>
+                    <div class="brawler-card__trophies">
+                        {% if false %} {# 最多トロフィーは非表示に変更 #}
+                        <div class="brawler-card__trophy-row">
+                            <img src="{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}" alt="最多トロフィー" class="brawler-card__trophy-icon">
+                            <span class="brawler-card__trophy-text">{{ '{:,}'.format(player["highest_trophies"]) if player["highest_trophies"] != -1 else "未取得" if lang == "ja" else "Unknown" }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="brawler-card__trophy-row">
+                            <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="現在トロフィー" class="brawler-card__trophy-icon">
+                            <span class="brawler-card__trophy-text">{{ '{:,}'.format(player["current_trophies"]) if player["current_trophies"] != -1 else "未取得" if lang == "ja" else "Unknown" }}</span>
+                        </div>
+                        <div class="brawler-card__trophy-row player-card__ranked-row">
+                            {% if player["acc_ranked_highest_rank"] %}
+                            <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat icon--stat-ranked icon--stat-ranked--search-result {% if player.acc_ranked_highest_rank == 22 %}icon--stat-ranked--search-result--pro{% endif %}" {% if player.acc_ranked_highest_rank == 22 %}style="margin-bottom: 0;"{% endif %}>
+                            <span class="brawler-card__trophy-text">{{ '{:,}'.format(player["ranked_highest_score"]) if player["ranked_highest_score"] else "未取得" if lang == "ja" else "Unknown" }}</span>
+                            {% else %}
+                            <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="ガチバトルランク" class="player-card__ranked-unknown-icon">
+                            <span class="brawler-card__trophy-text">{% if lang == "ja" %}未取得{% else %}Unknown{% endif %}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            </a>
+        {% endfor %}
+    </div>
+
+    {{ render_new_pagination(pagination, query) }}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+{# 検索結果が0件の場合 #}
+{% else %}
+    {% if exact_match %}
+    <p class="search-results__text">{% if lang == "ja" %}「{{ query }}」と完全一致するプレイヤーは見つかりませんでした。{% else %}No exact matches found for "{{ query }}".{% endif %}</p>
+    {% else %}
+    <p class="search-results__text">{% if lang == "ja" %}「{{ query }}」を含むプレイヤーは見つかりませんでした。{% else %}No players containing "{{ query }}" were found.{% endif %}</p>
+    {% endif %}
+    <p class="search-results__text">{% if include_old_names %}{% if lang == "ja" %}Brawl Insightsで初めて閲覧されるより前の名前では検索できないことがあります。{% else %}You may not be able to search by name prior to the first time it is viewed in Brawl Insights.{% endif %}<br>{% endif %}
+        {% if lang == "ja" %}プレイヤー名でヒットしないときは、初回のみプレイヤータグでの検索をお試しください。{% else %}If you do not get any hits by player name, please try searching by player tag for the first time only.{% endif %}</p>
+{% endif %}

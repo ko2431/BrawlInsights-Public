@@ -1,0 +1,263 @@
+{# /app/templates/admin/reports.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / 通報確認{% endblock %}
+{% block og_description %}通報を確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{# ページネーションUIマクロ #}
+{% macro render_pagination(pagination, current_filter) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="通報ページネーション">
+            <ul class="pagination-list">
+                {% set base_query_parts = [] %}
+                {% if current_filter != 'unchecked' %}{% set _ = base_query_parts.append("filter=" + current_filter) %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {# 1. "＜" (前へ) ボタン #}
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {# 2. ページ番号のロジック #}
+                {% set page_numbers = [] %}
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {# 最初と最後、および現在ページ±2のページ番号を表示対象とする #}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
+                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
+                        {% if page_numbers and p > page_numbers[-1] + 1 %}
+                            {% set _ = page_numbers.append('...') %}
+                        {% endif %}
+                        {% set _ = page_numbers.append(p) %}
+                    {% endif %}
+                {% endfor %}
+
+                {# 3. ページ番号リストを元にHTMLを生成 #}
+                {% for p in page_numbers %}
+                    {% if p == '...' %}
+                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                    {% elif p == pagination.current_page %}
+                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {# 4. ">" (次へ) ボタン #}
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="admin-page__container" x-data="reportAdmin()">
+    <h1 class="page-title--main">通報確認</h1>
+
+    {# フィルターボタン #}
+    <div class="filter-buttons" style="margin-top: 15px;">
+        <a href="/{{ lang }}/admin/reports?filter=all" class="button {% if current_filter == 'all' %}button--primary{% else %}button--secondary{% endif %}">すべて</a>
+        <a href="/{{ lang }}/admin/reports?filter=unchecked" class="button {% if current_filter == 'unchecked' %}button--primary{% else %}button--secondary{% endif %}">未チェック</a>
+        <a href="/{{ lang }}/admin/reports?filter=checked" class="button {% if current_filter == 'checked' %}button--primary{% else %}button--secondary{% endif %}">チェック済み</a>
+    </div>
+
+    <p class="admin-page__description">
+        通報総数: <b>{{ '{:,}'.format(total_count) }}</b> 件
+    </p>
+
+    {# ページネーション (上) #}
+    {{ render_pagination(pagination, current_filter) }}
+
+    {# 保存UI #}
+    <div class="save-changes-block">
+        <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    {# テーブル #}
+    <div class="table-wrapper">
+        <table class="data-table report-table">
+            <thead>
+                <th>ID</th>
+                <th>日時 (JST)</th>
+                <th>ユーザー</th>
+                <th>ユーザーID / IP</th>
+                <th>ターゲット</th>
+                <th>ターゲットID</th>
+                <th>ターゲット内容</th>
+                <th>カテゴリー</th>
+                <th>本文</th>
+                <th>チェック</th>
+            </thead>
+            <tbody>
+                <template x-for="report in reportsData" :key="report.id">
+                    <tr x-data="reportRow(report)">
+                        <td x-text="report.id"></td>
+                        <td x-text="report.created_at_text"></td>
+                        <td x-text="report.user_name || '(ゲスト)'"></td>
+                        <td x-text="report.user_id || report.user_ip"></td>
+                        <td x-text="report.target_type === 'message' ? 'メッセージ' : '投稿'"></td>
+                        <td x-text="report.target_id"></td>
+                        <td x-text="report.target_type === 'message' 
+                            ? (report.target_message ? report.target_message.message : '(対象メッセージなし)') 
+                            : (report.target_post ? (report.target_post.comment || '(コメントなし)') : '(対象投稿なし)')">
+                        </td>
+                        <td x-text="getReportTypeJa(report.category)"></td>
+                        <td class="col-message" style="min-width: 200px; max-width: 300px; white-space: normal;">
+                            <div class="col-message-content" x-text="report.text || '(なし)'"></div>
+                        </td>
+                        <td class="cell-center">
+                            <input type="checkbox" class="form-checkbox" x-model="is_checked_current" @change="updateAndNotify()">
+                        </td>
+                    </tr>
+                </template>
+                {% if not reports %}
+                <tr>
+                    <td colspan="10" style="text-align: center; color: #777;">通報はありません。</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {# 保存UI (下) #}
+    <div class="save-changes-block" style="margin-top: 0;">
+        <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+        :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+        x-text="saveStatus.message" style="margin-top: -5px;">
+    </div>
+
+    {# ページネーション (下) #}
+    {{ render_pagination(pagination, current_filter) }}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function reportAdmin() {
+            return {
+                reportsData: {{ reports | tojson | safe }},
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+
+                init() {
+                    // 各行の変更を監視
+                    this.$root.addEventListener('rowinputchanged', () => {
+                        this.$nextTick(() => this.checkForAnyChanges());
+                    });
+                    // ページを離れる前の警告
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) { event.preventDefault(); event.returnValue = ''; }
+                    });
+                },
+
+                getReportTypeJa(type) {
+                    const map = {
+                        'unpleasant_content': '不快なコンテンツ',
+                        'hateful_content': '攻撃的なコンテンツ',
+                        'spam': 'スパム',
+                        'tos_violation': '規約違反行為の呼びかけ'
+                    };
+                    return map[type] || type;
+                },
+
+                checkForAnyChanges() {
+                    this.hasUnsavedChanges = this.reportsData.some(
+                        (original, index) => {
+                            const current = this.$root.querySelectorAll('tbody tr[x-data]')[index];
+                            if (current) {
+                                return original.is_checked !== Alpine.$data(current).is_checked_current;
+                            }
+                            return false;
+                        }
+                    );
+                },
+                
+                confirmSaveChanges() {
+                    this.checkForAnyChanges();
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus = { message: '変更点はありません。', success: true };
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+                    const changedReports = this.$root.querySelectorAll('tbody tr[x-data]');
+                    const itemsToUpdate = Array.from(changedReports).map(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        return { id: rowData.id, is_checked: rowData.is_checked_current };
+                    }).filter(item => {
+                        const original = this.reportsData.find(fb => fb.id === item.id);
+                        return original && original.is_checked !== item.is_checked;
+                    });
+
+                    if (itemsToUpdate.length === 0) {
+                        this.saveStatus = { message: '有効な変更点はありませんでした。', success: true };
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+                    
+                    if (confirm(`${itemsToUpdate.length}件の通報のチェック状態を更新しますか？`)) {
+                        this.saveChanges(itemsToUpdate);
+                    }
+                },
+                
+                async saveChanges(itemsToUpdate) {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_reports', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reports: itemsToUpdate })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            // 成功したらリロードして表示を確定させる
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    } catch (error) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                }
+            }
+        }
+
+        function reportRow(initialData) {
+            return {
+                id: initialData.id,
+                is_checked_initial: initialData.is_checked,
+                is_checked_current: initialData.is_checked,
+                
+                get isDirty() {
+                    return this.is_checked_initial !== this.is_checked_current;
+                },
+                updateAndNotify() {
+                    this.$dispatch('rowinputchanged');
+                }
+            }
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('reportAdmin', reportAdmin);
+            Alpine.data('reportRow', reportRow);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,507 @@
+{# /app/templates/auth/register.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %} - Brawl Insights{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/auth.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-page__container" x-data="registerForm()"> {# Alpine.js のスコープ定義 #}
+    <h1 class="section-title">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</h1>
+
+    {# グローバルエラーメッセージ表示エリア (フォーム送信時のサーバーサイドエラーなど) #}
+    {% if error_message %}
+        <div class="auth-error-message global-error-message">
+            <img src="{{ url_for('static', path='/images/ui/warning.png') }}" alt="エラー" class="info-block__icon">
+            <span x-text="serverErrorMessage"></span> {# Alpine.js で表示 #}
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('register_process', lang=lang) }}" class="auth-form" @submit.prevent="submitForm"> {# Alpine.js で送信をハンドルする場合 #}
+
+        {# --- ユーザー名 --- #}
+        <div class="form-group">
+            <label for="username" class="form-label">{% if lang == "ja" %}ユーザー名 (2～32文字){% else %}Username (2-32 characters){% endif %}</label>
+            <input type="text" id="username" name="username" class="form-input" required
+                   minlength="2" maxlength="32"
+                   x-model="formData.username"
+                   @input.debounce.500ms="validateUsername()"
+                   aria-describedby="username-status">
+            <div id="username-status" class="form-field-status" x-html="status.username">
+                {% if lang == "ja" %}日本語も利用できます。ほかのユーザーと重複できません。{% else %}Emojis are also available. Cannot duplicate other user names.{% endif %}
+            </div>
+        </div>
+
+        {# --- パスワード --- #}
+        <div class="form-group">
+            <label for="password" class="form-label">{% if lang == "ja" %}パスワード (8～32文字、英数字のみ){% else %}Password (8-32 characters, alphanumeric only){% endif %}</label>
+            <div class="password-input-wrapper">
+                <input :type="showPass ? 'text' : 'password'" id="password" name="password" class="form-input" required
+                       minlength="8" maxlength="32" pattern="[a-zA-Z0-9]+"
+                       x-model="formData.password"
+                       @input="validatePass()">
+                <button type="button" @click="togglePassVisibility()" class="password-toggle-button">
+                    <img :src="showPass ? '{{ url_for('static', path='/images/ui/eye.png') }}' : '{{ url_for('static', path='/images/ui/eye.png') }}'" alt="Toggle visibility" class="password-toggle-icon">
+                </button>
+            </div>
+            <div id="password-status" class="form-field-status" x-html="status.password">
+                 {% if lang == "ja" %}8文字以上の英数字で入力してください{% else %}Please enter at least 8 alphanumeric characters{% endif %}
+            </div>
+        </div>
+
+        {# --- パスワード (再入力) --- #}
+        <div class="form-group">
+            <label for="password_confirm" class="form-label">{% if lang == "ja" %}パスワード (再入力){% else %}Password (Confirm){% endif %}</label>
+            <input :type="showPassConfirm ? 'text' : 'password'" id="password_confirm" name="password_confirm" class="form-input" required
+                   x-model="formData.passwordConfirm"
+                   @input="validatePassConfirm()">
+             <div id="password-confirm-status" class="form-field-status" x-html="status.passwordConfirm"></div>
+        </div>
+
+        {# --- 秘密の質問 --- #}
+        <h3 class="block-title" style="margin-top: 20px; margin-bottom: 5px;">{% if lang == "ja" %}秘密の質問{% else %}Security Questions{% endif %}</h3>
+        <p class="info-block__text" style="display: block;">
+            {% if lang == "ja" %}パスワードを忘れた場合、リセットに必要です。秘密の質問は2つ設定し、2つ<span style="font-weight: bold;">両方</span>に正解する必要があります。好きな質問を選び、回答を記入してください。{% else %}Required to reset your pass if forgotten. You must set two security questions and answer <span style="font-weight: bold;">both</span> correctly. Choose your preferred questions and enter your answers.{% endif %}
+        </p>
+
+        {% for i in range(2) %}
+        <div class="form-group" style="margin-top: 10px;">
+            <label for="secret_question_{{ i+1 }}" class="form-label">{% if lang == "ja" %}質問{{ i+1 }}{% else %}Question {{ i+1 }}{% endif %}</label>
+            <select id="secret_question_{{ i+1 }}" name="secret_question_{{ i+1 }}" class="form-input" style="padding-left: 6px;"
+                    x-model="formData.secretQuestions[{{i}}].id" @change="validateSecretQuestions()">
+                <option value="">{% if lang == "ja" %}質問を選択してください{% else %}Select a question{% endif %}</option>
+                {% for question_dict in secret_questions_list %}
+                    <option value="{{ question_dict.id }}"
+                            {# 他の質問で選択済みの場合は無効化 (Alpine.jsで制御) #}
+                            :disabled="isQuestionSelectedElsewhere({{question_dict.id}}, {{i}})">
+                        {{ question_dict.ja if lang == "ja" and question_dict.ja else question_dict.en }}
+                    </option>
+                {% endfor %}
+            </select>
+            <input type="text" id="secret_answer_{{ i+1 }}" name="secret_answer_{{ i+1 }}" class="form-input" style="margin-top: 5px;"
+                   placeholder="{% if lang == 'ja' %}回答を入力{% else %}Enter your answer{% endif %}" required
+                   x-model="formData.secretQuestions[{{i}}].answer" @input="validateSecretQuestions()">
+            <div id="secret_question_{{i+1}}-status" class="form-field-status" x-html="status.secretQuestions[{{i}}]"></div>
+        </div>
+        {% endfor %}
+
+        {# --- メインアカウント設定 --- #}
+        <h3 class="block-title" style="margin-top: 20px; margin-bottom: 5px;">{% if lang == "ja" %}メインアカウント設定{% else %}Set Main Account{% endif %}</h3>
+        <p class="info-block__text" style="display: block;">
+            {% if lang == "ja" %}あなたがメインで使用しているブロスタのアカウントのプレイヤータグを入力してください。プレイヤータグは、ゲーム内でプロフィールを開くとアイコンの下に小さく書いてある、「#」で始まるものです。{% else %}Please enter the player tag of your main account. The player tag is the identifier that begins with a "#" and can be found beneath your icon when you open your profile in the game.{% endif %}
+        </p>
+        <div class="form-group" style="margin-top: 10px;">
+            <label for="main_account_tag" class="form-label">{% if lang == "ja" %}メインアカウントのプレイヤータグ{% else %}Main Account Player Tag{% endif %}</label>
+            <div class="main-account-input-wrapper" style="display: flex; align-items: center; gap: 5px;">
+                <input type="text" id="main_account_tag" name="main_account_tag" class="form-input" placeholder="#XXXXXXX" required
+                    style="flex-grow: 1;"
+                    x-model="formData.mainAccountTag"
+                    @input.debounce.700ms="validateMainAccountTag(); resetMainAccountVerificationState();"> {# 入力変更時に認証状態をリセット #}
+                {# 「次へ」ボタン - isMainAccountTagValid (または新しい canRequestVerification フラグ) で有効化 #}
+                <button type="button" class="button button--primary" style="flex-shrink: 0; padding: 6px 12px; font-size: 15px;"
+                        @click="triggerMainAccountVerificationRequest()"
+                        :disabled="!isMainAccountTagValid || mainAccountVerificationStep === 'awaiting_icon_change' || mainAccountVerificationStep === 'verifying' || isMainAccountVerified">
+                    {% if lang == "ja" %}次へ{% else %}Next{% endif %}
+                </button>
+            </div>
+            <div id="main-account-status" class="form-field-status" x-html="status.mainAccountTag"></div>
+        </div>
+
+        {# --- 認証プロセスのコンテンツ (動的に表示) --- #}
+        <div x-show="mainAccountVerificationStep === 'awaiting_icon_change' || mainAccountVerificationStep === 'verifying' || mainAccountVerificationStep === 'verified_fail' || mainAccountVerificationStep === 'verified_success'"
+            class="main-account-verification-content" x-cloak>
+
+            <div style="display: flex; gap: 15px;">
+                {# 左側: 説明文 #}
+                <div style="flex: 1;">
+                    <p class="info-block__text" style="display: block;">
+                        {% if lang == "ja" %}あなたがこのアカウントの所有者であることを確認するため、ブロスタを開いてプレイヤーアイコンをこちらに変更してください。変更後、<b>認証</b>ボタンを押してください。<br>なお、ゲーム内でアイコンを変更してから反映されるまで最大で<span style="color: rgb(217, 16, 16);"><b>3-5分</b></span>程度かかることがありますのでご了承ください。認証できない場合は、少し待ってから再度ボタンを押してみてください。認証完了後、プレイヤーアイコンはもとに戻してかまいません。{% else %}To verify that you own the account, please open Brawl Stars and change your player icon to the one shown. After changing it, press the <b>Verify</b> button.<br>Please note that it may take up to <span style="color: rgb(217, 16, 16);"><b>3-5 minutes</b></span> for the change to be reflected. You can change your player icon back after verification is complete.{% endif %}
+                    </p>
+                </div>
+                {# 右側: 指示アイコンと認証ボタン #}
+                <div style="padding: 0 10px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img :src="instructedIconPath" alt="指示アイコン" style="width: 64px; height: 64px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; max-width: 64px;"
+                        x-show="instructedIconPath">
+                    <button type="button" class="button button--primary"
+                            @click="triggerMainAccountCheck()"
+                            :disabled="isVerifyingMainAccount || !canPressVerifyButton || mainAccountVerificationStep === 'verified_success'"
+                            style="padding: 6px 12px; font-size: 15px;">
+                        <span x-show="!isVerifyingMainAccount">{% if lang == "ja" %}認証{% else %}Verify{% endif %}</span>
+                        <span x-show="isVerifyingMainAccount">{% if lang == "ja" %}認証中...{% else %}Verifying...{% endif %}</span>
+                    </button>
+                </div>
+            </div>
+
+            {# 認証プロセスのリアルタイムステータス表示 #}
+            <div class="form-field-status" style="margin: 4px 0 2px; text-align: center;"
+                :class="{
+                    'text-yellow-500': mainAccountVerificationStep === 'verified_fail',
+                    'text-green-500': mainAccountVerificationStep === 'verified_success'
+                }"
+                x-html="verificationStatusMessage">
+            </div>
+        </div>
+
+        {# --- 利用規約・プライバシーポリシーへの同意 --- #}
+        <p class="info-block__text" style="margin-top: 20px; display: block;">
+            <a href="{{ url_for('terms', lang=lang) }}" target="_blank" style="text-decoration: underline;">{% if lang == "ja" %}利用規約{% else %}Terms of Service{% endif %}</a>{% if lang == "ja" %}、{% else %}, {% endif %}<a href="{{ url_for('privacy_policy', lang=lang) }}" target="_blank" style="text-decoration: underline;">{% if lang == "ja" %}プライバシーポリシー{% else %}Privacy Policy{% endif %}</a>{% if lang == "ja" %}に同意いただける場合は、アカウント作成ボタンをクリックしてください。アカウントが作成され、自動でログインされます。{% else %} - If you agree to the above, click the "Create Account" button. Your account will be created, and you will be logged in automatically.{% endif %}
+        </p>
+
+        {# --- アカウント作成ボタン --- #}
+        <button type="submit" class="button button--primary auth-button" :disabled="!isFormValid" style="margin-top: 15px;">
+            {% if lang == "ja" %}アカウントを作成{% else %}Create Account{% endif %}
+        </button>
+    </form>
+
+    <div class="auth-links">
+        <p>{% if lang == "ja" %}既にアカウントをお持ちですか？{% else %}Already have an account?{% endif %} <a href="{{ url_for('login_page', lang=lang) }}">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a></p>
+    </div>
+</div>
+
+<script>
+    function registerForm() {
+        return {
+            formData: {
+                username: '',
+                password: '',
+                passwordConfirm: '',
+                secretQuestions: [
+                    { id: '', answer: '' },
+                    { id: '', answer: '' }
+                ],
+                mainAccountTag: ''
+            },
+            status: {
+                username: '{% if lang == "ja" %}日本語も利用できます。ほかのユーザーと重複できません。{% else %}Emojis are also available. Cannot duplicate other user names.{% endif %}',
+                password: '{% if lang == "ja" %}8文字以上の英数字で入力してください{% else %}Please enter at least 8 alphanumeric characters{% endif %}',
+                passwordConfirm: '',
+                secretQuestions: ['', ''],
+                mainAccountTag: ''
+            },
+            currentLang: '{{ lang }}',
+            showPass: false,
+            showPassConfirm: false,
+            isUsernameValid: false,
+            isPasswordValid: false,
+            isPasswordConfirmValid: false,
+            areSecretQuestionsValid: false,
+            isMainAccountTagValid: false,
+            mainAccountVerificationStep: 'idle', // 'idle', 'tag_validated', 'awaiting_icon_change', 'verifying', 'verified_success', 'verified_fail'
+            isMainAccountTagValidated: false, // メインアカウントタグが✅になったか (既存の isMainAccountTagValid とは別に、認証ステップ開始のトリガーとして)
+            instructedIconId: null,       // サーバーから指示されたアイコンID
+            instructedIconPath: '',       // 指示されたアイコンの画像パス
+            verificationStatusMessage: '',// 認証プロセスのリアルタイムステータス表示用
+            isVerifyingMainAccount: false, // 「認証」ボタンの処理中フラグ
+            canRequestVerification: false, // 「次へ」ボタンの有効化フラグ (isMainAccountTagValid と連動)
+            canPressVerifyButton: true,    // 「認証」ボタンのクールダウン用
+            isMainAccountVerified: false,  // 最終的な認証成功フラグ (アカウント作成ボタンの有効化条件に使う)
+            serverErrorMessage: "{{ error_message | default('') }}", // FastAPIからのエラーメッセージ
+
+            togglePassVisibility() {
+                this.showPass = !this.showPass;
+            },
+            togglePassConfirmVisibility() {
+                this.showPassConfirm = !this.showPassConfirm;
+            },
+
+            async validateUsername() {
+                const username = this.formData.username.trim();
+                if (username.length === 0) {
+                    this.status.username = '{% if lang == "ja" %}日本語も利用できます。ほかのユーザーと重複できません。{% else %}Emojis are also available. Cannot duplicate other user names.{% endif %}';
+                    this.isUsernameValid = false; return;
+                }
+                if (username.length < 2) {
+                    this.status.username = '<span class="text-red-500">❌ {% if lang == "ja" %}ユーザー名は2文字以上で入力してください{% else %}Username must be at least 2 characters{% endif %}</span>';
+                    this.isUsernameValid = false; return;
+                }
+                if (username.length > 32) {
+                    this.status.username = '<span class="text-red-500">❌ {% if lang == "ja" %}ユーザー名は32文字以下で入力してください{% else %}Username must be 32 characters or less{% endif %}</span>';
+                    this.isUsernameValid = false; return;
+                }
+                // HTMX/Fetchでサーバーに重複チェックを送信
+                try {
+                    const response = await fetch(`/${ "{{ lang }}" }/validate/username`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: username })
+                    });
+                    const data = await response.json();
+                    this.status.username = data.message;
+                    this.isUsernameValid = data.is_valid;
+                } catch (error) {
+                    this.status.username = '<span class="text-red-500">{% if lang == "ja" %}検証エラーが発生しました{% else %}Validation error occurred{% endif %}</span>';
+                    this.isUsernameValid = false;
+                }
+            },
+
+            validatePass() {
+                const pass = this.formData.password;
+                const pattern = /^[a-zA-Z0-9]+$/;
+                if (pass.length === 0) {
+                    this.status.password = '{% if lang == "ja" %}8文字以上の英数字で入力してください{% else %}Please enter at least 8 alphanumeric characters{% endif %}';
+                    this.isPasswordValid = false;
+                } else if (pass.length < 8) {
+                    this.status.password = '<span class="text-red-500">❌ {% if lang == "ja" %}8文字以上で入力してください{% else %}Must be at least 8 characters{% endif %}</span>';
+                    this.isPasswordValid = false;
+                } else if (pass.length > 32) {
+                    this.status.password = '<span class="text-red-500">❌ {% if lang == "ja" %}32文字以下で入力してください{% else %}Must be 32 characters or less{% endif %}</span>';
+                    this.isPasswordValid = false;
+                } else if (!pattern.test(pass)) {
+                    this.status.password = '<span class="text-red-500">❌ {% if lang == "ja" %}英数字のみ使用できます{% else %}Only alphanumeric characters are allowed{% endif %}</span>';
+                    this.isPasswordValid = false;
+                } else {
+                    this.status.password = '<span class="text-green-500">✅ {% if lang == "ja" %}使用できます{% else %}Valid{% endif %}</span>';
+                    this.isPasswordValid = true;
+                }
+                this.validatePassConfirm(); // パスが変わったら確認用も再検証
+            },
+
+            validatePassConfirm() {
+                if (this.formData.passwordConfirm.length === 0 && this.formData.password.length === 0) {
+                     this.status.passwordConfirm = '';
+                     this.isPasswordConfirmValid = false; // 両方空ならまだ無効
+                } else if (this.formData.password === this.formData.passwordConfirm) {
+                    this.status.passwordConfirm = '<span class="text-green-500">✅ {% if lang == "ja" %}パスワードが一致しました{% else %}Passwords match{% endif %}</span>';
+                    this.isPasswordConfirmValid = true;
+                } else {
+                    this.status.passwordConfirm = '<span class="text-red-500">❌ {% if lang == "ja" %}パスワードが一致しません{% else %}Passwords do not match{% endif %}</span>';
+                    this.isPasswordConfirmValid = false;
+                }
+            },
+
+            isQuestionSelectedElsewhere(questionId, currentIndex) {
+                for (let i = 0; i < this.formData.secretQuestions.length; i++) {
+                    if (i !== currentIndex && parseInt(this.formData.secretQuestions[i].id) === parseInt(questionId)) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+
+            validateSecretQuestions() {
+                let allValid = true;
+                let selectedIds = new Set();
+                for (let i = 0; i < this.formData.secretQuestions.length; i++) {
+                    const q = this.formData.secretQuestions[i];
+                    if (!q.id || q.answer.trim() === '') {
+                        this.status.secretQuestions[i] = '<span class="text-yellow-500">⚠️ {% if lang == "ja" %}質問を選択し、回答を入力してください{% else %}Select a question and enter an answer{% endif %}</span>';
+                        allValid = false;
+                    } else if (selectedIds.has(q.id)) {
+                        this.status.secretQuestions[i] = '<span class="text-red-500">❌ {% if lang == "ja" %}他の質問と重複しています{% else %}Duplicate question selected{% endif %}</span>';
+                        allValid = false;
+                    } else {
+                        this.status.secretQuestions[i] = '<span class="text-green-500">✅ {% if lang == "ja" %}OK{% else %}OK{% endif %}</span>';
+                        selectedIds.add(q.id);
+                    }
+                }
+                this.areSecretQuestionsValid = allValid;
+            },
+
+            async validateMainAccountTag() {
+                const tag = this.formData.mainAccountTag.trim();
+                const minTagLengthForValidation = 5; // #を含めて5文字（例: #XXXX）
+
+                // 入力文字数が一定数未満の場合は、検証を実行せずに早期リターン
+                if (tag.length < minTagLengthForValidation) {
+                    // 以前の検証結果が残っている可能性があるので、ステータスを初期状態に戻すか、
+                    // 「タグを入力してください」のようなメッセージを表示する
+                    this.status.mainAccountTag = ''; // または適切な初期メッセージ
+                    this.isMainAccountTagValid = false; // 検証が実行されていないので無効状態
+                    return; // ここで処理を終了
+                }
+                // HTMX/Fetchでサーバーにタグ検証を送信
+                try {
+                    const response = await fetch(`/${ "{{ lang }}" }/validate/player-tag`, { // 新しいエンドポイント
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ player_tag: tag })
+                    });
+                    const data = await response.json(); // { is_valid: bool, message: str, player_name?: str, formatted_tag?: str }
+                    if (data.is_valid) {
+                        this.status.mainAccountTag = `<span class="text-green-500">✅ ${data.player_name} (${data.formatted_tag})</span>`;
+                        this.isMainAccountTagValid = true;
+                        this.formData.mainAccountTag = data.formatted_tag; // 整形済みのタグで更新
+                    } else {
+                        this.status.mainAccountTag = `<span class="text-red-500">❌ ${data.message}</span>`;
+                        this.isMainAccountTagValid = false;
+                    }
+                } catch (error) {
+                    this.status.mainAccountTag = '<span class="text-red-500">{% if lang == "ja" %}検証エラーが発生しました{% else %}Validation error occurred{% endif %}</span>';
+                    this.isMainAccountTagValid = false;
+                }
+            },
+
+            async validateMainAccountTag() {
+                const tag = this.formData.mainAccountTag.trim();
+                this.isMainAccountTagValid = false; // バリデーション開始時にリセット
+                this.canRequestVerification = false; // 同上
+                // this.isMainAccountVerified = false; // タグ変更時は認証状態もリセットするべき (resetMainAccountVerificationStateで対応)
+
+                const minTagLengthForValidation = 5;
+                if (tag.length < minTagLengthForValidation) {
+                    this.status.mainAccountTag = '';
+                    this.resetMainAccountVerificationState(); // タグが無効になったら認証状態もリセット
+                    return;
+                }
+                try {
+                    const response = await fetch(`/${ this.currentLang }/validate/player-tag`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ player_tag: tag })
+                    });
+                    const data = await response.json();
+                    if (data.is_valid) {
+                        this.status.mainAccountTag = `<span class="text-green-500">✅ ${data.player_name} (${data.formatted_tag})</span>`;
+                        this.isMainAccountTagValid = true;
+                        this.formData.mainAccountTag = data.formatted_tag; // 整形済みのタグで更新
+                        
+                        // 認証ステップ開始のトリガー
+                        if (this.formData.mainAccountTag !== "{{ current_user.main_account if current_user else '' }}") { // 現在のメインアカウントと同じ場合は認証不要 (これはアカウント設定ページ用)
+                                                                                                                        // 新規登録時は常に認証が必要なので、この条件は不要か、あるいは別の形で制御
+                            this.canRequestVerification = true;
+                            this.mainAccountVerificationStep = 'tag_validated';
+                        } else {
+                            // アカウント設定ページで、現在のメインアカウントと同じタグが入力された場合の処理 (ここでは新規登録なので該当しない)
+                            this.resetMainAccountVerificationState(); // 同じなら認証は不要
+                        }
+                    } else {
+                        this.status.mainAccountTag = `<span class="text-red-500">❌ ${data.message}</span>`;
+                        this.resetMainAccountVerificationState(); // タグが無効になったら認証状態もリセット
+                    }
+                } catch (error) {
+                    this.status.mainAccountTag = '<span class="text-red-500">{% if lang == "ja" %}検証エラーが発生しました{% else %}Validation error occurred{% endif %}</span>';
+                    this.resetMainAccountVerificationState(); // エラー時も認証状態をリセット
+                }
+            },
+
+            resetMainAccountVerificationState() {
+                this.mainAccountVerificationStep = 'idle';
+                // this.isMainAccountTagValidated = false; // これは validateMainAccountTag 内で制御
+                this.instructedIconId = null;
+                this.instructedIconPath = '';
+                this.verificationStatusMessage = '';
+                this.isVerifyingMainAccount = false;
+                // this.canRequestVerification = false; // これも validateMainAccountTag 内で制御
+                this.canPressVerifyButton = true;
+                this.isMainAccountVerified = false; // 認証成功フラグもリセット
+                // console.log("Main account verification state has been reset.");
+            },
+
+            async triggerMainAccountVerificationRequest() {
+                if (!this.isMainAccountTagValid || this.isVerifyingMainAccount) return;
+
+                this.isVerifyingMainAccount = true; // 「次へ」ボタンも一時的に無効化する意味合い
+                this.verificationStatusMessage = '{% if lang=="ja" %}指示アイコンを取得中...{% else %}Requesting verification icon...{% endif %}';
+                this.mainAccountVerificationStep = 'awaiting_icon_change'; // アイコン変更待ち状態へ
+                this.instructedIconPath = ''; // 古いアイコンパスをクリア
+                this.isMainAccountVerified = false; // 新しい認証が開始されたら、前の認証成功状態は無効
+
+                try {
+                    const response = await fetch(`/${this.currentLang}/account/request-verification`, { // エンドポイント名は適宜調整
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ player_tag: this.formData.mainAccountTag })
+                    });
+                    const data = await response.json();
+                    if (data.success && data.instructed_icon_id) {
+                        this.instructedIconId = data.instructed_icon_id;
+                        // アイコンIDから画像パスを生成 (get_icon_path のロジックをJSで再現するか、専用エンドポイント)
+                        // ここでは直接URLを組み立てる例
+                        this.instructedIconPath = `/static/images/player_icon/${data.instructed_icon_id}.webp`;
+                        this.verificationStatusMessage = '{% if lang=="ja" %}ℹ️ アイコンを変更したら、<b>認証</b>ボタンを押してください{% else %}ℹ️ After changing the icon, press the <b>Verify</b> button{% endif %}';
+                        // 「次へ」ボタンは役割を終えたので、メインアカウントタグが変更されるまで無効のままにする
+                        this.canRequestVerification = false; 
+                    } else {
+                        this.verificationStatusMessage = `<span class="text-red-500">❌ ${data.message || '{% if lang=="ja" %}指示アイコンの取得に失敗しました{% else %}Failed to get verification icon{% endif %}'}</span>`;
+                        this.mainAccountVerificationStep = 'tag_validated'; // タグは有効だが指示取得失敗の状態に戻す
+                    }
+                } catch (error) {
+                    this.verificationStatusMessage = '<span class="text-red-500">❌ {% if lang=="ja" %}通信エラーが発生しました{% else %}A network error occurred{% endif %}</span>';
+                    this.mainAccountVerificationStep = 'tag_validated';
+                } finally {
+                    this.isVerifyingMainAccount = false;
+                }
+            },
+
+            async triggerMainAccountCheck() {
+                if (this.isVerifyingMainAccount || !this.canPressVerifyButton || !this.instructedIconId) return;
+
+                this.isVerifyingMainAccount = true;
+                this.canPressVerifyButton = false; // 一時的に認証ボタンを無効化 (3秒後に再度有効化)
+                this.verificationStatusMessage = '{% if lang=="ja" %}認証情報を確認しています...{% else %}Verifying information...{% endif %}';
+                this.mainAccountVerificationStep = 'verifying';
+
+                try {
+                    const response = await fetch(`/${this.currentLang}/account/check-verification`, { // エンドポイント名は適宜調整
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ player_tag: this.formData.mainAccountTag })
+                    });
+                    const data = await response.json();
+                    if (data.success && data.verified) {
+                        this.verificationStatusMessage = `<span class="text-green-500">✅ ${data.message || '{% if lang=="ja" %}認証が完了しました{% else %}Verification complete{% endif %}'}</span>`;
+                        this.mainAccountVerificationStep = 'verified_success';
+                        this.isMainAccountVerified = true; // 認証成功フラグを立てる
+                        // 認証成功後は、指示アイコン表示エリアはそのまま残しても良いし、隠しても良い
+                    } else {
+                        this.verificationStatusMessage = `<span class="text-yellow-500">⚠️ ${data.message || '{% if lang=="ja" %}認証できませんでした。再度お試しください。{% else %}Could not verify. Please try again.{% endif %}'}</span>`;
+                        this.mainAccountVerificationStep = 'verified_fail';
+                        this.isMainAccountVerified = false;
+                    }
+                } catch (error) {
+                    this.verificationStatusMessage = '<span class="text-red-500">❌ {% if lang=="ja" %}認証処理中にエラーが発生しました{% else %}An error occurred during verification{% endif %}</span>';
+                    this.mainAccountVerificationStep = 'verified_fail';
+                    this.isMainAccountVerified = false;
+                } finally {
+                    this.isVerifyingMainAccount = false;
+                    setTimeout(() => { this.canPressVerifyButton = true; }, 3000); // 3秒後に再度認証ボタンを有効化
+                }
+            },
+
+            get isFormValid() { // 既存のバリデーションに isMainAccountVerified を追加
+                return this.isUsernameValid &&
+                    this.isPasswordValid &&
+                    this.isPasswordConfirmValid &&
+                    this.areSecretQuestionsValid &&
+                    // this.isMainAccountTagValid && // タグ自体の検証は完了している前提
+                    this.isMainAccountVerified;    // メインアカウントの所有者認証が成功していること
+            },
+
+            // フォーム送信処理 (Alpine.js で @submit.prevent="submitForm" を使う場合)
+            async submitForm(event) {
+                if (!this.isFormValid) {
+                    // 必要であれば、ここでさらに詳細なエラー表示やフォーカス移動を行う
+                    this.serverErrorMessage = '{% if lang=="ja"%}入力内容を確認してください。{%else%}Please check your input.{%endif%}';
+                    return;
+                }
+                // 実際のフォーム送信ロジック (Fetch API を使うか、デフォルトのフォーム送信を許可する)
+                // event.target は <form> 要素
+                // ここでは、最終バリデーションのためにサーバーに任せるため、デフォルトの送信を許可する
+                // もしAlpineだけで完結させたいなら、FetchでPOSTリクエストを送り、レスポンスを処理する
+                event.target.submit(); // 通常のフォーム送信を実行
+            },
+
+            init() { // 初期化処理
+                // ページロード時に各バリデーションを一度実行して初期状態を設定する (オプション)
+                this.validateUsername();
+                this.validatePass();
+                this.validatePassConfirm();
+                this.validateSecretQuestions();
+                // mainAccountTag は最初は空なので、初期バリデーションは不要か、空の時のメッセージを設定
+            }
+        }
+    }
+</script>
+
+{% if registration_success %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        alert("{{ success_message|safe }}"); // safeフィルタは念のためですが、サーバーからの信頼できるメッセージなので基本不要
+        window.location.href = "{{ redirect_url }}";
+    });
+</script>
+{% endif %}
+
+{% endblock %}

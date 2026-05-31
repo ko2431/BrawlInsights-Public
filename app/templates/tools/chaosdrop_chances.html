@@ -1,0 +1,63 @@
+{# /app/templates/tools/chaosdrop_chances.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}カオスドロップ確率表{% else %}Chaos Drop Chances{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのカオスドロップの確率表です。各レア度ごとの確率を画像でわかりやすく掲載しています。{% else %}This page shows the probabilities of Brawl Stars Chaos Drops. The chances for each rarity are clearly displayed with images.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}カオスドロップ確率表{% else %}Chaos Drop Chances{% endif %}</h1>
+
+    <p class="tools-page__description">{% if lang == "ja" %}カオスドロップの確率表です。分裂する確率はレア度の確率とは別に独立して設定されており、<b>70%</b>の確率で<b>1個</b>、<b>30%</b>の確率で<b>2個</b>、<b>8%</b>の確率で<b>4個</b>、<b>2%</b>の確率で<b>8個</b>です。{% else %}Here are the chances for Chaos Drops. The chances for each rarity are clearly displayed with images.{% endif %}</p>
+
+    <div class="starrdrop_image_container">
+        <img src="{{ url_for('static', path='/images/ui/chaosdrop_1_' + 'ja' + '.png') }}" alt="カオスドロップ確率表1" class="starrdrop_image">
+        <img src="{{ url_for('static', path='/images/ui/chaosdrop_2_' + 'ja' + '.png') }}" alt="カオスドロップ確率表2" class="starrdrop_image">
+        <img src="{{ url_for('static', path='/images/ui/chaosdrop_3_' + 'ja' + '.png') }}" alt="カオスドロップ確率表3" class="starrdrop_image">
+        <img src="{{ url_for('static', path='/images/ui/chaosdrop_4_' + 'ja' + '.png') }}" alt="カオスドロップ確率表4" class="starrdrop_image">
+        <img src="{{ url_for('static', path='/images/ui/chaosdrop_5_' + 'ja' + '.png') }}" alt="カオスドロップ確率表5" class="starrdrop_image">
+    </div>
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

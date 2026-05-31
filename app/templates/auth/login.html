@@ -1,0 +1,41 @@
+{# /app/templates/auth/login.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}ログイン{% else %}Login{% endif %} - Brawl Insights{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/auth.css') }}?v={{ app_version }}"> {# 認証ページ用CSS #}
+{% endblock %}
+
+{% block content %}
+<div class="auth-page__container"> {# 認証ページ共通コンテナ #}
+    <h1 class="section-title">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</h1>
+
+    {% if error %}
+        <div class="auth-error-message global-error-message">
+            <span>{{ error }}</span>
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('login_process', lang=lang) }}" class="auth-form">
+        {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">  {# hidden input を追加 #}
+        {% endif %}
+        <div class="form-group">
+            <label for="username" class="form-label">{% if lang == "ja" %}ユーザー名{% else %}Username{% endif %}</label>
+            <input type="text" id="username" name="username" class="form-input" value="{{ username or '' }}" required>
+        </div>
+        <div class="form-group">
+            <label for="password" class="form-label">{% if lang == "ja" %}パスワード{% else %}Password{% endif %}</label>
+            <input type="password" id="password" name="password" class="form-input" required>
+        </div>
+        <button type="submit" class="button button--primary auth-button">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</button>
+    </form>
+
+    <div class="auth-links">
+        <p><a href="{{ url_for('forgot_username_page', lang=lang) }}">{% if lang == "ja" %}ユーザー名をお忘れですか？{% else %}Forgot your username?{% endif %}</a></p>
+        <p><a href="{{ url_for('forgot_password_page', lang=lang) }}">{% if lang == "ja" %}パスワードをお忘れですか？{% else %}Forgot your password?{% endif %}</a></p>
+        <p>{% if lang == "ja" %}アカウントをお持ちでないですか？{% else %}Don't have an account?{% endif %} <a href="{{ url_for('register_page', lang=lang) }}">{% if lang == "ja" %}アカウント作成{% else %}Create account{% endif %}</a></p>
+    </div>
+</div>
+{% endblock %}

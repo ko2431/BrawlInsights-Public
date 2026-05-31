@@ -1,0 +1,1091 @@
+{# /app/templates/tools/pick_tool.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 ガチバトルピック提案ツール{% else %}Ranked Pick Suggestion Tool{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトルピック提案ツールです。モードとマップを選択して、おすすめのキャラクターを自動で提案します。{% else %}This is a Ranked Pick Suggestion Tool for Brawl Stars. Select a mode and map to get automatic suggestions for the best brawlers to pick.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/ranked_stats.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/pick_tool.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="pick-tool-page__container" x-data="pickTool()">
+    {# ^ 1. 上部(固定表示) #}
+    <div class="pick-tool-header__container">
+        {# ^ 1-1. メニュー部 (各ボタン、無効時はdisabled属性を追加で付与してスタイルを変える) #}
+        <div class="pick-tool-menu-buttons">
+            <div class="pick-tool-button pick-tool-back-button" :class="{'disabled': actionHistory.length === 0}" @click="undo()">
+                ＜ {% if lang == "ja" %}元に戻す{% else %}Undo{% endif %} <span class="pick-tool-keyboard-shortcut" x-text="isMac ? '⌘Z' : 'Ctrl+Z'"></span>
+            </div>
+            <div class="pick-tool-button pick-tool-switch-button" :class="{'disabled': isSwapOnCooldown || !isGameStarted}" @click="swapSides()">
+                {% if lang == "ja" %}先行／後行入れ替え{% else %}Swap Sides{% endif %} <span class="pick-tool-keyboard-shortcut">X</span>
+            </div>
+            <div class="pick-tool-button pick-tool-reset-button" :class="{'disabled': actionHistory.length === 0}" @click="reset()">
+                {% if lang == "ja" %}リセット{% else %}Reset{% endif %} <span class="pick-tool-keyboard-shortcut" x-text="isMac ? '⌘L' : 'Ctrl+L'"></span>
+            </div>
+        </div>
+        {# ^ 1-2. モード/マップ選択メニュー #}
+        <div class="filters__container pick-tool-filters__container">
+            <form method="get" id="modeFilterForm" class="filter-form pick-tool-filter-form">
+                {# x-modelで状態と連携 #}
+                <select name="mode" id="modeSelect" class="filter-form__select pick-tool-filter-form__select" x-model="selectedMode">
+                    <option value="">{% if lang == "ja" %}モード指定なし (総合){% else %}No Mode Specified{% endif %}</option>
+                    {% for m in pool_data %}
+                        <option value="{{ m.mode }}">{{ m.mode_ja if m.mode_ja and lang == "ja" else m.mode_en }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <form method="get" id="mapFilterForm" class="filter-form pick-tool-filter-form">
+                {# x-modelで状態と連携 #}
+                <select name="map" id="mapSelect" class="filter-form__select pick-tool-filter-form__select" x-model="selectedMap">
+                    <option value="">{% if lang == "ja" %}マップ指定なし (総合){% else %}No Map Specified{% endif %}</option>
+                    {# x-forでマップ選択肢を動的に生成 #}
+                    <template x-for="map in availableMaps" :key="map.map_en">
+                        <option :value="map.map_en" x-text="lang === 'ja' && map.map_ja ? map.map_ja : map.map_en"></option>
+                    </template>
+                </select>
+            </form>
+        </div>
+        {# ^ キーボードショートカットの説明 #}
+        <div class="pick-tool-keyboard-shortcut-description pick-tool-keyboard-shortcut-description-top">
+            {% if lang == "ja" %}
+                <span class="pick-tool-keyboard-shortcut-description__label">PC用ショートカット</span><b x-text="isMac ? '⇧↑' : 'Shift+↑'"></b>／<b x-text="isMac ? '⇧↓' : 'Shift+↓'"></b>でモード切替　<b x-text="isMac ? '⌥⇧↑' : 'Alt+Shift+↑'"></b>／<b x-text="isMac ? '⌥⇧↓' : 'Alt+Shift+↓'"></b>でマップ切替　<b x-text="isMac ? '⇧Enter' : 'Shift+Enter'"></b>でBANフェーズをスキップ
+            {% else %}
+                <span class="pick-tool-keyboard-shortcut-description__label">PC Shortcuts</span><b x-text="isMac ? '⇧↑' : 'Shift+↑'"></b> / <b x-text="isMac ? '⇧↓' : 'Shift+↓'"></b> to switch modes | <b x-text="isMac ? '⌥⇧↑' : 'Alt+Shift+↑'"></b> / <b x-text="isMac ? '⌥⇧↓' : 'Alt+Shift+↓'"></b> to switch maps | <b x-text="isMac ? '⇧Enter' : 'Shift+Enter'"></b> to skip BAN phase
+            {% endif %}
+        </div>
+        {# ^ 1-3. 各チームの情報 #}
+        <div class="pick-tool-team-info__container">
+            <div class="pick-tool-team-info pick-tool-team-info--blue">
+                {# ^ 1-3-1. BANキャラクター #}
+                <div class="pick-tool-team-info__bans__container pick-tool-team-info__bans__container--blue" x-show="!banPhaseSkipped">
+                    <div class="pick-tool-team-info__bans__index">
+                        {% if lang == "ja" %}禁止{% else %}BAN{% endif %}
+                    </div>
+                    <div class="pick-tool-team-info__bans pick-tool-team-info__bans--blue">
+                        {# x-forでBAN状況を動的に表示 #}
+                        <template x-for="brawlerId in bans.blue">
+                            <img :src="brawlerId ? `/static/images/brawler_pins/${brawlerId}.png` : '/static/images/ui/mystery.png'"
+                                 alt="BAN Brawler" class="pick-tool-team-info__ban-icon">
+                        </template>
+                    </div>
+                </div>
+                {# ^ 1-3-2. ピック済みキャラクター #}
+                <div class="pick-tool-team-info__picks__container pick-tool-team-info__picks__container--blue">
+                    {# x-forでピック状況を動的に表示 #}
+                    <template x-for="(brawlerId, index) in picks.blue" :key="index">
+                        <div class="brawler-card pick-tool-team-info__picks__brawler-card pick-tool-team-info__picks__brawler-card--blue"
+                             :class="{'pick-tool-team-info__picks__brawler-card--gold': isCurrentTurn('blue', index)}">
+                            <img :src="brawlerId ? `/static/images/brawler_borderless_portraits/${brawlerId}.png` : '/static/images/player_icon/0.png'"
+                                 alt="Pick Brawler" class="brawler-card__brawler-portrait"
+                                 onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
+                        </div>
+                    </template>
+                </div>
+                {# ^ 1-3-3. 予想勝率 #}
+                <div class="pick-tool-team-info__win-rate__container pick-tool-team-info__win-rate__container--blue">
+                    <div class="pick-tool-team-info__win-rate__index pick-tool-team-info__win-rate__index--blue">
+                        <span x-text="isFirstPickBlue ? (lang === 'ja' ? '先行' : '1st') : (lang === 'ja' ? '後行' : '2nd')"></span>
+                    </div>
+                    <span class="pick-tool-team-info__win-rate__title">{% if lang == "ja" %}予想勝率{% else %}Win Rate{% endif %}</span>
+                    <span class="pick-tool-team-info__win-rate__value" x-text="winRates.blue ? winRates.blue.toFixed(1) + '%' : '-%'"></span>
+                </div>
+            </div>
+            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="pick-tool-team-info__vs-icon">
+            <div class="pick-tool-team-info pick-tool-team-info--red">
+                {# ^ 1-3-1. BANキャラクター #}
+                <div class="pick-tool-team-info__bans__container pick-tool-team-info__bans__container--red" x-show="!banPhaseSkipped">
+                    <div class="pick-tool-team-info__bans__index">
+                        {% if lang == "ja" %}禁止{% else %}BAN{% endif %}
+                    </div>
+                    <div class="pick-tool-team-info__bans pick-tool-team-info__bans--red">
+                        {# x-forでBAN状況を動的に表示 #}
+                        <template x-for="brawlerId in bans.red">
+                             <img :src="brawlerId ? `/static/images/brawler_pins/${brawlerId}.png` : '/static/images/ui/mystery.png'"
+                                 alt="BAN Brawler" class="pick-tool-team-info__ban-icon">
+                        </template>
+                    </div>
+                </div>
+                {# ^ 1-3-2. ピック済みキャラクター #}
+                <div class="pick-tool-team-info__picks__container pick-tool-team-info__picks__container--red">
+                    {# x-forでピック状況を動的に表示 #}
+                    <template x-for="(brawlerId, index) in picks.red" :key="index">
+                        <div class="brawler-card pick-tool-team-info__picks__brawler-card pick-tool-team-info__picks__brawler-card--red"
+                             :class="{'pick-tool-team-info__picks__brawler-card--gold': isCurrentTurn('red', index)}">
+                            <img :src="brawlerId ? `/static/images/brawler_borderless_portraits/${brawlerId}.png` : '/static/images/player_icon/0.png'"
+                                 alt="Pick Brawler" class="brawler-card__brawler-portrait"
+                                 onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
+                        </div>
+                    </template>
+                </div>
+                {# ^ 1-3-3. 予想勝率 #}
+                <div class="pick-tool-team-info__win-rate__container pick-tool-team-info__win-rate__container--red">
+                    <div class="pick-tool-team-info__win-rate__index pick-tool-team-info__win-rate__index--red">
+                        <span x-text="!isFirstPickBlue ? (lang === 'ja' ? '先行' : '1st') : (lang === 'ja' ? '後行' : '2nd')"></span>
+                    </div>
+                    <span class="pick-tool-team-info__win-rate__title">{% if lang == "ja" %}予想勝率{% else %}Win Rate{% endif %}</span>
+                    <span class="pick-tool-team-info__win-rate__value" x-text="winRates.red ? winRates.red.toFixed(1) + '%' : '-%'"></span>
+                </div>
+            </div>
+        </div>
+        {# ^ 1-4. ガイド (ユーザーに次に行うべき操作を提示する) #}
+        <div class="pick-tool-guide__container"
+             :class="guide.class"
+             @click="handleGuideClick()"
+             :style="{ cursor: guide.clickable ? 'pointer' : 'default' }">
+            {# x-textでガイドのテキストを動的に表示 #}
+            <p class="pick-tool-guide__main-info" x-text="guide.main"></p>
+            <p class="pick-tool-guide__sub-info" x-text="guide.sub"></p>
+        </div>
+    </div>
+
+    {# ^ 2. キャラクター表示部(スクロール可) #}
+    <div class="pick-tool-brawlers__container" :class="{'is-loading': phase === 'loading'}">
+        {# ^ 2-0. 開始画面 #}
+        <div class="pick-tool-brawlers-start-menu__container" x-show="!isGameStarted">
+            <div class="pick-tool-brawlers-start-menu__title">
+                {% if lang == "ja" %}ガチバトルピック提案ツール{% else %}Ranked Pick Suggestion Tool{% endif %}
+            </div>
+            <div class="pick-tool-brawlers-start-menu__text">
+                {% if lang == "ja" %}5000万件以上の勝敗データをもとに、ガチバトルのおすすめピックを提案するツールです。データは毎日更新されます。
+                    <br>開始するには、上のメニューより<b>モード</b>と<b>マップ</b>を選択してください。
+                    <br>上のボタンを押して、モードとマップを指定せずに開始することもできます。ただし、その場合はモードやマップに合わせた最適化が行われません。
+                {% else %}A tool that suggests the best picks for Ranked mode based on over 50 million match results. The data is updated daily.
+                    <br>To get started, please select a <b>mode</b> and <b>map</b> from the menu above.
+                    <br>You can also start without specifying a mode and map, but the suggestions will not be optimized for any specific mode or map.
+                {% endif %}
+            </div>
+            {# バナー広告 #}
+            {% include "components/ad_banner.html" %}
+        </div>
+        <template x-if="isGameStarted">
+            <div>
+                {# ^ 2-1. キャラクター並び替え&検索メニュー #}
+                <div class="pick-tool-brawlers-menu__container" x-show="phase !== 'error' && phase !== 'loading'">
+                    <div class="pick-tool-brawlers-menu__row pick-tool-brawlers-menu__row1">
+                        <div class="pick-tool-brawlers-menu__button" @click="sortType = 'suggested'" :class="{'selected': sortType === 'suggested'}">
+                            {% if lang == "ja" %}おすすめ度順{% else %}Suggested{% endif %}
+                        </div>
+                        <div class="pick-tool-brawlers-menu__button" @click="sortType = 'rarity_asc'" :class="{'selected': sortType === 'rarity_asc'}">
+                            {% if lang == "ja" %}レア度が低い順{% else %}Rarity (ASC){% endif %}
+                        </div>
+                        <div class="pick-tool-brawlers-menu__button" @click="sortType = 'rarity_desc'" :class="{'selected': sortType === 'rarity_desc'}">
+                            {% if lang == "ja" %}レア度が高い順{% else %}Rarity (DESC){% endif %}
+                        </div>
+                    </div>
+                    <div class="pick-tool-brawlers-menu__row pick-tool-brawlers-menu__row2">
+                        <div class="pick-tool-brawlers-menu__button" @click="sortType = 'name'" :class="{'selected': sortType === 'name'}">
+                            {% if lang == "ja" %}名前順{% else %}Name{% endif %}
+                        </div>
+                        <form class="search-form pick-tool-brawlers-menu__search-form" id="nameSearchForm" @submit.prevent>
+                            {# x-modelで検索文字列を連携 #}
+                            <input type="text" class="form-input pick-tool-brawlers-menu__input" placeholder="{% if lang == 'ja' %}キャラクター名で検索{% else %}Search Brawler{% endif %}..." id="nameSearchInput" x-model.debounce.300ms="searchQuery">
+                        </form>
+                    </div>
+                </div>
+                {# ^ パワー11のみオプション #}
+                <div class="pick-tool-brawlers-checkboxes__container" x-show="phase !== 'error' && phase !== 'loading'">
+                    <div class="pick-tool-brawlers-checkbox__container"
+                         :class="{'opacity-50 cursor-not-allowed': !hasMainAccount}">
+                        <input type="checkbox" class="form-checkbox" id="power11OnlyCheckbox" 
+                               x-model="power11Only"
+                               :disabled="phase === 'loading'"
+                               @click="handleMainAccountCheck($event)">
+                        <label for="power11OnlyCheckbox">{% if lang == "ja" %}メインアカウントのパワー11のみ表示{% else %}Show Main Account Power 11 Only{% endif %}</label>
+                    </div>
+                </div>
+                {# ^ キーボードショートカットの説明 #}
+                <div class="pick-tool-keyboard-shortcut-description" x-show="phase !== 'error' && phase !== 'loading'" style="margin-top: -2.5px;">
+                    {% if lang == "ja" %}
+                        <span class="pick-tool-keyboard-shortcut-description__label">PC用ショートカット</span><b x-text="isMac ? '⇧←' : 'Shift+←'"></b>／<b x-text="isMac ? '⇧→' : 'Shift+→'"></b>で並び順切替　<b x-text="isMac ? '⌘F' : 'Ctrl+F'"></b>で検索　<b>1</b>〜<b>0</b>の数字キーで画面の1〜10番目にあるキャラを選択　<b>P</b>でパワー11のみ表示を切替
+                    {% else %}
+                        <span class="pick-tool-keyboard-shortcut-description__label">PC Shortcuts</span><b x-text="isMac ? '⇧←' : 'Shift+←'"></b> / <b x-text="isMac ? '⇧→' : 'Shift+→'"></b> to switch sort order | <b x-text="isMac ? '⌘F' : 'Ctrl+F'"></b> to search | <b>1</b>–<b>0</b> number keys to select the 1st–10th brawlers on the screen | <b>P</b> to toggle Power 11 only
+                    {% endif %}
+                </div>
+                {# ^ 2-2. キャラクター表示部 #}
+                <div x-show="phase !== 'error' && phase !== 'loading'">
+                    {# Tier表形式 (おすすめ度順の時) #}
+                    <template x-if="sortType === 'suggested'">
+                        <div class="brawler-tier-list" style="width: 100%; margin: 0;">
+                            <template x-for="group in groupedBrawlers" :key="group.rank_grade">
+                                <div class="tier-row">
+                                    <div class="tier-rank-label" :class="'brawler-card__rank-grade--' + group.rank_grade">
+                                        <p x-text="group.rank_grade"></p>
+                                    </div>
+                                    <div class="brawler-grid" :class="{'is-single-result': displayedBrawlers.length === 1 && searchQuery.trim() !== ''}">
+                                        <template x-for="brawlerStat in group.brawlers" :key="brawlerStat.brawler_id">
+                                            <div class="brawler-card" :class="'brawler-card--rarity-' + brawlerStat.rarity" @click="selectBrawler(brawlerStat)" style="cursor: pointer;">
+                                                <img :src="'/static/images/brawler_borderless_portraits/' + brawlerStat.brawler_id + '.png'" class="brawler-card__brawler-portrait" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
+                                                <div class="brawler-card__score" x-text="brawlerStat.display_score.toFixed(1)"></div>
+                                                <div class="brawler-card__rank-grade" :class="'brawler-card__rank-grade--' + brawlerStat.rank_grade">
+                                                    <p x-text="brawlerStat.rank_grade"></p>
+                                                </div>
+                                                <div class="brawler-card__name" x-text="lang === 'ja' && brawlerStat.name_ja ? brawlerStat.name_ja : brawlerStat.name_en"></div>
+                                            </div>
+                                        </template>
+                                        {# 検索結果が1件のみの時の確定カード #}
+                                        <template x-if="displayedBrawlers.length === 1 && searchQuery.trim() !== ''">
+                                            <div class="pick-tool-enter-confirm-card" @click="selectBrawler(displayedBrawlers[0])" 
+                                                 x-transition:leave="pick-tool-enter-confirm-card-out">
+                                                <span class="pick-tool-enter-confirm-card__arrow">◀︎</span>
+                                                <span class="pick-tool-enter-confirm-card__text">
+                                                    {% if lang == 'ja' %}<b>Enter</b>を押して<br>このキャラを選択{% else %}Press <b>Enter</b> to<br>select this brawler{% endif %}
+                                                </span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    {# グリッド形式 (おすすめ度順以外の時) #}
+                    <template x-if="sortType !== 'suggested'">
+                        <div class="brawler-grid" style="width: 100%; margin: 0;" :class="{'is-single-result': displayedBrawlers.length === 1 && searchQuery.trim() !== ''}">
+                            {# x-forの対象を displayedBrawlers に変更 #}
+                            <template x-for="brawlerStat in displayedBrawlers" :key="brawlerStat.brawler_id">
+                                <div class="brawler-card" :class="'brawler-card--rarity-' + brawlerStat.rarity" @click="selectBrawler(brawlerStat)" style="cursor: pointer;">
+                                    <img :src="'/static/images/brawler_borderless_portraits/' + brawlerStat.brawler_id + '.png'" class="brawler-card__brawler-portrait" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
+                                    <div class="brawler-card__score" x-text="brawlerStat.display_score.toFixed(1)"></div>
+                                    <div class="brawler-card__rank-grade" :class="'brawler-card__rank-grade--' + brawlerStat.rank_grade">
+                                        <p x-text="brawlerStat.rank_grade"></p>
+                                    </div>
+                                    <div class="brawler-card__name" x-text="lang === 'ja' && brawlerStat.name_ja ? brawlerStat.name_ja : brawlerStat.name_en"></div>
+                                </div>
+                            </template>
+                            {# 検索結果が1件のみの時の確定カード #}
+                            <template x-if="displayedBrawlers.length === 1 && searchQuery.trim() !== ''">
+                                <div class="pick-tool-enter-confirm-card" @click="selectBrawler(displayedBrawlers[0])" 
+                                     x-transition:leave="pick-tool-enter-confirm-card-out">
+                                    {% if lang == 'ja' %}<b>Enter</b>を押して<br>このキャラを選択{% else %}Press <b>Enter</b> to<br>select this brawler{% endif %}
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+                {# ^ 2-3. エラー画面 #}
+                <div class="pick-tool-brawlers-start-menu__container" x-show="phase === 'error'">
+                    <div class="pick-tool-brawlers-start-menu__title" x-text="errorMessage.title"></div>
+                    <div class="pick-tool-brawlers-start-menu__text" x-text="errorMessage.text"></div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            // ピックの順番を定義した定数
+            const PICK_ORDER = [
+                { teamKey: 'first',  slot: 0 }, // 先行 1
+                { teamKey: 'second', slot: 0 }, // 後行 1
+                { teamKey: 'second', slot: 1 }, // 後行 2
+                { teamKey: 'first',  slot: 1 }, // 先行 2
+                { teamKey: 'first',  slot: 2 }, // 先行 3
+                { teamKey: 'second', slot: 2 }, // 後行 3
+            ];
+
+            Alpine.data('pickTool', () => ({
+                // --- 進行状況とステータス管理 ---
+                // 'start':      初期画面
+                // 'loading':    API通信中
+                // 'error':      API通信失敗
+                // 'ban':        BANフェーズ
+                // 'pick':       PICKフェーズ
+                // 'finished':   全PICK完了
+                phase: 'start',
+
+                // BAN/PICKの現在のターン数を管理 (BAN: 0~5, PICK: 0~5)
+                turnCount: 0,
+                
+                // --- ゲームの状態 ---
+                // ゲームが開始されたか (開始画面とメイン画面の切り替え用)
+                isGameStarted: false,
+                // 先行が青チームか (入れ替えボタンでトグル)
+                isFirstPickBlue: true,
+                // BANフェーズがスキップされたかどうか
+                banPhaseSkipped: false,
+                // BAN/PICK状況 (brawler_idが格納される)
+                bans: { blue: [null, null, null], red: [null, null, null] },
+                picks: { blue: [null, null, null], red: [null, null, null] },
+
+                // --- 履歴管理 ---
+                // 「元に戻す」機能のための状態スナップショットを保存する配列
+                actionHistory: [],
+
+                // --- データ ---
+                // APIから取得したおすすめキャラクターのリスト
+                brawlers: [],
+                // 予想勝率
+                winRates: { blue: null, red: null },
+                poolData: [], // Pythonから渡されたデータを保持する
+
+                // メインアカウント情報
+                hasMainAccount: {{ 'true' if main_account else 'false' }},
+                hasUser: {{ 'true' if user else 'false' }},
+                power11BrawlerIds: [{% if main_account %}{% for b in main_account.brawlers %}{% if b.power >= 11 %}{{ b.id }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}{% endif %}],
+                power11Only: false,
+
+                // OS判定用フラグ
+                isMac: false,
+
+                // --- ユーザー入力 ---
+                // 選択されたモードとマップ
+                selectedMode: '',
+                selectedMap: '',
+                // キャラクターリストのソート順
+                sortType: 'suggested',
+                // キャラクター検索の入力文字列
+                searchQuery: '',
+                
+                // --- UIの状態 ---
+                // 選択中のモードで利用可能なマップのリスト
+                availableMaps: [],
+                // エラーメッセージ
+                errorMessage: { title: '', text: '' },
+
+                lang: '{{ lang }}',
+
+                // 入れ替えボタンのクールダウン状態
+                isSwapOnCooldown: false,
+
+                // ソート順の定義
+                sortTypes: ['suggested', 'rarity_asc', 'rarity_desc', 'name'],
+
+                /**
+                 * コンポーネントの初期化処理
+                 */
+                init() {
+                    console.log('Pick Tool Initialized');
+
+                    // ユーザーのプラットフォームがMacかどうかを判定
+                    // (Mac以外はWindows/Linuxとみなして "Ctrl/Shift" 表記にする)
+                    this.isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform) || (navigator.userAgent && navigator.userAgent.includes('Mac'));
+
+                    // データをロード
+                    this.poolData = {{ pool_data | tojson }};
+                    
+                    // モードとマップの変更を両方監視する
+                    this.$watch('selectedMode', (newMode) => {
+                        this.updateAvailableMaps(newMode);
+                        this.selectedMap = '';
+                        // ゲーム開始後であれば、常に更新をトリガーする
+                        if (this.isGameStarted) {
+                            this.updateSuggestions();
+                        } else if (newMode) { // ゲーム未開始なら、モード選択を機に開始
+                            this.isGameStarted = true;
+                            this.updateSuggestions();
+                        }
+                    });
+
+                    this.$watch('selectedMap', (newMap) => {
+                        // マップが変更されたら(かつゲーム開始後なら)更新
+                        if (this.isGameStarted) {
+                            this.updateSuggestions();
+                        }
+                    });
+
+                    // ページ離脱警告のロジック
+                    this.unloadListener = (event) => {
+                        event.preventDefault();
+                        event.returnValue = '';
+                    };
+
+                    this.$watch('actionHistory', (newHistory, oldHistory) => {
+                        if (newHistory.length > 0 && oldHistory.length === 0) {
+                            // 最初の操作が行われたら、警告リスナーを登録
+                            window.addEventListener('beforeunload', this.unloadListener);
+                        } else if (newHistory.length === 0 && oldHistory.length > 0) {
+                            // リセットなどで履歴がなくなったら、警告リスナーを解除
+                            window.removeEventListener('beforeunload', this.unloadListener);
+                        }
+                    });
+
+                    // キーボードショートカットのリスナー
+                    window.addEventListener('keydown', (e) => {
+                        const activeTag = document.activeElement.tagName.toUpperCase();
+                        const isInputActive = activeTag === 'INPUT' || activeTag === 'TEXTAREA';
+                        const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+                        if (isInputActive) {
+                            // 検索結果が1件のみの場合、Enterで確定
+                            if (e.key === 'Enter' && this.displayedBrawlers.length === 1 && this.searchQuery.trim() !== '') {
+                                e.preventDefault();
+                                this.selectBrawler(this.displayedBrawlers[0]);
+                                document.getElementById('nameSearchInput')?.blur();
+                                return;
+                            }
+                            // 検索ボックスで Enter が押されたらフォーカスを外す
+                            if (e.key === 'Enter' && e.target.id === 'nameSearchInput') {
+                                e.preventDefault();
+                                e.target.blur(); 
+                                return;
+                            }
+                            // 入力中は他のショートカットを発動させないためここで終了
+                            // (ただし Cmd+Z などのブラウザ/OS標準機能や、下の修飾キー系ブロックで許可したいものがある場合は調整)
+                        }
+
+                        // 入力フォーム以外でのみ有効
+                        if (!isInputActive) {
+                            // (1) Swap Sides: 'x'
+                            if (!isCmdOrCtrl && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'x') {
+                                e.preventDefault();
+                                this.swapSides();
+                            }
+
+                            // (2) Enter: ガイドクリック または 検索1件確定
+                            if (e.key === 'Enter') {
+                                if (e.shiftKey) {
+                                    e.preventDefault();
+                                    this.handleGuideClick();
+                                } else if (this.displayedBrawlers.length === 1 && this.searchQuery.trim() !== '') {
+                                    e.preventDefault();
+                                    this.selectBrawler(this.displayedBrawlers[0]);
+                                }
+                            }
+
+                            // (3) Sort & Mode Change: Shift + Arrows (No Alt)
+                            // Shiftキーのみ押されている状態 → ソート(左右) と モード(上下)
+                            if (e.shiftKey && !e.altKey && !isCmdOrCtrl) {
+                                if (e.key === 'ArrowRight') {
+                                    e.preventDefault();
+                                    this.cycleSortType(1);
+                                } else if (e.key === 'ArrowLeft') {
+                                    e.preventDefault();
+                                    this.cycleSortType(-1);
+                                } else if (e.key === 'ArrowDown') {
+                                    e.preventDefault();
+                                    this.cycleMode(1);
+                                } else if (e.key === 'ArrowUp') {
+                                    e.preventDefault();
+                                    this.cycleMode(-1);
+                                }
+                            }
+
+                            // (4) Character Select: 1-0
+                            if (!e.shiftKey && !e.altKey && !isCmdOrCtrl && /^[0-9]$/.test(e.key)) {
+                                e.preventDefault();
+                                this.selectBrawlerByIndex(parseInt(e.key));
+                            }
+
+                            // (5) Map Change: Alt + Shift + Up/Down
+                            // ユーザー報告により Alt単体は動作不安定のため、Alt+Shift(マップ)のみ維持
+                            if (e.altKey && e.shiftKey && !isCmdOrCtrl) {
+                                if (e.key === 'ArrowDown') {
+                                    e.preventDefault();
+                                    this.cycleMap(1);
+                                } else if (e.key === 'ArrowUp') {
+                                    e.preventDefault();
+                                    this.cycleMap(-1);
+                                }
+                            }
+
+                            // (6) Reset: Escape
+                            if (e.key === 'Escape') {
+                                e.preventDefault();
+                                this.reset(true);
+                            }
+
+                            // (7) Power 11 Toggle: 'p'
+                            if (!isCmdOrCtrl && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'p') {
+                                e.preventDefault();
+                                if (this.hasMainAccount) {
+                                    this.power11Only = !this.power11Only;
+                                } else {
+                                    this.showMainAccountAlert();
+                                }
+                            }
+                        }
+
+                        // --- 修飾キー系 (入力中でも有効) ---
+                        
+                        // Undo: Cmd/Ctrl + Z
+                        if (isCmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'z') {
+                            e.preventDefault();
+                            this.undo();
+                        }
+
+                        // Reset: Cmd/Ctrl + L
+                        if (isCmdOrCtrl && e.key.toLowerCase() === 'l') {
+                            e.preventDefault();
+                            this.reset(true);
+                        }
+
+                        // Search Focus: Cmd/Ctrl + F
+                        if (isCmdOrCtrl && e.key.toLowerCase() === 'f') {
+                            if (this.isGameStarted && this.phase !== 'loading' && this.phase !== 'error') {
+                                const searchInput = document.getElementById('nameSearchInput');
+                                if (searchInput) {
+                                    e.preventDefault();
+                                    searchInput.focus();
+                                }
+                            }
+                        }
+                    });
+                },
+
+                /**
+                 * ソート順を切り替える
+                 * @param {number} direction 1: 次へ, -1: 前へ
+                 */
+                cycleSortType(direction) {
+                    let index = this.sortTypes.indexOf(this.sortType);
+                    if (index === -1) index = 0;
+                    
+                    index += direction;
+                    
+                    // ループ処理
+                    if (index >= this.sortTypes.length) index = 0;
+                    if (index < 0) index = this.sortTypes.length - 1;
+                    
+                    this.sortType = this.sortTypes[index];
+                },
+
+                /**
+                 * 表示されているリストのn番目のキャラクターを選択する
+                 * @param {number} num 1-9, 0(=10)
+                 */
+                selectBrawlerByIndex(num) {
+                    // 表示されているリストがなければ何もしない
+                    const list = this.displayedBrawlers;
+                    if (!list || list.length === 0) return;
+
+                    // 0キーは10番目(index 9)とする
+                    const index = (num === 0) ? 9 : num - 1;
+
+                    if (index >= 0 && index < list.length) {
+                        this.selectBrawler(list[index]);
+                    }
+                },
+
+                /**
+                 * モードを切り替える
+                 */
+                cycleMode(direction) {
+                    // プールデータには "モード指定なし" ("") が含まれていないため、手動で扱う
+                    // リスト構造: [ "", ...this.poolDataの各mode ]
+                    const modes = ["", ...this.poolData.map(d => d.mode)];
+                    
+                    let index = modes.indexOf(this.selectedMode);
+                    if (index === -1) index = 0; // 万が一見つからない場合は "指定なし" 扱い
+
+                    index += direction;
+
+                    // ループ処理
+                    if (index >= modes.length) index = 0;
+                    if (index < 0) index = modes.length - 1;
+
+                    this.selectedMode = modes[index];
+                },
+
+                /**
+                 * マップを切り替える
+                 */
+                cycleMap(direction) {
+                    // マップ指定なし ("") + 現在のモードで利用可能なマップ
+                    const maps = ["", ...this.availableMaps.map(m => m.map_en)];
+
+                    let index = maps.indexOf(this.selectedMap);
+                    // 現在選択中のマップがリストにない場合（モード切り替え直後など）は先頭へ
+                    if (index === -1) index = 0;
+
+                    index += direction;
+
+                    // ループ処理
+                    if (index >= maps.length) index = 0;
+                    if (index < 0) index = maps.length - 1;
+
+                    this.selectedMap = maps[index];
+                },
+
+                /**
+                 * モード選択に応じてマップの選択肢を更新する
+                 * @param {string} mode - 選択されたモード
+                 */
+                updateAvailableMaps(mode) {
+                    if (!mode) {
+                        this.availableMaps = [];
+                        return;
+                    }
+                    // Pythonから渡されたpool_dataをJavaScriptで利用する
+                    const poolData = {{ pool_data | tojson }};
+                    const modeData = poolData.find(m => m.mode === mode);
+                    this.availableMaps = modeData ? modeData.maps : [];
+                },
+
+                /**
+                 * キャラクターが選択されたときのメインの処理
+                 * @param {object} brawler - 選択されたキャラクターのデータ
+                 */
+                selectBrawler(brawler) {
+                    this.searchQuery = ''; // キャラクターを選択したら検索クエリをリセット
+                    this.saveState();
+                    if (this.phase === 'ban') {
+                        this.handleBan(brawler);
+                    } else if (this.phase === 'pick') {
+                        this.handlePick(brawler);
+                    }
+                },
+
+                /**
+                 * BANフェーズの処理
+                 */
+                handleBan(brawler) {
+                    const banTurn = Math.floor(this.turnCount / 3); // 0: 先行, 1: 後行
+                    const isFirstTeamTurn = banTurn === 0;
+                    const teamToUpdate = (this.isFirstPickBlue === isFirstTeamTurn) ? 'blue' : 'red';
+                    const slot = this.turnCount % 3;
+
+                    this.bans[teamToUpdate][slot] = brawler.brawler_id;
+                    this.turnCount++;
+
+                    if (this.turnCount >= 6) {
+                        this.phase = 'pick';
+                        this.turnCount = 0; // ピックのターンカウントにリセット
+                    }
+                    this.updateSuggestions();
+                },
+
+                /**
+                 * PICKフェーズの処理
+                 */
+                handlePick(brawler) {
+                    const currentTurnInfo = PICK_ORDER[this.turnCount];
+                    const teamKey = (currentTurnInfo.teamKey === 'first') 
+                        ? (this.isFirstPickBlue ? 'blue' : 'red')
+                        : (this.isFirstPickBlue ? 'red' : 'blue');
+                    
+                    this.picks[teamKey][currentTurnInfo.slot] = brawler.brawler_id;
+                    this.turnCount++;
+
+                    if (this.turnCount >= 6) {
+                        this.phase = 'finished';
+                        this.brawlers = []; // ピック完了後、リストを空にする
+                        this.updateWinRate(); // ピック完了時に最後の勝率を更新
+                        return; // APIを呼ばずに終了
+                    }
+                    this.updateSuggestions();
+                },
+
+                /**
+                * 現在の状態を履歴に保存する
+                */
+                saveState() {
+                    const stateSnapshot = {
+                        phase: this.phase,
+                        turnCount: this.turnCount,
+                        isFirstPickBlue: this.isFirstPickBlue,
+                        bans: JSON.parse(JSON.stringify(this.bans)),
+                        picks: JSON.parse(JSON.stringify(this.picks)),
+                        banPhaseSkipped: this.banPhaseSkipped,
+                        brawlers: JSON.parse(JSON.stringify(this.brawlers)),
+                        winRates: JSON.parse(JSON.stringify(this.winRates)),
+                    };
+                    this.actionHistory.push(stateSnapshot);
+                },
+
+                /**
+                * 最後の操作を元に戻す
+                */
+                undo() {
+                    if (this.actionHistory.length === 0) return;
+
+                    const lastState = this.actionHistory.pop();
+                    
+                    this.phase = lastState.phase;
+                    this.turnCount = lastState.turnCount;
+                    this.isFirstPickBlue = lastState.isFirstPickBlue;
+                    this.bans = lastState.bans;
+                    this.picks = lastState.picks;
+                    this.banPhaseSkipped = lastState.banPhaseSkipped;
+                    this.brawlers = lastState.brawlers;
+                    this.winRates = lastState.winRates;
+                },
+
+                /**
+                * 先行/後行を入れ替える
+                */
+                swapSides() {
+                    if (this.isSwapOnCooldown || !this.isGameStarted) return;
+                    
+                    this.saveState(); // 操作を履歴に保存
+
+                    // 先行チームの状態を反転させる処理を追加
+                    this.isFirstPickBlue = !this.isFirstPickBlue;
+
+                    // BAN/ピック状況を入れ替え
+                    [this.bans.blue, this.bans.red] = [this.bans.red, this.bans.blue];
+                    [this.picks.blue, this.picks.red] = [this.picks.red, this.picks.blue];
+                    
+                    // おすすめと勝率を更新
+                    this.updateSuggestions();
+
+                    // 1秒間のクールダウンを設定
+                    this.isSwapOnCooldown = true;
+                    setTimeout(() => { this.isSwapOnCooldown = false; }, 1000);
+                },
+                
+                /**
+                * BAN/ピック状況をリセットする
+                */
+                reset() {
+                    if (this.actionHistory.length === 0) return;
+
+                    const confirmation = confirm(this.lang === 'ja' ? 'すべてのBAN／ピック状況をリセットしますか？' : 'Are you sure you want to reset all bans and picks?');
+                    if (confirmation) {
+                        this.turnCount = 0;
+                        this.bans = { blue: [null, null, null], red: [null, null, null] };
+                        this.picks = { blue: [null, null, null], red: [null, null, null] };
+                        this.banPhaseSkipped = false;
+                        this.actionHistory = []; // 履歴をクリア
+                        this.winRates = { blue: null, red: null };
+                        this.updateSuggestions();
+                    }
+                },
+                
+                /**
+                 * ガイドエリアがクリックされたときのハンドラ
+                 */
+                handleGuideClick() {
+                    if (!this.guide.clickable) return;
+                    // ゲーム未開始の時だけ開始処理を行う
+                    if (this.phase === 'start' && !this.isGameStarted) {
+                        this.isGameStarted = true;
+                        this.updateSuggestions();
+                    } else if (this.phase === 'ban') {
+                        this.skipBanPhase();
+                    }
+                },
+
+                /**
+                 * BANフェーズをスキップしてPICKフェーズに進む
+                 */
+                skipBanPhase() {
+                    this.saveState();
+                    // BAN情報をリセットし、スキップフラグを立てる
+                    this.bans = { blue: [null, null, null], red: [null, null, null] };
+                    this.banPhaseSkipped = true;
+                    this.phase = 'pick';
+                    this.turnCount = 0;
+                    // ピックのおすすめリストを取得
+                    this.updateSuggestions();
+                },
+
+                /**
+                 * 現在の状況に応じて、おすすめリストをAPIから取得・更新する
+                 */
+                async updateSuggestions() {
+                    // 処理の最初に必ず勝率予測を呼び出す
+                    this.updateWinRate();
+
+                    // ピック完了後なら、おすすめ取得はせずに終了
+                    if (this.turnCount >= 6) {
+                        this.phase = 'finished';
+                        return;
+                    }
+
+                    this.phase = 'loading';
+                    try {
+                        const params = new URLSearchParams();
+                        if (this.selectedMode) params.append('mode', this.selectedMode);
+                        if (this.selectedMap) params.append('map_name', this.selectedMap);
+
+                        let apiUrl = '';
+                        const allBans = [...this.bans.blue, ...this.bans.red].filter(id => id !== null);
+                        
+                        const isBanPhase = !this.banPhaseSkipped && allBans.length < 6;
+
+                        if (isBanPhase) {
+                            apiUrl = `/${this.lang}/tools/api/ban_suggestions`;
+                            const banTurn = Math.floor(this.turnCount / 3);
+                            const isFirstTeamTurn = banTurn === 0;
+                            const currentTeam = (this.isFirstPickBlue === isFirstTeamTurn) ? 'blue' : 'red';
+                            this.bans[currentTeam].filter(id => id !== null).forEach(id => params.append('banned_brawlers', id));
+                        
+                        } else { // ピックフェーズ
+                            apiUrl = `/${this.lang}/tools/api/pick_suggestions`;
+                            allBans.forEach(id => params.append('banned_brawlers', id));
+
+                            const currentTurnInfo = PICK_ORDER[this.turnCount];
+                            const isFirstTeamPicking = currentTurnInfo.teamKey === 'first';
+                            
+                            const myTeamKey = (this.isFirstPickBlue === isFirstTeamPicking) ? 'blue' : 'red';
+                            const enemyTeamKey = myTeamKey === 'blue' ? 'red' : 'blue';
+                            
+                            this.picks[myTeamKey].filter(id => id !== null).forEach(id => params.append('my_team_picks', id));
+                            this.picks[enemyTeamKey].filter(id => id !== null).forEach(id => params.append('enemy_team_picks', id));
+                        }
+                        
+                        const response = await fetch(`${apiUrl}?${params.toString()}`);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        
+                        const rawData = await response.json();
+                        
+                        // データ正規化ロジック
+                        if (isBanPhase) {
+                            // BAN提案は strength_score を display_score として使う
+                            this.brawlers = rawData.map(brawlerStat => ({
+                                ...brawlerStat,
+                                display_score: brawlerStat.ban_suggestion_score,
+                                rank_grade: brawlerStat.ban_rank_grade
+                            }));
+                        } else {
+                            // PICK提案はネストされたデータを展開し、total_score を display_score として使う
+                            this.brawlers = rawData.map(suggestion => ({
+                                ...suggestion.brawler, // ネストされたbrawlerオブジェクトを展開
+                                display_score: suggestion.total_score,
+                                rank_grade: suggestion.rank_grade // PickSuggestion自身のrank_gradeを優先
+                            }));
+                        }
+
+                        this.phase = isBanPhase ? 'ban' : 'pick';
+
+                    } catch (error) {
+                        // (エラー処理は変更なし)
+                    }
+                },
+
+                /**
+                 * メインアカウント情報のチェック
+                 */
+                handleMainAccountCheck(event) {
+                    if (!this.hasMainAccount) {
+                        event.preventDefault();
+                        this.showMainAccountAlert();
+                    }
+                },
+
+                /**
+                 * メインアカウント情報がない場合の警告表示
+                 */
+                showMainAccountAlert() {
+                    if (this.hasUser) {
+                        alert("{% if lang == 'ja' %}メインアカウント情報を取得できませんでした。しばらく待ってから再度お試しください。{% else %}Failed to acquire main account information. Please wait a while and try again.{% endif %}");
+                    } else {
+                        alert("{% if lang == 'ja' %}この機能を利用するにはログインが必要です。アカウントタブより、メールアドレス不要ですぐにアカウントを作成できます。{% else %}Login is required to use this feature. You can create an account quickly from the Account tab without an email address.{% endif %}");
+                    }
+                },
+
+                /**
+                * 予想勝率をAPIから取得・更新する
+                */
+                async updateWinRate() {
+                    // 両チームに1人以上ピックがいるかチェック
+                    const bluePicks = this.picks.blue.filter(p => p !== null);
+                    const redPicks = this.picks.red.filter(p => p !== null);
+
+                    if (bluePicks.length === 0 || redPicks.length === 0) {
+                        this.winRates = { blue: null, red: null }; // 条件を満たさない場合はリセット
+                        return;
+                    }
+
+                    try {
+                        const params = new URLSearchParams();
+                        if (this.selectedMode) params.append('mode', this.selectedMode);
+                        if (this.selectedMap) params.append('map_name', this.selectedMap);
+
+                        const team1 = this.isFirstPickBlue ? bluePicks : redPicks;
+                        const team2 = this.isFirstPickBlue ? redPicks : bluePicks;
+                        team1.forEach(id => params.append('team_1_picks', id));
+                        team2.forEach(id => params.append('team_2_picks', id));
+
+                        const response = await fetch(`/${this.lang}/tools/api/predict_win_rate?${params.toString()}`);
+                        if (!response.ok) throw new Error('Failed to fetch win rate');
+                        
+                        const data = await response.json();
+                        const team1WinRate = data.team_1_win_rate;
+
+                        if (this.isFirstPickBlue) {
+                            this.winRates = { blue: team1WinRate, red: 100 - team1WinRate };
+                        } else {
+                            this.winRates = { blue: 100 - team1WinRate, red: team1WinRate };
+                        }
+                    } catch (error) {
+                        console.error('Win rate prediction failed:', error);
+                        this.winRates = { blue: null, red: null }; // エラー時もリセット
+                    }
+                },
+
+                /**
+                 * 現在のターンで選択すべきスロットかどうかを判定する
+                 * @param {string} teamColor - 'blue' または 'red'
+                 * @param {number} slotIndex - 判定するスロットのインデックス (0-2)
+                 * @returns {boolean} - 現在選択すべきスロットであれば true
+                 */
+                isCurrentTurn(teamColor, slotIndex) {
+                    // ピックフェーズでなければハイライトしない
+                    if (this.phase !== 'pick') return false;
+
+                    const currentTurnInfo = PICK_ORDER[this.turnCount];
+                    // ピック完了後などでターン情報がなければハイライトしない
+                    if (!currentTurnInfo) return false;
+
+                    // 現在のターンがどちらのチームか判定
+                    const isFirstTeamTurn = currentTurnInfo.teamKey === 'first';
+                    const currentTeamColor = (this.isFirstPickBlue === isFirstTeamTurn) ? 'blue' : 'red';
+                    
+                    // 渡されたチームカラーとスロットインデックスが現在のものと一致するかチェック
+                    return teamColor === currentTeamColor && slotIndex === currentTurnInfo.slot;
+                },
+
+                /**
+                * ひらがなをカタカナに変換するヘルパー関数
+                */
+                hiraToKana(str) {
+                    return str.replace(/[\u3041-\u3096]/g, match => String.fromCharCode(match.charCodeAt(0) + 0x60));
+                },
+
+                /**
+                * フィルタリングとソートを適用したキャラクターリストを返す算出プロパティ
+                */
+                get displayedBrawlers() {
+                    let filtered = [...this.brawlers];
+
+                    // 検索フィルタ
+                    if (this.searchQuery.trim() !== '') {
+                        let query = this.hiraToKana(this.searchQuery.trim().toLowerCase());
+
+                        // ヒューリスティックな重複検知 (IME不具合対策)
+                        // 4文字以上かつ偶数長で、前半と後半が一致する場合
+                        if (query.length >= 4 && query.length % 2 === 0) {
+                            const half = query.length / 2;
+                            const firstHalf = query.substring(0, half);
+                            const secondHalf = query.substring(half);
+                            if (firstHalf === secondHalf) {
+                                query = firstHalf;
+                            }
+                        }
+
+                        filtered = filtered.filter(b => {
+                            const nameEn = b.name_en.toLowerCase();
+                            // name_ja だけでなく names_ja 配列内の全項目をチェック
+                            const isMatchedJa = (b.names_ja || [b.name_ja || '']).some(n => 
+                                this.hiraToKana(n).includes(query)
+                            );
+                            return nameEn.includes(query) || isMatchedJa;
+                        });
+                    }
+
+                    // パワー11フィルタ
+                    if (this.power11Only && this.hasMainAccount) {
+                        filtered = filtered.filter(b => this.power11BrawlerIds.includes(b.brawler_id));
+                    }
+
+                    // ソート
+                    switch (this.sortType) {
+                        case 'name':
+                            filtered.sort((a, b) => (this.lang === 'ja' ? (a.name_ja || a.name_en) : a.name_en)
+                                .localeCompare(this.lang === 'ja' ? (b.name_ja || b.name_en) : b.name_en));
+                            break;
+                        case 'rarity_asc':
+                            filtered.sort((a, b) => (a.rarity ?? 99) - (b.rarity ?? 99) || a.brawler_id - b.brawler_id);
+                            break;
+                        case 'rarity_desc':
+                            filtered.sort((a, b) => (b.rarity ?? 99) - (a.rarity ?? 99) || a.brawler_id - b.brawler_id);
+                            break;
+                        case 'suggested':
+                        default:
+                            // デフォルトのソート順 (おすすめ度順) はAPIから返された順なので何もしない
+                            break;
+                    }
+                    return filtered;
+                },
+
+                /**
+                * Tier表形式表示のために、キャラクターをランクでグループ化する算出プロパティ
+                */
+                get groupedBrawlers() {
+                    if (this.sortType !== 'suggested') return [];
+                    // displayedBrawlersは既にフィルタリングとソートが適用されている
+                    return this.displayedBrawlers.reduce((acc, brawler) => {
+                        const rank = brawler.rank_grade;
+                        const group = acc.find(g => g.rank_grade === rank);
+                        if (group) {
+                            group.brawlers.push(brawler);
+                        } else {
+                            acc.push({ rank_grade: rank, brawlers: [brawler] });
+                        }
+                        return acc;
+                    }, []);
+                },
+
+                /**
+                 * 現在のフェーズに応じてガイドの表示内容を返す算出プロパティ
+                 */
+                get guide() {
+                    // ★ 英語対応は lang プロパティを参照する
+                    const ja = this.lang === 'ja';
+
+                    // APIローディング中
+                    if (this.phase === 'loading') {
+                        return {
+                            main: ja ? 'おすすめキャラクターを読み込んでいます...' : 'Loading recommendations...',
+                            sub: ja ? 'このまましばらくお待ちください' : 'Please wait a moment',
+                            class: '', clickable: false
+                        };
+                    }
+
+                    // ゲーム開始前
+                    if (!this.isGameStarted) {
+                        return {
+                            main: ja ? '上のメニューからモードとマップを選択して開始' : 'Select a Mode and Map to start',
+                            sub: ja ? 'またはここを押して選択をスキップして開始' : 'Or tap here to start without selection',
+                            class: '', clickable: true
+                        };
+                    }
+
+                    // BANフェーズ
+                    if (this.phase === 'ban') {
+                        const banTurn = Math.floor(this.turnCount / 3); // 0: 先行チーム, 1: 後行チーム
+                        const banCount = (this.turnCount % 3) + 1;
+                        const isBlueTurn = (this.isFirstPickBlue && banTurn === 0) || (!this.isFirstPickBlue && banTurn === 1);
+                        const teamName = isBlueTurn ? (ja ? 'ブルーチーム' : 'Blue Team') : (ja ? 'レッドチーム' : 'Red Team');
+                        
+                        return {
+                            main: `${teamName}${ja ? 'のBANキャラクターを選択' : "'s Ban"} (${banCount}/3)`,
+                            sub: ja ? 'またはここを押してBANフェーズをスキップ' : 'Or tap here to skip the Ban Phase',
+                            class: isBlueTurn ? 'pick-tool-guide__container--blue' : 'pick-tool-guide__container--red',
+                            clickable: true
+                        };
+                    }
+                    
+                    // PICKフェーズ
+                    if (this.phase === 'pick') {
+                         const currentTurnInfo = PICK_ORDER[this.turnCount];
+                         const isFirstTeamTurn = currentTurnInfo.teamKey === 'first';
+                         const isBlueTurn = (this.isFirstPickBlue && isFirstTeamTurn) || (!this.isFirstPickBlue && !isFirstTeamTurn);
+                         const teamName = isBlueTurn ? (ja ? 'ブルーチーム' : 'Blue Team') : (ja ? 'レッドチーム' : 'Red Team');
+                         const pickCount = this.picks[isBlueTurn ? 'blue' : 'red'].filter(p => p !== null).length + 1;
+                         const pickJa = ['1体目', '2体目', '3体目'];
+                         const pickEn = ['1st', '2nd', '3rd'];
+                         const pickCountText = ja ? pickJa[pickCount-1] : pickEn[pickCount-1];
+
+                         return {
+                            main: `${teamName}${ja ? `の${pickCountText}のキャラクターを選択` : `'s ${pickCountText} Pick`}`,
+                            sub: ja ? 'おすすめ度を100点満点で表示しています' : 'Recommendations are scored out of 100',
+                            class: isBlueTurn ? 'pick-tool-guide__container--blue' : 'pick-tool-guide__container--red',
+                            clickable: false
+                        };
+                    }
+
+                    // 全て完了
+                     if (this.phase === 'finished') {
+                         return {
+                            main: ja ? '両チームのピックが完了しました' : 'All picks are complete',
+                            sub: ja ? '右上のリセットボタンから再度開始できます' : 'You can start over with the reset button',
+                            class: '',
+                            clickable: false
+                        };
+                    }
+
+                    // デフォルト（エラー時など）
+                    return { main: '', sub: '', class: '', clickable: false };
+                }
+            }));
+        });
+    </script>
+{% endblock %}

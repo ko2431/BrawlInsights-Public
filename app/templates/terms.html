@@ -1,0 +1,226 @@
+{# /app/templates/terms.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}利用規約{% else %}Terms of Service{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}Brawl Insightsの利用規約です。{% else %}Brawl Insights Terms of Service.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/terms.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="terms-page__container"> {# ページ全体のコンテナ #}
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}利用規約{% else %}Terms of Service{% endif %}</h1>
+
+    {# 本文 #}
+    <p class="terms-page__section">{% if lang == "ja" %}この利用規約（以下、「本規約」といいます。）は、Brawl Insights（以下、「本サービス」といいます。）の利用に関する条件を定めるものです。本サービスをご利用になるすべての方（以下、「ユーザー」といいます。）は、本規約に同意の上、本サービスを利用するものとします。
+        {% else %}These Terms of Service (hereinafter referred to as "these Terms") set forth the terms and conditions for the use of Brawl Insights (hereinafter referred to as "the Service"). All individuals who use the Service (hereinafter referred to as "Users") shall use the Service in accordance with these Terms after agreeing to them.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第1条（本規約への同意と適用範囲）
+        {% else %}Article 1 (Agreement to these Terms and Scope of Application){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本規約は、ユーザーと本サービスの開発者（以下、「開発者」といいます。）との間の本サービスの利用に関わる一切の関係に適用されます。本サービスには、開発者が提供するウェブサイト、アプリケーションソフトウェア、およびそれらに付随するサービスの一切を含みます。
+            <br>2. ユーザーは、本サービスを利用することにより、本規約の全ての記載内容に同意したものとみなされます。
+            <br>3. 開発者が本サービス上で掲載する本サービス利用に関するルールは、本規約の一部を構成するものとします。
+            <br>4. 本規約の内容と、前項のルールその他の本規約外における本サービスの説明等が異なる場合は、本規約の規定が優先して適用されるものとします。
+            <br>5. 本規約が日本語以外の言語に翻訳されて提供される場合でも、日本語版の本規約が正文として適用されるものとします。翻訳版はあくまで参考として提供されるものです。
+        {% else %}1. These Terms shall apply to all relationships concerning the use of the Service between Users and the developer of the Service (hereinafter referred to as "the Developer"). The Service includes the website, application software, and all related services provided by the Developer.
+            <br>2. By using the Service, Users are deemed to have agreed to all provisions of these Terms.
+            <br>3. Any rules regarding the use of the Service posted by the Developer on the Service shall constitute a part of these Terms.
+            <br>4. In the event of any conflict between the provisions of these Terms and the rules set forth in the preceding paragraph or any other descriptions of the Service outside of these Terms, the provisions of these Terms shall prevail.
+            <br>5. Even if these Terms are translated into languages other than Japanese, the Japanese version of these Terms shall be the official text. Translated versions are provided for reference purposes only.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第2条（アカウント登録）
+        {% else %}Article 2 (Account Registration){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスの一部の機能を利用するにあたり、アカウント登録が必要な場合があります。アカウント登録は必須ではありません。
+            <br>2. アカウント登録を希望する方（以下、「登録希望者」といいます。）は、本規約に同意し、かつ開発者の定める一定の情報を開発者の定める方法で提供することにより、開発者に対してアカウント登録を申請することができます。
+            <br>3. 開発者は、登録希望者に以下の事由があると判断した場合、アカウント登録の申請を承認しないことがあり、その理由については一切の開示義務を負わないものとします。
+            <br><span class="indent">(1) 開発者に提供した登録事項の全部または一部につき虚偽、誤記または記載漏れがあった場合</span>
+            <br><span class="indent">(2) 過去に本規約に違反したことがある者からの申請である場合</span>
+            <br><span class="indent">(3) その他、開発者がアカウント登録を相当でないと判断した場合</span>
+            <br>4. ユーザーは、自己の責任において、本サービスのユーザー名およびパスワードを適切に管理するものとします。
+            <br>5. ユーザーは、いかなる場合にも、ユーザー名およびパスワードを第三者に譲渡もしくは貸与し、または第三者と共用することはできません。開発者は、ユーザー名とパスワードの組み合わせが登録情報と一致してログインされた場合には、そのユーザー名を登録しているユーザー自身による利用とみなします。
+            <br>6. ユーザー名およびパスワードが第三者によって使用されたことによって生じた損害は、開発者に故意または重大な過失がある場合を除き、開発者は一切の責任を負わないものとします。
+            <br>7. ユーザーは、開発者の定める手続きにより、いつでも自身のアカウントを削除することができます。
+        {% else %}1. Account registration may be required to use some functions of the Service. Account registration is not mandatory.
+            <br>2. Individuals wishing to register for an account (hereinafter referred to as "Registration Applicants") may apply for account registration by agreeing to these Terms and providing certain information specified by the Developer in the manner prescribed by the Developer.
+            <br>3. The Developer may choose not to approve an account registration application if the Developer determines that any of the following reasons apply to the Registration Applicant, and the Developer shall not be obligated to disclose the reasons therefor:
+            <br><span class="indent">(1) If there is any falsehood, error, or omission in all or part of the registration information provided to the Developer.</span>
+            <br><span class="indent">(2) If the application is from an individual who has previously violated these Terms.</span>
+            <br><span class="indent">(3) In any other cases where the Developer deems account registration to be inappropriate.</span>
+            <br>4. Users shall, at their own responsibility, appropriately manage their username and password for the Service.
+            <br>5. Under no circumstances may Users assign or lend their username and password to a third party, or share them with a third party. If a login is made with a combination of username and password that matches the registered information, the Developer will deem it as use by the User who registered that username.
+            <br>6. The Developer shall not be liable for any damage incurred as a result of a username and password being used by a third party, except in cases of willful misconduct or gross negligence on the part of the Developer.
+            <br>7. Users may delete their own account at any time through the procedures specified by the Developer.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第3条（禁止事項）
+        {% else %}Article 3 (Prohibited Acts){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}ユーザーは、本サービスの利用にあたり、以下の各号のいずれかに該当する行為または該当すると開発者が判断する行為をしてはなりません。
+            <br>1. 法令または公序良俗に違反する行為
+            <br>2. 犯罪行為に関連する行為
+            <br>3. 本サービスのサーバーまたはネットワークの機能を破壊したり、妨害したりする行為
+            <br>4. 本サービスの運営を妨害するおそれのある行為
+            <br>5. 不正アクセスをし、またはこれを試みる行為
+            <br>6. 他のユーザーに関する個人情報等を収集または蓄積する行為
+            <br>7. 不正な目的をもって本サービスを利用する行為
+            <br>8. 本サービスの他のユーザーまたはその他の第三者に不利益、損害、不快感を与える行為
+            <br>9. 他のユーザーに成りすます行為
+            <br>10. 開発者が許諾しない本サービス上での宣伝、広告、勧誘、または営業行為
+            <br>11. 本サービスのコンテンツ（次条で定義します）を、開発者の事前の許諾なく、個人的な利用の範囲を超えて商業的に利用する行為（複製、販売、出版などを含みますが、これらに限りません）
+            <br>12. 本サービスに関連して、反社会的勢力に対して直接または間接に利益を供与する行為
+            <br>13. 本サービスまたは第三者の知的財産権、肖像権、プライバシー、名誉その他の権利または利益を侵害する行為
+            <br>14. 過度に暴力的な表現、露骨な性的表現、人種、国籍、信条、性別、社会的身分、門地等による差別につながる表現、自殺、自傷行為、薬物乱用を誘引または助長する表現、その他反社会的な内容を含み他人に不快感を与える表現を投稿または送信する行為（本サービスに投稿機能がある場合）
+            <br>15. その他、開発者が不適切と判断する行為
+        {% else %}Users shall not engage in any of the following acts, or any acts that the Developer deems to fall under any of the following, when using the Service:
+            <br>1. Acts that violate laws and regulations or public order and morals.
+            <br>2. Acts related to criminal activities.
+            <br>3. Acts that destroy or interfere with the functions of the Service's servers or network.
+            <br>4. Acts that may interfere with the operation of the Service.
+            <br>5. Acts of unauthorized access or attempts thereof.
+            <br>6. Acts of collecting or accumulating personal information, etc., concerning other Users.
+            <br>7. Acts of using the Service for fraudulent purposes.
+            <br>8. Acts that cause disadvantage, damage, or discomfort to other Users of the Service or other third parties.
+            <br>9. Acts of impersonating other Users.
+            <br>10. Advertising, solicitation, or business activities on the Service not authorized by the Developer.
+            <br>11. Acts of commercially using the content of the Service (defined in the next Article), including but not limited to reproduction, sale, or publication, beyond the scope of personal use without the prior permission of the Developer.
+            <br>12. Acts of directly or indirectly providing benefits to anti-social forces in connection with the Service.
+            <br>13. Acts that infringe upon the intellectual property rights, portrait rights, privacy, honor, or other rights or interests of the Service or third parties.
+            <br>14. Acts of posting or transmitting expressions that are excessively violent; explicitly sexual; lead to discrimination based on race, nationality, creed, sex, social status, family origin, etc.; induce or promote suicide, self-harm, or drug abuse; or otherwise contain anti-social content and cause discomfort to others (if the Service has a posting function).
+            <br>15. Any other acts that the Developer deems inappropriate.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第4条（知的財産権）
+        {% else %}Article 4 (Intellectual Property Rights){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスおよび本サービスに関連する一切の情報についての著作権およびその他知的財産権は、すべて開発者または開発者にその利用を許諾した権利者に帰属します。
+            <br>2. ユーザーは、本サービスを通じて提供される情報やコンテンツ（ゲームの統計情報、画像、テキスト、デザイン、プログラムなどを含みますが、これらに限りません。以下、「本コンテンツ」といいます。）を、著作権法で認められる私的利用の範囲を超えて、複製、翻案、公衆送信その他態様の如何を問わず利用することはできません。
+        {% else %}1. Copyrights and other intellectual property rights concerning the Service and all information related to the Service belong to the Developer or to right holders who have granted the Developer permission for their use.
+            <br>2. Users may not use information or content provided through the Service (including, but not limited to, game statistics, images, text, designs, programs, etc.; hereinafter referred to as "the Content") by any means, such as reproduction, adaptation, or public transmission, beyond the scope of private use permitted by copyright law.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第5条（外部サービスの利用）
+        {% else %}Article 5 (Use of External Services){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスは、情報提供のために、Supercellが提供するBrawl Stars APIを含む、一つまたは複数の第三者が提供する外部API（以下、総称して「外部API」といいます。）を利用しています。
+            <br>2. ユーザーは、外部APIの利用に関して、各外部APIの提供元（以下、総称して「API提供元」といいます。）が定める利用規約その他の条件（以下、「外部API規約等」といいます。）を遵守するものとします。本規約と外部API規約等が矛盾抵触する場合には、外部APIの利用に関しては外部API規約等が優先されるものとします。
+            <br>3. 外部APIの仕様変更、提供停止、またはその他のAPI提供元の事情により、本サービスの一部または全部が利用できなくなる場合があります。開発者は、これによりユーザーに生じた損害について、一切の責任を負わないものとします。
+        {% else %}1. The Service uses one or more third-party external APIs (hereinafter collectively referred to as "the External APIs"), including the Brawl Stars API provided by Supercell, to provide information.
+            <br>2. Users shall comply with the terms of service and other conditions (hereinafter referred to as "External API Terms, etc.") stipulated by the provider of each External API (hereinafter collectively referred to as "the API Providers") regarding the use of the External APIs. In the event of any conflict between these Terms and the External API Terms, etc., the External API Terms, etc. shall prevail concerning the use of the External APIs.
+            <br>3. Due to changes in the specifications of the External APIs, suspension of their provision, or other circumstances on the part of the API Providers, part or all of the Service may become unavailable. The Developer shall not be liable for any damage incurred by Users as a result thereof.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第6条（本サービスの提供の停止・中断等）
+        {% else %}Article 6 (Suspension or Interruption of the Provision of the Service, etc.){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 開発者は、以下のいずれかの事由があると判断した場合、ユーザーに事前に通知することなく本サービスの全部または一部の提供を停止または中断することができるものとします。
+            <br><span class="indent">(1) 本サービスにかかるコンピュータシステムの保守点検または更新を行う場合
+            <br><span class="indent">(2) 地震、落雷、火災、停電または天災などの不可抗力により、本サービスの提供が困難となった場合
+            <br><span class="indent">(3) コンピュータまたは通信回線等が事故により停止した場合
+            <br><span class="indent">(4) その他、開発者が本サービスの提供が困難と判断した場合
+            <br>2. 開発者は、本サービスの提供の停止または中断により、ユーザーまたは第三者が被ったいかなる不利益または損害についても、開発者に故意または重大な過失がある場合を除き、一切の責任を負わないものとします。
+        {% else %}1. The Developer may suspend or interrupt the provision of all or part of the Service without prior notice to Users if the Developer determines that any of the following reasons exist:
+            <br><span class="indent">(1) When performing maintenance, inspection, or updates of the computer systems related to the Service.
+            <br><span class="indent">(2) When the provision of the Service becomes difficult due to force majeure such as earthquakes, lightning, fire, power outages, or natural disasters.
+            <br><span class="indent">(3) When computers or communication lines, etc., stop due to an accident.
+            <br><span class="indent">(4) In any other cases where the Developer deems the provision of the Service to be difficult.
+            <br>2. The Developer shall not be liable for any disadvantage or damage incurred by Users or third parties as a result of the suspension or interruption of the provision of the Service, except in cases of willful misconduct or gross negligence on the part of the Developer.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第7条（利用制限および登録抹消）
+        {% else %}Article 7 (Usage Restrictions and Deregistration){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 開発者は、ユーザーが以下のいずれかに該当する場合には、事前の通知なく、ユーザーに対して本サービスの全部もしくは一部の利用を制限し、またはユーザーとしてのアカウント登録を抹消することができるものとします。
+            <br><span class="indent">(1) 本規約のいずれかの条項に違反した場合
+            <br><span class="indent">(2) 登録事項に虚偽の事実があることが判明した場合
+            <br><span class="indent">(3) その他、開発者が本サービスの利用を適当でないと判断した場合
+            <br>2. 開発者は、本条に基づき開発者が行った行為によりユーザーに生じた損害について、一切の責任を負わないものとします。
+        {% else %}1. If a User falls under any of the following, the Developer may, without prior notice, restrict the use of all or part of the Service for said User, or deregister said User's account:
+            <br><span class="indent">(1) If the User violates any provision of these Terms.
+            <br><span class="indent">(2) If it is found that there is a falsehood in the registered information.
+            <br><span class="indent">(3) In any other cases where the Developer deems the User's use of the Service to be inappropriate.
+            <br>2. The Developer shall not be liable for any damage incurred by Users as a result of actions taken by the Developer pursuant to this Article.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第8条（保証の否認および免責事項）
+        {% else %}Article 8 (Disclaimer of Warranties and Limitation of Liability){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスは、ゲームの戦績や統計情報等を提供する非公式のツールであり、API提供元およびゲームの開発・運営会社とは一切関係がありません。
+            <br>2. 開発者は、本サービスがユーザーの特定の目的に適合すること、期待する機能・商品的価値・正確性・有用性を有すること、ユーザーによる本サービスの利用がユーザーに適用のある法令または業界団体の内部規則等に適合すること、および不具合が生じないことについて、何ら保証するものではありません。
+            <br>3. 開発者は、本サービス上のいかなる情報やコンテンツについても、その安全性、信頼性、正確性、完全性、有効性、特定の目的への適合性、セキュリティなどに関する欠陥、エラーやバグ、権利侵害などがないことを明示的にも黙示的にも保証しておりません。
+            <br>4. ユーザーは、自己の判断と責任において、本サービスを利用するものとし、本サービスの利用に起因してユーザーに生じたあらゆる損害（精神的苦痛、またはその他の金銭的損失を含む一切の不利益）について、開発者に故意または重大な過失がある場合を除き、開発者は一切の責任を負わないものとします。
+        {% else %}1. The Service is an unofficial tool that provides game results, statistical information, etc., and is not affiliated in any way with the API Provider or the development/operating company of the game.
+            <br>2. The Developer makes no warranty whatsoever that the Service will be suitable for a User's specific purpose, possess the expected functionality, commercial value, accuracy, or usefulness, that a User's use of the Service will comply with applicable laws or internal rules of industry groups, or that defects will not occur.
+            <br>3. The Developer does not expressly or implicitly warrant that any information or content on the Service is free from defects, errors or bugs, or infringement of rights related to safety, reliability, accuracy, completeness, validity, fitness for a particular purpose, or security.
+            <br>4. Users shall use the Service at their own judgment and responsibility, and the Developer shall not be liable for any damage whatsoever incurred by Users arising from the use of the Service (including any disadvantages such as mental distress or other financial losses), except in cases of willful misconduct or gross negligence on the part of the Developer.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第9条（サービス内容の変更、追加、廃止）
+        {% else %}Article 9 (Changes, Additions, or Abolition of Service Content){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 開発者は、ユーザーに通知することなく、いつでも本サービスの内容を変更、追加または廃止することができるものとします。
+            <br>2. 開発者は、本サービスの内容の変更等によりユーザーに生じた損害について、一切の責任を負わないものとします。
+        {% else %}1. The Developer may change, add, or abolish the content of the Service at any time without notice to Users.
+            <br>2. The Developer shall not be liable for any damage incurred by Users as a result of changes, etc., to the content of the Service.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第10条（利用規約の変更）
+        {% else %}Article 10 (Changes to the Terms of Service){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 開発者は、開発者が必要と判断した場合には、ユーザーの個別の同意を得ることなく、いつでも本規約を変更することができるものとします。
+            <br>2. 変更後の本規約は、開発者が別途定める場合を除いて、本サービス上に表示された時点から効力を生じるものとします。
+            <br>3. 本規約の変更後、ユーザーが本サービスを利用した場合には、ユーザーは変更後の規約に同意したものとみなします。変更内容に同意できない場合は、本サービスの利用をお控えください。重要な変更については、事前に告知期間を設けるよう努めます。
+        {% else %}1. The Developer may change these Terms at any time without obtaining the individual consent of Users if the Developer deems it necessary.
+            <br>2. Unless otherwise specified by the Developer, the revised Terms shall become effective from the time they are displayed on the Service.
+            <br>3. If a User uses the Service after these Terms have been changed, the User is deemed to have agreed to the revised Terms. If you do not agree to the changes, please refrain from using the Service. The Developer will endeavor to provide an advance notice period for significant changes.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第11条（個人情報の取扱い）
+        {% else %}Article 11 (Handling of Personal Information){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}開発者は、本サービスの利用によって取得するユーザーの個人情報については、別途定める「<a href="{{ url_for('privacy_policy', lang=lang) }}" style="text-decoration: underline; text-decoration-color: #333;">プライバシーポリシー</a>」に従い適切に取り扱うものとします。ユーザーは、本サービスを利用する前に、プライバシーポリシーを必ず確認し、その内容に同意する必要があります。
+        {% else %}The Developer shall appropriately handle Users' personal information acquired through the use of the Service in accordance with the separately established "<a href="{{ url_for('privacy_policy', lang=lang) }}" style="text-decoration: underline; text-decoration-color: #333;">Privacy Policy</a>". Users must confirm the Privacy Policy and agree to its contents before using the Service.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第12条（権利義務の譲渡の禁止）
+        {% else %}Article 12 (Prohibition of Assignment of Rights and Obligations){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}ユーザーは、開発者の書面による事前の承諾なく、利用契約上の地位または本規約に基づく権利もしくは義務を第三者に譲渡し、または担保に供することはできません。
+        {% else %}Users may not assign their status under the user agreement or their rights or obligations under these Terms to a third party, or provide them as collateral, without the prior written consent of the Developer.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第13条（分離可能性）
+        {% else %}Article 13 (Severability){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}本規約のいずれかの条項またはその一部が、消費者契約法その他の法令等により無効または執行不能と判断された場合であっても、本規約の残りの規定および一部が無効または執行不能と判断された規定の残りの部分は、継続して完全に効力を有するものとします。
+        {% else %}If any provision of these Terms or part thereof is determined to be invalid or unenforceable under the Consumer Contract Act or other laws or regulations, the remaining provisions of these Terms and the remainder of any provision determined to be partially invalid or unenforceable shall continue in full force and effect.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第14条（準拠法・裁判管轄）
+        {% else %}Article 14 (Governing Law and Jurisdiction){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本規約の解釈にあたっては、日本法を準拠法とします。
+            <br>2. 本サービスに関して紛争が生じた場合には、開発者の所在地を管轄する地方裁判所または簡易裁判所を第一審の専属的合意管轄裁判所とします。
+        {% else %}1. These Terms shall be interpreted in accordance with Japanese law.
+            <br>2. In the event of any dispute arising in connection with the Service, the district court or summary court having jurisdiction over the location of the Developer shall be the exclusive agreed-upon court of first instance.{% endif %}</p>
+
+    <p class="terms-page__section">{% if lang == "ja" %}制定日：2025年5月23日
+            <br>最終改定日：2025年8月3日
+        {% else %}Date of Enactment: May 23, 2025
+            <br>Last Updated: August 3, 2025{% endif %}</p>
+    
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+{% endblock %}

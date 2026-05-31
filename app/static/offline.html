@@ -1,0 +1,113 @@
+<!-- /app/static/offline.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>現在オフラインです</title>
+    <style>
+        body {
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Hiragino Kaku Gothic ProN",
+                "Segoe UI",
+                "Yu Gothic UI",
+                "Meiryo",
+                Roboto,
+                "Noto Sans JP",
+                sans-serif;
+            line-height: 1.6; /* 基本の行間 */
+            color: #000; /* 基本の文字色 */
+            background-color: #fff; /* 基本の背景色 */
+            font-weight: 400;
+            -webkit-font-smoothing: antialiased; /* フォントのアンチエイリアス（macOS/iOS向け） */
+            -moz-osx-font-smoothing: grayscale; /* フォントのアンチエイリアス（Firefox向け） */
+        }
+        .offline-page__container {
+            width: 90%;
+            max-width: 1194px;
+            margin: 100px auto 20px;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .icon {
+            font-size: 48px;
+        }
+        .message h2 {
+            font-size: 36px;
+            font-weight: bold;
+            margin-top: 5px;
+            margin-bottom: 0;
+        }
+        .message p {
+            font-size: 16px;
+            margin-top: 10px;
+            margin-bottom: 0;
+        }
+        .retry-button {
+            cursor: pointer;
+            background: none; /* デフォルトの背景を削除 */
+            background-color: #fefefe;
+            border: 1px solid #bbb;
+            border-radius: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .retry-button:hover {
+            background-color: #eee;
+        }
+        /* 英語のテキストはデフォルトで非表示にする */
+        .lang-en {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-page__container">
+        <div class="icon">📡</div>
+        <div class="message">
+            <div class="lang-ja">
+                <h2>インターネットに接続できません</h2>
+                <p>Brawl Insightsをご利用いただくには、インターネット接続が必要です。<br>接続を確認して、もう一度お試しください。</p>
+                <button class="retry-button" onclick="window.location.reload()">再試行</button>
+            </div>
+            <div class="lang-en">
+                <h2>You are currently offline</h2>
+                <p>An internet connection is required to use Brawl Insights.<br>Please check your connection and try again.</p>
+                <button class="retry-button" onclick="window.location.reload()">Retry</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOMの読み込みが完了したら実行
+        document.addEventListener('DOMContentLoaded', function() {
+            // ブラウザ/WebViewの言語設定を取得 (例: "ja", "en-US")
+            const userLang = navigator.language || navigator.userLanguage;
+
+            const jaElement = document.querySelector('.lang-ja');
+            const enElement = document.querySelector('.lang-en');
+            const htmlElement = document.documentElement;
+
+            // 言語設定が日本語('ja')で始まる場合
+            if (userLang.startsWith('ja')) {
+                // 何もしない（デフォルトが日本語表示のため）
+            } else {
+                // それ以外の言語の場合は英語を表示
+                htmlElement.lang = 'en';
+                document.title = 'You are currently offline';
+                jaElement.style.display = 'none';
+                enElement.style.display = 'block';
+            }
+        });
+
+        window.addEventListener('online', () => {
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>

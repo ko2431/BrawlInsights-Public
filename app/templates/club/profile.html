@@ -1,0 +1,92 @@
+{# /app/templates/club/profile.html - シェルページ #}
+{% extends "base.html" %}
+
+{% block title %}{{ tag }} {% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのクラブ情報です。{% else %}{{ tag }} Brawl Stars club information.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/club.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="club-shell__container"
+     x-data="clubFragmentLoader('{{ url_for('get_club_profile_fragment', lang=lang, tag=tag[1:]) }}', '{% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %}')"
+     x-init="load()">
+
+    <template x-if="isLoading">
+        <div class="club-shell__loading">
+            <div class="club-shell__spinner"></div>
+            <p class="club-shell__loading-text">{% if lang == "ja" %}クラブデータを読み込み中...{% else %}Loading club data...{% endif %}</p>
+        </div>
+    </template>
+
+    <template x-if="hasError">
+        <div class="club-shell__error">
+            <p>{% if lang == "ja" %}データの読み込みに失敗しました。{% else %}Failed to load data.{% endif %}</p>
+            <button class="button button--secondary" @click="load()">
+                {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+            </button>
+        </div>
+    </template>
+
+    <div x-show="!isLoading && !hasError" x-ref="content"></div>
+
+    {# バナー広告 #}
+    <div style="margin: 0 5%">
+    {% include "components/ad_banner.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function clubFragmentLoader(url, pageLabel) {
+    return {
+        isLoading: true,
+        hasError: false,
+        updatePageTitle(container) {
+            const nameEl = container.querySelector('.club-header__name');
+            const tagEl = container.querySelector('.club-header__tag');
+            if (!nameEl || !tagEl) return;
+
+            const clubName = nameEl.textContent.trim();
+            const clubTag = tagEl.textContent.trim();
+            if (!clubName || !clubTag) return;
+            document.title = `${clubName} (${clubTag}) ${pageLabel} - Brawl Insights`;
+        },
+        async load() {
+            this.isLoading = true;
+            this.hasError = false;
+            try {
+                const res = await fetch(url, { credentials: 'same-origin' });
+                const html = await res.text();
+                if (!html || !html.trim()) throw new Error('Empty response');
+                const container = this.$refs.content;
+                container.innerHTML = html;
+
+                container.querySelectorAll('script').forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    if (!oldScript.src) {
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    } else {
+                        oldScript.remove();
+                    }
+                });
+                this.updatePageTitle(container);
+
+                if (!res.ok && !container.querySelector('.club-error-msg')) {
+                    throw new Error('HTTP ' + res.status);
+                }
+            } catch (e) {
+                console.error('Fragment load error:', e);
+                this.hasError = true;
+            } finally {
+                this.isLoading = false;
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

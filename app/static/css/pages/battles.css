@@ -1,0 +1,750 @@
+/* /app/static/css/pages/battles.css */
+/* =============================================== */
+/* バトル履歴ページ固有スタイル (/player/battles/...)   */
+/* =============================================== */
+/* --- バトル履歴ページ全体 --- */
+/* .player-page__container は player.css で定義済み想定 */
+.battles-page__container {
+    margin-bottom: 45px;
+}
+
+/* --- バトル履歴選択UIコンテナ --- */
+.battle-log-filters__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 10px auto; /* 上下マージン、左右中央揃え */
+    padding: 10px;
+    background-color: var(--bg-f8f8f8);
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+.dark .battle-log-filters__container {
+    border-color: #111;
+}
+
+/* --- サブタブナビゲーション (バトル履歴ページ内) --- */
+.sub-tab-nav {
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--color-ddd); /* components.css の tab-nav と少し変える */
+    position: relative;
+}
+.sub-tab-nav__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    /* PC版: 左寄せ (デフォルト) */
+}
+.sub-tab-nav__item {
+    margin-right: 4px; /* タブ間のわずかな隙間 */
+}
+.sub-tab-nav__item:last-child {
+    margin-right: 0;
+}
+.sub-tab-nav__link {
+    display: flex; /* アイコンとテキストを中央揃え */
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px; /* 少し小さめ */
+    font-weight: 500;
+    font-size: 14px; /* 少し小さめ */
+    color: #555;
+    background-color: #f0f0f0;
+    border: 1px solid var(--color-ddd);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0; /* 角丸を少し小さく */
+    transition: background-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    text-align: center;
+}
+.dark .sub-tab-nav__link {
+    background-color: #262626;
+    color: #ccc;
+}
+.sub-tab-nav__icon {
+    height: 18px; /* アイコンサイズ */
+    width: auto;
+    margin-right: 6px;
+}
+.sub-tab-nav__text {
+    line-height: 1;
+}
+.sub-tab-nav__link:hover {
+    background-color: #e0e0e0;
+    color: #333;
+}
+.dark .sub-tab-nav__link:hover {
+    background-color: #222;
+    color: #c9c9c9;
+}
+.sub-tab-nav__link--active {
+    background-color: #fff;
+    color: #333;
+    border-color: var(--color-ddd);
+    position: relative;
+    bottom: -1px;
+    font-weight: bold;
+    z-index: 1; /* 下線を隠すため */
+}
+.sub-tab-nav__link--active:hover {
+    background-color: #fff;
+    color: #333;
+}
+.dark .sub-tab-nav__link--active,
+.dark .sub-tab-nav__link--active:hover {
+    background-color: #1c1c1c;
+    color: #fff;
+}
+
+/* スマホ・タブレット版 サブタブ */
+@media (max-width: 839px) { /* player.css の .tab-nav のブレークポイントに合わせる */
+    .sub-tab-nav__list {
+        width: 100%; /* 90%から変更 */
+        /* 等幅分割のため flex-grow を設定 */
+    }
+    .sub-tab-nav__item {
+        flex-grow: 1;
+        flex-basis: 0;
+        margin-right: 0; /* 等幅分割のため不要に */
+    }
+    /*.sub-tab-nav__item:not(:last-child) { /* 最後の要素以外の右に線 */
+    /*    border-right: 1px solid #ddd;
+    /*}*/
+     .sub-tab-nav__link {
+        padding: 8px 5px; /* 左右パディングを詰める */
+        flex-direction: column; /* アイコンとテキストを縦積み */
+        font-size: 13px;
+    }
+    .sub-tab-nav__icon {
+        height: 26px;
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
+}
+@media (max-width: 679px) {
+    .sub-tab-nav__link {
+        font-size: 12px; /* さらに小さく */
+        padding: 7px 4px;
+    }
+    .sub-tab-nav__icon {
+        height: 24px;
+        margin-right: 0;
+        margin-bottom: 4.5px;
+    }
+}
+@media (max-width: 539px) {
+    .battle-log-filters__container {
+        width: 95%;
+    }
+    .sub-tab-nav__link {
+        font-size: 10px; /* さらに小さく */
+        padding: 6px 3px;
+    }
+    .sub-tab-nav__icon {
+        height: 22px;
+        margin-right: 0;
+        margin-bottom: 4px;
+    }
+}
+
+
+/* --- フィルターフォーム --- */
+.battle-log-filters {
+    display: flex;
+    flex-wrap: wrap; /* 折り返しを許可 */
+    gap: 10px; /* フィルターアイテム間の隙間 */
+    align-items: center; /* 垂直方向中央揃え */
+}
+.brawler-select-filter {
+    margin-right: 10px;
+}
+.season-select-filter {
+    margin-left: 5px;
+}
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* ラベルと入力要素の間の隙間 */
+}
+.filter-item__date-input {
+    /* カレンダーピッカーのスタイル調整はブラウザ依存が強いので最小限に */
+    min-width: 80px; /* ある程度の幅を確保 */
+    padding: 3px 8px;
+}
+.date-range-filter {
+    display: flex;
+    flex-wrap: wrap; /* PCでは1行、必要に応じて折り返し */
+    align-items: center;
+    gap: 5px; /* 各要素間の隙間 */
+}
+.date-range-filter__line-1,
+.date-range-filter__line-2 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.date-range-filter__main-label,
+.date-range-filter__separator {
+    white-space: nowrap; /* テキストの折り返しを防ぐ */
+}
+.date-range-filter__actions {
+    display: flex;
+    gap: 5px;
+    /* margin-left: auto; /* PC表示時に右寄せにするため（2行目がない場合） */
+}
+.date-range-filter__separator {
+    margin: 0 3px;
+}
+.filter-item__submit {
+    /* components.css の .button, .button--primary を流用 */
+    margin-left: 3px;
+    padding: 1px 12px; /* 少し小さめに */
+    font-size: 15px;
+}
+.filter-item__reset {
+    margin-left: 3px;
+    padding: 1px 12px; /* 少し小さめに */
+    font-size: 15px;
+}
+
+@media (max-width: 839px) {
+    .battle-log-filters {
+        flex-direction: column; /* スマホでは縦積み */
+        align-items: stretch; /* 幅をいっぱいにする */
+    }
+    .filter-item {
+        width: 100%;
+        justify-content: start;
+    }
+    .brawler-select-filter .filter-item__select,
+    .season-select-filter .filter-item__select,
+    .date-range-filter { /* 日付範囲はまとめて制御 */
+        flex-grow: 1; /* 残りの幅を占める */
+    }
+    .season-select-filter {
+        margin-left: 0;
+    }
+    .date-range-filter {
+        display: flex;
+        justify-content: start;
+    }
+     .filter-item__date-input {
+        flex-basis: calc(50% - 40px); /* 「から」とボタンの幅を考慮 */
+    }
+}
+
+@media (max-width: 539px) {
+    .filter-item__submit {
+        margin-left: 2px;
+        padding: 1px 9px; /* 少し小さめに */
+        font-size: 13px;
+    }
+    .filter-item__reset {
+        margin-left: 2px;
+        padding: 1px 9px; /* 少し小さめに */
+        font-size: 13px;
+    }
+}
+
+/* --- バトルカードグリッド --- */
+.battle-card-grid {
+    width: 90%;
+    max-width: 1194px;
+    display: grid;
+    gap: 10px; /* カード間の隙間 */
+    grid-template-columns: 1fr; /* デフォルト: 1列 */
+    margin: 12px auto 15px;
+}
+@media (min-width: 780px) {
+    .battle-card-grid {
+        grid-template-columns: repeat(2, 1fr); /* 2列 */
+    }
+}
+@media (min-width: 1194px) {
+    .battle-card-grid {
+        grid-template-columns: repeat(3, 1fr); /* 3列 */
+    }
+}
+
+/* --- バトルカード (簡易版) --- */
+.battle-card { /* components.css の .card を継承 */
+    /* 親のグリッドセルにピッタリ合わせる */
+    width: 100%;
+    box-sizing: border-box;
+
+    border-radius: 10px;
+    padding: 2.5px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+    /* 中身が膨張してはみ出すのを防ぐ */
+    overflow: hidden;
+    word-break: break-word;
+}
+.battle-card--win,
+.dark .battle-card--win {
+    border: 2px solid rgb(6, 154, 6);
+    background-color: #e6ffe6; /*薄緑*/
+}
+.battle-card--lose,
+.dark .battle-card--lose {
+    border: 2px solid red;
+    background-color: #ffe6e6; /*薄赤*/
+}
+.battle-card--draw,
+.dark .battle-card--draw {
+    border: 2px solid lightblue;
+    background-color: #e6f7ff; /*薄水色*/
+}
+
+.battle-card__result-block {
+    border-radius: 7px 7px 0 0;
+    padding: 0 5px;
+    height: 22px;
+    width: 100%;
+    background-color: #333;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.battle-card__playedwith-block {
+    border-radius: 0 0 7px 7px;
+    padding: 0 5px;
+    min-height: 24px;
+    width: 100%;
+    background-color: #333;
+    color: #fff;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    max-width: 100%;
+}
+.battle-card__new-playedwith-block {
+    width: 100%;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+}
+.battle-card__vs-icon {
+    height: 24px;
+    width: auto;
+}
+.battle-card__new-playedwith-block__brawler-portrait {
+    height: 24px;
+    width: 24px;
+}
+.battle-card__new-playedwith-block__player {
+    position: relative;
+    width: 24px;
+}
+.battle-card__new-playedwith-block__name {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 4px;
+    max-width: 24px;
+    height: 10.5px;
+    background-color: rgba(0, 0, 0, 0.8);
+    font-size: 7px;
+    color: #fff;
+    /* 中身が膨張してはみ出すのを防ぐ */
+    overflow: hidden;
+    word-break: break-word;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+.battle-card__playedwith-block-name-line {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.battle-card__icon {
+    display: inline;
+    height: 1em;
+    width: auto;
+}
+.battle-card__icon-trophy {
+    vertical-align: -2.5px;
+    margin: 0 1px;
+}
+.battle-card__icon-trophy__small {
+    vertical-align: -1.5px;
+    margin: 0 1px;
+}
+
+.battle-card__main-block {
+    height: 50px;
+    width: 100%;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.battlecard__main-block-left {
+    position: relative;
+    display: inline-block;
+}
+.battle-card__main-block-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+.battlecard__main-block-right {
+    position: relative;
+    display: inline-block;
+    max-width: calc(50% - 21px);
+    overflow: hidden;
+}
+
+.battle-card__main-block-left__brawlers {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+.battle-card__main-block-left__brawler-block {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+.battle-card__main-block-left-info {
+    position: relative;
+    padding: 0 3px;
+}
+
+.battle-card__brawler-portrait {
+    height: 50px;
+    width: auto;
+}
+.battle-card__brawler-border-portrait {
+    width: 50px;
+}
+.battle-card__brawler-portrait__badge-top-left {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+}
+.battle-card__brawler-starplayer {
+    height: 15px;
+    width: auto;
+}
+.battle-card__brawler-portrait__badge-bottom-left {
+    position: absolute;
+    bottom: 1px;
+    left: 1px;
+}
+.battle-card__brawler-power {
+    height: 13.5px;
+    width: auto;
+}
+.battle-card__main-block-center__icon {
+    height: 46px;
+    width: auto;
+}
+.battle-card__main-block-center__icon-ranked {
+    height: 48px;
+}
+.battle-card__main-block-center__icon-ranked__before {
+    margin-top: 4.5px;
+    margin-right: 1.5px;
+    height: 15px;
+    width: auto;
+}
+.battle-card__main-block-center__icon-ranked__after {
+    margin-top: 5px;
+    margin-right: 2.25px;
+    height: 21px;
+    width: auto;
+}
+
+.battle-card__main-block-center__trophy-change-block {
+    height: 46px;
+    min-width: 54px;
+    border: 1.5px solid #333;
+    background-color: rgba(255, 255, 255, 0.35);
+    color: #111;
+    font-weight: bold;
+    padding: 0 4.5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.battle-card__main-block-center__trophy-change-block__small {
+    padding: 0 2px;
+    height: 32px;
+    min-width: 32px;
+    max-width: 40px;
+}
+.battle-card__main-block-center__trophy-change-block-w {
+    border-color: rgb(6, 154, 6);
+}
+.battle-card__main-block-center__trophy-change-block-l {
+    border-color: red;
+}
+.battle-card__main-block-center__trophy-change-block-d {
+    border-color: lightblue;
+}
+.battle-card__main-block-center__trophy-change-block__before {
+    height: 15px;
+    font-size: 15px;
+    margin-top: -4px;
+}
+.battle-card__main-block-center__score-change-block__before {
+    display: flex;
+}
+.battle-card__main-block-center__trophy-change-block__arrow {
+    height: 10px;
+    font-size: 10px;
+    margin-top: 0.5px;
+}
+.battle-card__main-block-center__trophy-change-block__after {
+    height: 21px;
+    font-size: 21px;
+    margin-top: -5px;
+}
+.battle-card__main-block-center__score-change-block__after {
+    display: flex;
+}
+.battle-card__main-block-center__trophy-change-block__before__small {
+    height: 10px;
+    font-size: 10px;
+    margin-top: -1.5px;
+}
+.battle-card__main-block-center__trophy-change-block__arrow__small {
+    height: 7px;
+    font-size: 7px;
+    margin-top: 0.5px;
+}
+.battle-card__main-block-center__trophy-change-block__after__small {
+    height: 11px;
+    font-size: 11px;
+    margin-top: -1.5px;
+}
+.battle-card__main-block-left-info__trophy-change {
+    max-height: 14px;
+    font-size: 11px;
+    color: #111;
+    font-weight: bold;
+}
+
+.battle-card__mode-icon {
+    height: 48px;
+    width: auto;
+}
+.battle-card__mode-icon__badge-bottom-right {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    max-width: calc(100% - 21px);
+    height: 14px;
+    border-radius: 7px;
+    padding: 2.5px 4px;
+    border: 1px solid #111;
+    background-color: #333;
+    font-size: 12px;
+    color: #fff;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+.battle-card__mode-icon__badge-bottom-right__text {
+    position: relative;
+    top: -6px; /* 上に調整 */
+}
+
+/* --- データなしメッセージ --- */
+.battle-log-no-data {
+    width: 90%;
+    max-width: 1194px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 20px 0;
+    color: #777;
+    font-size: 16px;
+}
+
+/* --- ページネーションのマージン調整 --- */
+.battle-log-pagination {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* =============================================== */
+/* バトル履歴ページ 表・グラフエリア                    */
+/* =============================================== */
+.battle-log-summary__container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 10px auto 50px;
+}
+
+.summary-grid {
+    display: grid;
+    margin-bottom: 20px; /* 次のグリッドコンテナとのマージン */
+}
+.summary-grid:last-child {
+    margin-bottom: 0;
+}
+
+.chart-wrapper {
+    position: relative; /* canvasのレスポンシブ対応のため */
+    height: 280px;  /* HTML側で設定済み、またはここで設定 */
+    width: 100%;
+    padding-top: 5px;
+}
+
+/* --- x2 グリッド (「すべて」など) --- */
+.summary-grid--x2-wide {
+    grid-template-columns: 1fr; /* デフォルト1列 */
+}
+@media (min-width: 1194px) { /* PC大画面で2列 */
+    .summary-grid--x2-wide {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+}
+
+/* --- x2 グリッド (「すべて」など) --- */
+.summary-grid--x2 {
+    grid-template-columns: 1fr; /* デフォルト1列 */
+}
+@media (min-width: 840px) { /* PC大画面で2列 */
+    .summary-grid--x2 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+}
+
+/* --- x3 グリッド (「円グラフ」など) --- */
+.summary-grid--x3 {
+    grid-template-columns: 1fr; /* デフォルト1列 */
+}
+@media (min-width: 840px) { /* 大画面で2列 */
+    .summary-grid--x3 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+}
+@media (min-width: 1194px) { /* 大画面で3列 */
+    .summary-grid--x3 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+    }
+}
+
+
+/* =============================================== */
+/* バトル勝敗ダイジェスト                             */
+/* =============================================== */
+.battle-results-digest-container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 10px auto 0;
+}
+.battle-results-digest-box {
+    background-color: #fdfdfd;
+    border: 1px solid #f0f0f0;
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 5px;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 9px;
+}
+.dark .battle-results-digest-box {
+    background-color: #2c2c2c;
+    border-color: #484848;
+}
+.battle-results-digest {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: 11px;
+    width: 100%;
+    aspect-ratio: 1 / 1; /* 正方形にする */
+}
+.battle-results-digest--win {
+    border: 2px solid rgb(6, 154, 6);
+    background-color: #e6ffe6; /*薄緑*/
+}
+.battle-results-digest--lose {
+    border: 2px solid red;
+    background-color: #ffe6e6; /*薄赤*/
+}
+.battle-results-digest--draw {
+    border: 2px solid lightblue;
+    background-color: #e6f7ff; /*薄水色*/
+}
+.battle-results-digest__mode-icon-wrapper {
+    display: flex; /* 画像を中央揃えにするため */
+    justify-content: center;
+    align-items: center;
+    width: 80%;
+    height: 80%;
+}
+.battle-results-digest__mode-icon {
+    /* ラッパー要素に対して最大サイズになるように設定 */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+.battle-results-digest__brawler-icon {
+    position: absolute;
+    top: 7%;
+    left: 7%;
+    height: 45%;
+    width: auto; /* 高さに合わせて幅を自動調整 */
+}
+@media (max-width: 1080px) {
+    .battle-results-digest-box {
+        grid-template-columns: repeat(15, 1fr);
+        gap: 8px;
+    }
+    .battle-results-digest {
+        border-radius: 10px;
+    }
+}
+@media (max-width: 840px) {
+    .battle-results-digest-box {
+        grid-template-columns: repeat(12, 1fr);
+        gap: 7px;
+    }
+    .battle-results-digest {
+        border-radius: 9px;
+    }
+}
+@media (max-width: 640px) {
+    .battle-results-digest-box {
+        grid-template-columns: repeat(10, 1fr);
+        gap: 6px;
+    }
+    .battle-results-digest {
+        border-radius: 8px;
+    }
+}
+@media (max-width: 540px) {
+    .battle-results-digest-box {
+        grid-template-columns: repeat(8, 1fr);
+        gap: 5px;
+    }
+    .battle-results-digest {
+        border-radius: 7px;
+    }
+}

@@ -1,0 +1,42 @@
+/* /app/static/css/pages/exception.css */
+/* =============================================== */
+/* エラーページ固有のスタイル                          */
+/* =============================================== */
+
+/* --- ページコンテナ --- */
+.error-page__container {
+    /* ホームページ全体のコンテナ */
+    width: 90%; /* 幅 */
+    max-width: 1194px; /* 最大幅 */
+    margin: 0 auto; /* 中央揃え */
+    padding: 5px 0 45px; /* 上下のわずかな余白 */
+}
+
+.error__text {
+    margin-left: 5px;
+    font-size: 16px;
+}
+
+.error__text-link {
+    margin-top: 3px;
+    text-decoration: underline;
+}
+
+/* --- レスポンシブ調整 (スマホ) --- */
+@media (max-width: 839px) {
+    .error-page__container {
+        padding: 5px 0 20px; /* PCより上下の余白を詰める */
+    }
+    .error__text {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 539px) {
+    .error-page__container {
+        padding: 2px 0 15px; /* さらに詰める */
+    }
+    .error__text {
+        font-size: 14px;
+    }
+}

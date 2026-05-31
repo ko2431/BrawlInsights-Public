@@ -1,0 +1,345 @@
+{# /app/templates/admin/giftcodes.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / ギフトコード管理{% endblock %}
+{% block og_description %}ギフトコードを管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="giftcodeAdmin()">
+    <h1 class="page-title--main">ギフトコード管理</h1>
+
+    <p class="admin-page__description">
+        ギフトコード総数: <b>{{ giftcodes|length }}</b>
+    </p>
+
+    <p class="admin-page__description">
+        <b>報酬の書き方</b> (この順番で指定すること)
+        <br>"user_id": 指定した場合、このユーザーID以外からの使用は拒絶する。
+        <br>"user_ids": 指定した場合、このユーザーID以外からの使用は拒絶する。"1,2,3"のようにカンマ区切りの文字列で指定すること。
+        <br>"user_name": 指定した場合、このユーザー名以外からの使用は拒絶する。
+        <br>"msg": ギフトコードが使用できた場合に出力するメッセージ(各言語で共通設定する場合はこれ)
+        <br>"msg_ja": 日本語でのメッセージ
+        <br>"msg_en": 英語でのメッセージ
+        <br>"claim_tokens": 指定した数のトークンを受け取る。上限にすでに達しているユーザーは受け取れない。
+        <br>"claim_tickets": 指定した数の広告スキップチケットを受け取る。広告削除が有効のユーザーは、🎟️1=10トークンの代替報酬として受け取る。
+        <br>"spend_tokens": 指定した数のトークンを消費する。数が足りなくて消費できない場合は使えない。
+        <br>*以下、上限を増やす系のギフトは、もともと上限がない(無制限: None)ユーザーの場合は完全にスキップする。
+        <br>"saved_accounts_limit": ブックマーク上限を指定した数だけ増やす。
+        <br>"saved_accounts_limit_max24": ブックマーク上限を指定した数だけ増やす。ただし適用後24を超えた場合は24になる。
+        <br>"viewed_accounts_limit": 閲覧履歴上限を指定した数だけ増やす。
+        <br>"viewed_accounts_limit_max25": 閲覧履歴上限を指定した数だけ増やす。ただし適用後25を超えた場合は25になる。
+        <br>"is_delete_ads": 広告非表示設定を更新する。trueまたはfalse。
+        <br>"is_admin": 管理者かどうかの設定を更新する。trueまたはfalse。
+        <br>"is_invalid": trueを指定すると、アカウントを無効化する。通常の操作では戻せないので注意！
+        <br>"is_prohibit_posting": 投稿を禁止するかどうかの設定を更新する。trueまたはfalse。
+        <br>"custom_settings": カスタム設定を上書きする。辞書で指定。
+        <br>"custom_settings_merge": カスタム設定を結合(被った項目は上書き)する。辞書で指定。
+        <br>"token_limit": トークン所持上限を指定した数だけ増やす。
+        <br>"token_limit_overwrite": トークン所持上限を上書きする。None(null)を指定すると上限なしになる。
+        <br><b>見本（トークン付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_tokens": 10}
+        <br><b>見本（チケット付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_tickets": 3}
+        <br><b>見本（プレ企画）</b> {"giveaway": true, "spend_tokens": 20}
+        <br><b>見本（トークン景品）</b> {"user_ids": "1,2,3", "msg_ja": "プレゼント企画の景品受け取りが完了しました。", "msg_en": "Gift code successfully used.", "claim_tokens": 100}
+    </p>
+
+    {# フィルターボタン #}
+    <div class="filter-buttons" style="margin-top: 15px;">
+        <a href="/{{ lang }}/admin/giftcodes?filter=all" class="button {% if current_filter == 'all' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'all' %}disabled{% endif %}>すべて</a>
+        <a href="/{{ lang }}/admin/giftcodes?filter=valid" class="button {% if current_filter == 'valid' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'valid' %}disabled{% endif %}>有効</a>
+        <a href="/{{ lang }}/admin/giftcodes?filter=invalid" class="button {% if current_filter == 'invalid' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'invalid' %}disabled{% endif %}>無効</a>
+    </div>
+
+    {# 新規追加フォーム #}
+    <div class="add-new-item-form">
+        <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しいギフトコードを追加</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="new_code" class="form-label">コード (必須)</label>
+                <input type="text" id="new_code" class="form-input" x-model="newGiftcode.code" @input="validateNewCode()">
+                <div class="form-field-status" x-html="newGiftcodeStatus.code"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_reward" class="form-label">報酬 (JSON形式, 必須)</label>
+                <textarea id="new_reward" class="form-input" x-model="newGiftcode.reward_str" @input="validateNewReward()" rows="3" placeholder='{ "claim_tokens": 10 }'></textarea>
+                <div class="form-field-status" x-html="newGiftcodeStatus.reward_str"></div>
+            </div>
+            <div class="form-group">
+                <label for="new_limit_per_user" class="form-label">ユーザーあたり使用回数上限 (任意, 空欄=無制限)</label>
+                <input type="number" id="new_limit_per_user" class="form-input" x-model.number="newGiftcode.usage_limit_per_user" min="1">
+            </div>
+            <div class="form-group">
+                <label for="new_limit_total" class="form-label">総使用回数上限 (任意, 空欄=無制限)</label>
+                <input type="number" id="new_limit_total" class="form-input" x-model.number="newGiftcode.usage_limit_total" min="1">
+            </div>
+             <div class="form-group">
+                <label for="new_expiration" class="form-label">有効期限 (空欄=無期限)</label>
+                <input type="datetime-local" id="new_expiration" class="form-input" x-model="newGiftcode.expiration_datetime">
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <label for="new_is_admin_only" class="form-checkbox-label">管理者限定</label>
+                <input type="checkbox" id="new_is_admin_only" class="form-checkbox" x-model="newGiftcode.is_admin_only">
+            </div>
+            <div class="form-group form-actions">
+                <button type="button" class="button button--primary" @click="confirmAddGiftcode()" :disabled="!isNewGiftcodeFormValid">追加</button>
+            </div>
+        </div>
+        <div x-show="addStatus.message" class="form-field-status server-response"
+             :class="{ 'success': addStatus.success, 'error': !addStatus.success && addStatus.message }"
+             x-text="addStatus.message" style="margin-top: 5px;">
+        </div>
+    </div>
+
+    {# 既存コード編集テーブル #}
+    <div class="save-changes-block" style="margin-top: 25px;">
+        <p>既存のギフトコードを編集できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table giftcode-table">
+            <thead>
+                <th @click="sortBy('code')"><span>コード</span><span x-show="sortColumn === 'code'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th style="min-width: 60px;">報酬</th>
+                <th @click="sortBy('is_admin_only')"><span>管理者限定</span><span x-show="sortColumn === 'is_admin_only'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('num_of_uses')"><span>使用回数</span><span x-show="sortColumn === 'num_of_uses'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th>使用履歴</th>
+                <th @click="sortBy('usage_limit_per_user')" style="min-width: 60px;"><span>上限(ユーザー)</span><span x-show="sortColumn === 'usage_limit_per_user'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('usage_limit_total')" style="min-width: 60px;"><span>上限(合計)</span><span x-show="sortColumn === 'usage_limit_total'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('is_invalid')"><span>無効</span><span x-show="sortColumn === 'is_invalid'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('expiration_datetime')"><span>有効期限</span><span x-show="sortColumn === 'expiration_datetime'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+            </thead>
+            <tbody>
+                <template x-for="gc in giftcodesData" :key="gc.code">
+                    <tr x-data="giftcodeRow(gc)" x-init="init()">
+                        <td x-text="gc.code"></td>
+                        <td><textarea class="form-input" x-model="currentRow.reward_str" :class="{ 'changed': isRewardDirty, 'invalid': !isRewardValid && isRewardDirty }" @input="validateReward(); updateAndNotify()"></textarea></td>
+                        <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_admin_only" @change="updateAndNotify()"></td>
+                        <td x-text="gc.num_of_uses" class="cell-right"></td>
+                        <td class="cell-usage-log"><div class="usage-log-container" x-text="gc.usage_log.join(', ')"></div></td>
+                        <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_per_user" :class="{ 'changed': isLimitUserDirty }" @input.debounce.300ms="updateAndNotify()"></td>
+                        <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_total" :class="{ 'changed': isLimitTotalDirty }" @input.debounce.300ms="updateAndNotify()"></td>
+                        <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_invalid" @change="updateAndNotify()"></td>
+                        <td><input type="datetime-local" class="form-input" x-model="currentRow.expiration_datetime" :class="{ 'changed': isExpirationDirty }" @change="updateAndNotify()"></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function giftcodeAdmin() {
+            return {
+                giftcodesData: {{ giftcodes | tojson | safe }},
+                sortColumn: 'code',
+                sortDirection: 'asc',
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                addStatus: { message: '', success: false },
+                newGiftcode: {
+                    code: '',
+                    reward_str: '',
+                    is_admin_only: false,
+                    usage_limit_per_user: 1,
+                    usage_limit_total: null,
+                    expiration_datetime: ''
+                },
+                newGiftcodeStatus: { code: '', reward_str: '' },
+                isNewCodeValid: false,
+                isNewRewardValid: false,
+                get isNewGiftcodeFormValid() {
+                    return this.isNewCodeValid && this.isNewRewardValid;
+                },
+
+                init() {
+                    this.sortBy(this.sortColumn, true);
+                    this.$root.addEventListener('rowinputchanged', () => this.checkForAnyChanges());
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault(); event.returnValue = '';
+                        }
+                    });
+                },
+                
+                validateNewCode() {
+                    const code = this.newGiftcode.code.trim();
+                    if (code.length === 0) {
+                        this.newGiftcodeStatus.code = '<span class="text-red-500">コードは必須です。</span>';
+                        this.isNewCodeValid = false;
+                    } else if (this.giftcodesData.some(gc => gc.code.toLowerCase() === code.toLowerCase())) {
+                        this.newGiftcodeStatus.code = '<span class="text-red-500">このコードは既に使用されています。</span>';
+                        this.isNewCodeValid = false;
+                    } else {
+                        this.newGiftcodeStatus.code = '<span class="text-green-500">OK</span>';
+                        this.isNewCodeValid = true;
+                    }
+                },
+                validateNewReward() {
+                    try {
+                        JSON.parse(this.newGiftcode.reward_str);
+                        this.newGiftcodeStatus.reward_str = '<span class="text-green-500">OK</span>';
+                        this.isNewRewardValid = true;
+                    } catch (e) {
+                        this.newGiftcodeStatus.reward_str = '<span class="text-red-500">有効なJSON形式で入力してください。</span>';
+                        this.isNewRewardValid = false;
+                    }
+                },
+
+                confirmAddGiftcode() {
+                    this.validateNewCode();
+                    this.validateNewReward();
+                    if (!this.isNewGiftcodeFormValid) return;
+                    if (confirm(`新しいギフトコード「${this.newGiftcode.code}」を追加しますか？`)) {
+                        this.addGiftcode();
+                    }
+                },
+                async addGiftcode() {
+                    this.addStatus.message = '追加中...';
+                    this.addStatus.success = false;
+                    try {
+                        const payload = { ...this.newGiftcode };
+                        if (payload.usage_limit_per_user === '') payload.usage_limit_per_user = null;
+                        if (payload.usage_limit_total === '') payload.usage_limit_total = null;
+                        if (payload.expiration_datetime === '') payload.expiration_datetime = null;
+                        
+                        const response = await fetch("{{ url_for('admin_add_giftcode', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await response.json();
+                        this.addStatus.message = data.message;
+                        this.addStatus.success = data.success;
+                        if (data.success) {
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.addStatus.message = '追加処理中にエラーが発生しました。';
+                        this.addStatus.success = false;
+                    }
+                },
+                
+                checkForAnyChanges() {
+                    this.hasUnsavedChanges = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                                                 .some(rowEl => Alpine.$data(rowEl)?.isDirty);
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = (column === 'code') ? 'asc' : 'desc';
+                    }
+                    this.giftcodesData.sort((a, b) => {
+                        let valA = a[column]; let valB = b[column];
+                        const isEmpty = val => val === null || val === '';
+                        if (isEmpty(valA) && isEmpty(valB)) return 0;
+                        if (isEmpty(valA)) return 1;
+                        if (isEmpty(valB)) return -1;
+                        let comparison = 0;
+                        if (typeof valA === 'number') {
+                            comparison = valA - valB;
+                        } else if (typeof valA === 'boolean') {
+                            comparison = (valA === valB) ? 0 : (valA ? 1 : -1);
+                        } else {
+                            comparison = String(valA).localeCompare(String(valB));
+                        }
+                        return this.sortDirection === 'asc' ? comparison : comparison * -1;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.checkForAnyChanges();
+                    if (!this.hasUnsavedChanges) return;
+
+                    let invalidRowsExist = false;
+                    const changedItems = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData.isDirty) {
+                            if (rowData.isRowCompletelyValid) {
+                                changedItems.push(rowData.currentRow);
+                            } else {
+                                invalidRowsExist = true;
+                            }
+                        }
+                    });
+
+                    if (invalidRowsExist) {
+                        this.saveStatus = { message: 'エラー: 報酬が有効なJSONではありません。', success: false };
+                        return;
+                    }
+                    if (changedItems.length > 0 && confirm(`${changedItems.length}件のギフトコードを更新しますか？`)) {
+                        this.saveChanges(changedItems);
+                    }
+                },
+                async saveChanges(itemsToUpdate) {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_giftcodes', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ giftcodes: itemsToUpdate })
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                }
+            }
+        }
+
+        function giftcodeRow(initialData) {
+            return {
+                currentRow: { ...initialData },
+                get isRewardDirty() { return initialData.reward_str !== this.currentRow.reward_str; },
+                get isLimitUserDirty() { return initialData.usage_limit_per_user !== this.currentRow.usage_limit_per_user; },
+                get isLimitTotalDirty() { return initialData.usage_limit_total !== this.currentRow.usage_limit_total; },
+                get isExpirationDirty() { return initialData.expiration_datetime !== this.currentRow.expiration_datetime; },
+                get isDirty() {
+                    return initialData.reward_str !== this.currentRow.reward_str ||
+                           initialData.is_admin_only !== this.currentRow.is_admin_only ||
+                           initialData.usage_limit_per_user !== this.currentRow.usage_limit_per_user ||
+                           initialData.usage_limit_total !== this.currentRow.usage_limit_total ||
+                           initialData.is_invalid !== this.currentRow.is_invalid ||
+                           initialData.expiration_datetime !== this.currentRow.expiration_datetime;
+                },
+                isRewardValid: true,
+                get isRowCompletelyValid() { return this.isRewardValid; },
+                init() {},
+                validateReward() {
+                    try {
+                        JSON.parse(this.currentRow.reward_str);
+                        this.isRewardValid = true;
+                    } catch (e) {
+                        this.isRewardValid = false;
+                    }
+                },
+                updateAndNotify() { this.$dispatch('rowinputchanged'); }
+            }
+        }
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('giftcodeAdmin', giftcodeAdmin);
+            Alpine.data('giftcodeRow', giftcodeRow);
+        });
+    </script>
+{% endblock %}

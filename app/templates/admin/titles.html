@@ -1,0 +1,504 @@
+{# /app/templates/admin/titles.html #}
+{% extends "base.html" %}
+
+{% block title %}管理者向け / キャッチフレーズ情報管理{% endblock %}
+{% block og_description %}キャッチフレーズ情報を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <style>
+        .table-wrapper {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .brawler-status-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f7f7f7; 
+            border-top: none;
+            box-shadow: 0 1px 0 #ccc;
+        }
+        .dark .brawler-status-table thead th {
+            background-color: #111;
+            box-shadow: 0 1px 0 #444;
+        }
+        
+        .filter-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-select {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            color: #333;
+        }
+        .dark .filter-select {
+            background-color: #222;
+            color: #ddd;
+            border-color: #444;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="titleAdmin()">
+    <h1 class="page-title--main">キャッチフレーズ情報管理</h1>
+
+    <p class="admin-page__description" style="margin-bottom: 10px;">
+        登録キャッチフレーズ総数: <b x-text="filteredData.length"></b> (日本語名未登録: <b x-text="missingJaNameCount" :class="{'text-danger': missingJaNameCount > 0}"></b>)
+        <br>レア度は金色=10, 虹色=20, 青色=30で指定すること。
+    </p>
+    
+    <div class="filter-container">
+        <select class="filter-select" x-model="filterBrawlerId" @change="applyFilter()">
+            <option value="">すべてのキャラクター</option>
+            <option value="none">キャラクターなし</option>
+            <template x-for="b in brawlersList" :key="b.id">
+                <option :value="b.id" x-text="`${b.id} - ${b.name}`"></option>
+            </template>
+        </select>
+    </div>
+
+    <div class="save-changes-block">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper" style="overflow-x: auto;">
+        <table class="data-table brawler-status-table" style="white-space: nowrap;">
+            <thead>
+                <tr>
+                    <th @click="sortBy('id')" class="col-frozen">
+                        <span>ID</span>
+                        <span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('brawler_id')">
+                        <span>キャラID</span>
+                        <span x-show="sortColumn === 'brawler_id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('brawler_name_ja')" class="col-frozen">
+                        <span>キャラクター名</span>
+                        <span x-show="sortColumn === 'brawler_name_ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('rarity')">
+                        <span>レアリティ</span>
+                        <span x-show="sortColumn === 'rarity'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('equip_rate')">
+                        <span>装備率</span>
+                        <span x-show="sortColumn === 'equip_rate'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('en')">
+                        <span>英語名</span>
+                        <span x-show="sortColumn === 'en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('ja')">
+                        <span>日本語名</span>
+                        <span x-show="sortColumn === 'ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="title in filteredData" :key="title.id">
+                    <tr x-data="titleRow(title)" x-init="initRow()">
+                        <td x-text="title.id" style="text-align: center;"></td>
+                        
+                        {# キャラID #}
+                        <td contenteditable="true" class="is-editable"
+                            :class="{
+                                'changed': isDirtyField('brawler_id'),
+                                'invalid': isDirtyField('brawler_id') && !isValidField('brawler_id'),
+                                'show-placeholder': isEmptyField('brawler_id') && !focusedField['brawler_id']
+                            }"
+                            :data-placeholder="isEmptyField('brawler_id') ? '未入力' : ''"
+                            @focus="handleFocus($el, 'brawler_id')"
+                            @blur="focusedField['brawler_id'] = false; handleBlur($el, 'brawler_id')"
+                            @input.debounce.300ms="handleInput($el, 'brawler_id')"
+                            data-field="brawler_id"
+                            style="text-align: center;">
+                        </td>
+
+                        {# キャラクター名 #}
+                        <template x-if="!isEmptyField('brawler_id') && !isDirtyField('brawler_id')">
+                             <td x-text="title.brawler_name_ja || 'Unknown'"></td>
+                        </template>
+                        <template x-if="!isEmptyField('brawler_id') && isDirtyField('brawler_id')">
+                             <td style="color: #999; font-style: italic;">(保存後に反映)</td>
+                        </template>
+                        <template x-if="isEmptyField('brawler_id')">
+                             <td style="color: #999; font-style: italic;">キャラクターなし</td>
+                        </template>
+
+                        {# レアリティ #}
+                        <td contenteditable="true" class="is-editable"
+                            :class="{
+                                'changed': isDirtyField('rarity'),
+                                'invalid': isDirtyField('rarity') && !isValidField('rarity'),
+                                'show-placeholder': isEmptyField('rarity') && !focusedField['rarity']
+                            }"
+                            :data-placeholder="isEmptyField('rarity') ? '未入力' : ''"
+                            @focus="handleFocus($el, 'rarity')"
+                            @blur="focusedField['rarity'] = false; handleBlur($el, 'rarity')"
+                            @input.debounce.300ms="handleInput($el, 'rarity')"
+                            data-field="rarity"
+                            style="text-align: right; min-width: 70px;">
+                        </td>
+
+                        {# 装備率 #}
+                        <td style="text-align: right;" x-text="formatRate(title.equip_rate)"></td>
+
+                        {# 英語名 #}
+                        <td contenteditable="true" class="is-editable"
+                        :class="{
+                            'changed': isDirtyField('en'),
+                            'show-placeholder': isEmptyField('en') && !focusedField['en']
+                        }"
+                        :data-placeholder="isEmptyField('en') ? '未入力' : ''"
+                        @focus="handleFocus($el, 'en')"
+                        @blur="focusedField['en'] = false; handleBlur($el, 'en')"
+                        @input.debounce.300ms="handleInput($el, 'en')"
+                        data-field="en"
+                        style="min-width: 120px; max-width: 300px; white-space: pre-wrap; word-break: break-all;">
+                        </td>
+
+                        {# 日本語名 #}
+                        <td contenteditable="true" class="is-editable"
+                        :class="{
+                            'changed': isDirtyField('ja'),
+                            'show-placeholder': isEmptyField('ja') && !focusedField['ja']
+                        }"
+                        :data-placeholder="isEmptyField('ja') ? '未入力' : ''"
+                        @focus="handleFocus($el, 'ja')"
+                        @blur="focusedField['ja'] = false; handleBlur($el, 'ja')"
+                        @input.debounce.300ms="handleInput($el, 'ja')"
+                        data-field="ja"
+                        style="min-width: 120px; max-width: 300px; white-space: pre-wrap; word-break: break-all;">
+                        </td>
+                    </tr>
+                </template>
+                <template x-if="filteredData.length === 0">
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #777;">該当するキャッチフレーズデータがありません</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="save-changes-block" style="margin-top: 0;">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-top: -5px;">
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function toDisplayStr(value) {
+            if (value === null || typeof value === 'undefined') return '';
+            return String(value);
+        }
+
+        function titleAdmin() {
+            return {
+                titlesDataRaw: {{ titles | tojson | safe }},
+                filteredData: [],
+                brawlersList: [],
+                sortColumn: 'brawler_id',
+                sortDirection: 'asc',
+                filterBrawlerId: '',
+                hasUnsavedChanges: false,
+                hasInvalidFields: false,
+                saveStatus: { message: '', success: false },
+
+                get canSave() {
+                    return this.hasUnsavedChanges && !this.hasInvalidFields;
+                },
+
+                get missingJaNameCount() {
+                    return this.filteredData.filter(s => {
+                        const ja = (s.ja === null || typeof s.ja === 'undefined') ? '' : String(s.ja).trim();
+                        return ja === '';
+                    }).length;
+                },
+
+                init() {
+                    const brawlerMap = new Map();
+                    this.titlesDataRaw.forEach(title => {
+                        if (!brawlerMap.has(title.brawler_id) && title.brawler_id !== null) {
+                            brawlerMap.set(title.brawler_id, {id: title.brawler_id, name: title.brawler_name_ja});
+                        }
+                    });
+                    this.brawlersList = Array.from(brawlerMap.values()).sort((a,b) => a.id - b.id);
+                    
+                    this.applyFilter();
+                    this.sortBy(this.sortColumn, true);
+                    
+                    this.$root.addEventListener('statusinputchanged', () => this.recheckState());
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault();
+                            event.returnValue = '';
+                        }
+                    });
+                },
+
+                applyFilter() {
+                    this.filteredData = this.titlesDataRaw.filter(title => {
+                        if (this.filterBrawlerId === '') return true;
+                        if (this.filterBrawlerId === 'none') return title.brawler_id === null || title.brawler_id === '';
+                        return String(title.brawler_id) === String(this.filterBrawlerId);
+                    });
+                    this.sortData();
+                },
+
+                recheckState() {
+                    let anyDirty = false;
+                    let anyInvalid = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty) {
+                            anyDirty = true;
+                            if (!rowData.isValid) anyInvalid = true;
+                        }
+                    });
+                    this.hasUnsavedChanges = anyDirty;
+                    this.hasInvalidFields = anyInvalid;
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+                    this.sortData();
+                },
+                
+                sortData() {
+                    const isNumeric = ['id', 'brawler_id', 'rarity', 'equip_rate'].includes(this.sortColumn);
+                    
+                    this.filteredData.sort((a, b) => {
+                        let valA = a[this.sortColumn];
+                        let valB = b[this.sortColumn];
+
+                        const isEmpty = (val) => val === null || typeof val === 'undefined' || String(val).trim() === '';
+                        
+                        if (isEmpty(valA) && isEmpty(valB)) return 0;
+                        if (isEmpty(valA)) return 1;
+                        if (isEmpty(valB)) return -1;
+                        
+                        let cmp = 0;
+                        if (isNumeric) {
+                            cmp = Number(valA) - Number(valB);
+                        } else {
+                            cmp = String(valA).localeCompare(String(valB), 'ja-JP-u-kf-upper', { sensitivity: 'base', numeric: true });
+                        }
+                        
+                        return this.sortDirection === 'asc' ? cmp : -cmp;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.recheckState();
+                    if (this.hasInvalidFields) {
+                        this.saveStatus.message = 'エラー: 不正な値の項目があります。修正してください。';
+                        this.saveStatus.success = false;
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                        return;
+                    }
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus.message = '変更点はありません。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    const changedItems = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty && rowData.isValid) {
+                            changedItems.push(rowData.getPayload());
+                        }
+                    });
+
+                    if (changedItems.length === 0) {
+                        this.saveStatus.message = '有効な変更点はありませんでした。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    if (confirm(`${changedItems.length}件のキャッチフレーズ情報が変更されています。すべての変更を保存しますか？`)) {
+                        this.saveChanges(changedItems);
+                    }
+                },
+
+                async saveChanges(itemsToUpdate) {
+                    this.saveStatus.message = '保存中...';
+                    this.saveStatus.success = false;
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_titles', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ titles: itemsToUpdate })
+                        });
+                        const data = await response.json();
+                        this.saveStatus.message = data.message;
+                        this.saveStatus.success = data.success;
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.saveStatus.message = '保存中にエラーが発生しました。';
+                        this.saveStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                    }
+                }
+            }
+        }
+
+        function titleRow(titleItem) {
+            return {
+                titleObj: titleItem,
+                id: titleItem.id,
+                initialValues: {},
+                currentValues: {},
+                validFields: {
+                    rarity: true,
+                    brawler_id: true
+                },
+                focusedField: {},
+                _isDirty: false,
+                _isValid: true,
+
+                get isDirty() { return this._isDirty; },
+                get isValid() { return this._isValid; },
+
+                initRow() {
+                    this.initialValues = {
+                        brawler_id: toDisplayStr(titleItem.brawler_id),
+                        rarity: toDisplayStr(titleItem.rarity),
+                        en: toDisplayStr(titleItem.en),
+                        ja: toDisplayStr(titleItem.ja)
+                    };
+                    this.currentValues = Object.assign({}, this.initialValues);
+                    this.$nextTick(() => {
+                        this.$el.querySelectorAll('td[data-field]').forEach(td => {
+                            const key = td.dataset.field;
+                            if (key in this.currentValues) {
+                                td.textContent = this.currentValues[key];
+                            }
+                        });
+                    });
+                },
+                
+                formatRate(val) {
+                    if (val === null || typeof val === 'undefined') return '-';
+                    return val.toFixed(3) + '%';
+                },
+
+                isDirtyField(key) {
+                    return this.currentValues[key] !== this.initialValues[key];
+                },
+
+                isValidField(key) {
+                    return this.validFields[key] !== false;
+                },
+
+                isEmptyField(key) {
+                    const val = this.currentValues[key];
+                    return val === '' || val === null || typeof val === 'undefined';
+                },
+
+                validateField(key) {
+                    const val = this.currentValues[key];
+                    if (key === 'rarity' || key === 'brawler_id') {
+                        if (val === '' || val === null || typeof val === 'undefined') {
+                            this.validFields[key] = true;
+                            return;
+                        }
+                        this.validFields[key] = /^-?\d+$/.test(String(val).trim());
+                    }
+                },
+
+                handleFocus(el, key) {
+                    this.focusedField[key] = true;
+                    if (this.isEmptyField(key) && el.textContent.trim() === '未入力') {
+                        el.textContent = '';
+                    }
+                },
+
+                handleBlur(el, key) {
+                    this.focusedField[key] = false;
+                    const text = el.textContent;
+                    this.currentValues[key] = text;
+                    this.validateField(key);
+                    this._recalcState();
+                    this.$dispatch('statusinputchanged');
+                },
+
+                handleInput(el, key) {
+                    const text = el.textContent;
+                    this.currentValues[key] = text;
+                    this.validateField(key);
+                    this._recalcState();
+                    this.$dispatch('statusinputchanged');
+                },
+
+                _recalcState() {
+                    let dirty = false;
+                    let valid = true;
+                    
+                    const keysToCheck = ['en', 'ja', 'rarity', 'brawler_id'];
+
+                    for (const k of keysToCheck) {
+                        if (this.isDirtyField(k)) dirty = true;
+                        if (this.validFields[k] === false) valid = false;
+                    }
+                    this._isDirty = dirty;
+                    this._isValid = valid;
+                },
+
+                getPayload() {
+                    const payload = { id: this.id };
+                    
+                    if (this.isDirtyField('en')) {
+                        payload.en = this.currentValues['en'] === '' ? null : this.currentValues['en'];
+                    }
+                    if (this.isDirtyField('ja')) {
+                        payload.ja = this.currentValues['ja'] === '' ? null : this.currentValues['ja'];
+                    }
+                    if (this.isDirtyField('rarity')) {
+                        payload.rarity = this.currentValues['rarity'] === '' ? null : parseInt(this.currentValues['rarity'], 10);
+                    }
+                    if (this.isDirtyField('brawler_id')) {
+                        payload.brawler_id = this.currentValues['brawler_id'] === '' ? null : parseInt(this.currentValues['brawler_id'], 10);
+                    }
+
+                    return payload;
+                }
+            }
+        }
+    </script>
+{% endblock %}

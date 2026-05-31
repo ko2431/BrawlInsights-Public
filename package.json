@@ -1,0 +1,36 @@
+{
+  "name": "brawlinsights",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ko2431/BrawlInsights.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ko2431/BrawlInsights/issues"
+  },
+  "homepage": "https://github.com/ko2431/BrawlInsights#readme",
+  "dependencies": {
+    "@capacitor-community/admob": "^7.0.3",
+    "@capacitor/browser": "^7.0.1",
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/core": "^7.4.2",
+    "@capacitor/ios": "^7.4.2",
+    "@capacitor/network": "^7.0.1",
+    "@capacitor/share": "^7.0.1",
+    "@capacitor/splash-screen": "^7.0.1",
+    "@revenuecat/purchases-capacitor": "^10.4.0",
+    "capacitor-plugin-app-tracking-transparency": "^2.0.5"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}

@@ -1,0 +1,50 @@
+{# /app/templates/tools/title_ranking_fragment.html #}
+
+{% if all_titles %}
+<div class="title-card-grid">
+    {% for title in all_titles %}
+    <div class="title-card">
+        <span class="title-card__rank-badge">#{{ loop.index }}</span>
+        
+        {% if title.brawler_id %}
+            <img src="/static/images/brawler_pins/{{ title.brawler_id }}.png"
+                 alt=""
+                 class="title-card__icon"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}';">
+        {% endif %}
+        
+        <div class="title-card__text-box title-rarity-{{ title.rarity or 0 }}">
+            {% if lang == 'ja' %}{{ title.ja }}{% else %}{{ title.en }}{% endif %}
+        </div>
+        
+        <div class="title-card__rate">
+            {% if title.equip_rate is not none %}
+                {% if title.equip_rate < 0.1 %}
+                    {{ "%.4f"|format(title.equip_rate) }}%
+                {% else %}
+                    {{ "%.3f"|format(title.equip_rate) }}%
+                {% endif %}
+            {% else %}
+                --
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if unequipped_rate is not none %}
+<div class="info-block" style="padding: 0; margin-top: 14px;">
+    <p class="info-block__text" style="margin: 0;">
+        {% if lang == "ja" %}
+            ちなみに...キャッチフレーズを未装備の人の割合は<b>{{ "%.3f"|format(unequipped_rate) }}%</b>です。
+        {% else %}
+            By the way... the percentage of players with no Title equipped is <b>{{ "%.3f"|format(unequipped_rate) }}%</b>.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% else %}
+<p style="text-align: center; color: var(--color-888, #888); padding: 30px 0; margin: 0;">
+    {% if lang == "ja" %}条件に一致するキャッチフレーズはありません。{% else %}No titles match the selected criteria.{% endif %}
+</p>
+{% endif %}

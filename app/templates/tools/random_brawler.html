@@ -1,0 +1,252 @@
+{# /app/templates/tools/random_brawler.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 キャラクタールーレット{% else %}Random Brawler Selector{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}現在のブロスタの全キャラからランダムに選べるルーレットツールです。{% else %}A roulette tool to randomly select a brawler to play.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main random-brawler-page-title--main">{% if lang == "ja" %}キャラクタールーレット{% else %}Random Brawler Selector{% endif %}</h1>
+    
+    <p class="tools-page__description">
+        {% if lang == "ja" %}ランダムにキャラクターを決めるツールです。「どんなキャラを使おうかな？」と迷ったときにぜひ活用してください。{% else %}A tool to randomly decide which brawler to use. Use it when you are wondering "Which brawler should I play?"{% endif %}
+    </p>
+
+    {# UI実装エリア #}
+    <div x-data="randomBrawlerApp()">
+        <div class="random-brawler__container">
+            {# キャラクターアイコン表示フィールド #}
+            <div class="random-brawler__field">
+                <img :src="imageUrl" 
+                     :class="{'opacity-50': isSpinning || currentBrawlerId === 'mystery', 'opacity-100': !isSpinning && currentBrawlerId !== 'mystery'}" 
+                     class="random-brawler__icon" 
+                     alt="Brawler Icon" x-cloak>
+            </div>
+            
+            {# キャラクター名表示エリア #}
+            <div class="random-brawler__name-container">
+                <span class="random-brawler__name" x-text="currentBrawlerName" x-cloak></span>
+            </div>
+            
+            {# スタート/ストップ操作ボタン #}
+            <div class="random-brawler__actions">
+                <button type="button" :class="buttonClass" @click="toggle" x-text="buttonText" x-cloak></button>
+            </div>
+            
+            {# オプション #}
+            <div class="random-brawler__options">
+                <label class="random-brawler__option-label">
+                    <input type="checkbox" class="form-checkbox" x-model="skipAnimation" :disabled="isSpinning">
+                    <span>{% if lang == "ja" %}演出をスキップ{% else %}Skip Animation{% endif %}</span>
+                </label>
+                
+                <label class="random-brawler__option-label" 
+                       :class="{'opacity-50 cursor-not-allowed': !hasMainAccount}">
+                    <input type="checkbox" class="form-checkbox" 
+                           x-model="useOwnedOnly" 
+                           :disabled="isSpinning"
+                           @click="handleMainAccountCheck($event, 'owned')">
+                    <span>{% if lang == "ja" %}メインアカウントの所持キャラのみ{% else %}Only Owned Brawlers{% endif %}</span>
+                </label>
+
+                <label class="random-brawler__option-label" 
+                       :class="{'opacity-50 cursor-not-allowed': !hasMainAccount}">
+                    <input type="checkbox" class="form-checkbox" 
+                           x-model="usePower11Only" 
+                           :disabled="isSpinning"
+                           @click="handleMainAccountCheck($event, 'power11')">
+                    <span>{% if lang == "ja" %}メインアカウントのパワー11キャラのみ{% else %}Only Power 11 Brawlers{% endif %}</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+        const brawlersData = [
+            {% for brawler in brawlers %}
+            {
+                id: {{ brawler.id }},
+                name: "{% if lang == 'ja' %}{{ brawler.name_ja | safe }}{% else %}{{ brawler.name_en | safe }}{% endif %}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        {% if main_account %}
+        const ownedBrawlerIds = [{% for b in main_account.brawlers %}{{ b.id }}{% if not loop.last %}, {% endif %}{% endfor %}];
+        const power11BrawlerIds = [{% for b in main_account.brawlers %}{% if b.power >= 11 %}{{ b.id }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}];
+        {% else %}
+        const ownedBrawlerIds = [];
+        const power11BrawlerIds = [];
+        {% endif %}
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('randomBrawlerApp', () => ({
+                brawlers: brawlersData,
+                isSpinning: false,
+                selectedBrawler: null,
+                currentBrawlerId: 'mystery',
+                currentBrawlerName: '',
+                skipAnimation: false,
+                intervalId: null,
+
+                // メインアカウントフィルタ
+                hasMainAccount: {{ 'true' if main_account else 'false' }},
+                hasUser: {{ 'true' if user else 'false' }},
+                ownedBrawlerIds: ownedBrawlerIds,
+                power11BrawlerIds: power11BrawlerIds,
+                useOwnedOnly: false,
+                usePower11Only: false,
+
+                get imageUrl() {
+                    if (this.currentBrawlerId === 'mystery') {
+                        return `{{ url_for('static', path='/images/ui/mystery.png') }}`;
+                    }
+                    return `{{ url_for('static', path='/images/brawler_pins/') }}` + this.currentBrawlerId + '.png';
+                },
+
+                get buttonText() {
+                    if (this.isSpinning) {
+                        return '{% if lang == "ja" %}ストップ{% else %}Stop{% endif %}';
+                    }
+                    if (this.selectedBrawler) {
+                        return '{% if lang == "ja" %}もう一度選択{% else %}Select Again{% endif %}';
+                    }
+                    return '{% if lang == "ja" %}ルーレットスタート！{% else %}Start Roulette!{% endif %}';
+                },
+
+                get buttonClass() {
+                    return this.isSpinning ? 'button button--danger' : 'button button--primary';
+                },
+
+                handleMainAccountCheck(event, type) {
+                    if (this.isSpinning) {
+                        event.preventDefault();
+                        return;
+                    }
+                    if (!this.hasMainAccount) {
+                        event.preventDefault();
+                        if (this.hasUser) {
+                            alert("{% if lang == 'ja' %}メインアカウント情報を取得できませんでした。しばらく待ってから再度お試しください。{% else %}Failed to acquire main account information. Please wait a while and try again.{% endif %}");
+                        } else {
+                            alert("{% if lang == 'ja' %}この機能を利用するにはログインが必要です。アカウントタブより、メールアドレス不要ですぐにアカウントを作成できます。{% else %}Login is required to use this feature. You can create an account quickly from the Account tab without an email address.{% endif %}");
+                        }
+                        return;
+                    }
+
+                    // 排他制御
+                    if (type === 'owned' && !this.useOwnedOnly) {
+                        this.usePower11Only = false;
+                    } else if (type === 'power11' && !this.usePower11Only) {
+                        this.useOwnedOnly = false;
+                    }
+                },
+
+                start() {
+                    const candidates = this.getCandidates();
+                    if (candidates.length === 0) {
+                        alert("{% if lang == 'ja' %}選択可能なキャラクターがいません。条件を緩和してください。{% else %}No brawlers match the criteria. Please relax the conditions.{% endif %}");
+                        return;
+                    }
+
+                    if (this.skipAnimation) {
+                        this.pickRandom(true);
+                        return;
+                    }
+                    this.isSpinning = true;
+                    this.selectedBrawler = null;
+                    
+                    // アニメーション用に50ミリ秒間隔でランダムにキャラを切り替え
+                    this.intervalId = setInterval(() => {
+                        this.pickRandom(false);
+                    }, 50);
+                },
+
+                stop() {
+                    if (!this.isSpinning) return;
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                    this.isSpinning = false;
+                    
+                    // 結果を確定させるために最後にもう一度選別する（同じキャラが連続でも構わないとするが再抽選でよりランダム感を演出）
+                    this.pickRandom(true);
+                },
+
+                toggle() {
+                    if (this.isSpinning) {
+                        this.stop();
+                    } else {
+                        this.start();
+                    }
+                },
+
+                getCandidates() {
+                    let candidates = this.brawlers;
+                    if (this.usePower11Only) {
+                        candidates = this.brawlers.filter(b => this.power11BrawlerIds.includes(b.id));
+                    } else if (this.useOwnedOnly) {
+                        candidates = this.brawlers.filter(b => this.ownedBrawlerIds.includes(b.id));
+                    }
+                    return candidates;
+                },
+
+                pickRandom(isFinal) {
+                    let candidates = this.getCandidates();
+                    
+                    // スキップ時や複数回連続で確定させる場合、同じキャラが連続で選ばれないようにする
+                    if (isFinal && this.selectedBrawler && candidates.length > 1) {
+                        candidates = candidates.filter(b => b.id !== this.selectedBrawler.id);
+                    }
+                    
+                    if (candidates.length === 0) return; // 全キャラが1体しかいないなどのフォールバックは getCandidates で制御済み
+                    
+                    const randomIndex = Math.floor(Math.random() * candidates.length);
+                    const brawler = candidates[randomIndex];
+                    
+                    this.currentBrawlerId = brawler.id;
+                    this.currentBrawlerName = brawler.name;
+                    
+                    if (isFinal) {
+                        this.selectedBrawler = brawler;
+                    }
+                }
+            }));
+        });
+    </script>
+{% endblock %}

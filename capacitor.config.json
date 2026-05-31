@@ -1,0 +1,24 @@
+{
+  "appId": "com.brawlinsights.app",
+  "appName": "Brawl Insights",
+  "webDir": "app/static",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://brawlinsights.com",
+    "cleartext": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 500,
+      "launchAutoHide": true,
+      "backgroundColor": "#ffffff",
+      "showSpinner": false,
+      "iosContentMode": "scaleAspectFit"
+    },
+    "AdMob": {
+      "appId": {
+        "ios": "ca-app-pub-4627806715879063~9218261222"
+      }
+    }
+  }
+}

@@ -1,0 +1,946 @@
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】 プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}フレンド募集やSNSでの共有、記録用に使いやすいプロフィール画像を生成・作成できるツールです。選べる8種類の画像から生成することができます。{% else %}A tool to generate easy-to-share profile images for friends, social media, and records. Choose from 8 different image types.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/profile_image.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<script id="profile-image-tool-config" type="application/json">{{ profile_image_tool_config|tojson }}</script>
+
+<div class="tools-page__container"
+     x-data="profileImageTool(Object.assign(
+         {},
+         JSON.parse(document.getElementById('profile-image-tool-config').textContent),
+         { isTestIp: {{ 'true' if is_test_ip or (current_user and current_user.is_admin) else 'false' }} }
+     ))">
+    
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %}</h1>
+
+    <p class="tools-page__description">
+        {% if lang == "ja" %}
+            SNSでの共有や記録用に使いやすいプロフィール画像を生成できるツールです。8種類の画像タイプから選択して生成できます。
+        {% else %}
+            A tool to generate easy-to-share profile images for social media and records. Choose from 8 different image types.
+        {% endif %}
+    </p>
+
+    {# フェーズタブナビゲーション #}
+    <div class="profile-image-tool__tab-nav">
+        <button type="button"
+                class="profile-image-tool__tab-button"
+                :class="{ 
+                    'profile-image-tool__tab-button--active': currentPhase === 'select',
+                    'cursor-default': currentPhase === 'select',
+                    'cursor-pointer': currentPhase === 'generate'
+                }"
+                @click="goToPhase('select')">
+            1. {% if lang == "ja" %}プレイヤーを選ぶ{% else %}Select Player{% endif %}
+        </button>
+        <button type="button"
+                class="profile-image-tool__tab-button"
+                :class="{
+                    'profile-image-tool__tab-button--active': currentPhase === 'generate',
+                    'profile-image-tool__tab-button--disabled': !selectedPlayer,
+                    'cursor-default': currentPhase === 'generate',
+                    'cursor-not-allowed': currentPhase === 'select' && !selectedPlayer,
+                    'cursor-pointer': currentPhase === 'select' && selectedPlayer
+                }"
+                @click="goToPhase('generate')">
+            2. {% if lang == "ja" %}画像を生成{% else %}Generate Image{% endif %}
+        </button>
+    </div>
+
+    {# ============================================================ #}
+    {# フェーズ 1: プレイヤーを選ぶ                                   #}
+    {# ============================================================ #}
+    <section x-show="currentPhase === 'select'" x-transition style="display:none;">
+
+        {# --- プレイヤータグで検索 (全幅) --- #}
+        <div class="profile-image-tool__panel">
+            <h2 class="profile-image-tool__picker-title">
+                {% if lang == "ja" %}プレイヤータグで検索{% else %}Search by Player Tag{% endif %}
+            </h2>
+            <div class="profile-image-tool__search-row">
+                <div class="profile-image-tool__search-input-wrap">
+                    <input type="text"
+                           id="profileImageTagInput"
+                           class="form-input profile-image-tool__search-input"
+                           x-model="playerTagInput"
+                           @input.debounce.700ms="validateTagRealtime()"
+                           @blur="onTagBlur()"
+                           @keydown.enter.prevent="selectByTag()"
+                           placeholder="#XXXXXXX"
+                           autocomplete="off"
+                           autocapitalize="characters">
+                    <div class="form-field-status" x-html="tagStatus"></div>
+                </div>
+                <button type="button"
+                        class="button button--primary profile-image-tool__search-btn"
+                        id="profileImageSelectBtn"
+                        @click="selectByTag()"
+                        :disabled="isSelectingPlayer">
+                    <span x-text="isSelectingPlayer
+                        ? (lang === 'ja' ? '確認中...' : 'Checking...')
+                        : (lang === 'ja' ? '選択' : 'Select')"></span>
+                </button>
+            </div>
+        </div>
+
+        {# --- ブックマーク & 閲覧履歴 (タブレット以上で2列) --- #}
+        <div class="profile-image-tool__picker-grid">
+
+            {# ブックマークから選択 #}
+            <div class="profile-image-tool__picker-block">
+                <h2 class="profile-image-tool__picker-title">
+                    {% if lang == "ja" %}ブックマーク{% else %}Bookmarks{% endif %}
+                </h2>
+
+                {% if current_user %}
+                    {# ログイン済み: プレイヤーリスト #}
+                    <div class="profile-image-tool__player-list">
+                        <template x-if="bookmarkedPlayers.length === 0">
+                            <div class="profile-image-tool__empty">
+                                {% if lang == "ja" %}ブックマークされたプレイヤーはありません。{% else %}No bookmarked players yet.{% endif %}
+                            </div>
+                        </template>
+                        <template x-for="player in bookmarkedPlayers" :key="`bookmark-${player.tag}`">
+                            <button type="button"
+                                    class="profile-image-tool__player-item"
+                                    @click="selectPlayer(player)">
+                                <img :src="player.icon_url"
+                                     alt=""
+                                     class="profile-image-tool__player-icon"
+                                     onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                <div class="profile-image-tool__player-texts">
+                                    <div class="profile-image-tool__player-name-row">
+                                        <span class="profile-image-tool__player-name" x-text="player.name"></span>
+                                        <span class="profile-image-tool__player-badge"
+                                              x-show="player.is_main">{% if lang == "ja" %}メイン{% else %}Main{% endif %}</span>
+                                    </div>
+                                    <span class="profile-image-tool__player-tag" x-text="player.tag"></span>
+                                </div>
+                                <span class="profile-image-tool__player-action">{% if lang == "ja" %}選択 →{% else %}Select →{% endif %}</span>
+                            </button>
+                        </template>
+                    </div>
+                {% else %}
+                    {# 未ログイン時 #}
+                    <div class="not-logged-in-block">
+                        <div class="not-logged-in-block__text">
+                            <p>{% if lang == "ja" %}ログインすると、ブックマーク登録したプレイヤーをすぐに選択できます。{% else %}Log in to quickly select from your bookmarked players.{% endif %}</p>
+                        </div>
+                        <div class="auth-actions">
+                            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}"
+                               class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                            <a href="{{ url_for('register_page', lang=lang) }}"
+                               class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# 閲覧履歴から選択 #}
+            <div class="profile-image-tool__picker-block">
+                <h2 class="profile-image-tool__picker-title">
+                    {% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}
+                </h2>
+
+                {% if current_user %}
+                    {# ログイン済み: プレイヤーリスト #}
+                    <div class="profile-image-tool__player-list">
+                        <template x-if="viewedPlayers.length === 0">
+                            <div class="profile-image-tool__empty">
+                                {% if lang == "ja" %}閲覧履歴はまだありません。{% else %}No viewing history yet.{% endif %}
+                            </div>
+                        </template>
+                        <template x-for="player in viewedPlayers" :key="`history-${player.tag}`">
+                            <button type="button"
+                                    class="profile-image-tool__player-item"
+                                    @click="selectPlayer(player)">
+                                <img :src="player.icon_url"
+                                     alt=""
+                                     class="profile-image-tool__player-icon"
+                                     onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                <div class="profile-image-tool__player-texts">
+                                    <span class="profile-image-tool__player-name" x-text="player.name"></span>
+                                    <span class="profile-image-tool__player-tag" x-text="player.tag"></span>
+                                </div>
+                                <span class="profile-image-tool__player-action">{% if lang == "ja" %}選択 →{% else %}Select →{% endif %}</span>
+                            </button>
+                        </template>
+                    </div>
+                {% else %}
+                    {# 未ログイン時 #}
+                    <div class="not-logged-in-block">
+                        <div class="not-logged-in-block__text">
+                            <p>{% if lang == "ja" %}ログインすると、最近閲覧したプレイヤーから選択できます。{% else %}Log in to select from recently viewed players.{% endif %}</p>
+                        </div>
+                        <div class="auth-actions">
+                            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}"
+                               class="button button--primary">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</a>
+                            <a href="{{ url_for('register_page', lang=lang) }}"
+                               class="button button--secondary">{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %}</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>{# /picker-grid #}
+
+        {# バナー広告 #}
+        {% include "components/ad_banner.html" %}
+    </section>
+
+    {# ============================================================ #}
+    {# フェーズ 2: 画像を生成                                         #}
+    {# ============================================================ #}
+    <section x-show="currentPhase === 'generate'" x-transition style="display:none;">
+
+        {# 選択中のプレイヤー #}
+        <div class="profile-image-tool__panel">
+            <template x-if="selectedPlayer">
+                <div class="profile-image-tool__selected-player">
+                    <img :src="selectedPlayer.icon_url"
+                         alt=""
+                         class="profile-image-tool__selected-player-icon"
+                         onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                    <div>
+                        <p class="profile-image-tool__selected-player-name" x-text="selectedPlayer.name"></p>
+                        <p class="profile-image-tool__selected-player-tag" x-text="selectedPlayer.tag"></p>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        {# 説明 #}
+        <div class="profile-image-tool__type-description">
+            {% if lang == "ja" %}画像のタイプと向きを選択{% else %}Select image type and orientation{% endif %}
+        </div>
+
+        {# 画像の種類 #}
+        <div class="profile-image-tool__panel profile-image-tool__panel--type">
+            <div class="profile-image-tool__type-container">
+                <div class="profile-image-tool__type-grid">
+                    <template x-for="imageType in imageTypes" :key="imageType.id">
+                        <button type="button"
+                                class="profile-image-tool__type-card"
+                                :class="{ 'profile-image-tool__type-card--active': selectedImageType === imageType.id }"
+                                @click="onSelectImageType(imageType.id)">
+                            <img :src="`{{ url_for('static', path='/') }}${imageType.icon.replace('/static/', '')}`"
+                                 alt=""
+                                 class="profile-image-tool__type-icon"
+                                 :class="'profile-image-tool__type-icon--' + imageType.id.replace(/_/g, '-')">
+                            <p class="profile-image-tool__type-title"
+                               x-text="lang === 'ja' ? imageType.label_ja : imageType.label_en"></p>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        {# 画像の向き #}
+        <div x-show="!isLandscapeOnlySelectedType"
+             x-transition
+             class="profile-image-tool__panel profile-image-tool__panel--orientation"
+             style="display:none;">
+            <div class="profile-image-tool__orientation-container">
+                <p class="profile-image-tool__orientation-title">
+                    {% if lang == "ja" %}画像の向き{% else %}Orientation{% endif %}
+                </p>
+                <div class="profile-image-tool__orientation-row">
+                    <button type="button"
+                            class="profile-image-tool__orientation-card"
+                            :class="orientation === 'landscape' ? 'profile-image-tool__orientation-card--active' : ''"
+                            @click="orientation = 'landscape'">
+                        {% if lang == "ja" %}横{% else %}Landscape{% endif %}
+                    </button>
+                    <button type="button"
+                            class="profile-image-tool__orientation-card"
+                            :class="orientation === 'portrait' ? 'profile-image-tool__orientation-card--active' : ''"
+                            @click="orientation = 'portrait'">
+                        {% if lang == "ja" %}縦{% else %}Portrait{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {# ============================================================ #}
+        {# 生成パネル                                                     #}
+        {# ============================================================ #}
+        <div class="profile-image-tool__panel profile-image-tool__panel--generation">
+
+            {# (2) プレースホルダー + (3)(4)(5) #}
+            <div x-show="genState !== 'completed'"
+                 class="profile-image-tool__gen-placeholder"
+                  :class="requestOrientation === 'landscape' ? 'profile-image-tool__gen-placeholder--landscape' : 'profile-image-tool__gen-placeholder--portrait'"
+                 style="display:none;">
+
+                {# (3) ボタン群 (Idle時) #}
+                <div x-show="genState === 'idle'" class="profile-image-tool__gen-actions">
+                    <template x-if="!(platform === 'web' && isAppOnlySelectedType)">
+                        <div style="display: contents;">
+                            <button type="button"
+                                    class="profile-image-tool__gen-btn--primary"
+                                    @click="startGeneration(false, false)"
+                                    :disabled="isSubmittingJob || !selectedPlayer">
+                                <span x-text="isSubmittingJob
+                                    ? (lang === 'ja' ? '送信中...' : 'Submitting...')
+                                    : (lang === 'ja' ? '生成を開始' : 'Start Generation')"></span>
+                            </button>
+                            <button type="button"
+                                    x-show="!isDeleteAds"
+                                    class="profile-image-tool__gen-btn--secondary profile-image-tool__gen-btn--use-ticket"
+                                    :class="{ 'profile-image-tool__gen-btn--disabled': !isLoggedIn || ticketBalance <= 0 }"
+                                    @click="handleTicketGeneration()">
+                                <span x-html="ticketButtonText"></span>
+                            </button>
+                            {% if current_user and current_user.is_delete_ads %}
+                            <p class="profile-image-tool__gen-ticket-info">
+                                {% if lang == 'ja' %}
+                                広告削除がオンになっているため、画像生成時の広告は表示されません。
+                                {% else %}
+                                Since ad removal is enabled, ads will not be displayed during image generation.
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </template>
+                    <template x-if="platform === 'web' && isAppOnlySelectedType">
+                        <div style="display: contents;">
+                            <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="profile-image-tool__gen-btn--primary" style="display: flex; justify-content: center; align-items: center; text-decoration: none;">
+                                <span x-text="lang === 'ja' ? 'アプリで生成する' : 'Generate on the App'"></span>
+                            </a>
+                            <p class="profile-image-tool__gen-ticket-info">
+                                <span x-text="lang === 'ja' 
+                                    ? '現在この画像はiOSアプリ版でのみ生成が可能です。アプリをインストールの上、ぜひご利用ください。' 
+                                    : 'Currently, this image can only be generated on the iOS app version. Please install the app and try it out.'"></span>
+                            </p>
+                        </div>
+                    </template>
+                </div>
+
+                {# (4) ローディング (Processing時) #}
+                <div x-show="genState === 'processing'" class="profile-image-tool__gen-loading">
+                    <div class="profile-image-tool__gen-spinner"></div>
+                    <p class="profile-image-tool__gen-loading-text"
+                       x-html="genLoadingMessage"></p>
+
+                    {# バナー広告: チケット使用時・広告削除ユーザーは非表示 #}
+                    {% if ad_banner %}
+                    <div x-show="!isGenUsingTicket && !isDeleteAds" style="margin-top: 14px;">
+                        <div x-data="{ _adHidden: false }"
+                             x-init="(() => { try { _adHidden = localStorage.getItem('bi_guest_remove_ads') === 'true'; } catch(_e) {} })()"
+                             x-show="!_adHidden">
+                            <p class="ad-banner__label" style="color: #fff;">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
+                            {% if ad_banner.click_url %}
+                            <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
+                            {% endif %}
+                            <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
+                                 alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
+                                 class="ad-banner__img"
+                                 loading="lazy">
+                            {% if ad_banner.click_url %}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# (5) エラー (Error時) #}
+                <div x-show="genState === 'error'" class="profile-image-tool__gen-error-box">
+                    <p x-text="lang === 'ja'
+                        ? '画像生成中にエラーが発生しました。しばらく待ってからもう一度お試しください。'
+                        : 'An error occurred during image generation. Please wait a moment and try again.'"></p>
+                </div>
+            </div>
+
+            {# (6) 完成画像 (Completed時) #}
+            <img x-show="genState === 'completed'"
+                  :src="resultImageSrc"
+                 alt=""
+                 class="profile-image-tool__gen-result-image"
+                 :class="requestOrientation === 'portrait' ? 'profile-image-tool__gen-result-image--portrait' : ''"
+                 style="display:none;">
+
+            {# (7) アクション (Completed時) #}
+            <div x-show="genState === 'completed'" class="profile-image-tool__gen-result-actions" style="display:none;">
+                {# (7-1) 保存ボタン #}
+                <button type="button"
+                        :class="imageSaved ? 'profile-image-tool__gen-btn--saved' : 'profile-image-tool__gen-btn--primary'"
+                        @click="saveImage()">
+                    <img x-show="imageSaved"
+                         src="{{ url_for('static', path='/images/ui/checkmark.png') }}"
+                         alt=""
+                         class="profile-image-tool__gen-check-icon"
+                         style="display:none;">
+                    <span x-show="!imageSaved" style="display:none;">
+                        {% if lang == "ja" %}画像を保存{% else %}Save Image{% endif %}
+                    </span>
+                    <span x-show="imageSaved" style="display:none;">
+                        {% if lang == "ja" %}端末に保存済み{% else %}Saved to Device{% endif %}
+                    </span>
+                </button>
+
+                {# (7-2) 保存ヒント (保存失敗時のみ) #}
+                <p x-show="showSaveFallback" class="profile-image-tool__gen-save-hint">
+                    {% if platform == "web" %}
+                        {% if lang == "ja" %}
+                            画像をボタンで保存できない場合は、長押しか右クリックでの保存をお試しください。
+                        {% else %}
+                            If you can't save the image via the button, try long-pressing or right-clicking to save.
+                        {% endif %}
+                    {% else %}
+                        {% if lang == "ja" %}
+                            共有メニューから「画像を保存」をお試しください。保存できない場合はスクリーンショット等での保存をお試しください。
+                        {% else %}
+                            If you can't save the image, try selecting "Save Image" from the share sheet. If that doesn't work, try taking a screenshot instead.
+                        {% endif %}
+                    {% endif %}
+                </p>
+
+                {# (7-3) 再生成ボタン #}
+                <button x-show="job?.can_regenerate"
+                        type="button"
+                        class="profile-image-tool__gen-btn--secondary"
+                        @click="resetGeneration()">
+                    {% if lang == "ja" %}再生成{% else %}Regenerate{% endif %}
+                </button>
+            </div>
+        </div>
+
+        {# バナー広告 #}
+        {% include "components/ad_banner.html" %}
+
+    </section>
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    });
+    </script>
+    
+    <script>
+        function profileImageTool(config) {
+            return {
+                lang: config.lang,
+                validateUrl: config.validateUrl,
+                createJobUrl: config.createJobUrl,
+                jobStatusUrlBase: config.jobStatusUrlBase,
+                loginUrl: config.loginUrl,
+                isLoggedIn: config.isLoggedIn,
+                isDeleteAds: config.isDeleteAds,
+                isTestIp: config.isTestIp,
+                platform: config.platform,
+                ticketBalance: config.initialTickets,
+                bookmarkedPlayers: config.bookmarkedPlayers || [],
+                viewedPlayers: config.viewedPlayers || [],
+                imageTypes: config.imageTypes || [],
+                landscapeOnlyImageTypes: config.landscapeOnlyImageTypes || [],
+                selectedPlayer: config.initialSelectedPlayer,
+                selectedImageType: config.defaultImageType || 'standard_profile',
+                orientation: 'landscape',
+                currentPhase: config.initialSelectedPlayer ? 'generate' : 'select',
+                playerTagInput: config.initialSelectedPlayer ? config.initialSelectedPlayer.tag : '',
+
+                isSelectingPlayer: false,
+                isSubmittingJob: false,
+                tagStatus: '',
+                job: null,
+                pollingTimerId: null,
+                imageSaved: false,
+                showSaveFallback: false,
+                committedImageType: null,
+                committedOrientation: null,
+                forceRegenerateNext: false,
+                resultImageNonce: Date.now(),
+                isGenUsingTicket: false,     // 現在の生成がチケット利用かどうか
+
+                // ---- タグ入力の自動矯正 ----
+                formatTagInput(raw) {
+                    if (!raw) return '';
+                    let tag = raw.trim();
+                    // 先頭の連続する # を除去してから1つ付与
+                    tag = tag.replace(/^#+/, '');
+                    tag = '#' + tag;
+                    // 'o' / 'O' を '0' に変換
+                    tag = tag.replace(/o/gi, '0');
+                    // # 以降を大文字
+                    if (tag.length > 1) {
+                        tag = '#' + tag.substring(1).toUpperCase();
+                    }
+                    return tag;
+                },
+
+                onTagBlur() {
+                    // フォーカスが外れたら完全矯正 → 即バリデーション
+                    if (this.playerTagInput) {
+                        this.playerTagInput = this.formatTagInput(this.playerTagInput);
+                    }
+                    this.validateTagRealtime();
+                },
+
+                async validateTagRealtime() {
+                    // 完全矯正してから判定
+                    if (this.playerTagInput) {
+                        this.playerTagInput = this.formatTagInput(this.playerTagInput);
+                    }
+                    const tag = this.playerTagInput;
+                    const MIN_TAG_LENGTH = 4; // # + 3文字以上
+                    if (!tag || tag.length < MIN_TAG_LENGTH) {
+                        this.tagStatus = '';
+                        return;
+                    }
+                    try {
+                        const response = await fetch(this.validateUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ player_tag: tag })
+                        });
+                        const data = await response.json();
+                        if (data.is_valid) {
+                            this.tagStatus = `<span class="text-green-500">✅ ${data.player_name} (${data.formatted_tag})</span>`;
+                            this.playerTagInput = data.formatted_tag;
+                        } else {
+                            this.tagStatus = `<span class="text-red-500">❌ ${
+                                data.message || (this.lang === 'ja'
+                                    ? 'プレイヤーが見つかりませんでした。'
+                                    : 'Player not found.')
+                            }</span>`;
+                        }
+                    } catch {
+                        // ネットワークエラー時はサイレント失敗
+                    }
+                },
+
+                // ---- プレイヤー操作 ----
+                selectPlayer(player) {
+                    this.selectedPlayer = player;
+                    this.playerTagInput = player.tag;
+                    this.tagStatus = '';
+                    this.job = null;
+                    this.imageSaved = false;
+                    this.showSaveFallback = false;
+                    this.forceRegenerateNext = false;
+                    this.currentPhase = 'generate';
+                },
+
+                goToPhase(phase) {
+                    if (phase === 'generate' && !this.selectedPlayer) return;
+                    this.currentPhase = phase;
+                },
+
+                findKnownPlayer(tag) {
+                    return [...this.bookmarkedPlayers, ...this.viewedPlayers]
+                        .find(p => p.tag === tag) || null;
+                },
+
+                isLandscapeOnlyType(imageTypeId) {
+                    return this.landscapeOnlyImageTypes.includes(imageTypeId);
+                },
+
+                onSelectImageType(imageTypeId) {
+                    this.selectedImageType = imageTypeId;
+                    if (this.isLandscapeOnlyType(imageTypeId)) {
+                        this.orientation = 'landscape';
+                    }
+                },
+
+                async selectByTag() {
+                    const raw = this.playerTagInput.trim();
+                    if (!raw) {
+                        this.tagStatus = `<span class="text-red-500">❌ ${
+                            this.lang === 'ja'
+                                ? 'プレイヤータグを入力してください。'
+                                : 'Please enter a player tag.'
+                        }</span>`;
+                        return;
+                    }
+
+                    // 送信前に完全矯正
+                    this.playerTagInput = this.formatTagInput(raw);
+
+                    this.isSelectingPlayer = true;
+                    this.tagStatus = '';
+
+                    try {
+                        const response = await fetch(this.validateUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ player_tag: this.playerTagInput })
+                        });
+                        const data = await response.json();
+
+                        if (!data.is_valid) {
+                            this.tagStatus = `<span class="text-red-500">❌ ${
+                                data.message || (this.lang === 'ja'
+                                    ? 'プレイヤーを確認できませんでした。'
+                                    : 'Failed to verify the player.')
+                            }</span>`;
+                            return;
+                        }
+
+                        // 成功
+                        this.tagStatus = `<span class="text-green-500">✅ ${data.player_name} (${data.formatted_tag})</span>`;
+                        this.playerTagInput = data.formatted_tag;
+
+                        const knownPlayer = this.findKnownPlayer(data.formatted_tag);
+                        this.selectedPlayer = knownPlayer || {
+                            tag: data.formatted_tag,
+                            name: data.player_name || data.formatted_tag,
+                            icon_id: data.icon_id || 0,
+                            icon_url: data.icon_url || '/static/images/player_icon/0.png',
+                        };
+                        this.job = null;
+                        this.imageSaved = false;
+                        this.showSaveFallback = false;
+                        this.forceRegenerateNext = false;
+                        this.currentPhase = 'generate';
+
+                    } catch (error) {
+                        console.error('Failed to validate player tag:', error);
+                        this.tagStatus = `<span class="text-red-500">❌ ${
+                            this.lang === 'ja'
+                                ? 'プレイヤー確認中にエラーが発生しました。'
+                                : 'An error occurred while verifying the player.'
+                        }</span>`;
+                    } finally {
+                        this.isSelectingPlayer = false;
+                    }
+                },
+
+                // ---- 画像生成 ----
+                async startGeneration(useTicket, forceRegenerate = false) {
+                    if (!this.selectedPlayer || this.isSubmittingJob) return;
+
+                    this.isGenUsingTicket = !!useTicket;   // チケット使用フラグをリアクティブに保持
+                    this.isSubmittingJob = true;
+                    this.imageSaved = false;
+                    this.showSaveFallback = false;
+                    const shouldForceRegenerate = !!(forceRegenerate || this.forceRegenerateNext);
+                    if (shouldForceRegenerate) {
+                        this.resultImageNonce = Date.now();
+                    }
+
+                    try {
+                        const requestOrientation = this.requestOrientation;
+                        const response = await fetch(this.createJobUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                player_tag: this.selectedPlayer.tag,
+                                image_type: this.selectedImageType,
+                                orientation: requestOrientation,
+                                use_ticket: useTicket,
+                                force_regenerate: shouldForceRegenerate,
+                            })
+                        });
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            // ジョブ作成失敗の場合はfailedステータスのダミーjobとして扱い、エラー表示
+                            this.job = { status: 'failed' };
+                            return;
+                        }
+
+                        this.job = data.job;
+                        this.forceRegenerateNext = false;
+                        // 生成時のタイプ・向きを記録（切替検知に使用）
+                        this.committedImageType = this.selectedImageType;
+                        this.committedOrientation = requestOrientation;
+                        if (typeof data.new_ticket_balance === 'number') {
+                            this.ticketBalance = data.new_ticket_balance;
+                        }
+
+                        if (this.shouldPollJob()) {
+                            this.startPolling();
+                        } else {
+                            this.stopPolling();
+                        }
+
+                        // ジョブ投入後に広告を表示することで、広告再生中もサーバー側の生成処理を進める
+                        if ((this.platform === 'ios' || this.platform === 'android') && !this.isDeleteAds && !useTicket) {
+                            try {
+                                if (window.Capacitor?.Plugins?.AdMob) {
+                                    const { AdMob } = window.Capacitor.Plugins;
+                                    const isTesting = this.isTestIp;
+                                    const testId = 'ca-app-pub-3940256099942544/4411468910';
+                                    const adId = isTesting ? testId : 'ca-app-pub-4627806715879063/4022281347';
+                                    await AdMob.prepareInterstitial({ adId, isTesting });
+                                    await AdMob.showInterstitial();
+                                    await this.refreshJobStatus();
+                                }
+                            } catch (e) {
+                                console.error('Error showing interstitial ad:', e);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to create image generation job:', error);
+                        this.job = { status: 'failed' };
+                    } finally {
+                        this.isSubmittingJob = false;
+                    }
+                },
+
+                shouldPollJob() {
+                    return !!(
+                        this.job &&
+                        (
+                            this.job.status === 'queued' ||
+                            this.job.status === 'processing' ||
+                            (this.job.status === 'completed' && !this.job.is_ready_for_delivery)
+                        )
+                    );
+                },
+
+                startPolling() {
+                    this.stopPolling();
+                    this.pollingTimerId = window.setInterval(() => {
+                        this.refreshJobStatus();
+                    }, 1000);
+                },
+
+                stopPolling() {
+                    if (this.pollingTimerId) {
+                        window.clearInterval(this.pollingTimerId);
+                        this.pollingTimerId = null;
+                    }
+                },
+
+                async refreshJobStatus() {
+                    if (!this.job?.id) return;
+                    try {
+                        const response = await fetch(`${this.jobStatusUrlBase}/${this.job.id}`);
+                        const data = await response.json();
+                        if (!data.success) {
+                            this.job = { status: 'failed' };
+                            this.stopPolling();
+                            return;
+                        }
+                        this.job = data.job;
+                        if (!this.shouldPollJob()) {
+                            this.stopPolling();
+                        }
+                    } catch (error) {
+                        console.error('Failed to refresh job status:', error);
+                        this.job = { status: 'failed' };
+                        this.stopPolling();
+                    }
+                },
+
+                // ---- 状態算出 ----
+                get genState() {
+                    if (!this.job) return 'idle';
+                    if (this.job.status === 'failed') return 'error';
+                    if (this.job.status === 'completed' && this.job.is_ready_for_delivery && this.job.result_path) {
+                        // タイプ・向きが生成時と異なる場合はidleに戻す
+                        if (this.selectedImageType !== this.committedImageType || this.requestOrientation !== this.committedOrientation) {
+                            return 'idle';
+                        }
+                        return 'completed';
+                    }
+                    return 'processing';
+                },
+
+                get requestOrientation() {
+                    return this.isLandscapeOnlyType(this.selectedImageType) ? 'landscape' : this.orientation;
+                },
+
+                get isLandscapeOnlySelectedType() {
+                    return this.isLandscapeOnlyType(this.selectedImageType);
+                },
+
+                get isAppOnlySelectedType() {
+                    const type = this.imageTypes.find(t => t.id === this.selectedImageType);
+                    return type ? !!type.is_app_only : false;
+                },
+
+                get genLoadingMessage() {
+                    if (!this.job) return '';
+                    if (this.job.status === 'queued' && this.job.queue_ahead_count != null) {
+                        const count = this.job.queue_ahead_count;
+                        if (count > 20) {
+                            if (this.lang === 'ja') {
+                                return `あと<b>${count}人</b>待ち...<br><b>再読み込み</b>せずにお待ちください。<br>現在多くの方が画像生成をしており、大変混み合っております。待ち時間が長い場合は、申し訳ありませんが混雑の少ない時間帯のご利用をご検討ください。`;
+                            } else {
+                                return `<b>${count}</b> ${count === 1 ? 'person' : 'people'} ahead...<br>Please wait <b>without reloading</b>.<br>Many users are currently generating images, and the queue is very crowded. If the wait time is too long, please consider using the service during less busy hours.`;
+                            }
+                        } else {
+                            if (this.lang === 'ja') {
+                                return `あと<b>${count}人</b>待ち...<br><b>再読み込み</b>せずにお待ちください。`;
+                            } else {
+                                return `<b>${count}</b> ${count === 1 ? 'person' : 'people'} ahead...<br>Please wait <b>without reloading</b>.`;
+                            }
+                        }
+                    }
+                    if (this.platform === 'web') {
+                        return this.lang === 'ja'
+                            ? '画像を生成中...<br>画像生成にかかる時間は、通常10秒程度です。'
+                            : 'Generating image...<br>Image generation usually takes about 10 seconds.';
+                    } else {
+                        return this.lang === 'ja'
+                            ? '画像を生成中...<br>画像生成にかかる時間は、通常5〜10秒程度です。'
+                            : 'Generating image...<br>Image generation usually takes about 5-10 seconds.';
+                    }
+                },
+
+                get resultImageSrc() {
+                    if (!this.job?.result_path) return '';
+                    const separator = this.job.result_path.includes('?') ? '&' : '?';
+                    return `${this.job.result_path}${separator}v=${this.resultImageNonce}`;
+                },
+
+                get ticketButtonText() {
+                    const balance = this.ticketBalance || 0;
+                    if (this.platform === 'web') {
+                        if (this.lang === 'ja') {
+                            return `🎟️ 1消費して広告をスキップして生成<br>（🎟️ 残り${balance}）`;
+                        } else {
+                            return `🎟️ Use 1 to Skip Ad & Generate<br>(🎟️ ${balance} left)`;
+                        }
+                    } else {
+                        if (this.lang === 'ja') {
+                            return `🎟️ 1消費して広告をスキップして生成<br>（🎟️ 残り${balance}）`;
+                        } else {
+                            return `🎟️ Use 1 to Skip Ad & Generate<br>(🎟️ ${balance} left)`;
+                        }
+                    }
+                },
+
+                handleTicketGeneration() {
+                    if (!this.isLoggedIn) {
+                        alert(this.lang === 'ja'
+                            ? 'この機能を利用するにはログインが必要です。アカウントタブよりログインできます。'
+                            : 'Login is required to use this feature. You can log in from the Account tab.');
+                        return;
+                    }
+                    if (this.ticketBalance <= 0) {
+                        alert(this.lang === 'ja'
+                            ? 'チケットが足りません。アカウントタブ→「広告スキップチケット」よりチケットを獲得できます。'
+                            : 'Not enough tickets. You can earn tickets from Account tab → "Ad Skip Tickets".');
+                        return;
+                    }
+                    this.startGeneration(true, false);
+                },
+
+                // ---- 保存 ----
+                async saveImage() {
+                    if (!this.job?.result_path) return;
+                    try {
+                        const response = await fetch(this.job.result_path);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const blob = await response.blob();
+
+                        // アプリ版は download 属性による保存で画面遷移が発生しやすいため、共有シートを優先する
+                        if (window.Capacitor?.isNativePlatform?.()) {
+                            const filename = this.job.result_filename || 'profile-image.png';
+
+                            if (navigator.canShare && navigator.share) {
+                                const file = new File([blob], filename, { type: blob.type || 'image/png' });
+                                if (navigator.canShare({ files: [file] })) {
+                                    try {
+                                        await navigator.share({
+                                            files: [file],
+                                            title: filename,
+                                        });
+                                        this.imageSaved = true;
+                                        return;
+                                    } catch (shareError) {
+                                        if (shareError?.name === 'AbortError') {
+                                            return;
+                                        }
+                                        console.warn('navigator.share with file failed, falling back to Capacitor Share:', shareError);
+                                    }
+                                }
+                            }
+
+                            if (window.Capacitor?.Plugins?.Share) {
+                                try {
+                                    await window.Capacitor.Plugins.Share.share({
+                                        title: this.lang === 'ja' ? '画像を保存' : 'Save Image',
+                                        text: this.lang === 'ja'
+                                            ? '共有メニューから「画像を保存」を選択してください。'
+                                            : 'Please choose "Save Image" from the share sheet.',
+                                        url: this.job.result_path,
+                                        dialogTitle: this.lang === 'ja' ? '画像を保存' : 'Save Image',
+                                    });
+                                    this.imageSaved = true;
+                                    return;
+                                } catch (shareError) {
+                                    const message = String(shareError?.errorMessage || shareError?.message || '');
+                                    if (message.toLowerCase().includes('canceled')) {
+                                        return;
+                                    }
+                                    throw shareError;
+                                }
+                            }
+
+                            this.showSaveFallback = true;
+                            return;
+                        }
+
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = this.job.result_filename || 'profile-image.png';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        this.imageSaved = true;
+                    } catch (error) {
+                        console.error('Failed to save image:', error);
+                        this.showSaveFallback = true;
+                    }
+                },
+
+                resetGeneration() {
+                    this.job = null;
+                    this.imageSaved = false;
+                    this.showSaveFallback = false;
+                    this.forceRegenerateNext = true;
+                    this.resultImageNonce = Date.now();
+                }
+            };
+        }
+    </script>
+{% endblock %}

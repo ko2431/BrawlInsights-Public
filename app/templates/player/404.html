@@ -1,0 +1,21 @@
+{# /app/templates/player/404.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}プレイヤーデータを取得できませんでした{% else %}Could not get player data{% endif %} - Brawl Insights{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/exception.css') }}?v={{ app_version }}">
+
+    {# 広告除外タグ #}
+    <meta name="google-adsense-platform-account" content="ca-pub-4627806715879063">
+    <meta name="google-adsense-platform-domain" content="google.com">
+{% endblock %}
+
+{% block content %}
+<div class="error-page__container"> {# ページ全体のコンテナ #}
+    <h1 class="section-title">{% if lang == "ja" %}プレイヤーデータを取得できませんでした{% else %}Could not get player data{% endif %}</h1>
+    <p class="error__text">{% if lang == "ja" %}ブロスタがメンテナンス中の場合、データを取得できません。ブロスタのメンテナンス終了後に再度お試しください。{% else %}If Brawl Stars is currently under maintenance, data cannot be retrieved. Please try again after the maintenance has ended.{% endif %}</p>
+    <p class="error__text">{% if lang == "ja" %}メンテナンス中でない場合は、存在しないプレイヤータグか、現在BANされているプレイヤータグが指定された可能性があります。入力間違いがないか確認のうえ、再度お試しください。{% else %}If there is no ongoing maintenance, the player tag you entered may either not exist or belong to a currently banned player. Please check for any mistakes in your input and try again.{% endif %}</p>
+    <p class="error__text error__text-link"><a href="{{ url_for('home', lang=lang) }}">{% if lang == "ja" %}ホームに戻る{% else %}Back to Home{% endif %}</a></p>
+</div>
+{% endblock %}

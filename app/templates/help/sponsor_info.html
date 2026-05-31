@@ -1,0 +1,241 @@
+{# /app/templates/help/sponsor_info.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}スポンサー募集・広告掲載について{% else %}Sponsorship & Advertising{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}Brawl Insightsのスポンサー広告掲載に関する情報です。{% else %}Information about sponsorship and advertising on Brawl Insights.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/help.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="help-page__container">
+
+    {# 戻るボタン（アプリ版：上部） #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main help-page-title--main">
+        {% if lang == "ja" %}スポンサー募集・広告掲載について{% else %}Sponsorship & Advertising{% endif %}
+    </h1>
+
+    {% if lang == "ja" %}
+
+    {# ===== 日本語版 ===== #}
+
+    <div class="help-page__text">
+        Brawl Insightsは、ブロスタの多機能ツールアプリです。
+        <br>2026年4月の実績として、月間アクティブユーザー数<b>22.9万人</b>、月間ページビュー数<b>453万回</b>を記録しました（Googleアナリティクスより）。アプリ版の累計ダウンロード数は<b>7.5万</b>を超えており、幅広いブロスタプレイヤーに利用されています。
+        <br>このページでは、Brawl Insightsへのスポンサー広告掲載についての情報をまとめています。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">スポンサー広告の概要</h2>
+    <div class="help-page__text">
+        Brawl Insightsでは、ブロスタ関連のコンテンツクリエイター（YouTuber等）や宣伝したいものがある方を対象に、アプリ内にオリジナルバナー広告を掲載する<b>スポンサー制度</b>を設けています。
+        <div class="line-space"></div>
+        スポンサー広告は、既存のGoogle AdSense広告・AdMob広告とは完全に独立した枠として掲載されます。
+        <br>スポンサー様がご用意された<b>バナー画像</b>がアプリ内（Web版・アプリ版両方）の各ページに表示され、クリックすることでスポンサー様の指定ページ（チャンネル、動画等）へ遷移します。
+        <br>各ページのバナー広告表示スロットには、スポンサー様の中から均等確率でランダムに1名が選ばれて表示されます。
+        <div class="line-space"></div>
+        バナー広告は通常の各ページのほか、<b>プロフィール画像生成ツール</b>での画像生成中にも表示されます。
+        <br>ユーザーが必ず数秒間見つめる画面であるため、特に高い宣伝効果が期待できます。
+        <div class="line-space"></div>
+        さらに、ツールタブの<b>ブロスタおすすめ動画</b>に、ご自身のYouTube動画を掲載することも可能です。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">ご利用条件</h2>
+    <div class="help-page__text">
+        スポンサー広告の掲載にあたり、以下の条件を満たしていただく必要があります。
+        <div class="line-space"></div>
+        ・掲載バナーの内容がSupercellの規約及びファンコンテンツポリシーに準拠していること。<br>
+        ・掲載バナーの内容がBrawl Insights、Apple、Google、その他関連プラットフォームの規約や法令に反しないこと。<br>
+        <div class="line-space"></div>
+        <b>掲載不可のコンテンツの例：</b><br>
+        ・違法・詐欺的・不当な商品・サービスの宣伝<br>
+        ・チート・代行・アカウント販売等に関するコンテンツ<br>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">掲載期間・料金</h2>
+    <div class="help-page__text">
+        掲載期間は<b>1ヶ月単位</b>となります。料金は<b>月額6,000円（税込）</b>です。<br>
+        <div class="line-space"></div>
+        お申し込み時は、<b>「お申し込み月の日割り料金」と「翌月分の月額料金」を合算して</b>お支払いいただきます。
+        （例：5月20日にお申し込みの場合、5月分の残り11日分 ＋ 6月分 を初回にお支払い）<br>
+        以降は、前月末日までに翌月分の料金をお支払いいただきます。<br>
+        <div class="line-space"></div>
+        日本国内のスポンサー様の場合、お支払いは<b>銀行振込（三菱UFJ銀行）</b>にて承ります。振込手数料はスポンサー様のご負担となります（三菱UFJ銀行からのお振込の場合は無料）。<br>
+        日本国外のスポンサー様の場合、お支払いは<b>PayPal</b>にて承ります。手数料はスポンサー様のご負担となります。<br>
+        掲載の終了をご希望の場合は、その月の末日までにご連絡ください。
+        <div class="line-space"></div>
+        なお、スポンサー様一人当たりの広告掲載量が保たれるよう、スポンサー枠の受け入れ人数には上限があります。満員の場合はお断りすることがございますので、あらかじめご了承ください。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">バナー画像の仕様</h2>
+    <div class="help-page__text">
+        ・<b>アスペクト比</b>：21:9 推奨（他の比率の場合、上下または左右に余白が入ります）<br>
+        ・<b>対応フォーマット</b>：WebP / PNG / JPG（WebP推奨）<br>
+        ・複数のバナー画像を登録することができます。複数登録の場合は、表示の都度ランダムで1枚が選ばれます。<br>
+        ・日本語版・英語版のバナーを別々にご用意いただくことも可能です（省略した場合は共通バナーを使用）。<br>
+        ・バナーのクリック先URLは、バナーごとに個別に設定することも、全バナー共通にすることも可能です。<br>
+        ・バナーは随時更新可能です。XのDM等にてお問い合わせいただくことで、掲載開始・停止・内容変更を承ります。<br>
+        ・バナーのサイズが大きい場合、軽量なWebP形式に変換させていただく場合があります。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">広告の表示について</h2>
+    <div class="help-page__text">
+        ・スポンサー広告は、アプリ内・Web内の各種ページ（「プロフィール画像生成ツール」の画像生成中含む）に表示されます。<br>
+        ・広告の掲載量は、ページのコンテンツによって異なります。レイアウトの都合上、広告が掲載されないページもあります。<br>
+        ・「広告を削除」機能を購入済みのユーザーには、スポンサー広告を含む全ての広告が表示されません。<br>
+        ・法令準拠のため、スポンサー広告は「スポンサー」のラベルが付いた状態で表示されます。<br>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">ブロスタ動画ページへの掲載</h2>
+    <div class="help-page__text">
+        スポンサー様は、バナー広告の掲載に加えて、ツールタブの「ブロスタおすすめ動画」ページにおすすめ動画を掲載することができます。<br>
+        ご自身のYouTubeチャンネルの指定した動画を掲載し、Brawl Insightsのユーザーに宣伝することが可能です。<br>
+        なお、同じチャンネルの動画ばかりが掲載されないよう、掲載数・頻度には制限を設けさせていただく場合があります。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">その他</h2>
+    <div class="help-page__text">
+        ・毎月、Brawl Insightsの今月のページビュー数等をまとめた簡単なマンスリーレポートを提供いたします。
+        <div class="line-space"></div>
+        ・万一、Brawl Insightsのメンテナンスや不具合等によりバナー広告表示が1日以上行えなかった場合は、原則としてその分を翌月の金額から差し引くか、無料で掲載期間を延長する形で補填させていただきます。
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">お問い合わせ</h2>
+    <div class="help-page__text">
+        スポンサー広告の掲載にご興味をお持ちの方は、以下の連絡先までお気軽にお問い合わせください。<br>
+        <div class="line-space"></div>
+        ・<b>X (旧Twitter)</b>：<a href="https://x.com/brawlinsights" target="_blank" rel="noopener noreferrer" class="help-page__link" style="text-decoration: underline;">@BrawlInsights</a><br>
+        ・<b>メールアドレス</b>：<a href="mailto:contact.brawlinsights@gmail.com" class="help-page__link" style="text-decoration: underline;">contact.brawlinsights@gmail.com</a><br>
+        ※メールでのお問い合わせは、対応が遅れる場合がございます。可能であればXでご連絡ください。
+        <div class="line-space"></div>
+        お問い合わせの際は、活動されているプラットフォーム（YouTube等、ある場合）と、ご希望の掲載内容をお知らせいただけますとスムーズです。
+    </div>
+
+    {% else %}
+
+    {# ===== 英語版 ===== #}
+    <div class="help-page__text">
+        Brawl Insights is a multi-functional tool app for Brawl Stars.
+        <br>As of April 2026, we recorded <b>229,000</b> monthly active users and <b>4.53 million</b> monthly page views (source: Google Analytics). The app version has surpassed <b>75,000</b> total downloads and is used by a wide range of Brawl Stars players.
+        <br>This page provides information on placing sponsor advertisements on Brawl Insights.
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Overview of Sponsor Ads</h2>
+    <div class="help-page__text">
+        Brawl Insights offers a <b>Sponsorship Program</b> that allows Brawl Stars content creators (e.g., YouTubers) or anyone with something to promote to display original banner ads within the app.
+        <div class="line-space"></div>
+        Sponsor ads are displayed in ad slots completely independent of existing Google AdSense and AdMob ads.
+        <br>The <b>banner image</b> provided by the sponsor will be displayed on various pages within the app (both Web and App versions). Clicking the banner will redirect users to the sponsor's specified page (channel, video, etc.).
+        <br>For each banner ad slot on the pages, one sponsor is randomly selected with equal probability to be displayed.
+        <div class="line-space"></div>
+        In addition to regular pages, banner ads are also displayed during image generation in the <b>Profile Image Generator</b>.
+        <br>Since this is a screen that users must watch for a few seconds, it offers a particularly high promotional effect.
+        <div class="line-space"></div>
+        Furthermore, you can also have your YouTube videos featured on the <b>Brawl Videos</b> page under the Tools tab.
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Terms and Conditions</h2>
+    <div class="help-page__text">
+        To place sponsor ads, you must meet the following conditions.
+        <div class="line-space"></div>
+        ・The content of the banner must comply with Supercell's Terms of Service and Fan Content Policy.<br>
+        ・The content of the banner must not violate the terms or laws of Brawl Insights, Apple, Google, or other related platforms.<br>
+        <div class="line-space"></div>
+        <b>Examples of prohibited content:</b><br>
+        ・Promotion of illegal, fraudulent, or deceptive products/services.<br>
+        ・Content related to cheats, boosting, account selling, etc.<br>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Duration and Pricing</h2>
+    <div class="help-page__text">
+        The placement period is on a <b>monthly basis</b>. The fee is <b>6,000 JPY (tax included)</b> per month.<br>
+        <div class="line-space"></div>
+        Upon application, the <b>prorated fee for the starting month and the full fee for the following month</b> must be paid together in a lump sum.
+        (Example: If applying on May 20th, the initial payment will cover the remaining 11 days of May plus the entire month of June.)<br>
+        The minimum placement period is from the month of application until the end of the following month.
+        Thereafter, if you wish to continue, the fee for the following month must be paid by the last day of the preceding month.<br>
+        <div class="line-space"></div>
+        For sponsors in Japan, payments are accepted via <b>bank transfer (MUFG Bank)</b>. Transfer fees are the responsibility of the sponsor (free for transfers from MUFG Bank).<br>
+        For sponsors outside Japan, payments are accepted via <b>PayPal</b>. Fees are the responsibility of the sponsor.<br>
+        If you wish to terminate the placement, please notify us by the last day of the month preceding the month you wish to end.
+        <div class="line-space"></div>
+        Please note that there is a limit to the number of sponsors we can accept to ensure the ad exposure per sponsor is maintained. We may decline your request if the slots are full.
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Banner Image Specifications</h2>
+    <div class="help-page__text">
+        ・<b>Aspect Ratio</b>: 21:9 recommended (For other ratios, margins will be added to the top/bottom or left/right).<br>
+        ・<b>Supported Formats</b>: WebP / PNG / JPG (WebP recommended).<br>
+        ・Multiple banner images can be registered. If multiple images are registered, one will be selected randomly each time it is displayed.<br>
+        ・You can also provide separate banners for the Japanese and English versions (if omitted, a common banner will be used).<br>
+        ・The destination URL upon clicking the banner can be set individually for each banner or commonly for all banners.<br>
+        ・Banners can be updated at any time. By contacting us via X (formerly Twitter) DM, etc., we can start, stop, or change the content of the placement.<br>
+        ・If the banner file size is large, we may convert it to the lightweight WebP format.
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">About Ad Display</h2>
+    <div class="help-page__text">
+        ・Sponsor ads are displayed on various pages within the app and web (including during image generation in the "Profile Image Generator").<br>
+        ・The number of sponsor ads displayed varies depending on the page content. Due to layout constraints, some pages may not display any ads.<br>
+        ・Users who have purchased the "Remove Ads" feature will not see any ads, including sponsor ads.<br>
+        ・To comply with regulations, sponsor ads will be displayed with a "Sponsor" label.<br>
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Placement on the Brawl Videos Page</h2>
+    <div class="help-page__text">
+        In addition to banner ads, sponsors can have their recommended videos featured on the "Brawl Videos" page under the Tools tab.<br>
+        You can promote your YouTube channel to Brawl Insights users by specifying videos from your channel.<br>
+        Please note that we may impose limits on the number and frequency of placements to prevent videos from the same channel from being displayed exclusively.
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Miscellaneous</h2>
+    <div class="help-page__text">
+        ・We will provide a simple monthly report summarizing the page views and other metrics of Brawl Insights for the current month.
+        <div class="line-space"></div>
+        ・In the unlikely event that banner ads cannot be displayed for one day or more due to maintenance or issues with Brawl Insights, we will generally compensate by deducting the equivalent amount from the following month's fee or extending the placement period free of charge.
+    </div>
+
+    <h2 class="help-page__section-title" style="margin-top: 20px;">Contact Us</h2>
+    <div class="help-page__text">
+        If you are interested in placing a sponsor ad, please feel free to contact us at the following.<br>
+        <div class="line-space"></div>
+        ・<b>X (formerly Twitter)</b>: <a href="https://x.com/brawlinsights" target="_blank" rel="noopener noreferrer" class="help-page__link" style="text-decoration: underline;">@BrawlInsights</a><br>
+        <div class="line-space"></div>
+        When contacting us, please provide the platform you are active on (e.g., YouTube channel, if applicable) and your desired placement content for a smoother process.
+    </div>
+
+    {% endif %}
+
+    {# 戻るボタン（アプリ版：下部） #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const backButtons = document.querySelectorAll('.back-button');
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => { history.back(); });
+        });
+    });
+    </script>
+{% endblock %}

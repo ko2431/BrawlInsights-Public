@@ -1,0 +1,152 @@
+{# /app/templates/stats/legacy_prestige_borders.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}トップランカーボーダー一覧 (仮実装版){% else %}Prestige Borders (Beta){% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのトップランカーボーダー一覧を閲覧できます。{% else %}View the prestige border list.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="stats-page__container" x-data="prestigeBordersSorter()">
+    <h1 class="page-title--main">{% if lang == "ja" %}トップランカーボーダー一覧 (仮実装版){% else %}Prestige Borders (Beta){% endif %}</h1>
+
+    {% if not borders or not brawlers %}
+    <p>{% if lang == "ja" %}この日のボーダーは記録されていません。閲覧できるデータがありません。{% else %}No Data{% endif %}</p>
+    {% else %}
+    <p style="margin-bottom: 10px;">
+        <b>{{ date }}</b>
+        {% if lang == "ja" %}のボーダーを表示しています。集計は原則として毎日17:59に自動で行っています。ほかの日付のボーダーを見るには、URLに.../prestige<b>?date=2025-06-01</b> (日付は例)のように太字部分を手動で追記してください(シーズンごとのボーダーを見るには、各シーズンの最終日を指定します)。この機能は簡易的な仮実装版です。今後のアップデートで、より高度なトップランカーボーダー確認ページを実装予定です。{% endif %}
+    </p>
+
+    {% if has_stats %} {# サーバーから渡された has_stats フラグで表示を制御 #}
+    <p style="margin-bottom: 10px;">
+        {% if lang == "ja" %}
+            平均値: <b>{{ mean_border if mean_border else '---' }}</b>,
+            中央値: <b>{{ median_border if median_border else '---' }}</b>,
+            標準偏差: <b>{{ stdev_border if stdev_border else '---' }}</b>
+        {% else %}
+            Average: <b>{{ mean_border if mean_border else '---' }}</b>,
+            Median: <b>{{ median_border if median_border else '---' }}</b>,
+            Standard Deviation: <b>{{ stdev_border if stdev_border else '---' }}</b>
+        {% endif %}
+    </p>
+    {% endif %}
+
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <th @click="sortBy('name')">
+                    <span>{% if lang == "ja" %}名前{% else %}Name{% endif %}</span>
+                    <span x-show="sortColumn === 'name'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('id')">
+                    <span>{% if lang == "ja" %}内部ID{% else %}ID{% endif %}</span>
+                    <span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('rarity')">
+                    <span>{% if lang == "ja" %}レア度 (数字){% else %}Rarity{% endif %}</span>
+                    <span x-show="sortColumn === 'rarity'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+                <th @click="sortBy('border')">
+                    <span>{% if lang == "ja" %}ボーダー{% else %}Border{% endif %}</span>
+                    <span x-show="sortColumn === 'border'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                </th>
+            </thead>
+            <tbody>
+                <template x-for="item in sortedBrawlerData" :key="item.id">
+                    <tr>
+                        <td x-text="item.name"></td>
+                        <td x-text="item.id" style="text-align: right;"></td>
+                        <td x-text="item.rarity !== null ? item.rarity : '-'" style="text-align: right;"></td>
+                        <td x-text="item.border !== null ? item.border : '-'" style="text-align: right;"></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function prestigeBordersSorter() {
+            return {
+                brawlersRaw: {{ brawlers | tojson | safe }}, // サーバーからのキャラクターリスト
+                bordersRaw: {{ borders | tojson | safe }},   // サーバーからのボーダー辞書
+                currentLang: '{{ lang }}',
+                sortColumn: 'border', // 初期ソート列 (例: ボーダー)
+                sortDirection: 'desc', // 初期ソート方向 (例: 降順)
+                
+                // キャラクターデータとボーダーデータを結合・整形して保持するプロパティ
+                brawlerData: [],
+
+                // 初期化処理
+                init() {
+                    // brawlersRaw と bordersRaw から brawlerData を作成
+                    this.brawlerData = this.brawlersRaw.map(b => {
+                        const borderValue = this.bordersRaw[b.id];
+                        return {
+                            id: b.id,
+                            name_en: b.name_en,
+                            name_ja: b.name_ja,
+                            name: this.currentLang === 'ja' && b.name_ja ? b.name_ja : b.name_en, // 表示名
+                            rarity: b.rarity !== undefined ? b.rarity : null, // レアリティ (null許容)
+                            border: borderValue !== undefined ? parseInt(borderValue, 10) : null // ボーダー (数値またはnull)
+                        };
+                    });
+                    // 初期ソートを実行
+                    this.applySort(); 
+                },
+
+                // ソートされたデータを返す算出プロパティ
+                get sortedBrawlerData() {
+                    // this.brawlerData は既にソートされているのでそのまま返す
+                    return this.brawlerData;
+                },
+
+                // ソートを実行するメソッド
+                sortBy(columnName) {
+                    if (this.sortColumn === columnName) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = columnName;
+                        this.sortDirection = 'asc'; // 新しい列でソートする場合は昇順から
+                    }
+                    this.applySort();
+                },
+
+                // 実際のソート処理
+                applySort() {
+                    this.brawlerData.sort((a, b) => {
+                        let valA = a[this.sortColumn];
+                        let valB = b[this.sortColumn];
+
+                        // null または undefined の値をソートの最後に持っていくための比較
+                        const aIsNull = valA === null || typeof valA === 'undefined';
+                        const bIsNull = valB === null || typeof valB === 'undefined';
+
+                        if (aIsNull && bIsNull) return 0;
+                        if (aIsNull) return 1; // aがnullならbより大きい(後ろ)
+                        if (bIsNull) return -1; // bがnullならaより大きい(後ろ) -> aが小さい(前)
+
+                        // 数値と文字列で比較方法を分ける
+                        if (typeof valA === 'number' && typeof valB === 'number') {
+                            return (valA - valB) * (this.sortDirection === 'asc' ? 1 : -1);
+                        } else { // 文字列比較 (ロケール依存)
+                            return String(valA).localeCompare(String(valB), this.currentLang === 'ja' ? 'ja-JP-u-kf-upper' : undefined, { sensitivity: 'base', numeric: true }) * (this.sortDirection === 'asc' ? 1 : -1);
+                        }
+                    });
+                }
+            };
+        }
+
+        // Alpine.jsの初期化
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('prestigeBordersSorter', prestigeBordersSorter);
+        });
+    </script>
+{% endblock %}

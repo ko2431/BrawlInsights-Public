@@ -1,0 +1,2072 @@
+<div class="player-page__container"> {# ページ全体のコンテナ #}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    {# --- プレイヤーヘッダー --- #}
+    <header class="profile-header">
+        <div class="profile-header__main-info"> {# アイコンと名前/タグ #}
+            <img src="{{ player_icon_path }}" alt="{{ player.name }} アイコン" class="profile-header__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+            <div class="profile-header__identity"> {# 名前とタグ #}
+                <h1 class="profile-header__name">{{ player.name }}</h1>
+                <p class="profile-header__tag">{{ player.tag }}</p>
+            </div>
+        </div>
+        <div class="profile-header__club-info"> {# クラブ情報 #}
+            <img src="{{ url_for('static', path='/images/ui/club.webp' if player.club_tag and player.club_name else '/images/club_badges/0.png') }}" alt="クラブ" class="profile-header__club-icon">
+            {% if player.club_tag and player.club_name %}
+                {# クラブ名もカラータグを含む可能性があるため safe #}
+                <a href="{{ url_for('get_club_profile', lang=lang, tag=player.club_tag[1:]) }}" class="profile-header__club-link">{{ player.club_name|safe }}</a>
+            {% else %}
+                <span class="profile-header__no-club">{% if lang == "ja" %}クラブなし{% else %}No Club{% endif %}</span>
+            {% endif %}
+        </div>
+    </header>
+
+    {# --- ブックマークUI --- #}
+    <div x-data="bookmarkButtonHandler('{{ player.tag }}', '{{ player.name | replace("'", "\\'") }}')" x-init="initButtonState()" class="bookmark-ui--mobile">
+        {# ボタンの表示は x-show や :class で動的に変更 #}
+        {# 未ログイン時 #}
+        <template x-if="!isLoggedIn">
+            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--secondary button--bookmark button--bookmark--mobile">
+                {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
+            </a>
+        </template>
+        {# ログイン済み #}
+        {# メインアカウント閲覧中 #}
+        <template x-if="isLoggedIn && isMainAccount">
+            <button type="button" class="button button--success-alt button--bookmark button--bookmark--mobile" @click="showMainAccountAlert()">
+                {% if lang == "ja" %}メインアカウント{% else %}Main Account{% endif %}
+            </button>
+        </template>
+        {# ブックマーク済み #}
+        <template x-if="isLoggedIn && !isMainAccount && isBookmarked">
+            <button type="button" class="button button--success is-active button--bookmark button--bookmark--mobile" @click="confirmRemoveBookmark()">
+                {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
+            </button>
+        </template>
+        {# 未ブックマーク #}
+        <template x-if="isLoggedIn && !isMainAccount && !isBookmarked">
+            <button type="button" class="button button--secondary button--bookmark button--bookmark--mobile" @click="confirmAddBookmark()">
+                {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
+            </button>
+        </template>
+        {# 処理中や結果メッセージの表示エリア (任意) #}
+        {# <div x-show="message" x-text="message" :class="{'success': lastActionSuccess, 'error': !lastActionSuccess && message}"></div> #}
+    </div>
+
+    {# --- ページ内ナビゲーションタブ --- #}
+    <nav class="tab-nav player-tab-nav"> {# components.css のタブスタイル #}
+        <ul class="tab-nav__list">
+            <li class="tab-nav__item">
+                {# プロフィールページへのリンク #}
+                <a href="{{ url_for('get_player_profile', lang=lang, tag=player.tag[1:]) }}" class="tab-nav__link">{% if lang == "ja" %}プロフィール{% else %}Profile{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                {# バトル履歴ページへのリンク (URLは後で設定) #}
+                <a href="{{ url_for('get_player_battles', lang=lang, tag=player.tag[1:]) }}" class="tab-nav__link">{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="#" class="tab-nav__link tab-nav__link--active">{% if lang == "ja" %}推移グラフ{% else %}Trends{% endif %}</a>
+            </li>
+        </ul>
+        <div x-data="bookmarkButtonHandler('{{ player.tag }}', '{{ player.name | replace("'", "\\'") }}')" x-init="initButtonState()" class="bookmark-ui--pc">
+            {# ボタンの表示は x-show や :class で動的に変更 #}
+            {# 未ログイン時 #}
+            <template x-if="!isLoggedIn">
+                <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--secondary button--bookmark button--bookmark--pc">
+                    {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
+                </a>
+            </template>
+            {# ログイン済み #}
+            {# メインアカウント閲覧中 #}
+            <template x-if="isLoggedIn && isMainAccount">
+                <button type="button" class="button button--success-alt button--bookmark button--bookmark--pc" @click="showMainAccountAlert()">
+                    {% if lang == "ja" %}メインアカウント{% else %}Main Account{% endif %}
+                </button>
+            </template>
+            {# ブックマーク済み #}
+            <template x-if="isLoggedIn && !isMainAccount && isBookmarked">
+                <button type="button" class="button button--success is-active button--bookmark button--bookmark--pc" @click="confirmRemoveBookmark()">
+                    {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
+                </button>
+            </template>
+            {# 未ブックマーク #}
+            <template x-if="isLoggedIn && !isMainAccount && !isBookmarked">
+                <button type="button" class="button button--secondary button--bookmark button--bookmark--pc" @click="confirmAddBookmark()">
+                    {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
+                </button>
+            </template>
+            {# 処理中や結果メッセージの表示エリア (任意) #}
+            {# <div x-show="message" x-text="message" :class="{'success': lastActionSuccess, 'error': !lastActionSuccess && message}"></div> #}
+        </div>
+    </nav>
+
+    {# --- 統計コンテンツ --- #}
+    <div class="stats-content-container">
+
+        <div class="info-block" style="padding: 0;">
+            <p class="info-block__text">{% if lang == "ja" %}【グラフはすべて触って確認できます！】このページでは、各プレイヤーデータの推移グラフを確認できます。集計期間は、初めてBrawl Insightsでこのプレイヤーが閲覧された日からとなります。プレイヤー自動追跡機能が無効になっていた期間では、一部の日のデータに欠損が生じていることがあります。{% else %}On this page, you can see a graph of each of this player's data trends. The aggregation period is from the date this player was first viewed in Brawl Insights. If the player auto-tracking feature is disabled, data may be missing for some days.{% endif %}</p>
+        </div>
+
+        {# --- 期間選択 --- #}
+        <div class="sort-options period-options" style="margin-bottom: 5px;">
+            <form method="get" id="periodForm">
+                <label for="periodSelect" class="sort-options__label">{% if lang == "ja" %}表示期間:{% else %}Period:{% endif %}</label>
+                <select name="period" id="periodSelect" class="sort-options__select" onchange="document.getElementById('periodForm').submit();">
+                    {% for value, label_ja, label_en, days in available_periods %}
+                        <option value="{{ value }}" {% if value == current_period %}selected{% endif %}>
+                            {% if lang == "ja" %}{{ label_ja }}{% else %}{{ label_en }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Submit{% endif %}</button></noscript>
+            </form>
+        </div>
+
+        {% if player_stats_data.total_log_days == 1 %}
+        <div class="info-block info-block-newplayer">
+            <img src="{{ url_for('static', path='/images/ui/warning.png') }}" alt="注意" class="info-block__icon info-block__icon-big">
+            <p class="info-block__text info-block__text-big">{% if lang == "ja" %}このプレイヤーは、Brawl Insightsで今日初めて閲覧されたため、今日から統計データの記録が開始されます。明日以降、推移データがどんどん蓄積されていきます。{% else %}Since this player was viewed for the first time today in Brawl Insights, statistics recording will begin today. From tomorrow onward, trend data will continue to accumulate.{% endif %}</p>
+        </div>
+        {% endif %}
+
+        {% if player_stats_data.log_trends %}
+            <div class="stats-container stats-graph-container"> {# CSSでグリッドレイアウトを適用するコンテナ #}
+                {# 各グラフのプレースホルダーとID属性を設定 #}
+                <div class="stats-block" id="trophies-trend-block" x-data="{ open: true }">
+                    <h2 id="trophies-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}総合トロフィー推移{% else %}Total Trophies Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="trophy-chart-canvas"></canvas> {# IDを変更し、canvasに #}
+                    </div>
+                    </div>
+                </div>
+
+                {# <div class="stats-block" id="season-trophies-trend-block" x-data="{ open: true }">
+                    <h2 id="season-trophies-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}シーズントロフィー推移{% else %}Season Trophies Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="season-trophy-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div> #} {# シーズントロフィー制度廃止に伴い削除 #}
+                
+                {# 他のグラフも同様に追加 ... #}
+                <div class="stats-block" id="average-trophies-trend-block" x-data="{ open: true }">
+                    <h2 id="average-trophies-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}平均トロフィー推移{% else %}Avg. Trophies Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="average-trophies-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                {# <div class="stats-block" id="ranked-rank-trend-block">
+                    <h2 id="ranked-rank-trend" class="section-title">{% if lang == "ja" %}推定ガチバトルランク推移{% else %}Est. Ranked Rank Trend{% endif %}</h2>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="ranked-rank-chart-canvas"></canvas>
+                    </div>
+                </div> #}
+
+                <div class="stats-block" id="ranked-score-trend-block" x-data="{ open: true }">
+                    <h2 id="ranked-score-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}ガチバトルスコア推移{% else %}Ranked Score Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="ranked-score-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+                
+                <div class="stats-block" id="total-prestige-level-trend-block" x-data="{ open: true }">
+                    <h2 id="total-prestige-level-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}合計トップランカーレベル推移{% else %}Total Prestige Level Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="total-prestige-level-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+                
+                <div class="stats-block" id="brawler-stats-trend-block" x-data="{ open: true }">
+                    <h2 id="brawler-stats-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}キャラクター関連数値推移{% else %}Brawler Stats Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="brawler-stats-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div style="margin: 0 5%">
+                    {% include "components/ad_banner.html" %}
+                </div>
+                
+                <div class="stats-block" id="average-power-level-trend-block" x-data="{ open: true }">
+                    <h2 id="average-power-level-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}平均パワーレベル推移{% else %}Avg. Power Level Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="average-power-level-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+                
+                <div class="stats-block" id="accessories-trend-block" x-data="{ open: true }">
+                    <h2 id="accessories-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}合計アクセサリー数推移{% else %}Total Accessories Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="accessories-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="stats-block" id="average-accessories-trend-block" x-data="{ open: true }">
+                    <h2 id="average-accessories-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}平均アクセサリー数推移{% else %}Avg. Accessories Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="average-accessories-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="stats-block" id="play-time-trend-block" x-data="{ open: true }">
+                    <h2 id="play-time-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}推定プレイ時間推移{% else %}Est. Play Time Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="play-time-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+                
+                <div class="stats-block" id="victories-trend-block" x-data="{ open: true }">
+                    <h2 id="victories-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}勝利数推移{% else %}Victories Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="victories-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="stats-block" id="owned-skin-count-trend-block" x-data="{ open: true }">
+                    <h2 id="owned-skin-count-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}所持スキン数推移{% else %}Owned Skins Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="owned-skins-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div style="margin: 0 5%">
+                    {% include "components/ad_banner.html" %}
+                </div>
+
+                <div class="stats-block" id="record-points-trend-block" x-data="{ open: true }">
+                    <h2 id="record-points-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}記録ポイント推移{% else %}Record Points Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="record-points-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="stats-block" id="fame-points-trend-block" x-data="{ open: true }">
+                    <h2 id="fame-points-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}累計名声ポイント推移{% else %}Fame Points Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="fame-points-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="stats-block" id="max-winstreak-trend-block" x-data="{ open: true }">
+                    <h2 id="max-winstreak-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}最大連勝数推移{% else %}Max Win Streak Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="max-winstreak-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                {# <div class="stats-block" id="prestige-trend-block" x-data="{ open: true }">
+                    <h2 id="prestige-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}トップランカー所持数推移{% else %}Prestige Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="prestige-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div> #} {# 旧トップランカー制度廃止に伴い削除 #}
+
+                <div class="stats-block" id="total-mastery-trend-block" x-data="{ open: true }">
+                    <h2 id="total-mastery-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}合計旧マスタリーポイント推移{% else %}Total Old Mastery Points Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="total-mastery-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="stats-block" id="average-mastery-trend-block" x-data="{ open: true }">
+                    <h2 id="average-mastery-trend" class="section-title" @click="open = !open">
+                        <span>{% if lang == "ja" %}平均旧マスタリーポイント推移{% else %}Avg. Old Mastery Points Trend{% endif %}</span>
+                        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+                    </h2>
+                    <div x-show="open" x-transition>
+                    <div class="chart-wrapper" style="position: relative; height:300px; width:100%;">
+                        <canvas id="average-mastery-chart-canvas"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+            </div>
+            {# デバッグ用: 取得したトレンドデータを表示 #}
+            {# <pre>{{ player_stats_data.log_trends | tojson(indent=2) }}</pre> #}
+        {% else %}
+            <p style="text-align: center; margin-top: 30px;">
+                {% if lang == "ja" %}
+                    このプレイヤーの統計推移データはまだ記録されていません。{% if platform == "web" %}サイト{% else %}アプリ{% endif %}で初めて閲覧されたプレイヤーは、翌日以降にデータが記録され始めます。
+                {% else %}
+                    Statistical trend data for this player has not yet been recorded. For players viewed for the first time on the {% if platform == "web" %}site{% else %}app{% endif %}, data recording will begin the following day.
+                {% endif %}
+            </p>
+            {% if player_stats_data.total_log_days == 0 and player.level > 0 %}
+                 <p style="text-align: center;">
+                    {% if lang == "ja" %}
+                        本日初めて閲覧されたため、明日からグラフが表示されます。
+                    {% else %}
+                        Since this player was viewed for the first time today, graphs will be available starting tomorrow.
+                    {% endif %}
+                 </p>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+    <script>
+    const initStatsBackButtons = () => {
+        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
+        const backButtons = document.querySelectorAll('.back-button');
+
+        // 取得した各ボタンにクリックイベントリスナーを設定します
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // クリックされたら、ブラウザの履歴を一つ前に戻します
+                history.back();
+            });
+        });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initStatsBackButtons, { once: true });
+    } else {
+        initStatsBackButtons();
+    }
+    </script>
+
+    {# ここにChart.jsなどのライブラリとグラフ描画スクリプトを記述 #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {# Chart.jsの日付アダプタも必要になる場合があります (例: Moment.js, date-fns, Luxon) #}
+    {# 例: date-fns を使う場合 #}
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script>
+        // Chart.jsのグローバルデフォルトフォント設定
+        Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Segoe UI', 'Yu Gothic UI', 'Meiryo', Roboto, 'Noto Sans JP', sans-serif";
+
+        const theme = localStorage.getItem('brawlInsightsTheme') || 'auto';
+        const isDarkMode = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) || document.documentElement.classList.contains('dark');
+        
+        // ダークモード向けの色補正関数 (暗い色を明るくする)
+        function getChartColor(baseColor) {
+            if (!isDarkMode) return baseColor;
+            
+            // 暗い色のマッピング（視認性向上のため明るい色に置換）
+            const darkToLightMap = {
+                'rgb(28, 49, 212)': 'rgb(100, 149, 237)', // 青 -> コーンフラワーブルー
+                'rgb(128, 0, 128)': 'rgb(218, 112, 214)', // 濃い紫 -> オーキッド
+                'rgb(139, 0, 0)': 'rgb(255, 99, 71)', // 濃い赤 -> トマト
+                'rgb(184, 134, 11)': 'rgb(240, 230, 140)', // 濃い黄色 -> カーキ
+                'rgb(235, 56, 56)': 'rgb(255, 105, 97)', // 赤 -> パステルレッド
+            };
+            
+            return darkToLightMap[baseColor] || baseColor;
+        }
+
+        // 現在のテーマ設定に応じて、Chart.jsのグローバルカラーをデフォルト設定します。
+        // Chart.js v4では borderColor がグリッド線や枠線に、color がテキストに適用されます
+        if (isDarkMode) {
+            Chart.defaults.color = 'rgba(255, 255, 255, 0.8)'; // テキストカラー（薄い灰色/白）
+            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.2)'; // グリッド線
+        } else {
+            Chart.defaults.color = '#333';
+            Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.1)';
+        }
+        
+        // lang 変数をグローバルスコープに近い位置で定義
+        const SCRIPT_LANG = "{{ lang }}"; // 変数名を変更してJinja2の lang との混同を避ける (推奨)
+        const rawLogTrends = {{ player_stats_data.log_trends | tojson | safe }};
+        let charts = {}; // Chart.jsインスタンスを保持
+    
+        const initStatsCharts = function() {
+            // console.log("Script Lang:", SCRIPT_LANG); // デバッグ用
+            // console.log("Raw Log Trends:", rawLogTrends); // デバッグ用
+    
+            if (rawLogTrends && rawLogTrends.dates && rawLogTrends.dates.length > 0) {
+                renderTrophyChart(rawLogTrends);
+                if (typeof renderSeasonTrophyChart === 'function') renderSeasonTrophyChart(rawLogTrends);
+                if (typeof renderAverageTrophiesChart === 'function') renderAverageTrophiesChart(rawLogTrends);
+                if (typeof renderRankedRankChart === 'function') renderRankedRankChart(rawLogTrends);
+                if (typeof renderRankedScoreChart === 'function') renderRankedScoreChart(rawLogTrends);
+                if (typeof renderTotalPrestigeLevelChart === 'function') renderTotalPrestigeLevelChart(rawLogTrends);
+                if (typeof renderBrawlerStatsChart === 'function') renderBrawlerStatsChart(rawLogTrends);
+                if (typeof renderAveragePowerLevelChart === 'function') renderAveragePowerLevelChart(rawLogTrends);
+                if (typeof renderAccessoriesChart === 'function') renderAccessoriesChart(rawLogTrends);
+                if (typeof renderAverageAccessoriesChart === 'function') renderAverageAccessoriesChart(rawLogTrends);
+                if (typeof renderPlayTimeChart === 'function') renderPlayTimeChart(rawLogTrends);
+                if (typeof renderVictoriesChart === 'function') renderVictoriesChart(rawLogTrends);
+                if (typeof renderOwnedSkinsChart === 'function') renderOwnedSkinsChart(rawLogTrends);
+                if (typeof renderTotalMasteryChart === 'function') renderTotalMasteryChart(rawLogTrends);
+                if (typeof renderAverageMasteryChart === 'function') renderAverageMasteryChart(rawLogTrends);
+                if (typeof renderRecordPointsChart === 'function') renderRecordPointsChart(rawLogTrends);
+                if (typeof renderFamePointsChart === 'function') renderFamePointsChart(rawLogTrends);
+                if (typeof renderMaxWinstreakChart === 'function') renderMaxWinstreakChart(rawLogTrends);
+                if (typeof renderPrestigeChart === 'function') renderPrestigeChart(rawLogTrends);
+            } else {
+                // ... (データがない場合のメッセージ表示)
+                displayNoDataMessage('trophy-chart-canvas');
+                displayNoDataMessage('season-trophy-chart-canvas');
+                displayNoDataMessage('average-trophies-chart-canvas');
+                displayNoDataMessage('ranked-rank-chart-canvas');
+                displayNoDataMessage('ranked-score-chart-canvas');
+                displayNoDataMessage('brawler-stats-chart-canvas');
+                displayNoDataMessage('average-power-level-chart-canvas');
+                displayNoDataMessage('accessories-chart-canvas');
+                displayNoDataMessage('average-accessories-chart-canvas');
+                displayNoDataMessage('play-time-chart-canvas');
+                displayNoDataMessage('victories-chart-canvas');
+                displayNoDataMessage('owned-skins-chart-canvas');
+                displayNoDataMessage('total-mastery-chart-canvas');
+                displayNoDataMessage('average-mastery-chart-canvas');
+                displayNoDataMessage('record-points-canvas');
+                displayNoDataMessage('fame-points-canvas');
+                displayNoDataMessage('max-winstreak-chart-canvas');
+                displayNoDataMessage('prestige-chart-canvas');
+            }
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initStatsCharts, { once: true });
+        } else {
+            initStatsCharts();
+        }
+
+        // --- ガチバトルランク名定義 ---
+        const rankedRankMap = {
+            ja: {
+                0: 'ランクなし', 1: 'ブロンズ Ⅰ', 2: 'ブロンズ Ⅱ', 3: 'ブロンズ Ⅲ',
+                4: 'シルバー Ⅰ', 5: 'シルバー Ⅱ', 6: 'シルバー Ⅲ',
+                7: 'ゴールド Ⅰ', 8: 'ゴールド Ⅱ', 9: 'ゴールド Ⅲ',
+                10: 'ダイヤモンド Ⅰ', 11: 'ダイヤモンド Ⅱ', 12: 'ダイヤモンド Ⅲ',
+                13: 'エリート Ⅰ', 14: 'エリート Ⅱ', 15: 'エリート Ⅲ',
+                16: 'レジェンド Ⅰ', 17: 'レジェンド Ⅱ', 18: 'レジェンド Ⅲ',
+                19: 'マスター Ⅰ', 20: 'マスター Ⅱ', 21: 'マスター Ⅲ',
+                22: 'プロ'
+            },
+            en: {
+                0: 'No Rank', 1: 'Bronze Ⅰ', 2: 'Bronze Ⅱ', 3: 'Bronze Ⅲ',
+                4: 'Silver Ⅰ', 5: 'Silver Ⅱ', 6: 'Silver Ⅲ',
+                7: 'Gold Ⅰ', 8: 'Gold Ⅱ', 9: 'Gold Ⅲ',
+                10: 'Diamond Ⅰ', 11: 'Diamond Ⅱ', 12: 'Diamond Ⅲ',
+                13: 'Mythic Ⅰ', 14: 'Mythic Ⅱ', 15: 'Mythic Ⅲ',
+                16: 'Legendary Ⅰ', 17: 'Legendary Ⅱ', 18: 'Legendary Ⅲ',
+                19: 'Masters Ⅰ', 20: 'Masters Ⅱ', 21: 'Masters Ⅲ',
+                22: 'Pro'
+            }
+        };
+    
+        function displayNoDataMessage(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (canvas && canvas.parentElement) { // canvasとその親要素が存在することを確認
+                const parentDiv = canvas.parentElement;
+                // 既存のChartインスタンスがあれば破棄
+                if (charts[canvasId]) {
+                    charts[canvasId].destroy();
+                    delete charts[canvasId];
+                }
+                // canvasをクリアまたは非表示にし、メッセージを表示
+                canvas.style.display = 'none'; // canvasを隠す
+                // メッセージ表示用の要素があるか確認、なければ作成
+                let msgDiv = parentDiv.querySelector('.no-data-message');
+                if (!msgDiv) {
+                    msgDiv = document.createElement('div');
+                    msgDiv.className = 'no-data-message'; // スタイル付け用
+                    msgDiv.style.textAlign = 'center';
+                    msgDiv.style.padding = '20px';
+                    msgDiv.style.color = '#888';
+                    // canvasの次、または親要素の最後に追加
+                    if(canvas.nextSibling) {
+                        parentDiv.insertBefore(msgDiv, canvas.nextSibling);
+                    } else {
+                        parentDiv.appendChild(msgDiv);
+                    }
+                }
+                msgDiv.textContent = SCRIPT_LANG === 'ja' ? '表示できるデータがありません。' : 'No data available to display.';
+                msgDiv.style.display = 'block';
+            }
+        }
+    
+        // 総合トロフィー推移グラフ
+        function renderTrophyChart(logTrends) {
+            const canvasId = 'trophy-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+
+            const hasHighest = logTrends.highest_trophies && logTrends.highest_trophies.some(v => v !== null);
+            const hasCurrent = logTrends.current_trophies && logTrends.current_trophies.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasHighest && !hasCurrent)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+
+            const datasets = [];
+            if (hasHighest) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? '最多トロフィー' : 'Highest Trophies',
+                    data: logTrends.highest_trophies,
+                    borderColor: 'rgb(28, 49, 212)', // 青
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+            if (hasCurrent) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? '現在トロフィー' : 'Current Trophies',
+                    data: logTrends.current_trophies,
+                    borderColor: 'rgb(255, 205, 86)', // 黄色
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasHighest ? logTrends.highest_trophies.filter(v => v !== null) : [],
+                hasCurrent ? logTrends.current_trophies.filter(v => v !== null) : []
+            );
+            // Y軸の beginAtZero は false (デフォルト) のままで良いでしょう。
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '総合トロフィー' : 'Trophies');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString(); // <--- カンマ区切りに
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString(); // <--- カンマ区切りに
+                    }
+                };
+            }
+
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderSeasonTrophyChart(logTrends) {
+            const canvasId = 'season-trophy-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.season_trophies && logTrends.season_trophies.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? 'シーズントロフィー' : 'Season Trophies',
+                data: logTrends.season_trophies,
+                borderColor: 'rgb(38, 222, 182)', // エメラルド
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.season_trophies.filter(v => v !== null);
+            // シーズントロフィーは0から始まることが多いので beginAtZero: true
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'シーズントロフィー' : 'Season Trophies', true);
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            config.options.scales.y.beginAtZero = true; // 明示的にtrueに設定
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderAverageTrophiesChart(logTrends) {
+            const canvasId = 'average-trophies-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasAvgHighest = logTrends.average_highest_trophies && logTrends.average_highest_trophies.some(v => v !== null);
+            const hasAvgCurrent = logTrends.average_current_trophies && logTrends.average_current_trophies.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasAvgHighest && !hasAvgCurrent)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [];
+            if (hasAvgHighest) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均最多トロフィー' : 'Avg. Highest Trophies',
+                data: logTrends.average_highest_trophies,
+                borderColor: 'rgb(145, 38, 222)', // 紫
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if (hasAvgCurrent) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均現在トロフィー' : 'Avg. Current Trophies',
+                data: logTrends.average_current_trophies,
+                borderColor: 'rgb(245, 131, 49)', // 橙
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasAvgHighest ? logTrends.average_highest_trophies.filter(v => v !== null) : [],
+                hasAvgCurrent ? logTrends.average_current_trophies.filter(v => v !== null) : []
+            );
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '平均トロフィー' : 'Average Trophies');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            // ツールチップの数値表示を小数点第2位に揃える
+            config.options.plugins.tooltip = config.options.plugins.tooltip || {};
+            config.options.plugins.tooltip.callbacks = config.options.plugins.tooltip.callbacks || {};
+            config.options.plugins.tooltip.callbacks.label = function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                    label += ': ';
+                }
+                const value = context.parsed.y;
+                if (value !== null && value !== undefined) {
+                    if (typeof value === 'number' && !Number.isNaN(value)) {
+                        // 常に小数点第2位まで表示
+                        label += value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    } else {
+                        label += value;
+                    }
+                }
+                return label;
+            };
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 推定ガチバトルランク推移 ---
+        function renderRankedRankChart(logTrends) {
+            const canvasId = 'ranked-rank-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+
+            const hasHighestData = logTrends.ranked_highest_rank && logTrends.ranked_highest_rank.some(v => v !== null && v >= 0);
+            const hasCurrentData = logTrends.ranked_current_rank && logTrends.ranked_current_rank.some(v => v !== null && v >= 0);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasHighestData && !hasCurrentData)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+
+            const datasets = [];
+            if (hasHighestData) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? '推定最高ランク' : 'Est. Highest Rank',
+                    data: logTrends.ranked_highest_rank,
+                    borderColor: 'rgb(227, 61, 141)', // ボタン色
+                    tension: 0.1, fill: false,
+                    stepped: true, // ランクは段階的なのでtrue
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+            if (hasCurrentData) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? '推定現在ランク' : 'Est. Current Rank',
+                    data: logTrends.ranked_current_rank,
+                    borderColor: 'rgb(31, 209, 61)', // 緑系
+                    tension: 0.1, fill: false,
+                    stepped: true, // ランクは段階的なのでtrue
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+
+            // Y軸に表示する可能性のある全てのランク値を取得 (0-22の範囲でフィルタリング)
+            const allYValues = [].concat(
+                hasHighestData ? logTrends.ranked_highest_rank.filter(v => v !== null && v >= 0 && v <= 22) : [],
+                hasCurrentData ? logTrends.ranked_current_rank.filter(v => v !== null && v >= 0 && v <= 22) : []
+            );
+
+            let minYTick = 0;
+            let maxYTick = 22;
+            let yStepSize = 1;
+
+            if (allYValues.length > 0) {
+                const uniqueSortedValues = [...new Set(allYValues)].sort((a, b) => a - b);
+                minYTick = Math.max(0, uniqueSortedValues[0] -1); // 最小値より1つ下（ただし0以上）
+                maxYTick = Math.min(22, uniqueSortedValues[uniqueSortedValues.length - 1] + 1); // 最大値より1つ上（ただし22以下）
+                
+                // 表示範囲が狭すぎる場合は調整
+                if (maxYTick - minYTick < 2 && uniqueSortedValues.length === 1) { // データ点が1種類しかない場合
+                    minYTick = Math.max(0, uniqueSortedValues[0] -1);
+                    maxYTick = Math.min(22, uniqueSortedValues[0] +1);
+                } else if (maxYTick - minYTick < 2 ) { // データが複数あるが範囲が狭い場合
+                    minYTick = Math.max(0, minYTick -1);
+                    maxYTick = Math.min(22, maxYTick +1);
+                }
+
+                // 目盛りの数が多すぎないように stepSize を調整 (最大でも10個程度の目盛りにしたい)
+                const range = maxYTick - minYTick;
+                if (range > 10) {
+                    yStepSize = Math.ceil(range / 10);
+                }
+            }
+            // 1点データの場合は、その点を中心に表示
+            if (logTrends.dates.length === 1 && allYValues.length > 0) {
+                const singleValue = allYValues[0]; // いずれかのデータがあるはず
+                minYTick = Math.max(0, singleValue - 2);
+                maxYTick = Math.min(22, singleValue + 2);
+                if (singleValue === 0) maxYTick = 2;
+                if (singleValue === 22) minYTick = 20;
+                yStepSize = 1;
+            }
+
+
+            const config = createBaseChartConfig(
+                data,
+                SCRIPT_LANG === 'ja' ? '日付' : 'Date',
+                SCRIPT_LANG === 'ja' ? '推定ランク' : 'Estimated Rank',
+                determineTimeUnit(logTrends.dates),
+                determineMaxTicks(logTrends.dates.length),
+                minYTick, // Y軸の最小値
+                maxYTick, // Y軸の最大値
+                logTrends.dates.length === 1 ? logTrends.dates[0] : null
+            );
+
+            // Y軸の目盛りラベルをランク名に変換し、範囲とステップも設定
+            config.options.scales.y.min = minYTick;
+            config.options.scales.y.max = maxYTick;
+            config.options.scales.y.ticks = {
+                stepSize: yStepSize, // 整数のみ表示
+                callback: function(value, index, values) {
+                    // valueが範囲外や小数の場合、ラベルを表示しないことがあるので整数に丸めるかチェック
+                    const intValue = Math.round(value);
+                    if (intValue >= 0 && intValue <= 22) {
+                        return rankedRankMap[SCRIPT_LANG][intValue] || value;
+                    }
+                    return ''; // 範囲外は表示しない
+                }
+            };
+            // ツールチップのラベルもランク名に変換
+            config.options.plugins.tooltip = config.options.plugins.tooltip || {};
+            config.options.plugins.tooltip.callbacks = config.options.plugins.tooltip.callbacks || {};
+            config.options.plugins.tooltip.callbacks.label = function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                    label += ': ';
+                }
+                const rankValue = context.parsed.y;
+                if (rankValue !== null && rankValue >= 0 && rankValue <= 22) {
+                    label += rankedRankMap[SCRIPT_LANG][Math.round(rankValue)] || rankValue;
+                } else if (rankValue !== null) {
+                    label += rankValue;
+                }
+                return label;
+            };
+
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            // 1点データの場合のY軸範囲の再調整は、min/maxを直接設定しているので不要か、
+            // または updateSinglePointYAxis を改造してランク用に使う必要がある。
+            // 現状は上記の minYTick, maxYTick の計算で対応。
+        }
+
+        // ガチバトルスコア推移
+        function renderRankedScoreChart(logTrends) {
+            const canvasId = 'ranked-score-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasHighestScore = logTrends.ranked_highest_score && logTrends.ranked_highest_score.some(v => v !== null);
+            const hasCurrentScore = logTrends.ranked_current_score && logTrends.ranked_current_score.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasHighestScore && !hasCurrentScore)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [];
+            if (hasHighestScore) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '最高スコア' : 'Highest Score',
+                data: logTrends.ranked_highest_score,
+                borderColor: getChartColor('rgb(235, 56, 56)'), // 赤
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if (hasCurrentScore) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '現在スコア' : 'Current Score',
+                data: logTrends.ranked_current_score,
+                borderColor: getChartColor('rgb(28, 49, 212)'), // 青
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasHighestScore ? logTrends.ranked_highest_score.filter(v => v !== null) : [],
+                hasCurrentScore ? logTrends.ranked_current_score.filter(v => v !== null) : []
+            );
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'スコア' : 'Score');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // 合計トップランカーレベル推移
+        function renderTotalPrestigeLevelChart(logTrends) {
+            const canvasId = 'total-prestige-level-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.total_prestige_level && logTrends.total_prestige_level.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '合計トップランカーレベル' : 'Total Prestige Level',
+                data: logTrends.total_prestige_level,
+                borderColor: getChartColor('rgb(38, 222, 182)'), // エメラルドグリーン
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.total_prestige_level.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '合計レベル' : 'Total Level');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- キャラクター関連数値推移 ---
+        function renderBrawlerStatsChart(logTrends) {
+            const canvasId = 'brawler-stats-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+
+            const hasUnlockedBrawlers = logTrends.unlocked_brawlers && logTrends.unlocked_brawlers.some(v => v !== null);
+            const hasMaxPowerBrawlers = logTrends.max_power_brawlers && logTrends.max_power_brawlers.some(v => v !== null);
+            const hasPrestige1Brawlers = logTrends.prestige_1_brawlers && logTrends.prestige_1_brawlers.some(v => v !== null);
+            const hasPrestige2Brawlers = logTrends.prestige_2_brawlers && logTrends.prestige_2_brawlers.some(v => v !== null);
+            const hasPrestige3Brawlers = logTrends.prestige_3_brawlers && logTrends.prestige_3_brawlers.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasUnlockedBrawlers && !hasMaxPowerBrawlers && !hasPrestige1Brawlers && !hasPrestige2Brawlers && !hasPrestige3Brawlers)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+
+            const datasets = [];
+            if (hasUnlockedBrawlers) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? 'アンロック済み' : 'Unlocked Brawlers',
+                    data: logTrends.unlocked_brawlers,
+                    borderColor: getChartColor('rgb(102, 219, 237)'), // 水色
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+            if (hasMaxPowerBrawlers) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? 'パワー11到達数' : 'Max Power Brawlers',
+                    data: logTrends.max_power_brawlers,
+                    borderColor: getChartColor('rgb(196, 120, 235)'), // 薄紫
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+            if (hasPrestige1Brawlers) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? 'トップランカー1到達数' : 'Prestige 1 Reached',
+                    data: logTrends.prestige_1_brawlers,
+                    borderColor: getChartColor('rgb(128, 0, 128)'), // 濃い紫
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+            if (hasPrestige2Brawlers) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? 'トップランカー2到達数' : 'Prestige 2 Reached',
+                    data: logTrends.prestige_2_brawlers,
+                    borderColor: getChartColor('rgb(139, 0, 0)'), // 濃い赤
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+            if (hasPrestige3Brawlers) {
+                datasets.push({
+                    label: SCRIPT_LANG === 'ja' ? 'トップランカー3到達数' : 'Prestige 3 Reached',
+                    data: logTrends.prestige_3_brawlers,
+                    borderColor: getChartColor('rgb(184, 134, 11)'), // 濃い黄色
+                    tension: 0.1, fill: false,
+                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+                });
+            }
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasUnlockedBrawlers ? logTrends.unlocked_brawlers.filter(v => v !== null) : [],
+                hasMaxPowerBrawlers ? logTrends.max_power_brawlers.filter(v => v !== null) : [],
+                hasPrestige1Brawlers ? logTrends.prestige_1_brawlers.filter(v => v !== null) : [],
+                hasPrestige2Brawlers ? logTrends.prestige_2_brawlers.filter(v => v !== null) : [],
+                hasPrestige3Brawlers ? logTrends.prestige_3_brawlers.filter(v => v !== null) : []
+            );
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'キャラクター数' : 'Number of Brawlers', false);
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 平均パワーレベル推移 ---
+        function renderAveragePowerLevelChart(logTrends) {
+            const canvasId = 'average-power-level-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.average_power && logTrends.average_power.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '平均パワーレベル' : 'Average Power Level',
+                data: logTrends.average_power,
+                borderColor: 'rgb(227, 43, 153)', // 桃色
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.average_power.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '平均パワーレベル' : 'Average Power', false, 1, 11); // パワーレベルは1-11の範囲
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+            
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale, 1, 11);
+        }
+
+        // --- 合計アクセサリー数推移 ---
+        function renderAccessoriesChart(logTrends) {
+            const canvasId = 'accessories-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasGadgets = logTrends.gadgets && logTrends.gadgets.some(v => v !== null);
+            const hasStarPowers = logTrends.star_powers && logTrends.star_powers.some(v => v !== null);
+            const hasGears = logTrends.gears && logTrends.gears.some(v => v !== null);
+
+            const hasHyperCharges = logTrends.hyper_charges && logTrends.hyper_charges.some(v => v !== null);
+            const hasBuffies = logTrends.buffies && logTrends.buffies.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasGadgets && !hasStarPowers && !hasGears && !hasHyperCharges && !hasBuffies)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [];
+            if(hasGadgets) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '合計ガジェット数' : 'Total Gadgets',
+                data: logTrends.gadgets,
+                borderColor: getChartColor('rgb(38, 173, 65)'), // 緑
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasStarPowers) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '合計スターパワー数' : 'Total Star Powers',
+                data: logTrends.star_powers,
+                borderColor: getChartColor('rgb(255, 205, 86)'), // 黄色
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasGears) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '合計ギア数' : 'Total Gears',
+                data: logTrends.gears,
+                borderColor: getChartColor('rgb(54, 162, 235)'), // 青
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasHyperCharges) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '合計ハイパーチャージ数' : 'Total Hypercharges',
+                data: logTrends.hyper_charges,
+                borderColor: getChartColor('rgb(145, 38, 222)'), // 紫
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasBuffies) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '合計バフィー数' : 'Total Buffies',
+                data: logTrends.buffies,
+                borderColor: getChartColor('rgb(255, 153, 153)'), // 薄い赤
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasGadgets ? logTrends.gadgets.filter(v => v !== null) : [],
+                hasStarPowers ? logTrends.star_powers.filter(v => v !== null) : [],
+                hasGears ? logTrends.gears.filter(v => v !== null) : [],
+                hasHyperCharges ? logTrends.hyper_charges.filter(v => v !== null) : [],
+                hasBuffies ? logTrends.buffies.filter(v => v !== null) : []
+            );
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '合計アンロック数' : 'Count', true);
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付（ハイパーチャージとバフィーのデータは2026年3月以降）' : 'Date (Hyper Charges and Buffies data since March 2026)', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 平均アクセサリー数推移 ---
+        function renderAverageAccessoriesChart(logTrends) {
+            const canvasId = 'average-accessories-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasAverageGadgets = logTrends.average_gadgets && logTrends.average_gadgets.some(v => v !== null);
+            const hasAverageStarPowers = logTrends.average_star_powers && logTrends.average_star_powers.some(v => v !== null);
+            const hasAverageGears = logTrends.average_gears && logTrends.average_gears.some(v => v !== null);
+            const hasAverageHyperCharges = logTrends.average_hyper_charges && logTrends.average_hyper_charges.some(v => v !== null);
+            const hasAverageBuffies = logTrends.average_buffies && logTrends.average_buffies.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasAverageGadgets && !hasAverageStarPowers && !hasAverageGears && !hasAverageHyperCharges && !hasAverageBuffies)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [];
+            if(hasAverageGadgets) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均ガジェット数' : 'Avg. Gadgets',
+                data: logTrends.average_gadgets,
+                borderColor: getChartColor('rgb(38, 173, 65)'), // 緑
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasAverageStarPowers) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均スターパワー数' : 'Avg. Star Powers',
+                data: logTrends.average_star_powers,
+                borderColor: getChartColor('rgb(255, 205, 86)'), // 黄色
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasAverageGears) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均ギア数' : 'Avg. Gears',
+                data: logTrends.average_gears,
+                borderColor: getChartColor('rgb(54, 162, 235)'), // 青
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasAverageHyperCharges) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均ハイパーチャージ数' : 'Avg. Hypercharges',
+                data: logTrends.average_hyper_charges,
+                borderColor: getChartColor('rgb(145, 38, 222)'), // 紫
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasAverageBuffies) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '平均バフィー数' : 'Avg. Buffies',
+                data: logTrends.average_buffies,
+                borderColor: getChartColor('rgb(255, 153, 153)'), // 薄い赤
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasAverageGadgets ? logTrends.average_gadgets.filter(v => v !== null) : [],
+                hasAverageStarPowers ? logTrends.average_star_powers.filter(v => v !== null) : [],
+                hasAverageGears ? logTrends.average_gears.filter(v => v !== null) : [],
+                hasAverageHyperCharges ? logTrends.average_hyper_charges.filter(v => v !== null) : [],
+                hasAverageBuffies ? logTrends.average_buffies.filter(v => v !== null) : []
+            );
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '平均アンロック数' : 'Count', true);
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付（ハイパーチャージとバフィーのデータは2026年3月以降）' : 'Date (Hyper Charges and Buffies data since March 2026)', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 推定プレイ時間推移 ---
+        function renderPlayTimeChart(logTrends) {
+            const canvasId = 'play-time-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.play_time && logTrends.play_time.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '推定プレイ時間' : 'Est. Play Time',
+                data: logTrends.play_time,
+                borderColor: 'rgb(28, 49, 212)', // 青
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.play_time.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '推定プレイ時間' : 'Est. Play Time');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            // ツールチップの表示をカスタマイズ
+            config.options.plugins.tooltip = config.options.plugins.tooltip || {};
+            config.options.plugins.tooltip.callbacks = config.options.plugins.tooltip.callbacks || {};
+            config.options.plugins.tooltip.callbacks.label = function(context) {
+                // "推定プレイ時間" などのデータセットのラベルを取得
+                let label = context.dataset.label || '';
+                if (label) {
+                    label += ': ';
+                }
+                // グラフ上のY軸の値を取得
+                const value = context.parsed.y;
+                if (value !== null) {
+                    // Math.round()で値を四捨五入して整数にする
+                    const roundedValue = Math.round(value);
+                    // 言語設定に応じて単位を選択
+                    const unit = SCRIPT_LANG === 'ja' ? '時間' : 'h';
+                    // ラベルに、カンマ区切りにした四捨五入後の値と単位を結合
+                    label += roundedValue.toLocaleString() + unit;
+                }
+                return label;
+            };
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 勝利数推移 ---
+        function renderVictoriesChart(logTrends) {
+            const canvasId = 'victories-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasTeam = logTrends.team_victories && logTrends.team_victories.some(v => v !== null);
+            const hasSolo = logTrends.solo_victories && logTrends.solo_victories.some(v => v !== null);
+            const hasDuo = logTrends.duo_victories && logTrends.duo_victories.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasTeam && !hasSolo && !hasDuo)) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [];
+            if(hasTeam) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? '3対3勝利数' : '3v3 Victories',
+                data: logTrends.team_victories,
+                borderColor: 'rgb(235, 56, 56)', // 赤
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasSolo) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? 'ソロ勝利数' : 'Solo Victories',
+                data: logTrends.solo_victories,
+                borderColor: 'rgb(129, 224, 52)', // 黄緑
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            if(hasDuo) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? 'デュオ勝利数' : 'Duo Victories',
+                data: logTrends.duo_victories,
+                borderColor: 'rgb(54, 162, 235)', // 青
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = [].concat(
+                hasTeam ? logTrends.team_victories.filter(v => v !== null) : [],
+                hasSolo ? logTrends.solo_victories.filter(v => v !== null) : [],
+                hasDuo ? logTrends.duo_victories.filter(v => v !== null) : []
+            );
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '勝利数' : 'Victories', true);
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 所持スキン数推移 ---
+        function renderOwnedSkinsChart(logTrends) {
+            const canvasId = 'owned-skins-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.owned_skin_count && logTrends.owned_skin_count.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '所持スキン数' : 'Owned Skins',
+                data: logTrends.owned_skin_count,
+                borderColor: getChartColor('rgb(128, 0, 128)'), // 紫
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.owned_skin_count.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '所持スキン数' : 'Owned Skins', true);
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value) { return value.toLocaleString(); };
+            } else {
+                config.options.scales.y.ticks = { callback: function(value) { return value.toLocaleString(); } };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderTotalMasteryChart(logTrends) {
+            const canvasId = 'total-mastery-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.total_mastery && logTrends.total_mastery.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '合計マスタリーポイント' : 'Total Mastery Points',
+                data: logTrends.total_mastery,
+                borderColor: 'rgb(245, 131, 49)', // 橙
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.total_mastery.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '合計マスタリーポイント' : 'Total Mastery Points');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderAverageMasteryChart(logTrends) {
+            const canvasId = 'average-mastery-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.average_mastery && logTrends.average_mastery.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '平均マスタリーポイント' : 'Average Mastery Points',
+                data: logTrends.average_mastery,
+                borderColor: 'rgb(255, 205, 86)', // 黄色
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.average_mastery.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '平均マスタリーポイント' : 'Average Mastery Points');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            // ツールチップの表示をカスタマイズ
+            config.options.plugins.tooltip = config.options.plugins.tooltip || {};
+            config.options.plugins.tooltip.callbacks = config.options.plugins.tooltip.callbacks || {};
+            config.options.plugins.tooltip.callbacks.label = function(context) {
+                // "平均マスタリーポイント" などのデータセットのラベルを取得
+                let label = context.dataset.label || '';
+                if (label) {
+                    label += ': ';
+                }
+                // グラフ上のY軸の値を取得
+                const value = context.parsed.y;
+                if (value !== null) {
+                    // Math.round()で値を四捨五入して整数にする
+                    const roundedValue = Math.round(value);
+                    label += roundedValue.toLocaleString();
+                }
+                return label;
+            };
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderRecordPointsChart(logTrends) {
+            const canvasId = 'record-points-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.record_points && logTrends.record_points.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '記録ポイント' : 'Record Points',
+                data: logTrends.record_points,
+                borderColor: 'rgb(38, 173, 65)', // 緑
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.record_points.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '記録ポイント' : 'Record Points');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderFamePointsChart(logTrends) {
+            const canvasId = 'fame-points-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.fame_points && logTrends.fame_points.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '累計名声ポイント' : 'Total Fame Points',
+                data: logTrends.fame_points,
+                borderColor: 'rgb(54, 162, 235)', // 青
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.fame_points.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '累計名声ポイント' : 'Total Fame Points');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderMaxWinstreakChart(logTrends) {
+            const canvasId = 'max-winstreak-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.max_winstreak && logTrends.max_winstreak.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? '最大連勝数' : 'Max Win Streak',
+                data: logTrends.max_winstreak,
+                borderColor: 'rgb(235, 56, 56)', // 赤
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.max_winstreak.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? '最大連勝数' : 'Max Win Streak');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 1. 縦軸の目盛りが必ず整数になるように設定を上書きします。
+            config.options.scales.y.ticks = config.options.scales.y.ticks || {};
+            // stepSize: 1 で目盛りの間隔を1に固定し、整数刻みを強制します。
+            config.options.scales.y.ticks.stepSize = 1;
+            // precision: 0 で目盛りラベルの小数点以下を0桁にします。
+            config.options.scales.y.ticks.precision = 0;
+
+            // 2. データが1点しかない場合に、Y軸の範囲が狭くなりすぎて小数点刻みになるのを防ぎます。
+            if (logTrends.dates.length === 1 && yValuesForScale.length > 0) {
+                const singleValue = yValuesForScale[0];
+                // Y軸の最小値を「値 - 2」か「0」の大きい方に設定します。
+                config.options.scales.y.min = Math.floor(Math.max(0, singleValue - 2));
+                // Y軸の最大値を「値 + 2」に設定し、グラフに十分な余白を確保します。
+                config.options.scales.y.max = Math.ceil(singleValue + 2);
+            }
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            // if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        function renderPrestigeChart(logTrends) {
+            const canvasId = 'prestige-chart-canvas';
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Element with ID '${canvasId}' not found.`);
+                return;
+            }
+            const hasData = logTrends.prestige && logTrends.prestige.some(v => v !== null);
+
+            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
+                displayNoDataMessage(canvasId);
+                return;
+            }
+            const datasets = [{
+                label: SCRIPT_LANG === 'ja' ? 'トップランカー所持数' : 'Prestige',
+                data: logTrends.prestige,
+                borderColor: 'rgb(38, 222, 182)',
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            }];
+            const data = { labels: logTrends.dates, datasets: datasets };
+            const yValuesForScale = logTrends.prestige.filter(v => v !== null);
+            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'トップランカー所持数' : 'Prestige');
+
+            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
+
+            // 1. 縦軸の目盛りが必ず整数になるように設定を上書きします。
+            config.options.scales.y.ticks = config.options.scales.y.ticks || {};
+            // stepSize: 1 で目盛りの間隔を1に固定し、整数刻みを強制します。
+            config.options.scales.y.ticks.stepSize = 1;
+            // precision: 0 で目盛りラベルの小数点以下を0桁にします。
+            config.options.scales.y.ticks.precision = 0;
+
+            // 2. データが1点しかない場合に、Y軸の範囲が狭くなりすぎて小数点刻みになるのを防ぎます。
+            if (logTrends.dates.length === 1 && yValuesForScale.length > 0) {
+                const singleValue = yValuesForScale[0];
+                // Y軸の最小値を「値 - 2」か「0」の大きい方に設定します。
+                config.options.scales.y.min = Math.floor(Math.max(0, singleValue - 2));
+                // Y軸の最大値を「値 + 2」に設定し、グラフに十分な余白を確保します。
+                config.options.scales.y.max = Math.ceil(singleValue + 2);
+            }
+
+            // 縦軸の目盛りをカンマ区切りにする
+            if (config.options.scales.y.ticks) {
+                config.options.scales.y.ticks.callback = function(value, index, values) {
+                    return value.toLocaleString();
+                };
+            } else {
+                config.options.scales.y.ticks = {
+                    callback: function(value, index, values) {
+                        return value.toLocaleString();
+                    }
+                };
+            }
+
+            if (charts[canvasId]) charts[canvasId].destroy();
+            clearAndShowCanvas(canvasId);
+            charts[canvasId] = new Chart(canvas, config);
+            // 3. このグラフではY軸の範囲を独自に調整したため、共通の `updateSinglePointYAxis` は呼び出しません。 
+            // if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
+        }
+
+        // --- 共通ヘルパー関数 ---
+        function clearAndShowCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const parentDiv = canvas.parentElement;
+            if(parentDiv){
+                const msgDiv = parentDiv.querySelector('.no-data-message');
+                if (msgDiv) msgDiv.style.display = 'none';
+            }
+            canvas.style.display = '';
+        }
+
+        function gemeinsamenYAxisConfig(yValues, yAxisTitle, beginAtZero = false, fixedMin = null, fixedMax = null) {
+            let minY = 0;
+            let maxY = 100; // デフォルト
+
+            if (yValues && yValues.length > 0) {
+                const filteredValues = yValues.filter(v => typeof v === 'number'); // 数値のみ対象
+                if (filteredValues.length > 0) {
+                    minY = Math.min(...filteredValues);
+                    maxY = Math.max(...filteredValues);
+                }
+            }
+            
+            const padding = (maxY - minY) > 0 ? Math.max(1, (maxY - minY) * 0.1) : (beginAtZero ? 10 : Math.max(1, maxY * 0.1) || 10) ;
+
+            let suggestedMin = beginAtZero ? 0 : Math.max(0, minY - padding);
+            let suggestedMax = maxY + padding;
+
+            if (fixedMin !== null) suggestedMin = fixedMin;
+            if (fixedMax !== null) suggestedMax = fixedMax;
+            
+            // 値がすべて同じで、かつ0でない場合、Y軸の範囲を少し広げる
+            if (yValues && yValues.length > 0 && yValues.every(val => val === yValues[0]) && yValues[0] !== 0) {
+                const singleValue = yValues[0];
+                if (fixedMin === null) suggestedMin = Math.max(0, singleValue - Math.max(1, Math.abs(singleValue * 0.1)));
+                if (fixedMax === null) suggestedMax = singleValue + Math.max(1, Math.abs(singleValue * 0.1));
+                if (suggestedMin === suggestedMax) { // それでも同じなら最小パディング
+                    if (fixedMin === null) suggestedMin = Math.max(0, suggestedMin - 5);
+                    if (fixedMax === null) suggestedMax = suggestedMax + 5;
+                }
+            }
+            // もし suggestedMin と suggestedMax が非常に近い、または同じ値になった場合の調整
+            if (Math.abs(suggestedMax - suggestedMin) < 1) { // 差が1未満の場合
+                if (fixedMin === null) suggestedMin = Math.max(0, suggestedMin - ( (1 - Math.abs(suggestedMax - suggestedMin)) /2 ) );
+                if (fixedMax === null) suggestedMax = suggestedMax + ( (1 - Math.abs(suggestedMax - suggestedMin)) /2 ) ;
+            }
+
+
+            return { title: yAxisTitle, min: suggestedMin, max: suggestedMax, beginAtZero: beginAtZero };
+        }
+
+        function updateSinglePointYAxis(chartInstance, yValues, fixedMin = null, fixedMax = null) {
+            if (!chartInstance || !yValues || yValues.length === 0) return;
+            
+            const filteredValues = yValues.filter(v => typeof v === 'number');
+            if (filteredValues.length === 0) return;
+
+            const minVal = Math.min(...filteredValues);
+            const maxVal = Math.max(...filteredValues);
+            
+            let padding;
+            if (maxVal - minVal > 0) {
+                padding = Math.max(1, (maxVal - minVal) * 0.2); // 範囲の20% or 最小1
+            } else { // 全て同じ値の場合
+                padding = Math.max(1, Math.abs(maxVal * 0.2) || 10); // 値の20% or 最小1 or デフォルト10
+            }
+
+            let finalMin = Math.max(0, minVal - padding);
+            let finalMax = maxVal + padding;
+
+            if (fixedMin !== null) finalMin = fixedMin;
+            if (fixedMax !== null) finalMax = fixedMax;
+            
+            // 値がすべて同じ場合の特別処理
+            if (filteredValues.every(val => val === filteredValues[0])) {
+                const singleValue = filteredValues[0];
+                if (fixedMin === null) finalMin = Math.max(0, singleValue - Math.max(1, Math.abs(singleValue * 0.1)));
+                if (fixedMax === null) finalMax = singleValue + Math.max(1, Math.abs(singleValue * 0.1));
+                if (finalMin === finalMax) { // それでも同じなら最小パディング
+                    if (fixedMin === null) finalMin = Math.max(0, finalMin - 5);
+                    if (fixedMax === null) finalMax = finalMax + 5;
+                }
+            }
+            // Y軸の最小と最大の差が小さすぎる場合の調整
+            if (Math.abs(finalMax - finalMin) < 1) {
+                const center = (finalMax + finalMin) / 2;
+                if (fixedMin === null) finalMin = center - 0.5;
+                if (fixedMax === null) finalMax = center + 0.5;
+                if (finalMin < 0 && fixedMin === null) { // 0以下にならないように
+                    finalMax += Math.abs(finalMin);
+                    finalMin = 0;
+                }
+            }
+
+
+            chartInstance.options.scales.y.min = finalMin;
+            chartInstance.options.scales.y.max = finalMax;
+            chartInstance.update();
+        }
+
+        function createBaseChartConfig(data, xAxisTitle, yAxisTitle, timeUnit, maxTicks, yMin, yMax, singleDate = null) {
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: timeUnit,
+                            tooltipFormat: 'yyyy/MM/dd',
+                            displayFormats: { day: 'MM/dd', month: 'yyyy/MM', year: 'yyyy' }
+                        },
+                        title: { display: true, text: xAxisTitle },
+                        grid: { display: true },
+                        ticks: { source: 'auto', maxTicksLimit: maxTicks }
+                    },
+                    y: {
+                        beginAtZero: false, // デフォルトはfalse。必要に応じて個々のグラフで上書き。
+                        title: { display: false, text: yAxisTitle }, // Y軸のタイトルを非表示にする
+                        grid: { display: true },
+                        suggestedMin: yMin,
+                        suggestedMax: yMax,
+                        ticks: { // Y軸の目盛りを常にカンマ区切りにする
+                            callback: function(value, index, values) {
+                                if (typeof value === 'number') {
+                                    return value.toLocaleString();
+                                }
+                                return value; // 数値でない場合はそのまま返す
+                            }
+                        }
+                    }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            };
+            if (singleDate) {
+                options.scales.x.min = singleDate;
+                options.scales.x.max = singleDate;
+            }
+            return { type: 'line', data: data, options: options };
+        }
+
+        // X軸の時間単位を動的に決定するヘルパー関数
+        function determineTimeUnit(dates) {
+            if (!dates || dates.length === 0) return 'day';
+            const firstDate = new Date(dates[0]);
+            const lastDate = new Date(dates[dates.length - 1]);
+            const diffDays = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
+
+            if (diffDays <= 31) return 'day';    // 1ヶ月以内なら日単位
+            if (diffDays <= 365 * 2) return 'month'; // 2年以内なら月単位
+            return 'year';                    // それ以上なら年単位
+        }
+
+        // X軸の最大目盛り数をデータ数に応じて調整するヘルパー関数
+        function determineMaxTicks(dataLength) {
+            if (dataLength <= 1) return 1;
+            if (dataLength <= 7) return dataLength; // 1週間以内なら全日表示
+            if (dataLength <= 31) return Math.ceil(dataLength / 2); // 1ヶ月以内なら2日に1回程度
+            if (dataLength <= 90) return Math.ceil(dataLength / 7); // 3ヶ月以内なら週に1回程度
+            if (dataLength <= 365) return 12; // 1年以内なら月に1回程度
+            return Math.ceil(dataLength / 30); // それ以上なら月に1回程度 (調整可)
+        }
+    </script>
+
+    <script>
+    function bookmarkButtonHandler(viewedPlayerTag, viewedPlayerName) {
+        return {
+            isLoggedIn: {{ current_user is not none | lower }},
+            currentUserMainTag: "{{ current_user.main_account if current_user else '' }}",
+            currentUserBookmarks: {{ current_user.saved_accounts | tojson | safe if current_user else [] }},
+            currentUserBookmarkLimit: {{ current_user.saved_accounts_limit if current_user else 0 }},
+            viewedPlayerTag: viewedPlayerTag,
+            viewedPlayerName: viewedPlayerName, // JSコンファームメッセージで使用
+            isMainAccount: false,
+            isBookmarked: false,
+            message: '',
+            lastActionSuccess: false,
+
+            initButtonState() {
+                if (!this.isLoggedIn) return;
+                this.isMainAccount = (this.viewedPlayerTag === this.currentUserMainTag);
+                this.isBookmarked = this.currentUserBookmarks.includes(this.viewedPlayerTag);
+            },
+
+            showMainAccountAlert() {
+                alert("{% if lang == 'ja' %}このアカウントはメインアカウントとして設定されています。変更はアカウントタブで行ってください。{% else %}This is your main account. Changes can be made in the Account Settings.{% endif %}");
+            },
+
+            async confirmAddBookmark() {
+                const confirmMsg = `{% if lang == "ja" %}「${this.viewedPlayerName}」をブックマークしますか？{% else %}Bookmark "${this.viewedPlayerName}"?{% endif %}`;
+                let performAdd = false;
+                let overwriteLast = false;
+
+                if (this.currentUserBookmarks.length < this.currentUserBookmarkLimit) {
+                    if (confirm(confirmMsg)) {
+                        performAdd = true;
+                    }
+                } else { // 枠空きなし
+                    // TODO: 将来的な広告視聴ロジックはここ
+                    const overwriteMsg = `{% if lang == "ja" %}ブックマーク枠が足りません。一番最後の枠に上書きして追加しますか？{% else %}Bookmark limit reached. Overwrite the last bookmark?{% endif %}`;
+                    if (confirm(overwriteMsg)) {
+                        performAdd = true;
+                        overwriteLast = true;
+                    }
+                }
+
+                if (performAdd) {
+                    this.message = '{% if lang=="ja" %}処理中...{% else %}Processing...{% endif %}';
+                    try {
+                        const response = await fetch("{{ url_for('account_add_bookmark', lang=lang) }}", {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ player_tag: this.viewedPlayerTag, overwrite: overwriteLast })
+                        });
+                        const data = await response.json();
+                        this.message = data.message;
+                        this.lastActionSuccess = data.success;
+                        if (data.success) {
+                            this.isBookmarked = true;
+                            // currentUserBookmarks を更新 (より正確にはサーバーから最新リストを取得するのが望ましいが、簡易的に)
+                            if (!this.currentUserBookmarks.includes(this.viewedPlayerTag)) {
+                            if (overwriteLast && this.currentUserBookmarks.length >= this.currentUserBookmarkLimit && this.currentUserBookmarks.length > 0) {
+                                    this.currentUserBookmarks.pop();
+                                }
+                            this.currentUserBookmarks.push(this.viewedPlayerTag); // 実際には順序も考慮すべき
+                            }
+                        }
+                    } catch (error) {
+                        this.message = '{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}';
+                        this.lastActionSuccess = false;
+                    }
+                }
+            },
+
+            async confirmRemoveBookmark() {
+                const confirmMsg = `{% if lang == "ja" %}「${this.viewedPlayerName}」をブックマークから削除しますか？{% else %}Remove "${this.viewedPlayerName}" from bookmarks?{% endif %}`;
+                if (confirm(confirmMsg)) {
+                    this.message = '{% if lang=="ja" %}処理中...{% else %}Processing...{% endif %}';
+                    try {
+                        const response = await fetch("{{ url_for('account_remove_bookmark', lang=lang) }}", {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ player_tag: this.viewedPlayerTag })
+                        });
+                        const data = await response.json();
+                        this.message = data.message;
+                        this.lastActionSuccess = data.success;
+                        if (data.success) {
+                            this.isBookmarked = false;
+                            // currentUserBookmarks を更新
+                            const index = this.currentUserBookmarks.indexOf(this.viewedPlayerTag);
+                            if (index > -1) {
+                                this.currentUserBookmarks.splice(index, 1);
+                            }
+                        }
+                    } catch (error) {
+                        this.message = '{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}';
+                        this.lastActionSuccess = false;
+                    }
+                }
+            }
+        };
+    }
+    </script>

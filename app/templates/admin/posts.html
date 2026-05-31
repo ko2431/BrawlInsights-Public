@@ -1,0 +1,141 @@
+{# /app/templates/admin/posts.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / 投稿確認{% endblock %}
+{% block og_description %}投稿を確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{# ページネーションUIマクロ #}
+{% macro render_pagination(pagination, type) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="投稿ページネーション">
+            <ul class="pagination-list">
+                {% set base_query_parts = [] %}
+                {% if type %}{% set _ = base_query_parts.append("type=" + type) %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {# 1. "＜" (前へ) ボタン #}
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {# 2. ページ番号のロジック #}
+                {% set page_numbers = [] %}
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {# 最初と最後、および現在ページ±2のページ番号を表示対象とする #}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
+                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
+                        {% if page_numbers and p > page_numbers[-1] + 1 %}
+                            {% set _ = page_numbers.append('...') %}
+                        {% endif %}
+                        {% set _ = page_numbers.append(p) %}
+                    {% endif %}
+                {% endfor %}
+
+                {# 3. ページ番号リストを元にHTMLを生成 #}
+                {% for p in page_numbers %}
+                    {% if p == '...' %}
+                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                    {% elif p == pagination.current_page %}
+                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {# 4. ">" (次へ) ボタン #}
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="admin-page__container">
+    <h1 class="page-title--main">投稿確認</h1>
+
+    {# フィルター #}
+    <div class="admin-filters__container">
+        <form method="get" id="typeForm" class="filter-form">
+            <label for="typeSelect" class="filter-form__label">絞り込み:</label>
+            <select name="type" id="typeSelect" class="filter-form__select" onchange="document.getElementById('typeForm').submit();">
+                <option value="all" {% if type == "all" %}selected{% endif %}>すべて</option>
+                <option value="team" {% if type == "team" %}selected{% endif %}>チーム募集</option>
+                <option value="friend" {% if type == "friend" %}selected{% endif %}>フレンド募集</option>
+                <option value="club" {% if type == "club" %}selected{% endif %}>クラブ募集</option>
+                <option value="general" {% if type == "general" %}selected{% endif %}>なんでも掲示板</option>
+            </select>
+            <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+        </form>
+    </div>
+
+    <p class="admin-page__description">
+        投稿総数: <b>{{ '{:,}'.format(total_count) }}</b> 件
+    </p>
+
+    {# ページネーション (上) #}
+    {{ render_pagination(pagination, type) }}
+
+    {# テーブル #}
+    <div class="table-wrapper" style="margin-top: 1em;">
+        <table class="data-table post-table">
+            <thead>
+                <th>ID</th>
+                <th>日時 (JST)</th>
+                <th>タイプ</th>
+                <th>ユーザー</th>
+                <th>ユーザーID</th>
+                <th>IPアドレス</th>
+                <th>地域</th>
+                <th>プレイヤー/クラブ名</th>
+                <th>プレイヤー/クラブタグ</th>
+                <th>コメント</th>
+                <th>削除</th>
+            </thead>
+            <tbody>
+                {% for post in posts %}
+                <tr>
+                    <td>{{ post.id }}</td>
+                    <td>{{ post.created_at_text }}</td>
+                    <td>{% if post.type == "team" %}チーム{% elif post.type == "friend" %}フレンド{% elif post.type == "club" %}クラブ{% elif post.type == "general" %}なんでも{% endif %}</td>
+                    <td>{{ post.host_user_name if post.host_user_name else "(ゲスト)" }}</td>
+                    <td>{{ post.host_id if post.host_id else "(なし)" }}</td>
+                    <td>{{ post.host_ip }}</td>
+                    <td>{{ post.region }}</td>
+                    <td>{% if post.hostplayer %}{{ post.hostplayer.name }}{% elif post.hostclub %}{{ post.hostclub.name }}{% endif %}</td>
+                    <td>{% if post.hostplayer %}{{ post.hostplayer.tag }}{% elif post.hostclub %}{{ post.hostclub.tag }}{% endif %}</td>
+                    <td class="col-message">
+                        <div class="col-message-content">{{ post.comment if post.comment else "(なし)" }}</div>
+                    </td>
+                    <td>{% if post.is_deleted %}削除済み{% endif %}</td>
+                </tr>
+                {% endfor %}
+                {% if not posts %}
+                <tr>
+                    <td colspan="11" style="text-align: center; color: #777;">投稿はありません。</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {# ページネーション (下) #}
+    {{ render_pagination(pagination, type) }}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    </script>
+{% endblock %}

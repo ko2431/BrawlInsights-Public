@@ -1,0 +1,1 @@
+"""Brawl Insights application package."""

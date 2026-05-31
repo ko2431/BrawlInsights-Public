@@ -1,0 +1,472 @@
+{# /app/templates/admin/accessories.html #}
+{% extends "base.html" %}
+
+{% block title %}管理者向け / アクセサリ情報管理{% endblock %}
+{% block og_description %}アクセサリ情報を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <style>
+        .table-wrapper {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .brawler-status-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f7f7f7; 
+            border-top: none;
+            box-shadow: 0 1px 0 #ccc;
+        }
+        .dark .brawler-status-table thead th {
+            background-color: #111;
+            box-shadow: 0 1px 0 #444;
+        }
+        
+        .filter-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-select {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            color: #333;
+        }
+        .dark .filter-select {
+            background-color: #222;
+            color: #ddd;
+            border-color: #444;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container" x-data="accessoryAdmin()">
+    <h1 class="page-title--main">アクセサリ情報管理</h1>
+
+    <p class="admin-page__description" style="margin-bottom: 10px;">
+        登録アクセサリ総数: <b x-text="accessoriesDataRaw.length"></b>
+    </p>
+    
+    <div class="filter-container">
+        <select class="filter-select" x-model="filterBrawlerId" @change="applyFilter()">
+            <option value="">すべてのキャラクター</option>
+            <template x-for="b in brawlersList" :key="b.id">
+                <option :value="b.id" x-text="`${b.id} - ${b.name}`"></option>
+            </template>
+        </select>
+        
+        <select class="filter-select" x-model="filterType" @change="applyFilter()">
+            <option value="">すべての種類</option>
+            <option value="gadget">ガジェット</option>
+            <option value="starPower">スターパワー</option>
+            <option value="gear">ギア</option>
+            <option value="hyperCharge">ハイパーチャージ</option>
+            <option value="buffie">バフィー</option>
+        </select>
+    </div>
+
+    <div class="save-changes-block">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper" style="overflow-x: auto;">
+        <table class="data-table brawler-status-table" style="white-space: nowrap;">
+            <thead>
+                <tr>
+                    <th @click="sortBy('id')" class="col-frozen">
+                        <span>ID</span>
+                        <span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('brawler_id')">
+                        <span>キャラID</span>
+                        <span x-show="sortColumn === 'brawler_id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('brawler_name_ja')" class="col-frozen">
+                        <span>キャラクター名</span>
+                        <span x-show="sortColumn === 'brawler_name_ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('type_en')">
+                        <span>種類</span>
+                        <span x-show="sortColumn === 'type_en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <template x-for="col in columns" :key="col.key">
+                        <th style="cursor: pointer;" :title="col.key" @click="sortBy(col.key)">
+                            <span x-text="col.label"></span>
+                            <span x-show="sortColumn === col.key" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                        </th>
+                    </template>
+                    <th>削除済み</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="acc in filteredData" :key="acc.id + '_' + acc.brawler_id">
+                    <tr x-data="accessoryRow(acc)" x-init="initRow()">
+                        <td x-text="acc.id" style="text-align: center;"></td>
+                        <td x-text="acc.brawler_id" style="text-align: center;"></td>
+                        <td x-text="acc.brawler_name_ja"></td>
+                        <td x-text="acc.type_ja" style="text-align: center;"></td>
+                        <template x-for="col in columns" :key="col.key">
+                            <td contenteditable="true" class="is-editable"
+                                :class="{
+                                    'changed': isDirtyField(col.key),
+                                    'invalid': isDirtyField(col.key) && !isValidField(col.key),
+                                    'show-placeholder': isEmptyField(col.key) && !focusedField[col.key]
+                                }"
+                                :data-placeholder="isEmptyField(col.key) ? '未入力' : ''"
+                                @focus="handleFocus($el, col.key)"
+                                @blur="focusedField[col.key] = false; handleBlur($el, col.key)"
+                                @input.debounce.300ms="handleInput($el, col.key)"
+                                :data-field="col.key"
+                                :style="col.type === 'number' ? 'text-align: right; min-width: 70px;' : 'min-width: 120px; max-width: 300px; white-space: pre-wrap; word-break: break-all;'">
+                            </td>
+                        </template>
+                        <td style="text-align: center; min-width: 90px;">
+                            <input type="checkbox" x-model="currentInvalid" @change="handleInvalidToggle()">
+                        </td>
+                    </tr>
+                </template>
+                <template x-if="filteredData.length === 0">
+                    <tr>
+                        <td :colspan="5 + columns.length" style="text-align: center; color: #777;">該当するアクセサリデータがありません</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="save-changes-block" style="margin-top: 0;">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-top: -5px;">
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        const ACCESSORY_COLUMNS = [
+            { key: 'name_en', label: '英語名', type: 'string' },
+            { key: 'name_ja', label: '日本語名', type: 'string' },
+            { key: 'rarity', label: 'レアリティ', type: 'number' },
+            { key: 'description_en', label: '英語説明', type: 'string' },
+            { key: 'description_ja', label: '日本語説明', type: 'string' },
+            { key: 'buffie_description_en', label: 'バフィー英語説明', type: 'string' },
+            { key: 'buffie_description_ja', label: 'バフィー日本語説明', type: 'string' },
+            { key: 'cooldown', label: 'クールダウン秒数', type: 'number' },
+        ];
+
+        function toDisplayStr(value, type) {
+            if (value === null || typeof value === 'undefined') return '';
+            return String(value);
+        }
+
+        function accessoryAdmin() {
+            return {
+                accessoriesDataRaw: {{ accessories | tojson | safe }},
+                filteredData: [],
+                brawlersList: [],
+                columns: ACCESSORY_COLUMNS,
+                sortColumn: 'id',
+                sortDirection: 'asc',
+                filterBrawlerId: '',
+                filterType: '',
+                hasUnsavedChanges: false,
+                hasInvalidFields: false,
+                saveStatus: { message: '', success: false },
+
+                get canSave() {
+                    return this.hasUnsavedChanges && !this.hasInvalidFields;
+                },
+
+                init() {
+                    // Extract unique brawlers for the filter dropdown
+                    const brawlerMap = new Map();
+                    this.accessoriesDataRaw.forEach(acc => {
+                        if (!brawlerMap.has(acc.brawler_id) && acc.brawler_id !== null) {
+                            brawlerMap.set(acc.brawler_id, {id: acc.brawler_id, name: acc.brawler_name_ja});
+                        }
+                    });
+                    this.brawlersList = Array.from(brawlerMap.values()).sort((a,b) => a.id - b.id);
+                    
+                    this.applyFilter();
+                    this.sortBy(this.sortColumn, true);
+                    
+                    this.$root.addEventListener('statusinputchanged', () => this.recheckState());
+                    window.addEventListener('beforeunload', (event) => {
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault();
+                            event.returnValue = '';
+                        }
+                    });
+                },
+
+                applyFilter() {
+                    this.filteredData = this.accessoriesDataRaw.filter(acc => {
+                        const matchBrawler = this.filterBrawlerId === '' || String(acc.brawler_id) === this.filterBrawlerId;
+                        const matchType = this.filterType === '' || acc.type_en === this.filterType;
+                        return matchBrawler && matchType;
+                    });
+                    this.sortData();
+                },
+
+                recheckState() {
+                    let anyDirty = false;
+                    let anyInvalid = false;
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty) {
+                            anyDirty = true;
+                            if (!rowData.isValid) anyInvalid = true;
+                        }
+                    });
+                    this.hasUnsavedChanges = anyDirty;
+                    this.hasInvalidFields = anyInvalid;
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+                    this.sortData();
+                },
+                
+                sortData() {
+                    const isNumeric = this.sortColumn === 'id' || this.sortColumn === 'brawler_id' || this.sortColumn === 'rarity' || this.sortColumn === 'cooldown';
+                    
+                    this.filteredData.sort((a, b) => {
+                        // "name_ja" in accessories list is actually 'name_ja', but if columns say 'name_ja' wait, the column definition matches keys 
+                        let valA = a[this.sortColumn];
+                        let valB = b[this.sortColumn];
+                        
+                        const isEmpty = (val) => val === null || typeof val === 'undefined' || String(val).trim() === '';
+                        
+                        if (isEmpty(valA) && isEmpty(valB)) return 0;
+                        if (isEmpty(valA)) return 1;
+                        if (isEmpty(valB)) return -1;
+                        
+                        let cmp = 0;
+                        if (isNumeric) {
+                            cmp = Number(valA) - Number(valB);
+                        } else {
+                            cmp = String(valA).localeCompare(String(valB), 'ja-JP-u-kf-upper', { sensitivity: 'base', numeric: true });
+                        }
+                        return this.sortDirection === 'asc' ? cmp : -cmp;
+                    });
+                },
+
+                confirmSaveChanges() {
+                    this.recheckState();
+                    if (this.hasInvalidFields) {
+                        this.saveStatus.message = 'エラー: 不正な値の項目があります。修正してください。';
+                        this.saveStatus.success = false;
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                        return;
+                    }
+                    if (!this.hasUnsavedChanges) {
+                        this.saveStatus.message = '変更点はありません。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    const changedItems = [];
+                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
+                        const rowData = Alpine.$data(rowEl);
+                        if (rowData && rowData.isDirty && rowData.isValid) {
+                            changedItems.push(rowData.getPayload());
+                        }
+                    });
+
+                    if (changedItems.length === 0) {
+                        this.saveStatus.message = '有効な変更点はありませんでした。';
+                        this.saveStatus.success = true;
+                        setTimeout(() => this.saveStatus.message = '', 3000);
+                        return;
+                    }
+
+                    if (confirm(`${changedItems.length}件のアクセサリ情報が変更されています。すべての変更を保存しますか？`)) {
+                        this.saveChanges(changedItems);
+                    }
+                },
+
+                async saveChanges(itemsToUpdate) {
+                    this.saveStatus.message = '保存中...';
+                    this.saveStatus.success = false;
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_accessories', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ accessories: itemsToUpdate })
+                        });
+                        const data = await response.json();
+                        this.saveStatus.message = data.message;
+                        this.saveStatus.success = data.success;
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        this.saveStatus.message = '保存中にエラーが発生しました。';
+                        this.saveStatus.success = false;
+                    } finally {
+                        setTimeout(() => this.saveStatus.message = '', 5000);
+                    }
+                }
+            }
+        }
+
+        function accessoryRow(accItem) {
+            return {
+                id: accItem.id,
+                brawler_id: accItem.brawler_id,
+                initialValues: {},
+                currentValues: {},
+                validFields: {},
+                focusedField: {},
+                initialInvalid: false,
+                currentInvalid: false,
+                _isDirty: false,
+                _isValid: true,
+
+                get isDirty() { return this._isDirty; },
+                get isValid() { return this._isValid; },
+
+                initRow() {
+                    const iv = {};
+                    const cv = {};
+                    const vf = {};
+                    const ff = {};
+                    for (const col of ACCESSORY_COLUMNS) {
+                        const display = toDisplayStr(accItem[col.key], col.type);
+                        iv[col.key] = display;
+                        cv[col.key] = display;
+                        vf[col.key] = true;
+                        ff[col.key] = false;
+                    }
+                    this.initialValues = iv;
+                    this.currentValues = cv;
+                    this.validFields = vf;
+                    this.focusedField = ff;
+                    this.initialInvalid = !!accItem.is_invalid;
+                    this.currentInvalid = !!accItem.is_invalid;
+                    // x-text の代わりに直接 DOM に値をセット
+                    this.$nextTick(() => {
+                        this.$el.querySelectorAll('td[data-field]').forEach(td => {
+                            const key = td.dataset.field;
+                            if (key in this.currentValues) {
+                                td.textContent = this.currentValues[key];
+                            }
+                        });
+                    });
+                },
+
+                isDirtyField(key) {
+                    return this.currentValues[key] !== this.initialValues[key];
+                },
+
+                isValidField(key) {
+                    return this.validFields[key] !== false;
+                },
+
+                isEmptyField(key) {
+                    const val = this.currentValues[key];
+                    return val === '' || val === null || typeof val === 'undefined';
+                },
+
+                validateField(key) {
+                    const col = ACCESSORY_COLUMNS.find(c => c.key === key);
+                    if (!col) return;
+                    const val = this.currentValues[key];
+                    if (val === '' || val === null || typeof val === 'undefined') {
+                        this.validFields[key] = true;
+                        return;
+                    }
+                    if (col.type === 'number') {
+                        this.validFields[key] = /^-?\d+$/.test(val.trim());
+                    } else {
+                        this.validFields[key] = true;
+                    }
+                },
+
+                handleFocus(el, key) {
+                    this.focusedField[key] = true;
+                    if (this.isEmptyField(key) && el.textContent.trim() === '未入力') {
+                        el.textContent = '';
+                    }
+                },
+
+                handleBlur(el, key) {
+                    this.focusedField[key] = false;
+                    const text = el.textContent;
+                    this.currentValues[key] = text;
+                    this.validateField(key);
+                    this._recalcState();
+                    this.$dispatch('statusinputchanged');
+                },
+
+                handleInput(el, key) {
+                    const text = el.textContent;
+                    this.currentValues[key] = text;
+                    this.validateField(key);
+                    this._recalcState();
+                    this.$dispatch('statusinputchanged');
+                },
+
+                handleInvalidToggle() {
+                    this._recalcState();
+                    this.$dispatch('statusinputchanged');
+                },
+
+                _recalcState() {
+                    let dirty = false;
+                    let valid = true;
+                    for (const col of ACCESSORY_COLUMNS) {
+                        const k = col.key;
+                        if (this.isDirtyField(k)) dirty = true;
+                        if (!this.validFields[k]) valid = false;
+                    }
+                    if (this.currentInvalid !== this.initialInvalid) dirty = true;
+                    this._isDirty = dirty;
+                    this._isValid = valid;
+                },
+
+                getPayload() {
+                    return {
+                        id: this.id,
+                        brawler_id: this.brawler_id,
+                        en: this.isDirtyField('name_en') ? (this.currentValues['name_en'] === '' ? null : this.currentValues['name_en']) : undefined,
+                        ja: this.isDirtyField('name_ja') ? (this.currentValues['name_ja'] === '' ? null : this.currentValues['name_ja']) : undefined,
+                        rarity: this.isDirtyField('rarity') ? (this.currentValues['rarity'] === '' ? null : parseInt(this.currentValues['rarity'], 10)) : undefined,
+                        description_en: this.isDirtyField('description_en') ? (this.currentValues['description_en'] === '' ? null : this.currentValues['description_en']) : undefined,
+                        description_ja: this.isDirtyField('description_ja') ? (this.currentValues['description_ja'] === '' ? null : this.currentValues['description_ja']) : undefined,
+                        buffie_description_en: this.isDirtyField('buffie_description_en') ? (this.currentValues['buffie_description_en'] === '' ? null : this.currentValues['buffie_description_en']) : undefined,
+                        buffie_description_ja: this.isDirtyField('buffie_description_ja') ? (this.currentValues['buffie_description_ja'] === '' ? null : this.currentValues['buffie_description_ja']) : undefined,
+                        cooldown: this.isDirtyField('cooldown') ? (this.currentValues['cooldown'] === '' ? null : parseInt(this.currentValues['cooldown'], 10)) : undefined,
+                        is_invalid: this.currentInvalid !== this.initialInvalid ? this.currentInvalid : undefined
+                    };
+                }
+            }
+        }
+    </script>
+{% endblock %}

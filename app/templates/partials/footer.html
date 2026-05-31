@@ -1,0 +1,39 @@
+{# /app/templates/partials/footer.html #}
+<footer class="main-footer">
+    <div class="main-footer__container">
+        <div class="main-footer__social">
+            <a href="https://x.com/BrawlInsights" target="_blank" rel="noopener noreferrer" class="main-footer__social-link"><img src="{{ url_for('static', path='/images/ui/x.png') }}" alt="X" class="main-footer__social-icon"></a>
+            <a href="https://discord.com/servers/brawl-insights-1129770095158239272" target="_blank" rel="noopener noreferrer" class="main-footer__social-link"><img src="{{ url_for('static', path='/images/ui/discord.svg') }}" alt="Discord" class="main-footer__social-icon"></a>
+            {% if platform == "web" %}<a href="mailto:contact.brawlinsights@gmail.com" class="main-footer__social-link"><img src="{{ url_for('static', path='/images/ui/email.png') }}" alt="E-Mail" class="main-footer__social-icon"></a>{% endif %}
+        </div>
+        <nav class="main-footer__nav">
+            <ul class="main-footer__nav-list">
+                <li><a href="{{ url_for('terms', lang=lang) }}" class="main-footer__nav-link">{% if lang == "ja" %}利用規約{% else %}Terms of Service{% endif %}</a></li>
+                <li><a href="{{ url_for('privacy_policy', lang=lang) }}" class="main-footer__nav-link">{% if lang == "ja" %}プライバシーポリシー{% else %}Privacy Policy{% endif %}</a></li>
+                <li><a href="{{ url_for('about_the_technology', lang=lang) }}" class="main-footer__nav-link">{% if lang == "ja" %}使用している技術について{% else %}Technology{% endif %}</a></li>
+                <li><a href="{{ url_for('version_history', lang=lang) }}" class="main-footer__nav-link">{% if lang == "ja" %}バージョン履歴{% else %}Version History{% endif %}</a></li>
+                {% if platform == "web" %}<li><a href="{{ url_for('sponsor_info', lang=lang) }}" class="main-footer__nav-link">{% if lang == "ja" %}スポンサー募集・広告掲載について{% else %}Sponsorship & Advertising{% endif %}</a></li>{% endif %}
+            </ul>
+        </nav>
+        {% if platform == "web" %}
+            {% if lang == "ja" %}
+                <p class="main-footer__text">iOS向けアプリもあります。</p>
+            {% else %}
+                <p class="main-footer__text">An iOS app version is also available.</p>
+            {% endif %}
+            {% set country_code = "JP" if lang == "ja" else "US" %}
+            <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_' + country_code + '.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+        {% endif %}
+        {% if lang == "ja" %}
+            <p class="main-footer__text">この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}で提供している各種統計データやコンテンツ、またはこの{% if platform == "web" %}サイト{% else %}アプリ{% endif %}自体について、X(旧Twitter)、YouTube、TikTokなどのSNSに自由に投稿、または利用していただけます。</p>
+        {% else %}
+            <p class="main-footer__text">You are welcome to freely share the various statistics, content, or even the {% if platform == "web" %}website{% else %}app{% endif %} itself provided here on social media platforms such as X (formerly Twitter), YouTube, TikTok, and others.</p>
+        {% endif %}
+        <p class="main-footer__copyright">&copy; 2026 Brawl Insights</p>
+        {% if lang == "ja" %}
+            <p class="main-footer__disclaimer">このコンテンツは非公式であり、Supercellによる承認を受けていません。ファンコンテンツに関する詳細は、Supercellの<a href="https://www.supercell.com/fan-content-policy" class="main-footer__nav-link main-footer__nav-link--fcp" target="_blank" rel="noopener noreferrer">ファンコンテンツポリシー</a>をご覧ください。</p>
+        {% else %}
+            <p class="main-footer__disclaimer">This material is unofficial and is not endorsed by Supercell. For more information see Supercell's <a href="https://www.supercell.com/fan-content-policy" class="main-footer__nav-link main-footer__nav-link--fcp" target="_blank" rel="noopener noreferrer">Fan Content Policy</a>.</p>
+        {% endif %}
+    </div>
+</footer>
