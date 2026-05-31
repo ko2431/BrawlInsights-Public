@@ -10,6 +10,7 @@ import re
 import itertools
 import httpx
 import asyncio
+import base64
 from app.core.config import settings
 
 from app.services.brawl_service import get_all_maps, get_all_modes, upsert_map, upsert_mode, get_available_brawlers, update_brawler, get_player_name

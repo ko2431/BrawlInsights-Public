@@ -12,47 +12,36 @@
 {% endblock %}
 
 {% macro render_pagination(pagination, selected_date) %}
-    {% if pagination.total_pages > 1 %}
+    {% if pagination.total_pages > 1 or pagination.current_page > 1 %}
         <nav class="pagination" aria-label="ログページネーション">
             <ul class="pagination-list">
-                {# クエリパラメータの組み立て #}
-                {% set base_query_parts = [] %}
-                {% if selected_date %}{% set _ = base_query_parts.append("date=" + selected_date) %}{% endif %}
-                {% set base_query = base_query_parts | join('&') %}
-                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
-
-                {# "＜" (前へ) ボタン #}
-                {% if pagination.has_prev %}
-                    <li class="page-item"><a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {# 最新に戻るリンク #}
+                {% if pagination.current_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin_logs', lang=lang) }}{% if selected_date %}?date={{ selected_date }}{% endif %}">⇤ 最新</a>
+                    </li>
                 {% endif %}
 
-                {# ページ番号のロジック #}
-                {% set page_numbers = [] %}
-                {% for p in range(1, pagination.total_pages + 1) %}
-                    {# 最初と最後、および現在ページ±5のページ番号を表示対象とする #}
-                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 5 and p <= pagination.current_page + 5) %}
-                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
-                        {% if page_numbers and p > page_numbers[-1] + 1 %}
-                            {% set _ = page_numbers.append('...') %}
-                        {% endif %}
-                        {% set _ = page_numbers.append(p) %}
-                    {% endif %}
-                {% endfor %}
+                {# 前のページ（ブラウザ履歴の戻る） #}
+                {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link page-arrow" href="javascript:history.back()">&lt; 前へ</a>
+                    </li>
+                {% endif %}
 
-                {# ページ番号リストを元にHTMLを生成 #}
-                {% for p in page_numbers %}
-                    {% if p == '...' %}
-                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
-                    {% elif p == pagination.current_page %}
-                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
-                    {% else %}
-                        <li class="page-item"><a class="page-link" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
-                    {% endif %}
-                {% endfor %}
+                {# 現在ページ / 概算総ページ #}
+                <li class="page-item active">
+                    <span class="page-link current">{{ pagination.current_page }} / {{ pagination.total_pages }}</span>
+                </li>
 
-                {# ">" (次へ) ボタン #}
-                {% if pagination.has_next %}
-                    <li class="page-item"><a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {# 次のページ（カーソルリンク） #}
+                {% if pagination.has_next and pagination.next_cursor %}
+                    {% set query_parts = [] %}
+                    {% if selected_date %}{% set _ = query_parts.append("date=" + selected_date) %}{% endif %}
+                    {% set _ = query_parts.append("c=" + pagination.next_cursor) %}
+                    <li class="page-item">
+                        <a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}?{{ query_parts | join('&') }}">次へ &gt;</a>
+                    </li>
                 {% endif %}
             </ul>
         </nav>
