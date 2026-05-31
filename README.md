@@ -100,3 +100,9 @@ Brawl Insightsは、人気モバイルゲーム「ブロスタ」のデータ分
 - **テストコードの充実**: 現在 `tests/` 内のテストコード（pytest）を導入したばかりのため未完成となっており、今後整備を進めていく予定です。
 - **新機能の追加**: ユーザーからのフィードバックやアンケート結果をもとに、新たな機能やUIの改善を多数構想中です。
 - **パフォーマンス最適化**: アクセス増加に備え、さらなるキャッシュ戦略の強化やDB周りの最適化等を実施予定です。
+
+## 🔗 外部リンク
+
+- **バージョン履歴**: https://brawlinsights.com/ja/help/version_history
+- **公式X**: https://x.com/BrawlInsights
+- **公式Discord**: https://discord.com/servers/brawl-insights-1129770095158239272
