@@ -72,8 +72,8 @@
     {# 説明文 #}
     <div class="info-block" style="padding: 0;">
         <p class="info-block__text">
-            {% if lang == "ja" %}多くのアクティブなプレイヤーデータから集計した、<b>スキンの使用率と所持率</b>をランキングでまとめています。アクティブプレイヤーのデータを集計しているため、データは若干上位プレイヤーに偏っており、実際にゲーム内で遭遇する確率に近くなっています。データは毎日更新されます。
-            {% else %}This section provides a <b>skin usage and ownership rate ranking</b>, aggregated from a large amount of active player data. As we collect data primarily from active players, the data tends to be slightly skewed towards top players, making it closer to the probability of encountering them in-game. Updated daily.
+            {% if lang == "ja" %}多くのアクティブなプレイヤーデータから集計した、<b>スキンの使用率と所持率</b>をランキングでまとめています。アクティブプレイヤーのデータを集計しているため、データは若干上位プレイヤーに偏っており、実際にゲーム内で遭遇する確率に近くなっています。<b>所持者の使用率</b>は使用率÷所持率で計算され、高いほど持っている人の多くが使っている、真に人気なスキンであることを示します。データは毎日更新されます。
+            {% else %}This section provides a <b>skin usage and ownership rate ranking</b>, aggregated from a large amount of active player data. As we collect data primarily from active players, the data tends to be slightly skewed towards top players, making it closer to the probability of encountering them in-game. <b>Owner Usage</b> is calculated by dividing the usage rate by the ownership rate. A higher value indicates that a larger proportion of those who own the skin are using it, meaning it is a popular skin. Updated daily.
             {% endif %}
         </p>
     </div>
@@ -91,6 +91,12 @@
         </div>
         <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'own_asc' }" @click="sortMode = 'own_asc'; fetchFragment()">
             <span>{% if lang == "ja" %}所持率が低い順{% else %}Ownership (Low→High){% endif %}</span>
+        </div>
+        <div class="sorting-button" style="padding: 1px;" :class="{ 'sorting-button--active': sortMode === 'owner_rate_desc' }" @click="sortMode = 'owner_rate_desc'; fetchFragment()">
+            <span>{% if lang == "ja" %}所持者の使用率が高い順{% else %}Owner Usage (High→Low){% endif %}</span>
+        </div>
+        <div class="sorting-button" style="padding: 1px;" :class="{ 'sorting-button--active': sortMode === 'owner_rate_asc' }" @click="sortMode = 'owner_rate_asc'; fetchFragment()">
+            <span>{% if lang == "ja" %}所持者の使用率が低い順{% else %}Owner Usage (Low→High){% endif %}</span>
         </div>
     </div>
 

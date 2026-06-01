@@ -86,6 +86,9 @@
             <br>
             {% if lang == "ja" %}所持率:{% else %}Ownership:{% endif %}
             {{ format_rate(skin.ownership_rate) }}
+            <br>
+            {% if lang == "ja" %}所持者の使用率:{% else %}Owner Usage:{% endif %}
+            {{ format_rate(skin.owner_usage_rate) }}
         </div>
     </div>
     {% endfor %}

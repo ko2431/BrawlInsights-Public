@@ -616,6 +616,12 @@
                     <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'own_desc' }" @click="sortMode = 'own_desc'">
                         <span>{% if lang == "ja" %}所持率が高い順{% else %}Ownership (High→Low){% endif %}</span>
                     </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'owner_rate_asc' }" @click="sortMode = 'owner_rate_asc'">
+                        <span>{% if lang == "ja" %}所持者の使用率が低い順{% else %}Owner Usage (Low→High){% endif %}</span>
+                    </div>
+                    <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'owner_rate_desc' }" @click="sortMode = 'owner_rate_desc'">
+                        <span>{% if lang == "ja" %}所持者の使用率が高い順{% else %}Owner Usage (High→Low){% endif %}</span>
+                    </div>
                 </div>
 
                 {# 2. フィルタ #}
@@ -666,6 +672,14 @@
                     {% else %}
                         {% set skin_desc = skin.description_en or skin.description_ja or '' %}
                     {% endif %}
+                    {% set owner_usage_rate = none %}
+                    {% if skin.equip_rate is not none and skin.ownership_rate is not none and skin.ownership_rate > 0 %}
+                        {% set denom = 100 if skin.ownership_rate >= 99.95 else skin.ownership_rate %}
+                        {% set owner_usage_rate = (skin.equip_rate / denom) * 100 %}
+                        {% if owner_usage_rate > 100 %}
+                            {% set owner_usage_rate = 100 %}
+                        {% endif %}
+                    {% endif %}
                     <div class="skin-card"
                         :style="{'order': getSkinOrder({{ loop.index0 }}, {{ skin.rarity | default(0) or 0 }}, {{ skin.equip_rate | default(0) or 0 }}, {{ skin.ownership_rate | default(0) or 0 }})}"
                          x-show="showSkin({{ 'true' if skin.is_limited else 'false' }})">
@@ -715,6 +729,19 @@
                                     {{ "%.2f"|format(skin.ownership_rate) }}%
                                 {% else %}
                                     {{ "%.1f"|format(skin.ownership_rate) }}%
+                                {% endif %}
+                            {% else %}
+                                --
+                            {% endif %}
+                            <br>
+                            {% if lang == "ja" %}所持者の使用率:{% else %}Owner Usage:{% endif %}
+                            {% if owner_usage_rate is not none %}
+                                {% if owner_usage_rate < 0.1 %}
+                                    {{ "%.3f"|format(owner_usage_rate) }}%
+                                {% elif owner_usage_rate < 99.95 %}
+                                    {{ "%.2f"|format(owner_usage_rate) }}%
+                                {% else %}
+                                    {{ "%.1f"|format(owner_usage_rate) }}%
                                 {% endif %}
                             {% else %}
                                 --
@@ -1029,6 +1056,13 @@
         // Jinja2 で出力したスキンデータ (JavaScript の配列として保持)
         const ALL_SKINS = {{ brawler.all_skins | tojson | safe }};
 
+        const calculateOwnerUsageRate = (equipRate, ownershipRate) => {
+            if (equipRate == null || ownershipRate == null || ownershipRate <= 0) return null;
+            const denom = ownershipRate >= 99.95 ? 100 : ownershipRate;
+            const ownerUsageRate = (equipRate / denom) * 100;
+            return Math.min(ownerUsageRate, 100);
+        };
+
         return {
             open: true,
             sortMode: 'rarity_asc',
@@ -1047,12 +1081,15 @@
                 const r = rarity ?? 0;
                 const rate = equipRate ?? 0;
                 const ownRate = ownershipRate ?? 0;
+                const ownerRate = calculateOwnerUsageRate(equipRate, ownershipRate) ?? 0;
                 if (this.sortMode === 'rarity_asc')  return r * 1000 + originalIndex;
                 if (this.sortMode === 'rarity_desc') return (1000 - r) * 1000 + originalIndex;
                 if (this.sortMode === 'rate_asc')    return Math.round(rate * 1e5) + originalIndex;
                 if (this.sortMode === 'rate_desc')   return -Math.round(rate * 1e5) + originalIndex;
                 if (this.sortMode === 'own_asc')     return Math.round(ownRate * 1e5) + originalIndex;
                 if (this.sortMode === 'own_desc')    return -Math.round(ownRate * 1e5) + originalIndex;
+                if (this.sortMode === 'owner_rate_asc')  return Math.round(ownerRate * 1e5) + originalIndex;
+                if (this.sortMode === 'owner_rate_desc') return -Math.round(ownerRate * 1e5) + originalIndex;
                 return originalIndex;
             }
         };
