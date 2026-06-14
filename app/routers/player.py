@@ -9,7 +9,7 @@ from app.exceptions.custom_exceptions import BrawlStarsAPIError
 from app.core.logger import logger
 from app.core.logging_config import add_log_info
 from app.db.db import get_shared_db
-from app.services.brawl_service import get_player, get_player_from_db, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats
+from app.services.brawl_service import get_player, get_player_from_db, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_titles
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, set_cache
 from app.services.user_service import User
