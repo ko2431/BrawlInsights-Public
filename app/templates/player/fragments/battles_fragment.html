@@ -173,7 +173,7 @@
 
     {% if not player.meowapi_success %}
     <div class="player-external-api-notice" role="status">
-        <p class="player-external-api-notice__text">{% if lang == "ja" %}現在外部APIがダウンしているため、ガチバトルスコアなどの一部の情報は更新・表示されない場合があります。{% else %}Some information such as ranked battle scores may not be updated or displayed because the external API is currently down.{% endif %}</p>
+        <p class="player-external-api-notice__text">{% if lang == "ja" %}現在外部APIがダウンしているため、一部の情報は更新・表示されない場合があります。{% else %}Some information may not be updated or displayed because the external API is currently down.{% endif %}</p>
     </div>
     {% endif %}
 

@@ -908,8 +908,9 @@
             }
             const hasHighestScore = logTrends.ranked_highest_score && logTrends.ranked_highest_score.some(v => v !== null);
             const hasCurrentScore = logTrends.ranked_current_score && logTrends.ranked_current_score.some(v => v !== null);
+            const hasSeasonHighestScore = logTrends.ranked_season_highest_score && logTrends.ranked_season_highest_score.some(v => v !== null);
 
-            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasHighestScore && !hasCurrentScore)) {
+            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasHighestScore && !hasCurrentScore && !hasSeasonHighestScore)) {
                 displayNoDataMessage(canvasId);
                 return;
             }
@@ -930,11 +931,20 @@
                 pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
                 pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
             });
+            if (hasSeasonHighestScore) datasets.push({
+                label: SCRIPT_LANG === 'ja' ? 'シーズン内最高スコア' : 'Season Highest Score',
+                data: logTrends.ranked_season_highest_score,
+                borderColor: getChartColor('rgb(255, 165, 0)'), // オレンジ
+                tension: 0.1, fill: false,
+                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
+                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
+            });
 
             const data = { labels: logTrends.dates, datasets: datasets };
             const yValuesForScale = [].concat(
                 hasHighestScore ? logTrends.ranked_highest_score.filter(v => v !== null) : [],
-                hasCurrentScore ? logTrends.ranked_current_score.filter(v => v !== null) : []
+                hasCurrentScore ? logTrends.ranked_current_score.filter(v => v !== null) : [],
+                hasSeasonHighestScore ? logTrends.ranked_season_highest_score.filter(v => v !== null) : [],
             );
             const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'スコア' : 'Score');
 
