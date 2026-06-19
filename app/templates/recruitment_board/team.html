@@ -779,7 +779,7 @@
                             }
                             alert(alertMessage);
                         } else {
-                            alert('{% if lang == "ja" %}現在投稿機能が制限されています。ご了承ください。{% else %}Posting is currently restricted. We appreciate your understanding.{% endif %}');
+                            alert('{% if lang == "ja" %}現在投稿機能が制限されています。システムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。{% else %}Posting is currently restricted. Posting may be restricted due to system maintenance or violations of the terms of use.{% endif %}');
                         }
                     }
                 } catch (error) {

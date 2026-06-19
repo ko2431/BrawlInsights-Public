@@ -859,7 +859,7 @@
                         const s = data.cooldown;
                         alert(lang === 'ja' ? `現在クールタイム中です。次の投稿まであと${s}秒お待ちください。` : `Please wait ${s}s for the next post.`);
                     } else {
-                        alert(lang === 'ja' ? '現在投稿機能が制限されています。' : 'Posting is currently restricted.');
+                        alert('{% if lang == "ja" %}現在投稿機能が制限されています。システムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。{% else %}Posting is currently restricted. Posting may be restricted due to system maintenance or violations of the terms of use.{% endif %}');
                     }
                 }
             } catch { alert(lang === 'ja' ? 'エラーが発生しました' : 'An error occurred'); }
