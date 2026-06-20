@@ -2255,7 +2255,7 @@
                                     {% for hc in all_hcs %}
                                     {% set owned = hc.id in eq_hc_ids %}
                                     <div class="acc-box__row">
-                                        <img src="{{ url_for('static', path='/images/' + ('hypercharge/' + hc.id|string + '.png' if owned else 'ui/locked.png')) }}"
+                                        <img src="{{ url_for('static', path='/images/' + (('hypercharge_buffies/' if brawler.buffie_hyper_charge else 'hypercharge/') + hc.id|string + '.png' if owned else 'ui/locked.png')) }}"
                                              alt="" class="acc-box__icon {% if not owned %}acc-box__icon--locked{% endif %}"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/ui/hypercharge.webp') }}';">
                                         <span class="acc-box__name{% if not owned %} acc-box__name--locked{% endif %}">{{ hc.ja if hc.ja and lang == 'ja' else hc.en }}</span>
@@ -2272,7 +2272,7 @@
                                     {% set owned = gd.id in eq_gadget_ids %}
                                     <div class="acc-box__row">
                                         {% if owned %}
-                                        <img src="{{ url_for('static', path='/images/' + ('gadgets/' + gd.id|string + '.png')) }}"
+                                        <img src="{{ url_for('static', path='/images/' + (('gadget_buffies/' if brawler.buffie_gadget else 'gadgets/') + gd.id|string + '.png')) }}"
                                              alt="" class="acc-box__icon"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/' + ('gadget_buffie.png' if brawler.buffie_gadget else 'gadget.png')) }}';">
                                         {% else %}
@@ -2293,7 +2293,7 @@
                                     {% set owned = sp.id in eq_sp_ids %}
                                     <div class="acc-box__row">
                                         {% if owned %}
-                                        <img src="{{ url_for('static', path='/images/' + ('starpowers/' + sp.id|string + '.png')) }}"
+                                        <img src="{{ url_for('static', path='/images/' + (('starpower_buffies/' if brawler.buffie_star_power else 'starpowers/') + sp.id|string + '.png')) }}"
                                              alt="" class="acc-box__icon"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/' + ('star_buffie.png' if brawler.buffie_star_power else 'starpower.png')) }}';">
                                         {% else %}
