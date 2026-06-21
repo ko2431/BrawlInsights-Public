@@ -11,7 +11,7 @@ from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code
+from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
 from app.utils.utils import format_tag, confirm_tag
@@ -959,6 +959,29 @@ async def update_notification_settings_process(
     except Exception as e:
         logger.error(f"通知設定更新中にエラー (User ID: {current_user.id}): {e}", exc_info=True)
         message = "データベースエラーのため、設定を更新できませんでした。" if lang == "ja" else "Could not update settings due to a database error."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@router.post("/reset-board-blocks", name="account_reset_board_blocks")
+async def reset_board_blocks_process(
+    request: Request,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    lang = request.path_params.get("lang", "ja")
+    try:
+        deleted_count = await reset_user_blocks_by_blocker(db, current_user.id)
+        logger.info(
+            f"{current_user.name} (ID: {current_user.id}) が掲示板のブロックをリセットしました。"
+            f" 削除件数: {deleted_count}"
+        )
+        return JSONResponse({
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": "ブロックをリセットしました。" if lang == "ja" else "Board blocks have been reset.",
+        })
+    except DataBaseError as e:
+        logger.error(f"掲示板ブロックのリセット中にエラー (User ID: {current_user.id}): {e}", exc_info=True)
+        message = "データベースエラーのため、ブロックをリセットできませんでした。" if lang == "ja" else "Could not reset blocks due to a database error."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- ボーナスミッションクリアエンドポイント ---
