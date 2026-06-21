@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="14.2_V22",
+    version="14.2_V23",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -473,6 +473,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             "/tools/api/ban_suggestions",
             "/tools/api/pick_suggestions",
             "/tools/api/predict_win_rate",
+            "/tools/api/profile_image/"
         ]
 
         # 現在のリクエストパスが除外リストのいずれかを含むかチェック

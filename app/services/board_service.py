@@ -10,10 +10,38 @@ from app.services.brawl_service import Player, get_player, get_player_from_db, g
 from app.services.user_service import User, get_region_name, get_user
 from app.utils.utils import format_utc_datetime, parse_utc_datetime, get_normalized_ip, get_icon_path
 from app.core.logger import logger
-from app.core.cache import get_cache, set_cache, delete_cache
+from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def check_post_permitted(db: asyncpg.Connection, type: str, ip: str, user_id: int | None = None) -> tuple[bool, int]:
+    """投稿するのが認められているかどうか確認する。認められていない場合は残りクールダウン時間(秒)を返す。ただし投稿自体が禁止されている場合はクールダウン時間は0となる。
+
+    Args:
+        db (asyncpg.Connection): データベース接続
+        type (str): 掲示板のタイプ("team"/"friend"/"club"/"general")
+        ip (str): ユーザーのIPアドレス
+        user_id (int | None): ユーザーID。ログインしていないユーザーについて確認する場合はNoneでよい。
+
+    Returns:
+        tuple[bool, int]: 投稿するのが認められているかどうか。そして、残りクールダウン時間(投稿自体が禁止されている場合は0)。
+    """
+    if user_id:
+        user = await get_user(db, user_id)
+        if user.is_prohibit_posting:
+            return False, 0
+    
+    cache_key = f"last_post:{type}_{user_id if user_id else get_normalized_ip(ip)}"
+    cached_data = await get_cache(cache_key)
+    if cached_data:
+        td = (datetime.datetime.now(datetime.timezone.utc) - parse_utc_datetime(cached_data)).total_seconds()
+        match type:
+            case "team" | "general":
+                cooldown = 60
+            case _:
+                cooldown = 180 # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_last_post(db: asyncpg.Connection, ip: str, type: str | None = None, user_id: int | None = None) -> Post | None:
     """ユーザーが最後に行った投稿の情報を取得する。5秒間のキャッシュを使用する。

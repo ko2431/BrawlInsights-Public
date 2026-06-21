@@ -917,7 +917,7 @@ async def update_history_privacy_process(
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- ボーナスミッションクリアエンドポイント ---
-@router.post("/bonus-mission/claim", response_class=JSONResponse, name="account_claim_bonus_mission")
+@router.post("/bonus-mission/claim", response_class=JSONResponse, name="account_claim_basic_mission")
 async def claim_bonus_mission(
     request: Request,
     lang: str,
@@ -929,7 +929,7 @@ async def claim_bonus_mission(
         if current_user.last_bonus_mission_date == today_utc:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={"success": False, "message": "本日分のボーナスミッションは既にクリア済みです。" if lang == "ja" else "Today's bonus mission is already cleared."}
+                content={"success": False, "message": "本日分のベーシックミッションは既にクリア済みです。" if lang == "ja" else "Today's basic mission is already cleared."}
             )
             
         # user_service.py の claim_tokens メソッドを呼び出す
@@ -944,13 +944,13 @@ async def claim_bonus_mission(
             
             # ログ出力用: どのミッションをクリアしたか名前を取得する
             offset_day = ((today_utc.day - 1 + current_user.id) % 31) + 1
-            mission_name = BONUS_MISSIONS.get(offset_day, {}).get("ja", "不明なミッション")
+            mission_name = BASIC_MISSIONS.get(offset_day, {}).get("ja", "不明なミッション")
 
-            logger.info(f"{current_user.name} (ID: {current_user.id})がボーナスミッション「{mission_name}」をクリアしました。")
+            logger.info(f"{current_user.name} (ID: {current_user.id})がベーシックミッション「{mission_name}」をクリアしました。")
 
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
-                content={"success": True, "message": "ボーナスミッションをクリアし、10トークンを獲得しました！" if lang == "ja" else "Cleared the bonus mission and earned 10 tokens!"}
+                content={"success": True, "message": "ベーシックミッションをクリアし、10トークンを獲得しました！" if lang == "ja" else "Cleared the basic mission and earned 10 tokens!"}
             )
         else:
             return JSONResponse(
@@ -959,7 +959,7 @@ async def claim_bonus_mission(
             )
             
     except Exception as e:
-        logger.error(f"ボーナスミッション・クリア処理でエラー: {e}")
+        logger.error(f"ベーシックミッション・クリア処理でエラー: {e}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": "エラーが発生しました。時間を置いて再度お試しください。" if lang == "ja" else "An error occurred. Please try again later."}

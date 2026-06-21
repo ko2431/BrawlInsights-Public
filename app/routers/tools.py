@@ -29,6 +29,7 @@ from app.services.image_generation_service import (
     get_latest_cached_image_generation_job,
 )
 from app.services.user_service import User
+from app.services.board_service import get_or_create_brawler_guide_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
 from app.core.cache import get_cache, set_cache

@@ -62,6 +62,7 @@ class User(Base):
     ad_skip_tickets = Column(Integer, nullable=False, server_default='0')
     ticket_claim_count = Column(Integer, nullable=False, server_default='0')
     last_ticket_claim_date = Column(Date, nullable=True)
+    last_advance_mission_date = Column(Date, nullable=True)
 
     # リレーションシップ
     player = relationship("Player", back_populates="users", foreign_keys=[main_account])

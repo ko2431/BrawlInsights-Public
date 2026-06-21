@@ -1532,6 +1532,47 @@
 
 
 /* =============================================== */
+/* キャラクター図鑑 チャットセクション            */
+/* =============================================== */
+.chat-room {
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: var(--bg-f8f8f8);
+    border-radius: 14px;
+    border: 1px solid var(--color-eee);
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-link {
+    text-decoration: none;
+}
+
+.chat-link-button {
+    width: 100%;
+    margin-top: 6px;
+    padding: 3px;
+    background-color: var(--color-ddd);
+    border-radius: 13px;
+    border: 1px solid var(--color-ccc);
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--color-333);
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+@media (max-width: 539px) {
+    .chat-room {
+        width: 105%;
+        margin: 10px -2.5%;
+    }
+}
+
+
+/* =============================================== */
 /* スキン使用率ランキング ランクバッジ                  */
 /* =============================================== */
 .skin-card__rank-badge {

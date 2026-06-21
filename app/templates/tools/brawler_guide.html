@@ -21,7 +21,7 @@
     </div>
     {% endif %}
 
-    {# ^ 1. ヘッダー #}
+    {# ^ 0. ヘッダー #}
     <header class="brawler-header">
         {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
             <img src="{{ url_for('static', path='/images/brawler_portraits/' + brawler.id|string + '.png') }}"
@@ -40,6 +40,7 @@
     <nav class="brawler-guide-toc">
         <div class="brawler-guide-toc__title">{% if lang == "ja" %}目次{% else %}Contents{% endif %}</div>
         <ol class="brawler-guide-toc__list">
+            <li><a href="#section-chat">{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</a></li>
             <li><a href="#section-status">{% if lang == "ja" %}ステータス{% else %}Status{% endif %}</a></li>
             <li><a href="#section-gadgets">{% if lang == "ja" %}ガジェット{% else %}Gadgets{% endif %}</a></li>
             <li><a href="#section-starpowers">{% if lang == "ja" %}スターパワー{% else %}Star Powers{% endif %}</a></li>
@@ -50,6 +51,57 @@
             <li><a href="#section-performance">{% if lang == "ja" %}評価{% else %}Performance{% endif %}</a></li>
         </ol>
     </nav>
+
+    {# ^ 1. チャットスレッド #}
+    <section id="section-chat" class="brawler-guide-section" x-data="{ open: true }">
+        <h2 class="section-title tools-page__section-title" @click="open = !open">
+            <span>{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</span>
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </h2>
+        <div class="chat-section" x-show="open" x-transition>
+            <div class="info-block" style="padding: 0;">
+                <p class="info-block__text">
+                    {% if lang == "ja" %}このキャラクターの掲示板です。このキャラクターについて自由に会話したり質問したりできます！
+                    {% else %}This is a chat thread for this brawler. You can freely talk about or ask questions about this brawler!
+                    {% endif %}
+                </p>
+            </div>
+            <div class="chat-room">
+                {# メッセージプレビュー（最大3件、新しい順 → 古い順で上から表示） #}
+                {% set preview_messages = brawler_preview_messages | reverse | list %}
+                <div class="brawler-chat-preview__wrapper {% if not preview_messages %}brawler-chat-preview__wrapper--empty{% endif %}">
+                    <div class="brawler-chat-preview__list">
+                        {% for message in preview_messages %}
+                            {% if not message.is_deleted %}
+                                <div class="brawler-chat-preview__bubble {% if current_user and message.user_id == current_user.id %}brawler-chat-preview__bubble--self{% endif %}">
+                                    {% if not (current_user and message.user_id == current_user.id) %}
+                                        <div class="brawler-chat-preview__icon-wrapper">
+                                            <img src="{{ message.user_icon_path }}" alt="icon" class="brawler-chat-preview__icon">
+                                        </div>
+                                    {% endif %}
+                                    <div class="brawler-chat-preview__content-wrapper">
+                                        {% if not (current_user and message.user_id == current_user.id) %}
+                                            <span class="brawler-chat-preview__user-name">{{ message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') }}</span>
+                                        {% endif %}
+                                        <div class="brawler-chat-preview__content">{{ message.message | censor }}</div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if brawler_thread_id %}
+                <a class="chat-link" href="{{ url_for('chat_thread', lang=lang, thread_id=brawler_thread_id) }}">
+                    <div class="chat-link-button">
+                        {% if lang == "ja" %}掲示板へ
+                        {% else %}Go to Chat
+                        {% endif %}
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 
     {# ^ 2. ステータス #}
     <section id="section-status" class="brawler-guide-section" x-data="brawlerStatusManager()">

@@ -981,7 +981,7 @@ function accountSettingsPage() {
             section.scrollIntoView({ behavior: 'smooth', block: 'start' });
         },
 
-        bonusMissionHandler(missionData) {
+        basicMissionHandler(missionData) {
             return {
                 missionData: missionData,
                 isCleared: missionData.is_cleared,
@@ -994,7 +994,7 @@ function accountSettingsPage() {
                 
                 async claimBonusMission() {
                     try {
-                        const response = await fetch("{{ url_for('account_claim_bonus_mission', lang=lang) }}", {
+                        const response = await fetch("{{ url_for('account_claim_basic_mission', lang=lang) }}", {
                             method: 'POST'
                         });
                         const data = await response.json();
@@ -1004,7 +1004,7 @@ function accountSettingsPage() {
                             alert(data.message || (this.lang === 'ja' ? 'エラーが発生しました。' : 'An error occurred.'));
                         }
                     } catch (error) {
-                        console.error('Error claiming bonus mission:', error);
+                        console.error('Error claiming basic mission:', error);
                         alert(this.lang === 'ja' ? '通信エラーが発生しました。' : 'A network error occurred.');
                     }
                 },

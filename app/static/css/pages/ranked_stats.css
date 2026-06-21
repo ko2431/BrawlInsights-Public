@@ -671,3 +671,132 @@
 .brawler-card__rank-grade--D\+ { background-color: rgba(0, 152, 253, 0.8); }
 .brawler-card__rank-grade--D { background-color: rgba(0, 93, 253, 0.8); }
 .brawler-card__rank-grade--D- { background-color: rgba(0, 38, 253, 0.8); }
+
+
+/* ^ ------------------------------------------ ^ */
+/* ^ キャラクター図鑑 チャットプレビュー用スタイル ^ */
+/* ^ ------------------------------------------ ^ */
+
+/* chat.html brawler_guide型のヘッダーアイコンサイズ */
+.chat-header__host-icon--brawler {
+    height: 44px;
+    width: auto;
+}
+
+/* チャットプレビューエリア全体 */
+.brawler-chat-preview__wrapper {
+    padding: 0 6px;
+    position: relative;
+    overflow: hidden;
+    max-height: 120px;
+    /* 下詰めに設定し、あふれた上側を隠す */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    /* max-heightが0のときは非表示にする */
+    transition: max-height 0.3s ease;
+}
+.brawler-chat-preview__wrapper--empty {
+    max-height: 0;
+}
+/* 上部フェードアウト（古いメッセージが上に流れていくイメージ） */
+.brawler-chat-preview__wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--bg-fefefe, #fefefe), transparent);
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 6px;
+}
+.dark .brawler-chat-preview__wrapper::before {
+    background: linear-gradient(to bottom, var(--bg-1a1a1a, #1a1a1a), transparent);
+}
+
+/* メッセージリスト */
+.brawler-chat-preview__list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 4px 0 2px;
+    /* overflowは親要素で制御しているため削除 */
+}
+
+/* 各メッセージバブル */
+.brawler-chat-preview__bubble {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    max-width: 100%;
+}
+.brawler-chat-preview__bubble--self {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+/* アイコン */
+.brawler-chat-preview__icon-wrapper {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    margin-top: 2px;
+}
+.brawler-chat-preview__icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.1);
+    transform-origin: center center;
+}
+
+/* コンテンツ */
+.brawler-chat-preview__content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    align-items: flex-start;
+    max-width: calc(100% - 33px); /* アイコンの幅(26px) + gap(7px) */
+}
+.brawler-chat-preview__bubble--self .brawler-chat-preview__content-wrapper {
+    align-items: flex-end;
+    max-width: 100%; /* アイコンがないため100% */
+}
+.brawler-chat-preview__user-name {
+    font-size: 11.5px;
+    color: var(--color-555);
+    margin-left: 2px;
+}
+.brawler-chat-preview__content {
+    background-color: #f1f1f1;
+    border-radius: 13px;
+    padding: 5px 11px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+    border-bottom-left-radius: 5px;
+    width: fit-content;
+    max-width: 100%;
+}
+.dark .brawler-chat-preview__content {
+    background-color: #333;
+    border: 1px solid #555;
+}
+.brawler-chat-preview__bubble--self .brawler-chat-preview__content {
+    background-color: #319fe3;
+    color: #fff;
+    border-bottom-left-radius: 13px;
+    border-bottom-right-radius: 5px;
+}
+.dark .brawler-chat-preview__bubble--self .brawler-chat-preview__content {
+    border: none;
+}
+.brawler-chat-preview__bubble--self .brawler-chat-preview__user-name,
+.brawler-chat-preview__bubble--self .brawler-chat-preview__icon-wrapper {
+    display: none;
+}

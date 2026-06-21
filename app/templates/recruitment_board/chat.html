@@ -116,12 +116,42 @@
         {% set color2 = "#ffd4e6" %}
         {% set dark = false %}
     {% endif %}
+{% elif post.type == "brawler_guide" %}
+    {# キャラクター図鑑用: レアリティ別カラーのグラジェント #}
+    {% set brawler_rarity = brawler.rarity if brawler else 0 %}
+    {% if brawler_rarity == 1 %}
+        {% set color1 = "#d4f5f7" %} {% set color2 = "#c4f0f3" %}
+    {% elif brawler_rarity == 2 %}
+        {% set color1 = "#d4f5d4" %} {% set color2 = "#c4f0c4" %}
+    {% elif brawler_rarity == 3 %}
+        {% set color1 = "#d4e0f8" %} {% set color2 = "#c4d6f5" %}
+    {% elif brawler_rarity == 4 %}
+        {% set color1 = "#f0d4fb" %} {% set color2 = "#eac4f8" %}
+    {% elif brawler_rarity == 5 %}
+        {% set color1 = "#fad4d4" %} {% set color2 = "#f5c4c4" %}
+    {% elif brawler_rarity == 6 %}
+        {% set color1 = "#f9f5d4" %} {% set color2 = "#f5f0c4" %}
+    {% elif brawler_rarity == 7 %}
+        {% set color1 = "#faefd4" %} {% set color2 = "#f5e8c4" %}
+    {% else %}
+        {% set color1 = "#e8e8e8" %} {% set color2 = "#dcdcdc" %}
+    {% endif %}
 {% endif %}
 <div class="chat-page__container {% if post.type in ['team', 'general'] %}team-chat{% endif %}">
     {# ヘッダー部分 (スレッド情報) #}
     <header class="chat-header" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
         <div class="chat-header__content">
-            {% if post.hostplayer %}
+            {% if post.type == "brawler_guide" %}
+            {# キャラクター図鑑用ヘッダー #}
+            {% set brawler_pin_path = "/images/brawler_pins/" + (brawler.id | string) + ".png" if brawler else "/images/ui/mystery.png" %}
+            <img src="{{ url_for('static', path=brawler_pin_path) }}"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}';"
+                 alt="Brawler Icon" class="chat-header__host-icon chat-header__host-icon--brawler">
+            <div class="chat-header__details">
+                <p class="chat-header__host-name">{{ (brawler.name_ja if lang == 'ja' else brawler.name_en) if brawler else '???' }}</p>
+                <p class="chat-header__comment">{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</p>
+            </div>
+            {% elif post.hostplayer %}
             <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}" {% if post.type == 'general' %}{% if dark %}style="filter: brightness(0) invert(1);"{% elif post.category == 'tiktok' %}style="filter: brightness(0);"{% endif %}{% endif %}>
             <div class="chat-header__details">
                 {% if post.type == "friend" %}
@@ -157,7 +187,9 @@
     <main class="messages__container" id="messages-container">
         {# 説明文 #}
         <div class="chat-description">
-            {% if current_user and current_user.id == post.host_id %}
+            {% if post.type == "brawler_guide" %}
+                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか<b>ツールタブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>To close the chat screen, press the <b>Back button</b> or tap the <b>Tools tab</b> again.{% endif %}</p>
+            {% elif current_user and current_user.id == post.host_id %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>また、ユーザーのアイコンをタップして<b>リンククリックを個別に許可</b>を選択すると、この募集の条件にかかわらず、その人にリンククリックをできるようにさせることが可能です。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか<b>募集掲示板タブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>Additionally, by tapping the user's icon and selecting <b>Individually Allow Link Clicks</b>, you can enable link clicking for that person regardless of the conditions of this recruitment.{% endif %}</p>
             {% else %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか</b><b>募集掲示板タブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
@@ -165,7 +197,9 @@
         </div>
         {# まず、Postのコメントを表示 #}
         <div class="post-comment__container">
-            {% if post.comment %}
+            {% if post.type == "brawler_guide" %}
+                <p class="post-comment">{% if lang == "ja" %}このキャラクターについて、自由に発言や質問ができます！キャラクターに関係ない発言やスパム、ミッション達成目的の無意味な発言は禁止されています。そのような発言は利用制限の対象となることがあります。{% else %}Feel free to comment or ask questions about this brawler! Comments unrelated to the brawler, spam, and meaningless posts for mission completion are prohibited. Such posts may result in usage restrictions.{% endif %}</p>
+            {% elif post.comment %}
                 <p class="post-comment"><b>{% if lang == "ja" %}ホストのコメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}</p>
             {% else %}
                 <p class="post-comment" style="color: #888;"><i>({% if lang == "ja" %}ホストのコメントはありません{% else %}No Comment{% endif %})</i></p>
@@ -1058,9 +1092,9 @@
                 });
 
                 textarea.addEventListener('keydown', function(event) {
-                    // Shiftキーが押されていて、かつEnterキーが押された場合
-                    if (event.shiftKey && event.key === 'Enter') {
-                        event.preventDefault(); // デフォルトの改行動作をキャンセル
+                    // Cmd+Enter (Mac) または Ctrl+Enter (Windows) が押された場合
+                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                        event.preventDefault(); // デフォルトの動作をキャンセル
                         if (!sendButton.disabled) {
                             sendButton.click(); // 送信ボタンのクリックイベントを発火させる
                         }

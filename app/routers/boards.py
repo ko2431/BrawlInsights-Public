@@ -12,7 +12,7 @@ from app.db import db as db_module
 from app.core.logger import logger
 from app.core.templating import templates
 from app.core import cache as cache_module
-from app.services.brawl_service import Player, get_player, get_player_from_db
+from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
 from app.services.board_service import get_post, get_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote
 from app.utils.utils import get_icon_path, get_remote_ip
@@ -633,6 +633,19 @@ async def chat_thread(
     }
     
     # テンプレートに渡すコンテキスト
+    # brawler_guide型の場合はキャラクター情報を取得し、current_pageをtoolsに変更する
+    brawler_for_chat = None
+    chat_current_page = "board"
+    if post.type == "brawler_guide":
+        chat_current_page = "tools"
+        brawler_id_for_chat = post.custom_settings.get("brawler_id") if post.custom_settings else None
+        if brawler_id_for_chat:
+            try:
+                brawler_obj = await get_brawler(int(brawler_id_for_chat), db)
+                brawler_for_chat = brawler_obj.to_dict() if brawler_obj else None
+            except Exception as e:
+                logger.warning(f"chat_thread: brawler情報の取得に失敗: brawler_id={brawler_id_for_chat}, error={e}")
+
     context = {
         "request": request,
         "lang": lang,
@@ -641,9 +654,10 @@ async def chat_thread(
         "total_messages": total_messages,
         "is_permitted_to_chat": is_permitted_to_chat,
         "blocked_ids": blocked_ids,
-        "current_page": "board",
+        "current_page": chat_current_page,
         "hide_ads": True,
-        "hide_navigation_controls": True
+        "hide_navigation_controls": True,
+        "brawler": brawler_for_chat,
     }
 
     try:
@@ -983,6 +997,13 @@ async def create_chat_message(
             message=message_data.message,
             user_id=user.id if user else None
         )
+        
+        # トークンとアドバンスミッション
+        if user:
+            if post.type == "general":
+                await user.check_and_claim_advance_mission(db, "chat_general")
+            elif post.type == "brawler_guide":
+                await user.check_and_claim_advance_mission(db, "chat_brawler")
         
         # WebSocketで新しいメッセージをブロードキャスト
         new_message = await get_message(db, message_id)
