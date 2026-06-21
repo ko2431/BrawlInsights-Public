@@ -724,25 +724,25 @@ async def claim_rewarded_ticket_process(
     try:
         before_ticket_balance = current_user.ad_skip_tickets
         before_token_balance = current_user.tokens
-        success = await current_user.claim_tickets(db, claimed=3, daily_limit=1)
+        success = await current_user.claim_tickets(db, claimed=2, daily_limit=1)
 
         if not success:
             message = "今日はすでに視聴済みです。" if lang == "ja" else "You have already watched today's ad."
             return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
 
         if current_user.is_delete_ads:
-            converted_tokens = 30
+            converted_tokens = 20
             message = (
-                f"チケット3枚の代替報酬として、トークンを{converted_tokens}個受け取りました。\n"
+                f"チケット2枚の代替報酬として、トークンを{converted_tokens}個受け取りました。\n"
                 f"(トークン数: {before_token_balance} → {current_user.tokens})"
                 if lang == "ja"
-                else f"You received {converted_tokens} tokens instead of 3 tickets.\n(Tokens: {before_token_balance} -> {current_user.tokens})"
+                else f"You received {converted_tokens} tokens instead of 2 tickets.\n(Tokens: {before_token_balance} -> {current_user.tokens})"
             )
         else:
             message = (
-                f"チケットを3枚受け取りました。\n(チケット数: {before_ticket_balance} → {current_user.ad_skip_tickets})"
+                f"チケットを2枚受け取りました。\n(チケット数: {before_ticket_balance} → {current_user.ad_skip_tickets})"
                 if lang == "ja"
-                else f"You received 3 tickets.\n(Tickets: {before_ticket_balance} -> {current_user.ad_skip_tickets})"
+                else f"You received 2 tickets.\n(Tickets: {before_ticket_balance} -> {current_user.ad_skip_tickets})"
             )
 
         return JSONResponse({
