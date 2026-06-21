@@ -726,7 +726,7 @@
                     {% endif %}
                     {% set owner_usage_rate = none %}
                     {% if skin.equip_rate is not none and skin.ownership_rate is not none and skin.ownership_rate > 0 %}
-                        {% set denom = 100 if skin.ownership_rate >= 99.95 else skin.ownership_rate %}
+                        {% set denom = 100 if skin.ownership_rate >= 99.90 else skin.ownership_rate %}
                         {% set owner_usage_rate = (skin.equip_rate / denom) * 100 %}
                         {% if owner_usage_rate > 100 %}
                             {% set owner_usage_rate = 100 %}
@@ -764,10 +764,10 @@
                             {% if skin.equip_rate is not none %}
                                 {% if skin.equip_rate < 0.1 %}
                                     {{ "%.3f"|format(skin.equip_rate) }}%
-                                {% elif skin.equip_rate < 99.95 %}
+                                {% elif skin.equip_rate < 99.90 %}
                                     {{ "%.2f"|format(skin.equip_rate) }}%
                                 {% else %}
-                                    {{ "%.1f"|format(skin.equip_rate) }}%
+                                    100%
                                 {% endif %}
                             {% else %}
                                 --
@@ -777,10 +777,10 @@
                             {% if skin.ownership_rate is not none %}
                                 {% if skin.ownership_rate < 0.1 %}
                                     {{ "%.3f"|format(skin.ownership_rate) }}%
-                                {% elif skin.ownership_rate < 99.95 %}
+                                {% elif skin.ownership_rate < 99.90 %}
                                     {{ "%.2f"|format(skin.ownership_rate) }}%
                                 {% else %}
-                                    {{ "%.1f"|format(skin.ownership_rate) }}%
+                                    100%
                                 {% endif %}
                             {% else %}
                                 --
@@ -790,10 +790,10 @@
                             {% if owner_usage_rate is not none %}
                                 {% if owner_usage_rate < 0.1 %}
                                     {{ "%.3f"|format(owner_usage_rate) }}%
-                                {% elif owner_usage_rate < 99.95 %}
+                                {% elif owner_usage_rate < 99.90 %}
                                     {{ "%.2f"|format(owner_usage_rate) }}%
                                 {% else %}
-                                    {{ "%.1f"|format(owner_usage_rate) }}%
+                                    100%
                                 {% endif %}
                             {% else %}
                                 --
@@ -1110,7 +1110,7 @@
 
         const calculateOwnerUsageRate = (equipRate, ownershipRate) => {
             if (equipRate == null || ownershipRate == null || ownershipRate <= 0) return null;
-            const denom = ownershipRate >= 99.95 ? 100 : ownershipRate;
+            const denom = ownershipRate >= 99.90 ? 100 : ownershipRate;
             const ownerUsageRate = (equipRate / denom) * 100;
             return Math.min(ownerUsageRate, 100);
         };

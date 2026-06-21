@@ -5,10 +5,10 @@
     {% if rate is not none %}
         {% if rate < 0.1 %}
             {{ "%.3f"|format(rate) }}%
-        {% elif rate < 99.95 %}
+        {% elif rate < 99.90 %}
             {{ "%.2f"|format(rate) }}%
         {% else %}
-            {{ "%.1f"|format(rate) }}%
+            100%
         {% endif %}
     {% else %}
         --
