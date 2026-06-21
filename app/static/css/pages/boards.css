@@ -15,6 +15,58 @@
     width: 100%;
 }
 
+.tab-nav__list {
+    width: 95%; /* 掲示板関連ページに限り幅を上書き */
+}
+.tab-nav__link--notifications {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 7px 15px;
+    border: 1px solid var(--color-ccc);
+    border-radius: 14px;
+}
+.notifications-icon-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.notifications-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background-color: #e53935;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-sizing: border-box;
+}
+.dark .notifications-badge {
+    background-color: #ff6b6b;
+}
+.notifications-icon {
+    height: auto;
+    max-height: 24px;
+    width: auto;
+    max-width: 100%;
+}
+@media (max-width: 839px) {
+    .tab-nav__item--notifications {
+        flex-grow: 0.6;
+        margin-left: 5px;
+    }
+    .tab-nav__link--notifications {
+        padding: 7px 10px;
+    }
+}
+
 /* --- チーム募集種類選択UIコンテナ --- */
 .board-filters__container {
     width: 100%;
@@ -1062,4 +1114,96 @@ body.modal-open {
     .category-icon--discord { height: 16px; margin: 2.5px 0; margin-right: 2px; }
     .category-icon--youtube { height: 24px; margin: -1.5px 0; }
     .category-icon--tiktok  { height: 24px; margin: -1.5px 0; }
+}
+
+/* =========== */
+/* = 通知タブ = */
+/* =========== */
+.notifications__container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background-color: var(--color-ccc);
+}
+.notification {
+    display: flex;
+    gap: 5px;
+    padding: 8px 2%;
+    background-color: var(--bg-main);
+}
+.notification-type {
+    display: flex;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+    align-items: flex-start;
+    align-self: flex-start;
+    padding: 3px;
+}
+.notification-type__icon {
+    width: 100%;
+    height: auto;
+}
+.notification-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.notification-user-icons__container {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+.notification-user-icons__image {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    cursor: default;
+}
+.notification-user-icons__image--clickable {
+    cursor: pointer;
+}
+.notification-title__container {
+    font-size: 16px;
+    line-height: 1.2;
+}
+.notification-title__text--ago {
+    color: var(--color-777);
+    font-weight: 300;
+}
+.notification-target__container {
+    border: 1px solid var(--color-999);
+    border-radius: 8px;
+    padding: 2px 4px;
+    color: var(--color-555);
+    font-size: 16px;
+    line-height: 1.3;
+}
+.notification-target__text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.notification-reactions__container {
+    display: flex;
+    margin: 2px 0;
+}
+.notification-reactions__box {
+    border: 1px solid var(--color-777);
+    border-radius: 6px;
+    padding: 2px 6px 0;
+    color: var(--color-fff);
+    background-color: var(--color-888);
+    font-size: 14px;
+}
+@media (max-width: 539px) {
+    .notifications__container { width: 105%; margin: 0 -2.5%; }
+    .filter-form__select--notifications { max-width: calc(100% - 100px); }
+    .notification-user-icons__image { width: 30px; height: 30px; }
+    .notification-type { min-width: 33px; max-width: 33px; }
+    .notification-title__container { font-size: 15px; }
+    .notification-target__container { font-size: 15px; }
 }

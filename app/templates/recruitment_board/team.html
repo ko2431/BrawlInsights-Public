@@ -30,6 +30,16 @@
             <li class="tab-nav__item">
                 <a href="{{ url_for('general_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}なんでも{% else %}General{% endif %}</a>
             </li>
+            <li class="tab-nav__item tab-nav__item--notifications">
+                <a href="{{ url_for('notifications', lang=lang) }}" class="tab-nav__link tab-nav__link--notifications">
+                    <span class="notifications-icon-wrapper">
+                        <img src="{{ url_for('static', path='/images/ui/inbox.png') }}" alt="{% if lang == 'ja' %}通知{% else %}Notifications{% endif %}" class="notifications-icon">
+                        {% if show_notification_badge %}
+                        <span class="notifications-badge">{{ notification_badge_text }}</span>
+                        {% endif %}
+                    </span>
+                </a>
+            </li>
         </ul>
     </nav>
 
@@ -702,6 +712,16 @@
 
             // --- DOM要素の取得 ---
             const lang = '{{ lang }}';
+            document.querySelectorAll('.tab-nav__link--notifications').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    {% if not current_user %}
+                    e.preventDefault();
+                    alert(lang === 'ja'
+                        ? '通知機能を利用するにはログインが必要です。アカウントタブからログイン、またはアカウントを作成できます。'
+                        : 'You must be logged in to use notifications. Log in or create an account from the account tab.');
+                    {% endif %}
+                });
+            });
             const fab = document.getElementById('fab');
             const modalOverlay = document.getElementById('post-modal-overlay');
             const closeBtn = document.getElementById('modal-close-btn');

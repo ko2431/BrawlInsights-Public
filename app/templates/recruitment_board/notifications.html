@@ -1,0 +1,285 @@
+{# /app/templates/recruitment_board/notifications.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}通知{% else %}Notifications{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}Brawl Insightsの募集掲示板の通知です。{% else %}Notifications for Brawl Insights recruitment boards.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/boards.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/chat.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="board-page__container">
+    {% if platform == "web" %}<h1 class="page-title--main board-page-title--main">{% if lang == "ja" %}通知{% else %}Notifications{% endif %}</h1>{% endif %}
+
+    <nav class="tab-nav board-tab-nav">
+        <ul class="tab-nav__list">
+            <li class="tab-nav__item">
+                <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}チーム{% else %}Team{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('friend_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}フレンド{% else %}Friend{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('club_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}クラブ{% else %}Club{% endif %}</a>
+            </li>
+            <li class="tab-nav__item">
+                <a href="{{ url_for('general_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}なんでも{% else %}General{% endif %}</a>
+            </li>
+            <li class="tab-nav__item tab-nav__item--notifications">
+                <a href="#" class="tab-nav__link tab-nav__link--active tab-nav__link--notifications">
+                    <span class="notifications-icon-wrapper">
+                        <img src="{{ url_for('static', path='/images/ui/inbox.png') }}" alt="{% if lang == 'ja' %}通知{% else %}Notifications{% endif %}" class="notifications-icon">
+                    </span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="board-filters__container">
+        <div class="board-filters__filter-row">
+            <form method="get" id="filterForm" class="filter-form">
+                <input type="hidden" name="limit" value="{{ limit }}">
+                <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
+                <select name="filter" id="filterSelect" class="filter-form__select filter-form__select--notifications" onchange="document.getElementById('filterForm').submit();">
+                    <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                    <option value="post_like" {% if filter == "post_like" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのいいね{% else %}Likes on your posts{% endif %}</option>
+                    <option value="own_post_message" {% if filter == "own_post_message" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのメッセージ{% else %}Messages on your posts{% endif %}</option>
+                    <option value="participated_thread_message" {% if filter == "participated_thread_message" %}selected{% endif %}>{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ{% else %}Messages on threads you messaged{% endif %}</option>
+                    <option value="message_reaction" {% if filter == "message_reaction" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on your messages{% endif %}</option>
+                </select>
+                <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+            </form>
+            <div class="reload-button__container">
+                <p>{% if lang == "ja" %}更新{% else %}Reload{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if notifications %}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">
+        {% if lang == "ja" %}
+            募集掲示板、なんでも掲示板の通知が表示されます。キャラクター図鑑のチャットでは、自身のメッセージへのリアクションのみ通知されます。
+            <br>通知設定はアカウントタブ→オプションより変更できます。
+        {% else %}
+            Notifications for recruitment boards and the general board are shown here. For brawler guide chat threads, only reactions on your messages are notified.
+            <br>Notification settings can be changed from the account tab → options.
+        {% endif %}
+        </p>
+    </div>
+
+    <div class="notifications__container">
+        {% for notification in notifications %}
+        <div class="notification">
+            <div class="notification-type">
+                {% if notification.notification_type == "post_like" %}
+                <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="{% if lang == 'ja' %}いいね{% else %}Like{% endif %}" class="notification-type__icon">
+                {% elif notification.notification_type == "message_reaction" %}
+                <img src="{{ url_for('static', path='/images/spray/68000009.webp') }}" alt="{% if lang == 'ja' %}リアクション{% else %}Reaction{% endif %}" class="notification-type__icon">
+                {% else %}
+                <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}メッセージ{% else %}Message{% endif %}" class="notification-type__icon">
+                {% endif %}
+            </div>
+            <div class="notification-content">
+                <div class="notification-user-icons__container">
+                    {% for actor in notification.actors %}
+                    <img src="{{ actor.icon_path }}"
+                         alt="{% if lang == 'ja' %}ユーザーアイコン{% else %}User icon{% endif %}"
+                         class="notification-user-icons__image notification-user-icons__image--clickable"
+                         data-user-id="{{ actor.user_id }}"
+                         data-main-account-tag="{{ actor.main_account_tag or '' }}"
+                         data-main-account-name="{{ actor.main_account_name or '' }}"
+                         data-user-name="{{ actor.user_name }}">
+                    {% endfor %}
+                </div>
+                <div class="notification-title__container">
+                    <p class="notification-title__text">
+                        {{ notification.title_html|safe }}<span class="notification-title__text--ago">・{{ notification.ago_text }}</span>
+                    </p>
+                </div>
+                {% if notification.target_kind == "general_own_posts" %}
+                <a href="{{ url_for('general_board', lang=lang) }}?filter=only_own_posts" class="notification-target__link">
+                {% elif notification.target_kind == "chat" %}
+                <a href="{{ url_for('chat_thread', lang=lang, thread_id=notification.thread_id) }}" class="notification-target__link">
+                {% else %}
+                <a href="#" class="notification-target__link">
+                {% endif %}
+                    <div class="notification-target__container">
+                        <p class="notification-target__text">{{ notification.target_text }}</p>
+                        {% if notification.reaction_summary %}
+                        <div class="notification-reactions__container">
+                            <div class="notification-reactions__box">{{ notification.reaction_summary }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">
+    {% if filter != "all" %}
+        {% if lang == "ja" %}
+            現在指定した条件に該当する通知はありません。通知があると、ここに表示されます。
+        {% else %}
+            No notifications match the selected filter. When you have matching notifications, they will appear here.
+        {% endif %}
+    {% else %}
+        {% if lang == "ja" %}
+            現在通知はありません。あなたの投稿やメッセージに反応があると、ここに通知が表示されます。
+        {% else %}
+            No notifications yet. You'll see notifications here when people react to your posts or messages.
+        {% endif %}
+    {% endif %}
+    </p>
+    {% endif %}
+
+    {% include "components/ad_banner.html" %}
+</div>
+
+<div id="notification-user-menu" class="chat-menu">
+    <div id="notification-user-menu-actions" class="chat-menu__actions"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const lang = '{{ lang }}';
+        const reloadButton = document.querySelector('.reload-button__container');
+        if (reloadButton) {
+            reloadButton.addEventListener('click', () => window.location.reload());
+        }
+
+        const userMenu = document.getElementById('notification-user-menu');
+        const userMenuActions = document.getElementById('notification-user-menu-actions');
+
+        function hideUserMenu() {
+            if (userMenu.style.display === 'block') {
+                userMenu.classList.add('chat-menu--hiding');
+                setTimeout(() => {
+                    userMenu.style.display = 'none';
+                    userMenu.classList.remove('chat-menu--hiding');
+                }, 200);
+            }
+        }
+
+        function positionMenu(menuElement, targetElement) {
+            menuElement.classList.remove('chat-menu--hiding');
+
+            const screenMargin = 10;
+            const availableWidth = window.innerWidth - (screenMargin * 2);
+            menuElement.style.maxWidth = `${availableWidth}px`;
+
+            menuElement.style.visibility = 'hidden';
+            menuElement.style.display = 'block';
+
+            const menuRect = menuElement.getBoundingClientRect();
+            const targetRect = targetElement.getBoundingClientRect();
+
+            let top = (targetRect.top > menuRect.height + 10)
+                ? (window.scrollY + targetRect.top - menuRect.height - 5)
+                : (window.scrollY + targetRect.bottom + 5);
+
+            let left = targetRect.left;
+            if (left < screenMargin) {
+                left = screenMargin;
+            }
+            if (left + menuRect.width > window.innerWidth - screenMargin) {
+                left = window.innerWidth - menuRect.width - screenMargin;
+            }
+
+            menuElement.style.top = `${top}px`;
+            menuElement.style.left = `${left}px`;
+            menuElement.style.visibility = 'visible';
+        }
+
+        function showUserMenu(targetElement, actorData) {
+            userMenuActions.innerHTML = '';
+            let itemCount = 0;
+
+            if (actorData.mainAccountTag && actorData.mainAccountName) {
+                itemCount++;
+                const profileLink = document.createElement('a');
+                const tag = actorData.mainAccountTag.startsWith('#')
+                    ? actorData.mainAccountTag.substring(1)
+                    : actorData.mainAccountTag;
+                profileLink.href = `/${lang}/player/profile/${tag}`;
+                const profileButton = document.createElement('button');
+                profileButton.type = 'button';
+                profileButton.className = 'chat-menu__action-btn';
+                profileButton.style.color = '#111';
+                profileButton.style.gap = '0';
+                profileButton.style.display = 'flex';
+                profileButton.style.flexWrap = 'wrap';
+                profileButton.style.alignItems = 'center';
+                profileButton.innerHTML = lang === 'ja'
+                    ? `このユーザーのメインアカウント("<b style="white-space: normal; overflow-wrap: normal; word-break: keep-all;">${actorData.mainAccountName}</b>")の情報を見る`
+                    : `View main account ("<b style="white-space: normal; overflow-wrap: normal; word-break: keep-all;">${actorData.mainAccountName}</b>") profile`;
+                profileLink.appendChild(profileButton);
+                userMenuActions.appendChild(profileLink);
+            }
+
+            if (actorData.userId) {
+                if (itemCount > 0) {
+                    const separator = document.createElement('div');
+                    separator.className = 'chat-menu__separator';
+                    userMenuActions.appendChild(separator);
+                }
+                itemCount++;
+
+                const blockButton = document.createElement('button');
+                blockButton.type = 'button';
+                blockButton.className = 'chat-menu__action-btn';
+                blockButton.style.color = '#c90808';
+                blockButton.textContent = lang === 'ja' ? 'このユーザーをブロック' : 'Block this user';
+                blockButton.addEventListener('click', async () => {
+                    const msg = lang === 'ja'
+                        ? 'このユーザーをブロックしますか？\nブロックすると、このユーザーの投稿が非表示になります。'
+                        : 'Block this user?\nTheir posts will be hidden.';
+                    if (!confirm(msg)) return;
+                    try {
+                        const res = await fetch(`{{ url_for('block_user', lang=lang) }}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ blocked_user_id: actorData.userId, blocked_anonymous_id: null })
+                        });
+                        if (res.ok) window.location.reload();
+                        else alert(lang === 'ja' ? 'ブロックに失敗しました' : 'Failed to block');
+                    } catch {
+                        alert(lang === 'ja' ? 'エラーが発生しました' : 'An error occurred');
+                    }
+                });
+                userMenuActions.appendChild(blockButton);
+            }
+
+            if (itemCount === 0) return;
+
+            positionMenu(userMenu, targetElement);
+        }
+
+        document.querySelectorAll('.notification-user-icons__image--clickable').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showUserMenu(icon, {
+                    userId: parseInt(icon.dataset.userId, 10),
+                    mainAccountTag: icon.dataset.mainAccountTag,
+                    mainAccountName: icon.dataset.mainAccountName,
+                    userName: icon.dataset.userName,
+                });
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!userMenu.contains(e.target) && !e.target.closest('.notification-user-icons__image--clickable')) {
+                hideUserMenu();
+            }
+        });
+    });
+    </script>
+{% endblock %}

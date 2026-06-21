@@ -63,6 +63,12 @@ class User(Base):
     ticket_claim_count = Column(Integer, nullable=False, server_default='0')
     last_ticket_claim_date = Column(Date, nullable=True)
     last_advance_mission_date = Column(Date, nullable=True)
+    notification_badge_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_post_like_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_own_post_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_participated_thread_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_message_reaction_enabled = Column(Boolean, nullable=False, server_default='True')
+    notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
 
     # リレーションシップ
     player = relationship("Player", back_populates="users", foreign_keys=[main_account])
@@ -976,6 +982,32 @@ class RankedStatsComposition(Base):
         PrimaryKeyConstraint('date', 'mode', 'map', 'rank_tier', 'brawler_id_1', 'brawler_id_2', 'brawler_id_3', name='ranked_stats_composition_pkey'),
         CheckConstraint('brawler_id_1 < brawler_id_2 AND brawler_id_2 < brawler_id_3', name='ck_composition_brawler_order'),
         Index('idx_composition_mode_rank_date', 'mode', 'rank_tier', 'date'),
+    )
+
+
+class BoardNotification(Base):
+    """
+    掲示板の通知イベントを格納するテーブル。
+    表示時に post_like / message_reaction は対象ごとに集約する。
+    """
+    __tablename__ = 'board_notifications'
+
+    id = Column(Integer, primary_key=True)
+    recipient_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    notification_type = Column(Text, nullable=False)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=True)
+    message_id = Column(Integer, ForeignKey('messages.id', ondelete='CASCADE'), nullable=True)
+    post_vote_id = Column(Integer, ForeignKey('post_votes.id', ondelete='CASCADE'), nullable=True)
+    reaction_id = Column(Integer, ForeignKey('reactions.id', ondelete='CASCADE'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_board_notifications_recipient_created_at', 'recipient_user_id', desc('created_at')),
+        Index('idx_board_notifications_recipient_type_post', 'recipient_user_id', 'notification_type', 'post_id'),
+        Index('idx_board_notifications_recipient_type_message', 'recipient_user_id', 'notification_type', 'message_id'),
+        Index('idx_board_notifications_post_id', 'post_id'),
+        Index('idx_board_notifications_message_id', 'message_id'),
     )
 
 

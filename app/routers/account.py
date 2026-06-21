@@ -13,6 +13,7 @@ from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
 from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code
 from app.services.board_service import get_today_post_count_by_user
+from app.services.notification_service import get_notification_settings, update_notification_setting
 from app.utils.utils import format_tag, confirm_tag
 from app.db.db import get_shared_db
 from app.core.logger import logger
@@ -913,6 +914,50 @@ async def update_history_privacy_process(
         })
     except Exception as e:
         logger.error(f"履歴の公開設定更新中にエラー (User ID: {current_user.id}, Player: {player_tag}): {e}", exc_info=True)
+        message = "データベースエラーのため、設定を更新できませんでした。" if lang == "ja" else "Could not update settings due to a database error."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class NotificationSettingRequest(BaseModel):
+    setting_key: str
+    enabled: bool
+
+@router.post("/update-notification-settings", name="account_update_notification_settings")
+async def update_notification_settings_process(
+    request: Request,
+    payload: NotificationSettingRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    lang = request.path_params.get("lang", "ja")
+    allowed_keys = {
+        "notification_badge_enabled",
+        "notification_post_like_enabled",
+        "notification_own_post_message_enabled",
+        "notification_participated_thread_message_enabled",
+        "notification_message_reaction_enabled",
+    }
+    if payload.setting_key not in allowed_keys:
+        return JSONResponse(
+            {"success": False, "message": "無効なリクエストです。" if lang == "ja" else "Invalid request."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        await update_notification_setting(
+            db,
+            current_user.id,
+            payload.setting_key,
+            payload.enabled,
+        )
+        logger.info(
+            f"{current_user.name} (ID: {current_user.id}) が通知設定 {payload.setting_key} を {payload.enabled} に変更しました。"
+        )
+        return JSONResponse({
+            "success": True,
+            "message": "設定を更新しました。" if lang == "ja" else "Settings updated successfully.",
+        })
+    except Exception as e:
+        logger.error(f"通知設定更新中にエラー (User ID: {current_user.id}): {e}", exc_info=True)
         message = "データベースエラーのため、設定を更新できませんでした。" if lang == "ja" else "Could not update settings due to a database error."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

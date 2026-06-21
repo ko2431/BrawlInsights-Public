@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import json
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.websockets import WebSocketState
 from pydantic import BaseModel, Field
 
@@ -15,6 +15,15 @@ from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
 from app.services.board_service import get_post, get_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote
+from app.services.notification_service import (
+    NOTIFICATION_LIST_LIMIT,
+    create_message_notifications,
+    get_board_notification_context,
+    get_notifications_for_display,
+    handle_message_reaction_notification,
+    handle_post_like_notification,
+    mark_all_notifications_as_read,
+)
 from app.utils.utils import get_icon_path, get_remote_ip
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 
@@ -27,6 +36,14 @@ router = APIRouter(
 #* /---*---*---*---*---*---*---*---*/
 #* ヘルパー関数
 #* /---*---*---*---*---*---*---*---*/
+async def _append_board_notification_context(
+    context: dict,
+    db: asyncpg.Connection,
+    user: User | None,
+) -> None:
+    context.update(await get_board_notification_context(db, user.id if user else None))
+
+
 def get_ip(request: Request) -> str:
     return get_remote_ip(request)
 
@@ -259,6 +276,7 @@ async def team_recruitment_board(
         "blocked_ids": blocked_ids,
         "current_page": "board"
     }
+    await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/team.html", context)
@@ -356,6 +374,7 @@ async def friend_recruitment_board(
         "blocked_ids": blocked_ids,
         "current_page": "board"
     }
+    await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/friend.html", context)
@@ -453,6 +472,7 @@ async def club_recruitment_board(
         "blocked_ids": blocked_ids,
         "current_page": "board"
     }
+    await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/club.html", context)
@@ -567,6 +587,7 @@ async def general_board(
         "blocked_ids": blocked_ids,
         "current_page": "board"
     }
+    await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/general.html", context)
@@ -665,6 +686,48 @@ async def chat_thread(
     except Exception as render_err: # テンプレートレンダリングエラーも捕捉
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+#* /---*---*---*---*---*---*---*---*/
+#* 通知タブ
+#* /---*---*---*---*---*---*---*---*/
+@router.get("/notifications", name="notifications")
+async def notifications(
+    request: Request,
+    lang: str,
+    filter: str = Query("all", description="通知フィルター"),
+    limit: int = Query(NOTIFICATION_LIST_LIMIT, ge=1, le=NOTIFICATION_LIST_LIMIT, description="通知表示数の上限"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        return RedirectResponse(
+            url=str(request.url_for("team_recruitment_board", lang=lang)),
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    try:
+        await mark_all_notifications_as_read(db, user.id)
+        notification_items = await get_notifications_for_display(
+            db,
+            user.id,
+            notification_filter=filter,
+            lang=lang,
+        )
+    except DataBaseError as e:
+        logger.error(f"通知取得中にDBエラー (User ID: {user.id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "current_page": "board",
+        "filter": filter,
+        "limit": limit,
+        "notifications": notification_items,
+    }
+    await _append_board_notification_context(context, db, user)
+    return templates.TemplateResponse("recruitment_board/notifications.html", context)
     
 
 #* /---*---*---*---*---*---*---*---*/
@@ -869,6 +932,12 @@ async def toggle_post_good(
 
     try:
         result = await toggle_general_post_up_vote(db, post_id=post_id, user_id=user.id)
+        await handle_post_like_notification(
+            db,
+            post_id=post_id,
+            actor_user_id=user.id,
+            is_liked=bool(result["is_up_voted_by_current_user"]),
+        )
         return {
             "success": True,
             "up_vote_count": result["up_vote_count"],
@@ -1035,6 +1104,14 @@ async def create_chat_message(
             await cache_module.delete_cache(f"post:{thread_id}")
         except Exception as e:
             logger.debug(f"キャッシュ更新に失敗しました (thread: {thread_id}): {e}")
+
+        if user:
+            await create_message_notifications(
+                db,
+                thread_id=thread_id,
+                message_id=message_id,
+                sender_user_id=user.id,
+            )
         
         return {"success": True, "message_id": message_id}
     except ValueError as e:
@@ -1150,6 +1227,13 @@ async def add_message_reaction(
             await manager.broadcast(
                 message.thread_id,
                 {"type": "new_reaction", "data": new_reaction.to_dict()}
+            )
+            await handle_message_reaction_notification(
+                db,
+                message_id=message_id,
+                actor_user_id=user.id,
+                reaction_id=reaction_id,
+                is_added=True,
             )
 
         return {"success": True, "reaction_id": reaction_id}
