@@ -113,8 +113,8 @@
                 <th @click="sortBy('is_admin_only')"><span>管理者限定</span><span x-show="sortColumn === 'is_admin_only'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th @click="sortBy('num_of_uses')"><span>使用回数</span><span x-show="sortColumn === 'num_of_uses'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th>使用履歴</th>
-                <th @click="sortBy('usage_limit_per_user')" style="min-width: 60px;"><span>上限(ユーザー)</span><span x-show="sortColumn === 'usage_limit_per_user'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
-                <th @click="sortBy('usage_limit_total')" style="min-width: 60px;"><span>上限(合計)</span><span x-show="sortColumn === 'usage_limit_total'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('usage_limit_per_user')" style="min-width: 75px;"><span>上限(ユーザー)</span><span x-show="sortColumn === 'usage_limit_per_user'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('usage_limit_total')" style="min-width: 75px;"><span>上限(合計)</span><span x-show="sortColumn === 'usage_limit_total'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th @click="sortBy('is_invalid')"><span>無効</span><span x-show="sortColumn === 'is_invalid'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th @click="sortBy('expiration_datetime')"><span>有効期限</span><span x-show="sortColumn === 'expiration_datetime'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
             </thead>
