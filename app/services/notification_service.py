@@ -10,6 +10,7 @@ from app.services.user_service import get_blocked_ids, get_user
 from app.utils.utils import get_icon_path
 
 NOTIFICATION_LIST_LIMIT = 1000
+BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT = 3
 
 NOTIFICATION_TYPE_POST_LIKE = "post_like"
 NOTIFICATION_TYPE_OWN_POST_MESSAGE = "own_post_message"
@@ -259,6 +260,60 @@ async def handle_post_like_notification(
         await invalidate_notification_cache(row["recipient_user_id"])
 
 
+async def _create_brawler_guide_participated_notifications(
+    db: asyncpg.Connection,
+    *,
+    thread_id: int,
+    message_id: int,
+    sender_user_id: int,
+    post_id: int,
+) -> None:
+    """キャラクター図鑑スレッドで、参加ユーザーへ直近N件の他者メッセージのみ通知する。"""
+    try:
+        recipient_rows = await db.fetch(
+            """
+            WITH latest_user_messages AS (
+                SELECT DISTINCT ON (user_id) user_id, id AS last_user_msg_id
+                FROM messages
+                WHERE thread_id = $1
+                  AND user_id IS NOT NULL
+                  AND is_deleted = FALSE
+                  AND id < $2
+                ORDER BY user_id, id DESC
+            )
+            SELECT lum.user_id
+            FROM latest_user_messages lum
+            WHERE lum.user_id != $3
+              AND (
+                  SELECT COUNT(*)
+                  FROM messages m
+                  WHERE m.thread_id = $1
+                    AND m.is_deleted = FALSE
+                    AND m.user_id IS NOT NULL
+                    AND m.user_id != lum.user_id
+                    AND m.id > lum.last_user_msg_id
+                    AND m.id <= $2
+              ) <= $4
+            """,
+            thread_id,
+            message_id,
+            sender_user_id,
+            BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
+        )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+
+    for row in recipient_rows:
+        await _create_notification(
+            db,
+            recipient_user_id=row["user_id"],
+            notification_type=NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+            actor_user_id=sender_user_id,
+            post_id=post_id,
+            message_id=message_id,
+        )
+
+
 async def create_message_notifications(
     db: asyncpg.Connection,
     *,
@@ -270,7 +325,17 @@ async def create_message_notifications(
         return
 
     post = await get_post(db, thread_id)
-    if not post or post.is_deleted or post.type == "brawler_guide":
+    if not post or post.is_deleted:
+        return
+
+    if post.type == "brawler_guide":
+        await _create_brawler_guide_participated_notifications(
+            db,
+            thread_id=thread_id,
+            message_id=message_id,
+            sender_user_id=sender_user_id,
+            post_id=post.id,
+        )
         return
 
     if post.host_id and post.host_id != sender_user_id:
@@ -464,6 +529,10 @@ def _build_message_title(
         if lang == "ja":
             return f"<b>{actor_name}</b>さんがあなたの{post_label_ja}の投稿に返信しました"
         return f"<b>{actor_name}</b> replied to your {post_label_en} post"
+    if post_type == "brawler_guide":
+        if lang == "ja":
+            return f"<b>{actor_name}</b>さんがあなたがメッセージを送ったキャラクター掲示板に返信しました"
+        return f"<b>{actor_name}</b> replied to the brawler guide board you messaged in"
     if lang == "ja":
         return f"<b>{actor_name}</b>さんがあなたがメッセージを送った{post_label_ja}の投稿に返信しました"
     return f"<b>{actor_name}</b> replied to a {post_label_en} post you messaged in"

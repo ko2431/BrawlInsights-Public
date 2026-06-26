@@ -17,6 +17,7 @@ from app.services.user_service import User, get_user, get_blocked_ids, create_us
 from app.services.board_service import get_post, get_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote
 from app.services.notification_service import (
     NOTIFICATION_LIST_LIMIT,
+    BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
     create_message_notifications,
     get_board_notification_context,
     get_notifications_for_display,
@@ -725,6 +726,7 @@ async def notifications(
         "filter": filter,
         "limit": limit,
         "notifications": notification_items,
+        "brawler_guide_notification_message_limit": BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
     }
     await _append_board_notification_context(context, db, user)
     return templates.TemplateResponse("recruitment_board/notifications.html", context)

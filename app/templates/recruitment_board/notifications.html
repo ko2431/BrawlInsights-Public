@@ -61,10 +61,10 @@
     <div class="info-block" style="padding: 0;">
         <p class="info-block__text">
         {% if lang == "ja" %}
-            募集掲示板、なんでも掲示板の通知が表示されます。キャラクター図鑑のチャットでは、自身のメッセージへのリアクションのみ通知されます。
+            募集掲示板、なんでも掲示板の通知が表示されます。キャラクター図鑑のチャットでは、自身のメッセージへのリアクションと直近{{ brawler_guide_notification_message_limit }}件のメッセージのみ通知されます。
             <br>通知設定はアカウントタブ→オプションより変更できます。
         {% else %}
-            Notifications for recruitment boards and the general board are shown here. For brawler guide chat threads, only reactions on your messages are notified.
+            Notifications for recruitment boards and the general board are shown here. For brawler guide chat threads, only reactions on your messages and the latest {{ brawler_guide_notification_message_limit }} messages are notified.
             <br>Notification settings can be changed from the account tab → options.
         {% endif %}
         </p>
