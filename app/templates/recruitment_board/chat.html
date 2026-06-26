@@ -174,8 +174,6 @@
             {% endif %}
             {% if platform != "web" %}
             <div class="back-button__container"
-                x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
-                x-show="showManualBackButton"
                 style="display: none;" {# FOUC(ちらつき)防止 #}>
                 <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
             </div>
