@@ -94,6 +94,31 @@ async def delete_cache(key: str):
     except Exception as e:
         logger.error(f"Redisからのキャッシュ削除中にエラー (key: {key}): {e}", exc_info=True)
 
+async def adjust_cache_counter_if_exists(key: str, delta: int = 1, ttl: int | None = None) -> bool:
+    """既存の整数カウンタキャッシュを増減する。キーが無い場合は何もしない。
+
+    set_cache(JSON) と redis INCR/DECR が共存するキー用。
+    存在しないキーへの INCR は Redis が 0 から始めて 1 になってしまうため、事前に exists を確認する。
+    """
+    r = get_redis()
+    if not r:
+        return False
+    try:
+        if not await r.exists(key):
+            return False
+        if delta == 1:
+            await r.incr(key)
+        elif delta == -1:
+            await r.decr(key)
+        else:
+            await r.incrby(key, delta)
+        if ttl is not None:
+            await r.expire(key, ttl)
+        return True
+    except Exception as e:
+        logger.error(f"Redisカウンタ更新中にエラー (key: {key}): {e}", exc_info=True)
+        return False
+
 async def clear_cache_by_prefix(prefix: str):
     """指定されたプレフィックスを持つ全てのキャッシュを削除する（慎重に使用）"""
     r = get_redis()

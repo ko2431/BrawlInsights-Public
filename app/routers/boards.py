@@ -1099,10 +1099,7 @@ async def create_chat_message(
         # キャッシュを更新: message_count をインクリメントし、post キャッシュを削除
         try:
             cache_key = f"message_count:{thread_id}"
-            r = cache_module.get_redis()
-            if r:
-                await r.incr(cache_key)
-                await r.expire(cache_key, 15)
+            await cache_module.adjust_cache_counter_if_exists(cache_key, delta=1, ttl=15)
             await cache_module.delete_cache(f"post:{thread_id}")
         except Exception as e:
             logger.debug(f"キャッシュ更新に失敗しました (thread: {thread_id}): {e}")
@@ -1154,10 +1151,7 @@ async def delete_message(
         # キャッシュを更新: message_count をデクリメントし、post キャッシュを削除
         try:
             cache_key = f"message_count:{thread_id}"
-            r = cache_module.get_redis()
-            if r:
-                await r.decr(cache_key)
-                await r.expire(cache_key, 15)
+            await cache_module.adjust_cache_counter_if_exists(cache_key, delta=-1, ttl=15)
             await cache_module.delete_cache(f"post:{thread_id}")
         except Exception as e:
             logger.debug(f"キャッシュ更新に失敗しました (thread: {thread_id}): {e}")
