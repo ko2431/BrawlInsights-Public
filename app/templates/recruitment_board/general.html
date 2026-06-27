@@ -55,6 +55,7 @@
                     <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
                     <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>
                     <option value="only_liked_posts" {% if filter == "only_liked_posts" %}selected{% endif %}>{% if lang == "ja" %}いいねした投稿のみ表示{% else %}Only Show Liked Posts{% endif %}</option>
+                    <option value="trending" {% if filter == "trending" %}selected{% endif %}>{% if lang == "ja" %}話題の投稿{% else %}Trending{% endif %}</option>
                     <option value="chat" {% if filter == "chat" %}selected{% endif %}>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</option>
                     <option value="question" {% if filter == "question" %}selected{% endif %}>{% if lang == "ja" %}質問{% else %}Question{% endif %}</option>
                     <option value="brawl_info" {% if filter == "brawl_info" %}selected{% endif %}>{% if lang == "ja" %}ブロスタ情報{% else %}Brawl Info{% endif %}</option>

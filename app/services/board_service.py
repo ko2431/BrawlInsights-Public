@@ -11,6 +11,7 @@ from app.services.user_service import User, get_region_name, get_user
 from app.utils.utils import format_utc_datetime, parse_utc_datetime, get_normalized_ip, get_icon_path
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
+from app.core.board_trending import GENERAL_BOARD_TRENDING
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -90,6 +91,19 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
 
     Returns:
         tuple[list[Post], int]: 取得した投稿のリストと、検索結果総数。
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
+
+async def get_trending_general_posts(
+    db: asyncpg.Connection,
+    per_page: int = 60,
+    region: str | None = None,
+) -> tuple[list[Post], int]:
+    """なんでも掲示板の投稿を話題順で取得する。候補は直近 candidate_max_age_days 日以内。
+
+    スコア = (weight_likes * ln(1+いいね) + weight_comments * ln(1+コメント))
+             / (経過時間[h] + age_offset_hours) ^ gravity
+    集約SQLと共有キャッシュを使い、リクエストごとのN+1を避ける。
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 

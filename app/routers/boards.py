@@ -14,7 +14,7 @@ from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
-from app.services.board_service import get_post, get_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote
+from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote
 from app.services.notification_service import (
     NOTIFICATION_LIST_LIMIT,
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
@@ -490,7 +490,7 @@ async def general_board(
     request: Request,
     lang: str,
     limit: int = Query(60, ge=1, le=1000, description="投稿表示数の上限"),
-    filter: str = Query("all", description="カテゴリーフィルターまたは自分の投稿のみ表示(only_own_posts)またはいいねした投稿のみ表示(only_liked_posts)"),
+    filter: str = Query("all", description="カテゴリーフィルター、話題の投稿(trending)、自分の投稿のみ表示(only_own_posts)、いいねした投稿のみ表示(only_liked_posts)"),
     region: str = Query("all", description="表示する地域"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db)
@@ -530,19 +530,26 @@ async def general_board(
 
     # 投稿を取得
     try:
-        posts_data, _ = await get_posts(
-            db,
-            per_page=limit,
-            type="general",
-            region=None if region.lower() == "all" else region,
-            target_user=user if filter == "only_liked_posts" else None,
-            target_player=None,
-            category=category_filter,
-            eliminate_duplicates=eliminate_duplicates,
-            author_user_id=user.id if filter == "only_own_posts" and user else None,
-            author_ip=get_ip(request) if filter == "only_own_posts" else None,
-            filter=filter
-        )
+        if filter == "trending":
+            posts_data, _ = await get_trending_general_posts(
+                db,
+                per_page=limit,
+                region=None if region.lower() == "all" else region,
+            )
+        else:
+            posts_data, _ = await get_posts(
+                db,
+                per_page=limit,
+                type="general",
+                region=None if region.lower() == "all" else region,
+                target_user=user if filter == "only_liked_posts" else None,
+                target_player=None,
+                category=category_filter,
+                eliminate_duplicates=eliminate_duplicates,
+                author_user_id=user.id if filter == "only_own_posts" and user else None,
+                author_ip=get_ip(request) if filter == "only_own_posts" else None,
+                filter=filter
+            )
     except BrawlStarsAPIError as e:
         posts_data = []
     except DataBaseError as e:
