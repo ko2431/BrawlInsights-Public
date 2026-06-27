@@ -1757,6 +1757,15 @@ function giveawayEntryHandler(info) {
                 }
                 return;
             }
+            const spendTokens = this.info.spend_tokens;
+            const currentTokens = this.info.user_tokens;
+            const nextTokens = currentTokens - spendTokens;
+            const confirmMessage = this.lang === 'ja'
+                ? `${spendTokens}トークン消費して、プレゼント企画に1口応募しますか？\n(トークン数 : ${currentTokens}→${nextTokens})`
+                : `Spend ${spendTokens} tokens to enter the giveaway once?\n(Tokens: ${currentTokens} → ${nextTokens})`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
             // 二重タップ防止: 即座にグレーアウト
             this.isSubmitting = true;
             try {
@@ -1786,8 +1795,18 @@ function giveawayEntryHandler(info) {
         async submitMaxEntries() {
             if (this.isSubmitting || this.isMaxedOut || !this.canApplyMultiple) return;
 
-            this.isSubmitting = true;
             const maxEntries = this.maxApplicableEntries;
+            const spendTokens = maxEntries * this.info.spend_tokens;
+            const currentTokens = this.info.user_tokens;
+            const nextTokens = currentTokens - spendTokens;
+            const confirmMessage = this.lang === 'ja'
+                ? `${spendTokens}トークン消費して、プレゼント企画に${maxEntries}口まとめて応募しますか？\n(トークン数 : ${currentTokens}→${nextTokens})`
+                : `Spend ${spendTokens} tokens to enter the giveaway with ${maxEntries} entries at once?\n(Tokens: ${currentTokens} → ${nextTokens})`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            this.isSubmitting = true;
             try {
                 const response = await fetch("{{ url_for('account_use_giveaway_max_entries', lang=lang) }}", {
                     method: 'POST',
