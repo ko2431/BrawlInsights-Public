@@ -1800,7 +1800,7 @@ function giveawayEntryHandler(info) {
             const currentTokens = this.info.user_tokens;
             const nextTokens = currentTokens - spendTokens;
             const confirmMessage = this.lang === 'ja'
-                ? `${spendTokens}トークン消費して、プレゼント企画に${maxEntries}口まとめて応募しますか？\n(トークン数 : ${currentTokens}→${nextTokens})`
+                ? `${spendTokens}トークン消費して、プレゼント企画に${maxEntries}口まとめて応募しますか？\n(トークン数: ${currentTokens} → ${nextTokens})`
                 : `Spend ${spendTokens} tokens to enter the giveaway with ${maxEntries} entries at once?\n(Tokens: ${currentTokens} → ${nextTokens})`;
             if (!confirm(confirmMessage)) {
                 return;
