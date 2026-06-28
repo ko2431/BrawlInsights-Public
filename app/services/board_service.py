@@ -4,11 +4,12 @@ import datetime
 import re
 import random
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, Club, get_club, get_club_name, get_player_icon_from_db
 from app.services.user_service import User, get_region_name, get_user
-from app.utils.utils import format_utc_datetime, parse_utc_datetime, get_normalized_ip, get_icon_path
+from app.utils.utils import format_utc_datetime, parse_utc_datetime, get_normalized_ip, get_icon_path, format_tag
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 from app.core.board_trending import GENERAL_BOARD_TRENDING
@@ -135,6 +136,23 @@ async def toggle_general_post_up_vote(db: asyncpg.Connection, post_id: int, user
     # [この部分は公開用リポジトリでは非公開にされています]
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def check_invitation_link(db: asyncpg.Connection, text: str, type: str) -> tuple[bool, str, str, str | None, str | None]:
+    """ユーザーが入力した、招待リンクの含まれるテキストから招待リンクを抽出し、さらにそこに含まれるプレイヤータグまたはクラブタグから名前を取得する。10秒間のキャッシュを使用する。
+
+    Args:
+        db (asyncpg.Connection): データベース接続
+        text (str): リンクの含まれるテキスト
+        type (str): リンクのタイプ("team"/"friend"/"club")
+
+    Raises:
+        ValueError: リンクのタイプが無効な場合
+
+    Returns:
+        tuple[bool, str, str, str | None, str | None]: 正しいリンクの含まれているテキストかどうか / 招待リンク / 地域("JP"/"EN") / プレイヤータグまたはクラブタグ / プレイヤー名またはクラブ名
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
