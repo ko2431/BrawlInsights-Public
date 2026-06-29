@@ -634,10 +634,24 @@ async def get_club_badge_id_from_db(tag: str, db: asyncpg.Connection) -> int | N
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 
+async def get_player_for_tracking_extension(tag: str, db: asyncpg.Connection) -> Player | None:
+    """トークンによる自動追跡延長に必要な最小限のプレイヤー情報をDBから取得する。
+
+    API呼び出しは行わない。無効プレイヤー・未登録プレイヤーの場合はNoneを返す。
+
+    Args:
+        tag (str): プレイヤータグ
+        db (asyncpg.Connection): データベース接続
+
+    Returns:
+        Player | None: 延長処理に使用するPlayerオブジェクト
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
+
 async def add_auto_tracking_time(player: Player, hours: int) -> None:
     """
     プレイヤーの自動追跡機能の有効期限を指定時間分、延長する。
-    有効期限が設定されていない場合は、現在時刻から延長する。
+    有効期限が設定されていない、または期限切れの場合は、現在時刻から延長する。
 
     Args:
         player (Player):対象のプレイヤーオブジェクト

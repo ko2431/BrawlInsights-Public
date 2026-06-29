@@ -9,7 +9,7 @@ from app.exceptions.custom_exceptions import BrawlStarsAPIError
 from app.core.logger import logger
 from app.core.logging_config import add_log_info
 from app.db.db import get_shared_db
-from app.services.brawl_service import get_player, get_player_from_db, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_titles
+from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_titles
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, set_cache
 from app.services.user_service import User
@@ -343,6 +343,44 @@ async def get_player_search_fragment(
 
 
 
+async def _extend_player_tracking(
+    *,
+    formatted_tag: str,
+    db: asyncpg.Connection,
+    current_user: User,
+    lang: str,
+    cost: int,
+    hours: int,
+    success_message_ja: str,
+    success_message_en: str,
+) -> JSONResponse:
+    player = await get_player_for_tracking_extension(formatted_tag, db)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    if current_user.tokens < cost:
+        message = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
+        return JSONResponse({"success": False, "message": message}, status_code=400)
+
+    try:
+        async with db.transaction():
+            success_spend = await current_user.spend_tokens(db, cost)
+            if not success_spend:
+                raise ValueError("トークン不足により処理を中断しました。")
+            await add_auto_tracking_time(player, hours)
+    except ValueError as e:
+        logger.warning(f"自動追跡時間の延長処理を中断 (User: {current_user.name}): {e}")
+        message = "トークンが足りません。" if lang == "ja" else "Not enough tokens."
+        return JSONResponse({"success": False, "message": message}, status_code=400)
+    except Exception as e:
+        logger.error(f"自動追跡時間の延長処理中にエラー (User: {current_user.name}, Player: {player.tag}): {e}", exc_info=True)
+        message = "処理中にエラーが発生しました。" if lang == "ja" else "An error occurred during processing."
+        return JSONResponse({"success": False, "message": message}, status_code=500)
+
+    message = (success_message_ja if lang == "ja" else success_message_en).format(name=player.name)
+    return JSONResponse({"success": True, "message": message})
+
+
 @router.post("/extend-tracking/{tag}", name="extend_player_tracking")
 async def extend_player_tracking(
     request: Request,
@@ -352,49 +390,20 @@ async def extend_player_tracking(
 ):
     lang = request.path_params.get("lang", "ja") # リクエストから言語を取得
 
-    # 1. プレイヤータグを検証
     formatted_tag = format_tag(tag)
     if not confirm_tag(formatted_tag):
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
-    # 2. プレイヤー情報を取得
-    try:
-        player = await get_player(formatted_tag, db)
-    except BrawlStarsAPIError:
-        raise HTTPException(status_code=404, detail="Player not found")
-
-    # 3. トークンが足りるかチェック
-    COST = 10
-    if current_user.tokens < COST:
-        message = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
-        return JSONResponse({"success": False, "message": message}, status_code=400)
-
-    # 4. トランザクションを開始 (同時実行時の競合を防ぐため)
-    try:
-        async with db.transaction():
-            # 5. トークンを消費
-            # 呼び出し先の spend_tokens もasyncpgに対応している必要がある
-            success_spend = await current_user.spend_tokens(db, COST)
-            if not success_spend:
-                # transactionブロック内で例外を発生させると自動でロールバックされる
-                raise ValueError("トークン不足により処理を中断しました。")
-
-            # 6. 自動追跡時間を延長
-            await add_auto_tracking_time(player, 24)
-
-    except ValueError as e: # 自分で発生させた例外を捕捉
-        logger.warning(f"自動追跡時間の延長処理を中断 (User: {current_user.name}): {e}")
-        message = "トークンが足りません。" if lang == "ja" else "Not enough tokens."
-        return JSONResponse({"success": False, "message": message}, status_code=400)
-    except Exception as e:
-        # その他の予期せぬエラーはここで捕捉される
-        logger.error(f"自動追跡時間の延長処理中にエラー (User: {current_user.name}, Player: {player.tag}): {e}", exc_info=True)
-        message = "処理中にエラーが発生しました。" if lang == "ja" else "An error occurred during processing."
-        return JSONResponse({"success": False, "message": message}, status_code=500)
-
-    # 7. 成功レスポンス
-    message = f"プレイヤー「{player.name}」の自動追跡時間を24時間延長しました。" if lang == "ja" else f"Successfully extended auto-tracking for '{player.name}' by 24 hours."
-    return JSONResponse({"success": True, "message": message})
+    return await _extend_player_tracking(
+        formatted_tag=formatted_tag,
+        db=db,
+        current_user=current_user,
+        lang=lang,
+        cost=10,
+        hours=24,
+        success_message_ja="プレイヤー「{name}」の自動追跡時間を24時間延長しました。",
+        success_message_en="Successfully extended auto-tracking for '{name}' by 24 hours.",
+    )
 
 
 # プレイヤー自動追跡時間延長(10日間)のエンドポイント
@@ -407,46 +416,20 @@ async def extend_player_tracking_10days(
 ):
     lang = request.path_params.get("lang", "ja") # リクエストから言語を取得
 
-    # 1. プレイヤータグを検証
     formatted_tag = format_tag(tag)
     if not confirm_tag(formatted_tag):
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
-    # 2. プレイヤー情報を取得
-    try:
-        player = await get_player(formatted_tag, db)
-    except BrawlStarsAPIError:
-        raise HTTPException(status_code=404, detail="Player not found")
-
-    # 3. トークンが足りるかチェック
-    COST = 90
-    if current_user.tokens < COST:
-        message = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
-        return JSONResponse({"success": False, "message": message}, status_code=400)
-
-    # 4. トランザクションを開始 (同時実行時の競合を防ぐため)
-    try:
-        async with db.transaction():
-            # 5. トークンを消費
-            success_spend = await current_user.spend_tokens(db, COST)
-            if not success_spend:
-                raise ValueError("トークン不足により処理を中断しました。")
-
-            # 6. 自動追跡時間を延長 (10日間 = 240時間)
-            await add_auto_tracking_time(player, 240)
-
-    except ValueError as e:
-        logger.warning(f"自動追跡時間の延長処理を中断 (User: {current_user.name}): {e}")
-        message = "トークンが足りません。" if lang == "ja" else "Not enough tokens."
-        return JSONResponse({"success": False, "message": message}, status_code=400)
-    except Exception as e:
-        logger.error(f"自動追跡時間の延長処理中にエラー (User: {current_user.name}, Player: {player.tag}): {e}", exc_info=True)
-        message = "処理中にエラーが発生しました。" if lang == "ja" else "An error occurred during processing."
-        return JSONResponse({"success": False, "message": message}, status_code=500)
-
-    # 7. 成功レスポンス
-    message = f"プレイヤー「{player.name}」の自動追跡時間を10日間追加しました。" if lang == "ja" else f"Successfully extended auto-tracking for '{player.name}' by 10 days."
-    return JSONResponse({"success": True, "message": message})
+    return await _extend_player_tracking(
+        formatted_tag=formatted_tag,
+        db=db,
+        current_user=current_user,
+        lang=lang,
+        cost=90,
+        hours=240,
+        success_message_ja="プレイヤー「{name}」の自動追跡時間を10日間追加しました。",
+        success_message_en="Successfully extended auto-tracking for '{name}' by 10 days.",
+    )
 
 
 # バトル履歴保存期間延長のエンドポイント
