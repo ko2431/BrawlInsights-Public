@@ -31,7 +31,7 @@
 
     <div class="map-rotation-slot-tab__container drop-box-slot-tab__container" x-show="Object.keys(boxes).length > 0" x-cloak>
         <div class="map-rotation-slot-tab drop-box-slot-tab">
-            <template x-for="boxKey in boxOrder" :key="boxKey">
+            <template x-for="boxKey in activeBoxOrder" :key="boxKey">
                 <div class="map-rotation-slot drop-box-slot"
                      x-show="boxes[boxKey]"
                      :class="{ 'map-rotation-slot--active': selectedBoxKey === boxKey }"
@@ -44,6 +44,12 @@
                 </div>
             </template>
         </div>
+        <button type="button"
+                class="drop-box-slot-tab__expand"
+                x-show="hasHiddenBoxes"
+                @click="toggleBoxListExpanded()"
+                x-text="showExpandedBoxList ? (isJa ? '表示を減らす' : 'Show less') : (isJa ? '表示を増やす' : 'Show more')">
+        </button>
     </div>
 
     <div class="tools-page__section" style="margin-top: 0;">
@@ -150,7 +156,9 @@
                 isJa: '{{ lang }}' === 'ja',
                 data: {{ drop_boxes_data | tojson | safe }},
                 initialBox: {{ initial_box | tojson | safe }},
-                boxOrder: ['starrdrop', 'chaosdrop', 'rankeddrop', 'novadrop', 'angelicdrop', 'demonicdrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'damianbox', 'starrnovabox', 'boltbox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                boxOrderCompact: ['starrdrop', 'chaosdrop', 'rankeddrop', 'nanodrop', 'smoothiedrop', 'angelicdrop', 'demonicdrop', 'sushi', 'megabox', 'mechabox', 'boombox', 'noribox', 'wendybox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                boxOrderExpanded: ['starrdrop', 'chaosdrop', 'rankeddrop', 'nanodrop', 'smoothiedrop', 'angelicdrop', 'demonicdrop', 'novadrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'siriusbox', 'najiabox', 'damianbox', 'starrnovabox', 'boltbox', 'noribox', 'wendybox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                showExpandedBoxList: false,
                 selectedBoxKey: 'starrdrop',
 
                 starrDrops: '',
@@ -166,9 +174,30 @@
                     this.initRewardTypeIndexMap();
                     if (this.initialBox && this.boxes[this.initialBox]) {
                         this.selectedBoxKey = this.initialBox;
+                        if (!this.boxOrderCompact.includes(this.initialBox)) {
+                            this.showExpandedBoxList = true;
+                        }
                     }
                     this.ensureSubstituteState();
-                        this.calculateEV();
+                    this.calculateEV();
+                },
+
+                get activeBoxOrder() {
+                    return this.showExpandedBoxList ? this.boxOrderExpanded : this.boxOrderCompact;
+                },
+
+                get hasHiddenBoxes() {
+                    return this.boxOrderExpanded.some((key) => !this.boxOrderCompact.includes(key));
+                },
+
+                toggleBoxListExpanded() {
+                    this.showExpandedBoxList = !this.showExpandedBoxList;
+                    if (!this.showExpandedBoxList && !this.boxOrderCompact.includes(this.selectedBoxKey)) {
+                        const fallback = this.boxOrderCompact.find((key) => this.boxes[key]);
+                        if (fallback) {
+                            this.selectBox(fallback);
+                        }
+                    }
                 },
 
                 initRewardTypeIndexMap() {

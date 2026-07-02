@@ -31,7 +31,7 @@
 
     <div class="map-rotation-slot-tab__container drop-box-slot-tab__container" x-show="Object.keys(boxes).length > 0" x-cloak>
         <div class="map-rotation-slot-tab drop-box-slot-tab">
-            <template x-for="boxKey in boxOrder" :key="boxKey">
+            <template x-for="boxKey in activeBoxOrder" :key="boxKey">
                 <div class="map-rotation-slot drop-box-slot"
                      x-show="boxes[boxKey]"
                      :class="{ 'map-rotation-slot--active': selectedBoxKey === boxKey }"
@@ -44,6 +44,12 @@
                 </div>
             </template>
         </div>
+        <button type="button"
+                class="drop-box-slot-tab__expand"
+                x-show="hasHiddenBoxes"
+                @click="toggleBoxListExpanded()"
+                x-text="showExpandedBoxList ? (isJa ? '表示を減らす' : 'Show less') : (isJa ? '表示を増やす' : 'Show more')">
+        </button>
     </div>
 
     <div class="winstreak-nav-container" x-show="availableRarities.length > 0" x-cloak>
@@ -70,6 +76,14 @@
                 </p>
             </div>
         </template>
+        <template x-if="shouldShowVariableItemsPerOpen()">
+            <div class="drop-box-meta__split">
+                <p class="drop-box-meta__split-text">
+                    <span x-text="isJa ? '1回あたり' : 'Per open'"></span>
+                    <span x-text="getVariableItemsPerOpenLabel()"></span>
+                </p>
+            </div>
+        </template>
         <template x-if="shouldShowSplitInfo()">
             <div class="drop-box-meta__split">
                 <p class="drop-box-meta__split-text" x-html="getSplitSummary()"></p>
@@ -84,6 +98,12 @@
             </div>
         </template>
     </div>
+
+    <template x-if="shouldShowVariableItemsPerOpen()">
+        <p class="info-block__text block" style="margin-top: 10px;">
+            <span x-text="getVariableItemsPerOpenDescription()"></span>
+        </p>
+    </template>
 
     <template x-if="getPremiumSummary() !== ''">
         <p class="info-block__text block" style="margin-top: 10px;">
@@ -289,7 +309,9 @@
                 isJa: '{{ lang }}' === 'ja',
                 initialBox: {{ initial_box | tojson | safe }},
                 data: {{ drop_boxes_data | tojson | safe }},
-                boxOrder: ['starrdrop', 'chaosdrop', 'rankeddrop', 'novadrop', 'angelicdrop', 'demonicdrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'damianbox', 'starrnovabox', 'boltbox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                boxOrderCompact: ['starrdrop', 'chaosdrop', 'rankeddrop', 'nanodrop', 'smoothiedrop', 'angelicdrop', 'demonicdrop', 'sushi', 'megabox', 'mechabox', 'boombox', 'noribox', 'wendybox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                boxOrderExpanded: ['starrdrop', 'chaosdrop', 'rankeddrop', 'nanodrop', 'smoothiedrop', 'angelicdrop', 'demonicdrop', 'novadrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'siriusbox', 'najiabox', 'damianbox', 'starrnovabox', 'boltbox', 'noribox', 'wendybox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
+                showExpandedBoxList: false,
                 selectedBoxKey: 'starrdrop',
                 selectedRarityKey: '',
                 expandedRewardRows: {},
@@ -297,8 +319,29 @@
                 init() {
                     if (this.initialBox && this.boxes[this.initialBox]) {
                         this.selectedBoxKey = this.initialBox;
+                        if (!this.boxOrderCompact.includes(this.initialBox)) {
+                            this.showExpandedBoxList = true;
+                        }
                     }
                     this.syncSelectedRarity();
+                },
+
+                get activeBoxOrder() {
+                    return this.showExpandedBoxList ? this.boxOrderExpanded : this.boxOrderCompact;
+                },
+
+                get hasHiddenBoxes() {
+                    return this.boxOrderExpanded.some((key) => !this.boxOrderCompact.includes(key));
+                },
+
+                toggleBoxListExpanded() {
+                    this.showExpandedBoxList = !this.showExpandedBoxList;
+                    if (!this.showExpandedBoxList && !this.boxOrderCompact.includes(this.selectedBoxKey)) {
+                        const fallback = this.boxOrderCompact.find((key) => this.boxes[key]);
+                        if (fallback) {
+                            this.selectBox(fallback);
+                        }
+                    }
                 },
 
                 get boxes() {
@@ -451,10 +494,55 @@
                 },
 
                 shouldShowItemsPerOpen() {
+                    if (this.shouldShowVariableItemsPerOpen()) return false;
                     return this.getItemsPerOpen() > 1;
                 },
 
+                getSplitConfig() {
+                    if (this.selectedRarity && this.selectedRarity.split) {
+                        return this.selectedRarity.split;
+                    }
+                    return this.selectedBox ? this.selectedBox.split : null;
+                },
+
+                shouldShowVariableItemsPerOpen() {
+                    const split = this.getSplitConfig();
+                    if (!split || !split.enabled) return false;
+                    return split.presentation === 'variable_items';
+                },
+
+                getVariableItemsPerOpenLabel() {
+                    const split = this.getSplitConfig();
+                    const distribution = split && Array.isArray(split.distribution) ? split.distribution : [];
+                    if (distribution.length === 0) return '';
+                    const counts = distribution.map((item) => Number(item.count)).filter((count) => Number.isFinite(count));
+                    if (counts.length === 0) return '';
+                    const min = Math.min(...counts);
+                    const max = Math.max(...counts);
+                    if (min === max) {
+                        return `${min}${this.isJa ? 'アイテム' : ' item(s)'}`;
+                    }
+                    return this.isJa ? ` ${min}〜${max}アイテム` : ` ${min}-${max} item(s)`;
+                },
+
+                getVariableItemsPerOpenDescription() {
+                    const split = this.getSplitConfig();
+                    const distribution = split && Array.isArray(split.distribution) ? split.distribution : [];
+                    if (distribution.length === 0) return '';
+                    const parts = distribution.map((item) => {
+                        const count = Number(item.count) || 0;
+                        return this.isJa
+                            ? `${this.formatPercentage(item.probability)}の確率で${count}個`
+                            : `${this.formatPercentage(item.probability)} chance of ${count}`;
+                    });
+                    if (this.isJa) {
+                        return `このドロップでは、${parts.join('、')}の報酬が出現します。`;
+                    }
+                    return `This drop grants ${parts.join(', ')} reward(s).`;
+                },
+
                 shouldShowSplitInfo() {
+                    if (this.shouldShowVariableItemsPerOpen()) return false;
                     if (!this.selectedBox || !this.selectedBox.split) return false;
                     if (this.selectedRarity && this.selectedRarity.items_per_open && this.selectedRarity.items_per_open > 1) {
                         return true;

@@ -553,6 +553,26 @@
 /* =============================================== */
 /* スタードロップ                                    */
 /* =============================================== */
+.drop-box-slot-tab__expand {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 1px 12px;
+    border: 1px dashed var(--color-ccc);
+    border-radius: 10px;
+    background-color: var(--bg-fefefe);
+    color: var(--color-555);
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+}
+.drop-box-slot-tab__expand:hover {
+    opacity: 0.8;
+}
+.dark .drop-box-slot-tab__expand {
+    border-color: #444;
+    background-color: var(--bg-f8f8f8);
+}
 .drop-box-slot-tab {
     gap: 8px;
 }
@@ -566,6 +586,8 @@
 .drop-box-slot__icon--starrdrop { height: 40px; }
 .drop-box-slot__icon--chaosdrop { height: 40px; }
 .drop-box-slot__icon--rankeddrop { height: 37px; margin: 1.5px 0; }
+.drop-box-slot__icon--nanodrop { height: 40px; }
+.drop-box-slot__icon--smoothiedrop { height: 40px; }
 .drop-box-slot__icon--angelicdrop { height: 39px; margin: 0.5px 0; }
 .drop-box-slot__icon--demonicdrop { height: 40px; }
 .drop-box-slot__icon--present { height: 39px; margin: 0.5px 0; }
@@ -576,8 +598,11 @@
 .drop-box-slot__icon--mechabox { height: 37px; margin: 1.5px 0; }
 .drop-box-slot__icon--lovebox { height: 40px; }
 .drop-box-slot__icon--boombox { height: 37px; margin: 1.5px 0; }
+.drop-box-slot__icon--siriusbox { height: 45px; margin: -2.5px 0; }
 .drop-box-slot__icon--starrnovabox { height: 50px; margin: -5px 0; }
 .drop-box-slot__icon--boltbox { height: 50px; margin: -5px 0; }
+.drop-box-slot__icon--noribox { height: 45px; margin: -2.5px 0; }
+.drop-box-slot__icon--wendybox { height: 45px; margin: -2.5px 0; }
 .drop-box-slot__icon--smalltrophybox { height: 35px; margin: 2.5px 0; }
 .drop-box-slot__icon--bigtrophybox { height: 35px; margin: 2.5px 0; }
 .drop-box-slot__icon--megatrophybox { height: 35px; margin: 2.5px 0; }
@@ -884,6 +909,8 @@
     .drop-box-slot__icon--starrdrop { height: 28px; }
     .drop-box-slot__icon--chaosdrop { height: 28px; }
     .drop-box-slot__icon--rankeddrop { height: 26px; margin: 1px 0; }
+    .drop-box-slot__icon--nanodrop { height: 28px; }
+    .drop-box-slot__icon--smoothiedrop { height: 28px; }
     .drop-box-slot__icon--angelicdrop { height: 27px; margin: 0.5px 0; }
     .drop-box-slot__icon--demonicdrop { height: 28px; }
     .drop-box-slot__icon--present { height: 27px; margin: 0.5px 0; }
@@ -894,8 +921,11 @@
     .drop-box-slot__icon--mechabox { height: 26px; margin: 1px 0; }
     .drop-box-slot__icon--lovebox { height: 28px; }
     .drop-box-slot__icon--boombox { height: 26px; margin: 1px 0; }
+    .drop-box-slot__icon--siriusbox { height: 31px; margin: -1.5px 0; }
     .drop-box-slot__icon--starrnovabox { height: 34px; margin: -3px 0; }
     .drop-box-slot__icon--boltbox { height: 34px; margin: -3px 0; }
+    .drop-box-slot__icon--noribox { height: 31px; margin: -1.5px 0; }
+    .drop-box-slot__icon--wendybox { height: 31px; margin: -1.5px 0; }
     .drop-box-slot__icon--smalltrophybox { height: 25px; margin: 1.5px 0; }
     .drop-box-slot__icon--bigtrophybox { height: 25px; margin: 1.5px 0; }
     .drop-box-slot__icon--megatrophybox { height: 25px; margin: 1.5px 0; }
