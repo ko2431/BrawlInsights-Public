@@ -1,8 +1,8 @@
 {# /app/templates/tools/brawler_guide.html #}
 {% extends "base.html" %}
 
-{% block title %}{% if lang == "ja" %}【ブロスタ】 {{ brawler.name_ja }} キャラクター図鑑{% else %}{{ brawler.name_en }} Brawler Stats Guide{% endif %} - Brawl Insights{% endblock %}
-{% block og_description %}{% if lang == "ja" %}ブロスタの{{ brawler.name_ja }}のキャラクターステータス/統計図鑑です。{{ brawler.name_ja }}のスキン一覧や使用率、詳細ステータスやおすすめガジェット/スターパワー/ギア、おすすめモード/マップなどを閲覧でき、毎日膨大なデータをもとに自動で更新されます。{% else %}This is the {{ brawler.name_en }} Stats Guide for Brawl Stars. You can view skins, usage rates, detailed stats, recommended gadgets/star powers/gears, recommended modes/maps, and more for {{ brawler.name_en }}, automatically updated daily based on massive amounts of match data.{% endif %}{% endblock %}
+{% block title %}{% if lang == "ja" %}【ブロスタ】{{ brawler.name_ja }}の評価とステータス、スキン一覧・使用率{% else %}{{ brawler.name_en }} Brawler Stats Guide{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタの{{ brawler.name_ja }}のキャラクター図鑑・掲示板です。{{ brawler.name_ja }}のスキン一覧や使用率、詳細ステータスやおすすめガジェット/スターパワー/ギア、おすすめモード/マップなどを閲覧でき、毎日膨大なデータをもとに自動で更新されます。{% else %}This is the {{ brawler.name_en }} Stats Guide for Brawl Stars. You can view skins, usage rates, detailed stats, recommended gadgets/star powers/gears, recommended modes/maps, and more for {{ brawler.name_en }}, automatically updated daily based on massive amounts of match data.{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
