@@ -1656,9 +1656,17 @@ function accountSettingsPage() {
     };
 }
 
-function giveawayEntryHandler(info) {
+const GIVEAWAY_INTERSTITIAL_SHOWN_KEY = 'bi_giveaway_interstitial_shown';
+const GIVEAWAY_INTERSTITIAL_TEST_AD_ID = 'ca-app-pub-3940256099942544/4411468910';
+const GIVEAWAY_INTERSTITIAL_PROD_AD_ID = 'ca-app-pub-4627806715879063/4022281347';
+
+function giveawayEntryHandler(info, platform, isDeleteAds, isTestIp) {
     return {
         info: info,
+        platform: platform || 'web',
+        isDeleteAds: !!isDeleteAds,
+        isTestIp: !!isTestIp,
+        interstitialShownBefore: false,
         isSubmitting: false,
         lang: '{{ lang }}',
         remainingTimeMs: 0,
@@ -1666,6 +1674,11 @@ function giveawayEntryHandler(info) {
         timerInterval: null,
 
         init() {
+            try {
+                this.interstitialShownBefore = localStorage.getItem(GIVEAWAY_INTERSTITIAL_SHOWN_KEY) === 'true';
+            } catch (e) {
+                // localStorageが使えない環境では初回案内を表示し続ける
+            }
             if (this.info.deadline) {
                 this.updateRemainingTime();
                 this.timerInterval = setInterval(() => {
@@ -1746,6 +1759,56 @@ function giveawayEntryHandler(info) {
             return `Spend ${spendTokens} tokens for max ${entryCount} entries`;
         },
 
+        get shouldShowInterstitial() {
+            return (this.platform === 'ios' || this.platform === 'android') && !this.isDeleteAds;
+        },
+
+        get showAdIntroNotice() {
+            return this.shouldShowInterstitial && !this.interstitialShownBefore;
+        },
+
+        showResponseMessage(data) {
+            const section = this.$el.closest('section');
+            if (!section) return;
+            const messageEl = section.querySelector('.server-response');
+            if (!messageEl) return;
+            messageEl.innerHTML = data.message || '';
+            messageEl.className = 'form-field-status server-response ' + (data.success ? 'success' : 'error');
+            messageEl.style.display = '';
+        },
+
+        scheduleReload() {
+            setTimeout(() => { window.location.reload(); }, 1500);
+        },
+
+        async showInterstitialAd() {
+            if (!window.Capacitor?.Plugins?.AdMob) {
+                throw new Error('AdMob not available');
+            }
+            const { AdMob } = window.Capacitor.Plugins;
+            const adId = this.isTestIp ? GIVEAWAY_INTERSTITIAL_TEST_AD_ID : GIVEAWAY_INTERSTITIAL_PROD_AD_ID;
+            await AdMob.prepareInterstitial({ adId, isTesting: this.isTestIp });
+            await AdMob.showInterstitial();
+            try {
+                localStorage.setItem(GIVEAWAY_INTERSTITIAL_SHOWN_KEY, 'true');
+            } catch (e) {
+                // localStorageが使えない環境でも応募処理自体は継続する
+            }
+            this.interstitialShownBefore = true;
+        },
+
+        async handleEntryResponse(data) {
+            if (data.success && this.shouldShowInterstitial) {
+                try {
+                    await this.showInterstitialAd();
+                } catch (e) {
+                    console.error('Error showing giveaway interstitial ad:', e);
+                }
+            }
+            this.showResponseMessage(data);
+            this.scheduleReload();
+        },
+
         async submitEntry() {
             if (this.isSubmitting || this.isMaxedOut) return;
             // トークン不足の場合はアラート
@@ -1775,21 +1838,11 @@ function giveawayEntryHandler(info) {
                     body: JSON.stringify({ gift_code: this.info.code })
                 });
                 const data = await response.json();
-                // 既存のギフトコードメッセージ表示エリアにメッセージを反映
-                const section = this.$el.closest('section');
-                if (section) {
-                    const messageEl = section.querySelector('.server-response');
-                    if (messageEl) {
-                        messageEl.innerHTML = data.message || '';
-                        messageEl.className = 'form-field-status server-response ' + (data.success ? 'success' : 'error');
-                        messageEl.style.display = '';
-                    }
-                }
+                await this.handleEntryResponse(data);
             } catch (error) {
                 console.error('Giveaway entry error:', error);
+                this.scheduleReload();
             }
-            // 1.5秒後に強制リロード
-            setTimeout(() => { window.location.reload(); }, 1500);
         },
 
         async submitMaxEntries() {
@@ -1814,20 +1867,11 @@ function giveawayEntryHandler(info) {
                     body: JSON.stringify({ gift_code: this.info.code, entry_count: maxEntries })
                 });
                 const data = await response.json();
-                const section = this.$el.closest('section');
-                if (section) {
-                    const messageEl = section.querySelector('.server-response');
-                    if (messageEl) {
-                        messageEl.innerHTML = data.message || '';
-                        messageEl.className = 'form-field-status server-response ' + (data.success ? 'success' : 'error');
-                        messageEl.style.display = '';
-                    }
-                }
+                await this.handleEntryResponse(data);
             } catch (error) {
                 console.error('Giveaway bulk entry error:', error);
+                this.scheduleReload();
             }
-
-            setTimeout(() => { window.location.reload(); }, 1500);
         }
     };
 }
