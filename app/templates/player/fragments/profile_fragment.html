@@ -143,7 +143,7 @@
                     <tbody> {# tbody推奨 #}
                         {% if player.region_ja %}
                         <tr>
-                            <td style="min-width: 237px;">{% if lang == "ja" %}推定地域<span style="font-size: 0.8em;">（所属クラブに基づく）</span>{% else %}Est. Region<span style="font-size: 0.8em;">(Based on Club)</span>{% endif %}</td>
+                            <td>{% if lang == "ja" %}推定地域<span style="font-size: 0.8em;">（所属クラブに基づく）</span>{% else %}Est. Region<span style="font-size: 0.8em;">(Based on Club)</span>{% endif %}</td>
                             <td>
                                 <div class="td-content-flex">
                                     <img src="{{ url_for('static', path='/images/ui/local.png') }}" alt="地域" class="icon--stat">
@@ -164,7 +164,7 @@
                         </tr>
                         {% endif %}
                         <tr>
-                            <td>
+                            <td style="min-width: 237px;">
                                 <div class="stats-table-label-container">
                                     <span class="stats-table-label">{% if lang == "ja" %}最多トロフィー{% else %}Highest Trophies{% endif %}</span>
                                     <a href="{{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) }}#trophies-trend">
