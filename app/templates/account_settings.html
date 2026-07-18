@@ -1,6 +1,215 @@
 {# [この部分は公開用リポジトリでは非公開にされています] #}
  # [この部分は公開用リポジトリでは非公開にされています]
  # [この部分は公開用リポジトリでは非公開にされています]
+ # [この部分は公開用リポジトリでは非公開にされています]
+
+// [この部分は公開用リポジトリでは非公開にされています]
+            try {
+                await AdMob.prepareRewardVideoAd(options);
+                await AdMob.showRewardVideoAd();
+            } catch (error) {
+                console.error('Minigame rewarded ad error:', error);
+                this.failRewardedAd();
+            }
+        },
+        async finishRewardedAd() {
+            if (!this.adAttemptActive) return;
+            this.adAttemptActive = false;
+            if (this.adRewarded) {
+                await this.startPlay('ad', true);
+            } else {
+                this.state = 'idle';
+            }
+        },
+        failRewardedAd() {
+            if (!this.adAttemptActive) return;
+            this.adAttemptActive = false;
+            this.state = 'idle';
+            alert(this.lang === 'ja' ? '広告の表示に失敗しました。時間をおいて再度お試しください。' : 'Failed to show the ad. Please try again later.');
+        },
+        async startPlay(method, fromAd = false) {
+            if (!fromAd && (this.state !== 'idle' || this.info.pending)) return this.showBusyAlert();
+            if (method === 'token' && this.info.user_tokens < this.info.price_token_tokens) {
+                alert(this.lang === 'ja' ? 'トークンが不足しています。' : 'You do not have enough tokens.');
+                return;
+            }
+            if (!fromAd && method === 'token' && !this.confirmPlay('token')) return;
+            this.state = 'playing';
+            this.resultMessage = '';
+            const useTickets = method === 'ad' && this.canSkipAdWithTickets;
+            try {
+                const response = await fetch("{{ url_for('account_minigame_play', lang=lang) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method, use_tickets: useTickets }),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'play failed');
+                this.info.user_tokens = data.user_tokens;
+                if (typeof data.user_tickets === 'number') this.info.user_tickets = data.user_tickets;
+                if (method === 'ad') this.info.ad_plays_remaining = Math.max(0, this.info.ad_plays_remaining - 1);
+                this.resumePending(data.play);
+            } catch (error) {
+                console.error('Minigame play error:', error);
+                this.state = 'idle';
+                alert(error.message || (this.lang === 'ja' ? 'プレイの開始に失敗しました。' : 'Failed to start the play.'));
+            }
+        },
+        resumePending(play) {
+            this.currentPlay = play;
+            this.info.pending = play;
+            this.currentPayload = play.animation_payload;
+            if (typeof this.currentPayload === 'string') {
+                try { this.currentPayload = JSON.parse(this.currentPayload); } catch (_e) { this.currentPayload = {}; }
+            }
+            const payload = this.currentPayload || {};
+            this.state = 'revealing';
+            this.resultMessage = '';
+
+            if (payload.interaction === 'scratch_three_of_nine') {
+                this.resetCards();
+                this.resetScratchCells();
+                this.scratchRevealQueue = this.shuffleList(payload.reveal_faces || []);
+                this.actionHint = this.lang === 'ja'
+                    ? '好きなマスを3個タップして削ってください'
+                    : 'Tap any 3 tiles to scratch them';
+                if (payload.effects?.confirm_board || payload.effects?.confirm) {
+                    window.setTimeout(() => { this.scratchBoardGold = true; }, 350);
+                }
+                return;
+            }
+
+            this.resetScratchCells();
+            const goldIndices = payload.effects?.confirm_card_indices || [];
+            this.cards = Array.from({ length: 3 }, (_, index) => {
+                const payloadCard = payload.cards?.[index] || {};
+                return {
+                    back: payloadCard.back || '{{ url_for("static", path="/images/mastery/empty.png") }}',
+                    face: payload.interaction === 'single_pick' ? (payload.result_face || payloadCard.face) : payloadCard.face,
+                    gold: false,
+                    flipped: false,
+                    index,
+                };
+            });
+            this.actionHint = payload.interaction === 'single_pick'
+                ? (this.lang === 'ja' ? '好きなカードを1枚めくってください' : 'Flip any 1 card')
+                : (this.lang === 'ja' ? 'カードを3枚めくってください' : 'Flip all 3 cards');
+            if (goldIndices.length) {
+                window.setTimeout(() => {
+                    goldIndices.forEach((index) => {
+                        if (this.cards[index]) this.cards[index].gold = true;
+                    });
+                }, 350);
+            }
+        },
+        flipCard(index) {
+            if (this.state === 'idle') {
+                alert(this.lang === 'ja' ? '上部のプレイボタンからゲームを開始できます。' : 'You can start the game using the play button at the top.');
+                return;
+            }
+            if (this.state !== 'revealing' || this.cards[index].flipped) return;
+            this.cards[index].flipped = true;
+            const interaction = this.currentPayload?.interaction;
+            if (interaction === 'single_pick' || this.cards.every(card => card.flipped)) {
+                window.setTimeout(() => this.completePlay(), 550);
+            }
+        },
+        async completePlay() {
+            if (this.state === 'finishing') return;
+            this.state = 'finishing';
+            this.actionHint = '';
+            this.wonRank = this.currentPlay?.result_rank || this.currentPayload?.result_rank;
+            try {
+                const response = await fetch("{{ url_for('account_minigame_complete', lang=lang) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ play_id: this.currentPlay.id, skip: false }),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'complete failed');
+                this.resultMessage = data.message;
+                this.resultMessageClass = data.is_none ? '' : 'success';
+                this.info.user_tokens = data.user_tokens ?? this.info.user_tokens;
+                this.info.pending = null;
+                window.setTimeout(() => window.location.reload(), data.reload_after_ms || 3000);
+            } catch (error) {
+                console.error('Minigame complete error:', error);
+                this.state = 'revealing';
+                this.actionHint = this.isScratchGame
+                    ? (this.lang === 'ja' ? '完了処理に失敗しました。もう一度マスをタップしてください。' : 'Could not complete. Tap a tile again.')
+                    : (this.lang === 'ja' ? '完了処理に失敗しました。もう一度カードをタップしてください。' : 'Could not complete. Tap a card again.');
+            }
+        },
+        formatTerms(text) {
+            if (!text) return '';
+            return String(text).replace(/\r\n|\r|\n/g, '<br>');
+        },
+        formatDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            if (this.lang === 'ja') {
+                const now = new Date();
+                const sameYear = date.getFullYear() === now.getFullYear();
+                const datePart = sameYear
+                    ? `${date.getMonth() + 1}/${date.getDate()}`
+                    : `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+                const timePart = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                return `${datePart} ${timePart}`;
+            }
+            const year = date.getUTCFullYear();
+            const month = date.getUTCMonth() + 1;
+            const day = date.getUTCDate();
+            const hours = date.getUTCHours();
+            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+            const now = new Date();
+            const sameYear = year === now.getUTCFullYear();
+            const datePart = sameYear ? `${month}/${day}` : `${year}/${month}/${day}`;
+            const hour12 = ((hours + 11) % 12) + 1;
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            return `${datePart} ${hour12}:${minutes} ${ampm} (UTC)`;
+        },
+        formatHistoryDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            if (this.lang === 'ja') {
+                const now = new Date();
+                const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startThat = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const dayDiff = Math.round((startToday - startThat) / 86400000);
+                const timePart = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                if (dayDiff === 0) return `今日 ${timePart}`;
+                if (dayDiff === 1) return `昨日 ${timePart}`;
+                return this.formatDate(value);
+            }
+            const now = new Date();
+            const startToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+            const startThat = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+            const dayDiff = Math.round((startToday - startThat) / 86400000);
+            const hours = date.getUTCHours();
+            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+            const hour12 = ((hours + 11) % 12) + 1;
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const timePart = `${hour12}:${minutes} ${ampm} (UTC)`;
+            if (dayDiff === 0) return `Today ${timePart}`;
+            if (dayDiff === 1) return `Yesterday ${timePart}`;
+            return this.formatDate(value);
+        },
+        formatPeriod() {
+            if (this.lang === 'ja') {
+                return `${this.formatDate(this.info.campaign.starts_at)} 〜 ${this.formatDate(this.info.campaign.ends_at)}`;
+            }
+            return `${this.formatDate(this.info.campaign.starts_at)} – ${this.formatDate(this.info.campaign.ends_at)}`;
+        },
+        campaignName(play) { return this.lang === 'ja' ? (play.name_ja || this.info.campaign.name_ja) : (play.name_en || this.info.campaign.name_en); },
+        rankLabel(rank) {
+            const legend = this.info.howto.legend.find(item => item.rank === rank);
+            return legend?.rank_label || '';
+        },
+    };
+}
+// PUBLIC_EXCLUDE_END
 
 function giftCodeHandler() {
     return {

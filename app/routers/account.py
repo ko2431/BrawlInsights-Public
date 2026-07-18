@@ -12,6 +12,14 @@ from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
 from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker
+from app.services import minigame_service
+from app.services.minigame_service import (
+    AD_SKIP_TICKET_COST,
+    DEFAULT_AD_DAILY_LIMIT,
+    USER_HISTORY_LIMIT,
+    resolve_prices,
+)
+from app.services.user_service import _current_token_claim_date, _normalize_daily_claim_count
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
 from app.utils.utils import format_tag, confirm_tag
@@ -961,6 +969,58 @@ async def update_notification_settings_process(
         message = "データベースエラーのため、設定を更新できませんでした。" if lang == "ja" else "Could not update settings due to a database error."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class MinigameTicketSettingRequest(BaseModel):
+    enabled: bool
+
+
+@router.post("/update-minigame-ticket-setting", name="account_update_minigame_ticket_setting")
+async def update_minigame_ticket_setting_process(
+    request: Request,
+    payload: MinigameTicketSettingRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    lang = request.path_params.get("lang", "ja")
+    if current_user.is_delete_ads:
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "広告削除購入済みのため、この設定は変更できません。"
+                if lang == "ja"
+                else "This setting is unavailable because you purchased Remove Ads.",
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        await db.execute(
+            "UPDATE users SET minigame_use_ad_skip_ticket = $1 WHERE id = $2",
+            payload.enabled,
+            current_user.id,
+        )
+        current_user.minigame_use_ad_skip_ticket = payload.enabled
+        await delete_cache(f"user:{current_user.id}")
+        await delete_cache(f"user_include_invalid:{current_user.id}")
+        logger.info(
+            f"{current_user.name} (ID: {current_user.id}) が minigame_use_ad_skip_ticket を {payload.enabled} に変更しました。"
+        )
+        return JSONResponse({
+            "success": True,
+            "message": "設定を更新しました。" if lang == "ja" else "Settings updated successfully.",
+        })
+    except Exception as e:
+        logger.error(
+            f"ミニゲームチケット設定更新中にエラー (User ID: {current_user.id}): {e}",
+            exc_info=True,
+        )
+        message = (
+            "データベースエラーのため、設定を更新できませんでした。"
+            if lang == "ja"
+            else "Could not update settings due to a database error."
+        )
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @router.post("/reset-board-blocks", name="account_reset_board_blocks")
 async def reset_board_blocks_process(
     request: Request,
@@ -1032,3 +1092,201 @@ async def claim_bonus_mission(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": "エラーが発生しました。時間を置いて再度お試しください。" if lang == "ja" else "An error occurred. Please try again later."}
         )
+
+
+# --- ミニゲーム ---
+class MinigamePlayRequest(BaseModel):
+    method: str = Field(..., pattern="^(ad|token)$")
+    use_tickets: bool = False
+
+
+class MinigameCompleteRequest(BaseModel):
+    play_id: int
+    skip: bool = False
+
+
+@router.post("/minigame/play", name="account_minigame_play")
+async def account_minigame_play(
+    request: Request,
+    payload: MinigamePlayRequest,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    platform = getattr(request.state, "platform", "web")
+    try:
+        play = await minigame_service.start_play(
+            db,
+            current_user,
+            method=payload.method,
+            platform=platform,
+            lang=lang,
+            require_tickets=bool(payload.use_tickets),
+        )
+        result_prizes = play["result_prizes"]
+        animation_payload = play["animation_payload"]
+        if isinstance(result_prizes, str):
+            result_prizes = json.loads(result_prizes)
+        if isinstance(animation_payload, str):
+            animation_payload = json.loads(animation_payload)
+        return JSONResponse({
+            "success": True,
+            "play": {
+                "id": play["id"],
+                "result_rank": play["result_rank"],
+                "result_prizes": result_prizes,
+                "animation_payload": animation_payload,
+                "tokens_spent": play["tokens_spent"],
+                "tickets_spent": play.get("tickets_spent", 0) or 0,
+                "play_method": play["play_method"],
+            },
+            "user_tokens": current_user.tokens,
+            "user_tickets": current_user.ad_skip_tickets,
+        })
+    except ValueError as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+    except Exception as e:
+        logger.error(f"ミニゲーム開始エラー (User: {current_user.id}): {e}", exc_info=True)
+        message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=500)
+
+
+@router.post("/minigame/complete", name="account_minigame_complete")
+async def account_minigame_complete(
+    request: Request,
+    payload: MinigameCompleteRequest,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    try:
+        result = await minigame_service.complete_play(
+            db, current_user, payload.play_id, skip=payload.skip, lang=lang
+        )
+        if payload.skip or result.get("status") == "skipped":
+            return JSONResponse({
+                "success": True,
+                "message": result.get("message")
+                or ("プレイを中止しました。" if lang == "ja" else "Play abandoned."),
+                "is_none": True,
+                "is_gift": False,
+                "result_rank": result.get("result_rank"),
+                "user_tokens": current_user.tokens,
+                "reload_after_ms": 3000,
+            })
+        result_prizes = result.get("result_prizes") or {}
+        if isinstance(result_prizes, str):
+            result_prizes = json.loads(result_prizes)
+        items = result_prizes.get("items", []) if isinstance(result_prizes, dict) else []
+        label = minigame_service.format_prize_label(items, lang)
+        is_none = len(items) == 1 and items[0].get("type") == "none"
+        is_gift = any(i.get("type") == "gift" for i in items)
+        grant_log = result.get("grant_log") or {}
+        if isinstance(grant_log, str):
+            grant_log = json.loads(grant_log)
+        grant_items = grant_log.get("items") or [] if isinstance(grant_log, dict) else []
+
+        if is_none:
+            message = "ご参加ありがとうございました。" if lang == "ja" else "Thank you for playing."
+        elif is_gift:
+            message = (
+                f"おめでとうございます！<b>{label}</b>が当選しました。"
+                if lang == "ja"
+                else f"Congratulations! You won <b>{label}</b>."
+            )
+        else:
+            message = None
+            for item in grant_items:
+                if item.get("type") == "auto_track_extend":
+                    remaining = (
+                        minigame_service._format_duration_ja(hours=int(item.get("remaining_hours", 0) or 0))
+                        if lang == "ja"
+                        else minigame_service._format_duration_en(hours=int(item.get("remaining_hours", 0) or 0))
+                    )
+                    duration = minigame_service.format_prize_label([item], lang)
+                    duration = duration.replace("プレイヤー自動追跡 ", "").replace("Player auto-tracking ", "")
+                    name = item.get("player_name") or ""
+                    message = (
+                        f"<b>{name}</b>のプレイヤー自動追跡機能の有効期限を"
+                        f"<b>{duration}</b>延長しました (現在の残り期間: {remaining})"
+                        if lang == "ja"
+                        else f"Extended auto-tracking for <b>{name}</b> by <b>{duration}</b>"
+                        f" (remaining: {remaining})"
+                    )
+                    break
+                if item.get("type") == "battle_log_retention":
+                    name = item.get("player_name") or ""
+                    duration = (
+                        minigame_service._format_months_ja(int(item.get("months", 0)))
+                        if lang == "ja"
+                        else minigame_service._format_months_en(int(item.get("months", 0)))
+                    )
+                    after = (
+                        minigame_service._format_months_ja(int(item.get("after_months", 0)))
+                        if lang == "ja"
+                        else minigame_service._format_months_en(int(item.get("after_months", 0)))
+                    )
+                    message = (
+                        f"<b>{name}</b>のバトル履歴保存期間を<b>{duration}</b>延長しました"
+                        f" (現在の保存期間: {after})"
+                        if lang == "ja"
+                        else f"Extended battle log retention for <b>{name}</b> by <b>{duration}</b>"
+                        f" (current retention: {after})"
+                    )
+                    if item.get("compensation_tokens"):
+                        message += (
+                            f"<br>上限超過分として {item['compensation_tokens']}トークンを補填しました"
+                            if lang == "ja"
+                            else f"<br>Compensated {item['compensation_tokens']} tokens for the excess period"
+                        )
+                    break
+
+            if (message is None):
+                grant_parts: list[str] = []
+                for item in grant_items:
+                    if item.get("type") == "ad_skip_ticket":
+                        if item.get("converted_to_tokens"):
+                            grant_parts.append(
+                                f"<br>広告削除設定のためチケットをトークンに変換しました"
+                                f"（トークン: {item.get('before_tokens')} → {item.get('after_tokens')}）"
+                                if lang == "ja"
+                                else f"<br>Tickets were converted to tokens because ads are removed"
+                                f" (tokens: {item.get('before_tokens')} → {item.get('after_tokens')})"
+                            )
+                        else:
+                            grant_parts.append(
+                                f"<br>チケットを{item.get('amount', 0)}枚受け取りました"
+                                f"（チケット数: {item.get('before_tickets')} → {item.get('after_tickets')}）"
+                                if lang == "ja"
+                                else f"<br>Received {item.get('amount', 0)} ticket(s)"
+                                f" (tickets: {item.get('before_tickets')} → {item.get('after_tickets')})"
+                            )
+                    elif item.get("type") == "token":
+                        grant_parts.append(
+                            f"<br>{item.get('amount', 0)}トークンを受け取りました"
+                            f"（トークン: {item.get('before_tokens')} → {item.get('after_tokens')}）"
+                            if lang == "ja"
+                            else f"<br>Received {item.get('amount', 0)} tokens"
+                            f" (tokens: {item.get('before_tokens')} → {item.get('after_tokens')})"
+                        )
+                grant_detail = "".join(grant_parts)
+                message = (
+                    f"おめでとうございます！<b>{label}</b>が当選しました。{grant_detail}"
+                    if lang == "ja"
+                    else f"Congratulations! You won <b>{label}</b>.{grant_detail}"
+                )
+        return JSONResponse({
+            "success": True,
+            "message": message,
+            "is_none": is_none,
+            "is_gift": is_gift,
+            "result_rank": result.get("result_rank"),
+            "user_tokens": current_user.tokens,
+            "reload_after_ms": 3000,
+        })
+    except ValueError as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+    except Exception as e:
+        logger.error(f"ミニゲーム完了エラー (User: {current_user.id}): {e}", exc_info=True)
+        message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=500)

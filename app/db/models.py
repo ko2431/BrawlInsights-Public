@@ -63,6 +63,9 @@ class User(Base):
     ticket_claim_count = Column(Integer, nullable=False, server_default='0')
     last_ticket_claim_date = Column(Date, nullable=True)
     last_advance_mission_date = Column(Date, nullable=True)
+    minigame_ad_play_count = Column(Integer, nullable=False, server_default='0')
+    last_minigame_ad_play_date = Column(Date, nullable=True)
+    minigame_use_ad_skip_ticket = Column(Boolean, nullable=False, server_default='True')
     notification_badge_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_post_like_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_own_post_message_enabled = Column(Boolean, nullable=False, server_default='True')
@@ -1103,4 +1106,77 @@ class BrawlVideo(Base):
     __table_args__ = (
         Index('ix_brawl_videos_display_order', 'display_order'),
         Index('ix_brawl_videos_is_active', 'is_active'),
+    )
+
+
+class MinigameCampaign(Base):
+    """
+    ミニゲーム企画マスタ。
+    prizes JSONB は景品定義のみ（残在庫は minigame_prize_stocks）。
+    """
+    __tablename__ = 'minigame_campaigns'
+
+    id = Column(Integer, primary_key=True)
+    name_ja = Column(Text, nullable=False)
+    name_en = Column(Text, nullable=False)
+    game_type = Column(Text, nullable=False)
+    starts_at = Column(DateTime(timezone=True), nullable=False)
+    ends_at = Column(DateTime(timezone=True), nullable=False)
+    prizes = Column(JSONB, nullable=False)
+    price_ad_tokens = Column(Integer, nullable=True)
+    price_token_tokens = Column(Integer, nullable=True)
+    ad_daily_limit = Column(Integer, nullable=True)
+    expected_total_plays = Column(Integer, nullable=True)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+    terms_extra_ja = Column(Text, nullable=True)
+    terms_extra_en = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('ix_minigame_campaigns_starts_at', 'starts_at'),
+        Index('ix_minigame_campaigns_ends_at', 'ends_at'),
+        Index('ix_minigame_campaigns_is_invalid', 'is_invalid'),
+    )
+
+
+class MinigamePrizeStock(Base):
+    """ミニゲーム stock 等の残在庫。"""
+    __tablename__ = 'minigame_prize_stocks'
+
+    campaign_id = Column(Integer, ForeignKey('minigame_campaigns.id', ondelete='CASCADE'), nullable=False)
+    rank = Column(SmallInteger, nullable=False)
+    remaining = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('campaign_id', 'rank', name='minigame_prize_stocks_pkey'),
+    )
+
+
+class MinigamePlay(Base):
+    """ミニゲーム参加履歴。"""
+    __tablename__ = 'minigame_plays'
+
+    id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, ForeignKey('minigame_campaigns.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    play_method = Column(Text, nullable=False)
+    tokens_spent = Column(Integer, nullable=False, server_default='0')
+    tickets_spent = Column(Integer, nullable=False, server_default='0')
+    result_rank = Column(SmallInteger, nullable=False)
+    result_prizes = Column(JSONB, nullable=False)
+    animation_payload = Column(JSONB, nullable=False)
+    status = Column(Text, nullable=False, server_default='pending_reveal')
+    grant_log = Column(JSONB, nullable=True)
+    granted_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    gift_fulfillment_status = Column(Text, nullable=True)
+    is_admin_play = Column(Boolean, nullable=False, server_default='False')
+
+    __table_args__ = (
+        Index('ix_minigame_plays_user_id_created_at', 'user_id', desc('created_at')),
+        Index('ix_minigame_plays_campaign_id_created_at', 'campaign_id', desc('created_at')),
+        Index('ix_minigame_plays_user_id_status', 'user_id', 'status'),
+        Index('ix_minigame_plays_gift_fulfillment_status', 'gift_fulfillment_status'),
     )

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}管理者向け / ミニゲーム参加履歴{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+<link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+{% macro render_pagination() %}
+{% if pagination.total_pages > 1 %}
+<nav class="pagination" aria-label="参加履歴ページネーション">
+ <ul class="pagination-list">
+  {% if pagination.has_prev %}
+  <li class="page-item"><a class="page-link page-arrow" href="?{{ query_string }}&page={{ pagination.prev_num }}">&lt;</a></li>
+  {% endif %}
+  {% for p in range(1, pagination.total_pages + 1) %}
+   {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
+    {% if p == pagination.current_page %}
+    <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+    {% else %}
+    <li class="page-item"><a class="page-link" href="?{{ query_string }}&page={{ p }}">{{ p }}</a></li>
+    {% endif %}
+   {% endif %}
+  {% endfor %}
+  {% if pagination.has_next %}
+  <li class="page-item"><a class="page-link page-arrow" href="?{{ query_string }}&page={{ pagination.next_num }}">&gt;</a></li>
+  {% endif %}
+ </ul>
+</nav>
+{% endif %}
+{% endmacro %}
+{% block content %}
+{% set query_string = 'campaign_id=' ~ (campaign_id or '') ~ '&status_filter=' ~ status_filter ~ '&gift_fulfillment_status=' ~ gift_fulfillment_status ~ '&user_type=' ~ user_type ~ '&user_name=' ~ user_name|urlencode ~ '&sort=' ~ current_sort %}
+<div class="admin-page__container" x-data="minigamePlayAdmin()">
+ <h1 class="page-title--main">ミニゲーム参加履歴</h1>
+ <form class="admin-filters__container" method="get">
+  <label>企画 <select name="campaign_id" class="form-input"><option value="">すべて</option>{% for campaign in campaigns %}<option value="{{ campaign.id }}" {% if campaign.id == campaign_id %}selected{% endif %}>#{{ campaign.id }} {{ campaign.name_ja }}</option>{% endfor %}</select></label>
+  <label>参加状態 <select name="status_filter" class="form-input"><option value="all">すべて</option><option value="pending_reveal" {% if status_filter == 'pending_reveal' %}selected{% endif %}>pending_reveal</option><option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>completed</option><option value="skipped" {% if status_filter == 'skipped' %}selected{% endif %}>skipped</option></select></label>
+  <label>ギフト発送 <select name="gift_fulfillment_status" class="form-input"><option value="all">すべて</option><option value="pending" {% if gift_fulfillment_status == 'pending' %}selected{% endif %}>未発送</option><option value="done" {% if gift_fulfillment_status == 'done' %}selected{% endif %}>発送済み</option></select></label>
+  <label>ユーザータイプ <select name="user_type" class="form-input"><option value="all" {% if user_type == 'all' %}selected{% endif %}>すべて</option><option value="admin" {% if user_type == 'admin' %}selected{% endif %}>管理者</option><option value="general" {% if user_type == 'general' %}selected{% endif %}>一般</option></select></label>
+  <label>ユーザー名 <input name="user_name" class="form-input" value="{{ user_name }}"></label>
+  <input type="hidden" name="sort" value="{{ current_sort }}"><button class="button button--primary" style="margin-top: 5px;">絞り込む</button>
+ </form>
+ <p class="admin-page__description">表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件（最大100件/ページ）</p>
+ {{ render_pagination() }}
+ <div class="table-wrapper" style="margin-top: 10px;"><table class="data-table purchase-table"><thead><tr>
+  <th @click="sort('id')">ID</th><th @click="sort('created')">参加日時 (JST)</th><th>企画</th><th @click="sort('user')">ユーザー</th><th>方法</th><th>消費</th><th @click="sort('rank')">等級</th><th>景品</th><th>参加状態</th><th @click="sort('completed')">受取日時 (JST)</th><th>ギフト発送</th>
+ </tr></thead><tbody>{% for play in plays %}<tr>
+  <td>{{ play.id }}</td><td>{{ play.created_at_text }}</td><td>#{{ play.campaign_id }} {{ play.campaign_name }}</td><td>{{ play.user_name }} (ID: {{ play.user_id }}){% if play.is_admin_play %} <b>管理者</b>{% endif %}</td><td>{{ play.play_method_label }}</td><td>{{ play.tokens_spent }}</td><td>{{ play.result_rank }}等</td><td>{{ play.prize_label }}</td><td><span class="minigame-play-status-badge is-{{ play.status }}">{{ play.status }}</span></td><td>{{ play.completed_at_text }}</td><td>{% if play.gift_fulfillment_status %}<button class="minigame-gift-badge {{ 'is-done' if play.gift_fulfillment_status == 'done' else '' }}" @click="toggleGift({{ play.id }}, '{{ play.gift_fulfillment_status }}')">{{ '発送済み' if play.gift_fulfillment_status == 'done' else '未発送' }}</button>{% else %}-{% endif %}</td>
+ </tr>{% else %}<tr><td colspan="11" style="text-align:center">参加履歴はありません。</td></tr>{% endfor %}</tbody></table></div>
+ {{ render_pagination() }}
+</div>
+<style>
+.minigame-gift-badge{border:0;border-radius:6px;padding:3px 8px;background:#fef3c7;color:#92400e;font-weight:600;cursor:pointer}
+.minigame-gift-badge.is-done{background:#d1fae5;color:#065f46}
+.minigame-play-status-badge{display:inline-block;border-radius:6px;padding:3px 8px;font-weight:600;font-size:0.85em;white-space:nowrap}
+.minigame-play-status-badge.is-pending_reveal{background:#fef3c7;color:#92400e}
+.minigame-play-status-badge.is-completed{background:#d1fae5;color:#065f46}
+.minigame-play-status-badge.is-skipped{background:#e5e7eb;color:#374151}
+</style>
+{% endblock %}
+{% block scripts %}{{ super() }}<script>
+function minigamePlayAdmin(){return {sort(column){const url=new URL(location.href), current='{{ current_sort }}'; url.searchParams.set('sort',current.startsWith(column+'_')&&current.endsWith('_desc')?column+'_asc':column+'_desc');url.searchParams.set('page','1');location.href=url;},async toggleGift(id,current){const next=current==='done'?'pending':'done';if(!confirm(`ギフトを「${next==='done'?'発送済み':'未発送'}」に変更しますか？`))return;const r=await fetch('{{ url_for("admin_minigame_gift_status", lang=lang) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({play_id:id,gift_fulfillment_status:next})});const d=await r.json();if(d.success)location.reload();else alert(d.message);}}}
+</script>{% endblock %}

@@ -23,6 +23,14 @@ from app.core.logger import logger
 from app.core.templating import templates
 from app.routers.billing import SUPPORT_PRODUCT_PRICE_TEXT
 from app.core.cache import get_cache, set_cache, delete_cache
+from app.services.minigame_service import (
+    GAME_TYPES,
+    create_campaign,
+    format_prize_label,
+    update_campaign,
+    validate_prizes,
+)
+from app.services.minigame_assets import CARD_ASSETS
 
 
 router = APIRouter(

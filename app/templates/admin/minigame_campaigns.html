@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}管理者向け / ミニゲーム企画管理{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">{% endblock %}
+{% block content %}
+<div class="admin-page__container" x-data="minigameCampaignAdmin()">
+    <h1 class="page-title--main">ミニゲーム企画管理</h1>
+    <p class="admin-page__description">開始済み企画では、開始日時と景品設定は変更できません。価格などの運用項目は変更できます。</p>
+    <div class="save-changes-block">
+        <p x-text="form.id ? `企画 #${form.id} を編集` : '新しい企画を作成'"></p>
+        <button type="button" class="button button--secondary" x-show="form.id" @click="reset()">新規作成に戻る</button>
+    </div>
+    <form @submit.prevent="save()" class="admin-filters__container">
+        <div class="form-grid">
+            <label>企画名（日本語）<input class="form-input" required x-model.trim="form.name_ja"></label>
+            <label>企画名（英語）<input class="form-input" required x-model.trim="form.name_en"></label>
+            <label>ゲーム種別
+                <select class="form-input" x-model="form.game_type">
+                    <option value="card_flip_single">カード1枚</option><option value="card_flip_multi1">カード3枚（最高ランク）</option><option value="card_flip_multi2">カード3枚（組み合わせ）</option><option value="scratch1">スクラッチ1（組み合わせ）</option>
+                </select>
+            </label>
+            <label>開始日時（JST）<input class="form-input" type="datetime-local" required x-model="form.starts_at" :disabled="started"></label>
+            <label>終了日時（JST）<input class="form-input" type="datetime-local" required x-model="form.ends_at"></label>
+            <label>広告参加価格（トークン、空欄=標準値）<input class="form-input" type="number" min="1" x-model="form.price_ad_tokens"></label>
+            <label>トークン参加価格（空欄=標準値）<input class="form-input" type="number" min="1" x-model="form.price_token_tokens"></label>
+            <label>広告参加の1日上限（空欄=標準値）<input class="form-input" type="number" min="1" x-model="form.ad_daily_limit"></label>
+            <label>想定総参加数（空欄=未設定）<input class="form-input" type="number" min="1" x-model="form.expected_total_plays"></label>
+            <label>追加規約（日本語）<textarea class="form-input" rows="3" x-model="form.terms_extra_ja"></textarea></label>
+            <label>追加規約（英語）<textarea class="form-input" rows="3" x-model="form.terms_extra_en"></textarea></label>
+            <label x-show="form.id"><input type="checkbox" x-model="form.is_invalid"> 無効化する</label>
+        </div>
+        <section class="save-changes-block" style="display:block" :class="{ 'minigame-admin--locked': started }">
+            <h2 class="block-title">景品設定（2～6等）</h2>
+            <p x-show="started">開始済みのため景品設定はロックされています。</p>
+            <label>景品階層数 <select class="form-input" style="width:auto" x-model.number="tierCount" @change="setTierCount()" :disabled="started"><template x-for="n in [2,3,4,5,6]"><option :value="n" x-text="n"></option></template></select></label>
+            <template x-for="(tier, index) in form.prizes.tiers" :key="index">
+                <fieldset class="admin-filters__container">
+                    <legend x-text="`${index + 1}等`"></legend>
+                    <label>配分 <select class="form-input" x-model="tier.allocation" :disabled="started"><option value="stock">在庫</option><option value="weight">重み</option></select></label>
+                    <label>
+                        <span x-text="tier.allocation === 'stock' ? '在庫数' : '重み'"></span>
+                        <input class="form-input" type="number" min="1" x-model.number="tier.quantity" :disabled="started">
+                    </label>
+                    <label x-show="tier.allocation === 'stock'">
+                        最大確率（%、空欄=制限なし）
+                        <input class="form-input" type="number" min="0" max="100" step="0.01"
+                            :value="tier.max_probability == null ? '' : (tier.max_probability * 100)"
+                            @input="tier.max_probability = $event.target.value === '' ? null : Number($event.target.value) / 100"
+                            :disabled="started">
+                    </label>
+                    <label>景品種別 <select class="form-input" x-model="tier.item.type" :disabled="started"><option value="none">なし</option><option value="token">トークン</option><option value="ad_skip_ticket">広告スキップチケット</option><option value="token_and_ticket">トークン＋チケット</option><option value="auto_track_extend">自動追跡延長</option><option value="battle_log_retention">バトル履歴保存</option><option value="gift">ギフト</option></select></label>
+                    <template x-if="['token','ad_skip_ticket'].includes(tier.item.type)"><label>数量<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></template>
+                    <template x-if="tier.item.type === 'token_and_ticket'"><div><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label></div></template>
+                    <template x-if="tier.item.type === 'auto_track_extend'"><div><label>日数<input class="form-input" type="number" min="0" x-model.number="tier.item.days" :disabled="started"></label><label>時間<input class="form-input" type="number" min="0" max="23" x-model.number="tier.item.hours" :disabled="started"></label></div></template>
+                    <template x-if="tier.item.type === 'battle_log_retention'"><label>月数<input class="form-input" type="number" min="1" x-model.number="tier.item.months" :disabled="started"></label></template>
+                    <template x-if="tier.item.type === 'gift'"><div><label>景品名（日本語）<input class="form-input" x-model="tier.item.name_ja" :disabled="started"></label><label>景品名（英語）<input class="form-input" x-model="tier.item.name_en" :disabled="started"></label><label>数量（任意）<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></div></template>
+                </fieldset>
+            </template>
+        </section>
+        <p x-show="message" :style="success ? 'color:green' : 'color:#b91c1c'" x-text="message"></p>
+        <button class="button button--primary" type="submit" :disabled="saving" x-text="saving ? '保存中...' : '保存'"></button>
+    </form>
+    <h2 class="block-title">企画一覧</h2>
+    <div class="table-wrapper"><table class="data-table purchase-table"><thead><tr><th>ID</th><th>企画名</th><th>種別</th><th>開始（JST）</th><th>終了（JST）</th><th>参加数</th><th>状態</th><th></th></tr></thead><tbody>
+    {% for campaign in campaigns %}<tr><td>{{ campaign.id }}</td><td>{{ campaign.name_ja }}</td><td>{{ campaign.game_type }}</td><td>{{ campaign.starts_at_text }}</td><td>{{ campaign.ends_at_text }}</td><td>{{ campaign.play_count }}</td><td>{{ '無効' if campaign.is_invalid else ('開始済み' if campaign.has_started else '予定') }}</td><td><a class="button button--secondary button--small" href="{{ url_for('admin_minigame_campaigns', lang=lang) }}?edit_id={{ campaign.id }}">編集</a></td></tr>{% endfor %}
+    </tbody></table></div>
+</div>
+{% endblock %}
+{% block scripts %}{{ super() }}<script>
+function minigameCampaignAdmin() {
+ const editing = {{ edit_campaign | tojson | safe if edit_campaign else 'null' }};
+ const clone = (value) => JSON.parse(JSON.stringify(value));
+ const item = () => ({type:'none', amount:null, token_amount:null, ticket_amount:null, days:0, hours:0, months:null, name_ja:'', name_en:''});
+ const tier = rank => ({rank, allocation: rank === 1 ? 'stock' : 'weight', quantity:1, max_probability:null, item:item()});
+ const normalize = campaign => {
+   const value = campaign ? clone(campaign) : {id:null,name_ja:'',name_en:'',game_type:'card_flip_single',starts_at:'',ends_at:'',price_ad_tokens:'',price_token_tokens:'',ad_daily_limit:'',expected_total_plays:'',terms_extra_ja:'',terms_extra_en:'',is_invalid:false,prizes:{tiers:[tier(1),tier(2)]}};
+   value.starts_at = value.starts_at_input || value.starts_at; value.ends_at = value.ends_at_input || value.ends_at;
+   value.prizes.tiers.forEach((t, i) => {
+     t.rank = i + 1;
+     const items = Array.isArray(t.items) ? t.items : [];
+     const tokenItem = items.find(x => x && x.type === 'token');
+     const ticketItem = items.find(x => x && x.type === 'ad_skip_ticket');
+     if (tokenItem && ticketItem) {
+       t.item = Object.assign(item(), {
+         type: 'token_and_ticket',
+         token_amount: tokenItem.amount,
+         ticket_amount: ticketItem.amount,
+       });
+     } else {
+       t.item = Object.assign(item(), items[0] || t.item || {});
+     }
+   });
+   return value;
+ };
+ return {form:normalize(editing), tierCount: editing?.prizes?.tiers?.length || 2, started: editing?.has_started || false, saving:false,message:'',success:false,
+   reset(){ this.form=normalize(null); this.tierCount=2; this.started=false; this.message=''; },
+   setTierCount(){ while(this.form.prizes.tiers.length < this.tierCount) this.form.prizes.tiers.push(tier(this.form.prizes.tiers.length+1)); this.form.prizes.tiers.splice(this.tierCount); this.form.prizes.tiers.forEach((t,i)=>t.rank=i+1); },
+   async save(){ this.saving=true; this.message=''; try { const payload=clone(this.form); payload.prizes.tiers.forEach(t=>{ if(t.allocation !== 'stock') t.max_probability=null; if(t.item.type==='token_and_ticket'){ t.items=[{type:'token',amount:Number(t.item.token_amount)},{type:'ad_skip_ticket',amount:Number(t.item.ticket_amount)}]; } else { t.items=[t.item]; } delete t.item; }); const r=await fetch('{{ url_for("admin_minigame_campaign_save", lang=lang) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const d=await r.json(); this.success=d.success; this.message=d.message; if(d.success) location.href='{{ url_for("admin_minigame_campaigns", lang=lang) }}?edit_id='+d.id; } catch (error) { console.error(error); this.success=false; this.message='保存中に通信エラーが発生しました。'; } finally {this.saving=false;} }
+ };
+}
+</script>{% endblock %}
