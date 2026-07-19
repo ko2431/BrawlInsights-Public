@@ -8,6 +8,7 @@ from typing import Optional, Any
 
 from app.exceptions.custom_exceptions import BrawlStarsAPIError
 from app.core.logger import logger
+from app.core.config import settings
 from app.core.logging_config import add_log_info
 from app.db.db import get_shared_db
 from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_titles
@@ -55,7 +56,6 @@ router = APIRouter(
 
 
 # バトル履歴保存期間延長のエンドポイント
-DEFAULT_BATTLE_LOG_RETENTION_MONTHS = 4
 MAX_BATTLE_LOG_RETENTION_MONTHS = 120
 
 @router.post("/extend-retention/{tag}", name="extend_player_retention")
@@ -80,7 +80,7 @@ async def extend_player_retention(
 
     # 3. 現在の保存期間を取得し、上限チェック
     current_retention = await get_battle_log_retention_months(db=db, tag=formatted_tag)
-    current_months = current_retention if current_retention else DEFAULT_BATTLE_LOG_RETENTION_MONTHS
+    current_months = current_retention if current_retention else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS
 
     if current_months >= MAX_BATTLE_LOG_RETENTION_MONTHS:
         message = "保存期間は既に上限に達しています。" if lang == "ja" else "Storage period has already reached the maximum."

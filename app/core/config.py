@@ -57,6 +57,11 @@ class Settings:
     # 内部通信用シークレットキー
     INTERNAL_API_SECRET: str | None = os.getenv("INTERNAL_API_SECRET")
 
+    # バトル履歴の保存期間（月数）。未設定時は本番デフォルト（4ヶ月）
+    DEFAULT_BATTLE_LOG_RETENTION_MONTHS: int = int(os.getenv("DEFAULT_BATTLE_LOG_RETENTION_MONTHS", 4))
+    # アーカイブバトル履歴の保存期間（月数）。未設定時は本番デフォルト（12ヶ月）
+    ARCHIVE_RETENTION_MONTHS: int = int(os.getenv("ARCHIVE_RETENTION_MONTHS", 12))
+
     def __init__(self):
         if self._cluster_nodes_raw:
             try:

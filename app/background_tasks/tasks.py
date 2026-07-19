@@ -5,6 +5,7 @@ import heapq
 import math
 
 from app.core.logger import logger
+from app.core.config import settings
 from app.core.cache import get_redis, set_cache
 from app.db.db import get_db_connection_for_bg_task
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
