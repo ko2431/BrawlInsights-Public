@@ -29,7 +29,7 @@ CARD_ASSETS: dict[tuple[str, int], dict] = {
     ("card_flip_multi1", 6): {"ranks": {1: _spray(68000060), 2: _spray(68000059), 3: _spray(68000058), 4: _spray(68000057), 5: _spray(68000056), 6: _spray(68000055)}, "decoys": [_spray(68000054)]},
     ("card_flip_multi2", 2): {"pool": [_spray(68000095), _spray(68000096), _spray(68000097)]},
     ("card_flip_multi2", 3): {"pool": [_spray(68000450), _spray(68000452), _spray(68000453), _spray(68000456)]},
-    ("card_flip_multi2", 4): {"ranks": {1: _spray(68000486), 2: _spray(68000483)}, "decoys": [_spray(68000485), _spray(68000488), _spray(68000490)]},
+    ("card_flip_multi2", 4): {"ranks": {1: _spray(68000486), 2: _spray(68000483)}, "decoys": [_pin(52002016), _pin(52002025), _pin(52002026)]},
     ("card_flip_multi2", 5): {"ranks": {1: _spray(68000664), 2: _spray(68000641), 3: _spray(68000572)}, "decoys": [_spray(68000675), _spray(68000671)]},
     ("card_flip_multi2", 6): {"ranks": {1: _spray(68000357), 2: _spray(68000355), 3: _spray(68000351)}, "decoys": [_spray(68000352), _spray(68000358)]},
     ("scratch1", 2): {"pool": [_pin(52002372), _pin(52002374), _pin(52002375)]},
