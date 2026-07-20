@@ -699,12 +699,16 @@
                         if ((this.platform === 'ios' || this.platform === 'android') && !this.isDeleteAds && !useTicket) {
                             try {
                                 if (window.Capacitor?.Plugins?.AdMob) {
-                                    const { AdMob } = window.Capacitor.Plugins;
                                     const isTesting = this.isTestIp;
                                     const testId = 'ca-app-pub-3940256099942544/4411468910';
                                     const adId = isTesting ? testId : 'ca-app-pub-4627806715879063/4022281347';
-                                    await AdMob.prepareInterstitial({ adId, isTesting });
-                                    await AdMob.showInterstitial();
+                                    if (typeof window.biShowInterstitialAd === 'function') {
+                                        await window.biShowInterstitialAd({ adId, isTesting });
+                                    } else {
+                                        const { AdMob } = window.Capacitor.Plugins;
+                                        await AdMob.prepareInterstitial({ adId, isTesting });
+                                        await AdMob.showInterstitial();
+                                    }
                                     await this.refreshJobStatus();
                                 }
                             } catch (e) {

@@ -7,6 +7,9 @@
                     await AdMob.initialize();
                     console.log('✅ AdMob SDK Initialized.');
 
+                    // リワードイベント橋渡しをアプリ遷移を跨いで重複登録しないよう管理
+                    await ensureRewardedAdEventBridge();
+
                     // 次に、条件に応じてバナーの表示・非表示を制御する
                     {% if hide_ads %}
                         // チャット画面など、バナーを強制的に非表示にするページ
@@ -50,16 +53,10 @@
                                 await hideBanner(); // 危険な重なりを防ぐために即座に隠す
                             } else if (!shouldBeHidden && isBannerHiddenByModal) {
                                 isBannerHiddenByModal = false;
+                                // フルスクリーン広告中はバナーを触らない（向き変更での広告閉じを防ぐ）
+                                if (isFullscreenAdActive) return;
                                 // モーダルが閉じられたらバナーを再表示（元々表示すべき条件のみ）
-                                const isLoggedIn = {{ 'true' if current_user else 'false' }};
-                                let hasGuestRemoveAds = false;
-                                if (!isLoggedIn) {
-                                    try { hasGuestRemoveAds = localStorage.getItem('bi_guest_remove_ads') === 'true'; } catch(e){}
-                                }
-                                const isHideAds = {{ 'true' if hide_ads else 'false' }};
-                                const isAdminUser = {{ 'true' if current_user and (current_user.is_admin or current_user.is_delete_ads) else 'false' }};
-                                
-                                if (!isHideAds && !isAdminUser && !hasGuestRemoveAds) {
+                                if (shouldShowBannerForUser()) {
                                     await setupAndShowBanner();
                                 }
                             }

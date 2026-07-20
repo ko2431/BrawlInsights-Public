@@ -5,25 +5,36 @@
 
 // [この部分は公開用リポジトリでは非公開にされています]
             try {
+                if (typeof window.biBeginFullscreenAd === 'function') {
+                    this.shouldRestoreBannerAfterAd = await window.biBeginFullscreenAd();
+                }
                 await AdMob.prepareRewardVideoAd(options);
                 await AdMob.showRewardVideoAd();
             } catch (error) {
                 console.error('Minigame rewarded ad error:', error);
-                this.failRewardedAd();
+                await this.failRewardedAd();
             }
         },
         async finishRewardedAd() {
             if (!this.adAttemptActive) return;
             this.adAttemptActive = false;
+            if (typeof window.biEndFullscreenAd === 'function') {
+                await window.biEndFullscreenAd(this.shouldRestoreBannerAfterAd);
+            }
+            this.shouldRestoreBannerAfterAd = false;
             if (this.adRewarded) {
                 await this.startPlay('ad', true);
             } else {
                 this.state = 'idle';
             }
         },
-        failRewardedAd() {
+        async failRewardedAd() {
             if (!this.adAttemptActive) return;
             this.adAttemptActive = false;
+            if (typeof window.biEndFullscreenAd === 'function') {
+                await window.biEndFullscreenAd(this.shouldRestoreBannerAfterAd);
+            }
+            this.shouldRestoreBannerAfterAd = false;
             this.state = 'idle';
             alert(this.lang === 'ja' ? '広告の表示に失敗しました。時間をおいて再度お試しください。' : 'Failed to show the ad. Please try again later.');
         },
