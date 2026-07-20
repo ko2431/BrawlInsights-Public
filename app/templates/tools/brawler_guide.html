@@ -126,7 +126,7 @@
                     {# パワーレベル (1から11まで、デフォルトは11) #}
                     <div class="filter-form">
                         <label class="filter-form__label">{% if lang == "ja" %}パワーレベル:{% else %}Power Level:{% endif %}</label>
-                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="powerLevel">
+                        <select class="filter-form__select cost-calc-filter-form__select" x-model.number="$store.brawlerGuide.powerLevel">
                             {% for i in range(11) %}
                                 <option value="{{ i + 1 }}">{{ i + 1 }}</option>
                             {% endfor %}
@@ -334,7 +334,7 @@
     {% endif %}
 
     {# ^ 3. ガジェット #}
-    <section id="section-gadgets" class="brawler-guide-section" x-data="brawlerStatusManager()">
+    <section id="section-gadgets" class="brawler-guide-section" x-data="{ open: true }">
         <h2 class="section-title tools-page__section-title" @click="open = !open">
             <span>{% if lang == "ja" %}ガジェット{% else %}Gadgets{% endif %}</span>
             <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
@@ -343,8 +343,8 @@
             {% if brawler.gadgets %}
                 <div class="info-block" style="padding: 0;">
                     <p class="info-block__text">
-                        {% if lang == "ja" %}ガジェットの情報と、多くのプレイヤーデータから集計した<b>所持率</b>をまとめています。どちらのガジェットを購入するかの参考にご活用ください。所持率は毎日更新されます。ガジェット・スターパワーはギアと異なり、2つともコンプリートしようとするプレイヤーが相当数いるため、所持率は拮抗しやすくなります。数%の差であっても、所持率の高い方がおすすめになる場合が多いです。
-                        {% else %}This section provides information on gadgets and their <b>ownership rates</b>, aggregated from a large amount of player data. Use this as a reference to help you decide which gadget to purchase. Ownership rates are updated daily.
+                        {% if lang == "ja" %}ガジェットの情報と、多くのプレイヤーデータから集計した<b>所持率</b>と<b>使用率</b>をまとめています。どちらのガジェットを購入するかの参考にご活用ください。データは毎日更新されます。
+                        {% else %}This section summarizes gadget info along with <b>ownership</b> and <b>usage</b> rates aggregated from a large amount of player data. Use it as a reference when deciding which gadget to purchase. Data is updated daily.
                         {% endif %}
                     </p>
                 </div>
@@ -361,10 +361,10 @@
                 {% endif %}
                 <div class="accessory-grid gadget-grid">
                     {% for gadget in brawler.gadgets %}
-                        <div class="accessory-item gadget-item">
+                        <div class="accessory-item gadget-item" x-data="accessoryLevelItem('gadgets', {{ gadget.id }})">
                             <div class="accessory-item__header gadget-item__header">
-                                <img src="{{ url_for('static', path='/images/' + ('gadgets/' + gadget.id|string + '.png')) }}" alt="{{ gadget.name.ja if lang == 'ja' else gadget.name.en }}" class="accessory-image gadget-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/accessories/gadget.png') }}';">
-                                <p class="accessory-name gadget-name">{{ gadget.name.ja if lang == "ja" and gadget.name.ja else gadget.name.en if gadget.name.en else "-" }}</p>
+                                <img src="{{ url_for('static', path='/images/' + ('gadgets/' + gadget.id|string + '.png')) }}" alt="{{ gadget.name.ja if lang == 'ja' else gadget.name.en }}" :alt="displayName()" class="accessory-image gadget-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/accessories/gadget.png') }}';">
+                                <p class="accessory-name gadget-name" x-text="displayName()">{{ gadget.name.ja if lang == "ja" and gadget.name.ja else gadget.name.en if gadget.name.en else "-" }}</p>
                             </div>
                             <div class="accessory-item__body gadget-item__body">
                                 <div class="accessory-ownership-rate gadget-ownership-rate">
@@ -372,26 +372,58 @@
                                     <p class="accessory-ownership-rate__value">{% if accessory_stats and accessory_stats.gadgets and gadget.id in accessory_stats.gadgets %}{{ "%.2f"|format(accessory_stats.gadgets[gadget.id]) }}%{% else %}--{% endif %}</p>
                                     <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
                                 </div>
-                                <p class="accessory-description gadget-description">{{ (gadget.description.ja if lang == "ja" else gadget.description.en) | bold_numbers }}</p>
+                                {% if gadget.use_rate is defined and gadget.use_rate is not none %}
+                                <div class="accessory-ownership-rate gadget-usage-rate" x-show="hasUseRate()" x-cloak>
+                                    <p class="accessory-ownership-rate__label">{% if lang == "ja" %}使用率{% else %}Usage Rate{% endif %}</p>
+                                    <p class="accessory-ownership-rate__value" x-text="formatUseRate()">{{ "%.2f"|format(gadget.use_rate) }}%</p>
+                                    <p class="accessory-ownership-rate__description">{% if lang == "ja" %}データの出典：BSInfo API{% else %}Source: BSInfo API{% endif %}</p>
+                                </div>
+                                {% else %}
+                                <div class="accessory-ownership-rate gadget-usage-rate" x-show="hasUseRate()" x-cloak style="display:none;">
+                                    <p class="accessory-ownership-rate__label">{% if lang == "ja" %}使用率{% else %}Usage Rate{% endif %}</p>
+                                    <p class="accessory-ownership-rate__value" x-text="formatUseRate()"></p>
+                                    <p class="accessory-ownership-rate__description">{% if lang == "ja" %}データの出典：BSInfo API{% else %}Source: BSInfo API{% endif %}</p>
+                                </div>
+                                {% endif %}
+                                <p class="accessory-description gadget-description" x-html="displayDescriptionHtml()">{{ (gadget.description.ja if lang == "ja" else gadget.description.en) | bold_numbers }}</p>
                                 {% if not gadget.description_with_buffie %}
-                                <div class="gadget-cooldown">
+                                <div class="gadget-cooldown" x-show="!hasBuffie()">
                                     <p class="gadget-cooldown__label">{% if lang == "ja" %}クールダウン{% else %}Cooldown{% endif %}</p>
-                                    <p class="gadget-cooldown__value">{{ gadget.cooldown | int or "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldown()">{{ gadget.cooldown | int or "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
                                     <img src="https://cdn.brawlify.com/gears/regular/62000017.png" alt="Gadget Cooldown Gear" class="gadget-cooldown__icon">
                                     <p class="gadget-cooldown__gear-label">{% if lang == "ja" %}装備時{% else %}With Gear -{% endif %}</p>
-                                    <p class="gadget-cooldown__value">{{ "%.1f"|format((gadget.cooldown or 0) * 0.85) if gadget.cooldown else "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldownWithGear()">{{ "%.1f"|format((gadget.cooldown or 0) * 0.85) if gadget.cooldown else "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                </div>
+                                {% else %}
+                                <div class="gadget-cooldown" x-show="!hasBuffie()" x-cloak style="display:none;">
+                                    <p class="gadget-cooldown__label">{% if lang == "ja" %}クールダウン{% else %}Cooldown{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldown()"></p>
+                                    <img src="https://cdn.brawlify.com/gears/regular/62000017.png" alt="Gadget Cooldown Gear" class="gadget-cooldown__icon">
+                                    <p class="gadget-cooldown__gear-label">{% if lang == "ja" %}装備時{% else %}With Gear -{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldownWithGear()"></p>
                                 </div>
                                 {% endif %}
                             </div>
                             {% if gadget.description_with_buffie %}
-                            <div class="accessory-item__body gadget-item__body">
-                                <p class="accessory-description gadget-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - {{ (gadget.description_with_buffie.ja if lang == "ja" else gadget.description_with_buffie.en) | bold_numbers }}</p>
+                            <div class="accessory-item__body gadget-item__body" x-show="hasBuffie()">
+                                <p class="accessory-description gadget-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - <span x-html="displayBuffieDescriptionHtml()">{{ (gadget.description_with_buffie.ja if lang == "ja" else gadget.description_with_buffie.en) | bold_numbers }}</span></p>
                                 <div class="gadget-cooldown">
                                     <p class="gadget-cooldown__label">{% if lang == "ja" %}クールダウン{% else %}Cooldown{% endif %}</p>
-                                    <p class="gadget-cooldown__value">{{ gadget.cooldown_with_buffie | int or "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldown()">{{ gadget.cooldown | int or "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
                                     <img src="https://cdn.brawlify.com/gears/regular/62000017.png" alt="Gadget Cooldown Gear" class="gadget-cooldown__icon">
                                     <p class="gadget-cooldown__gear-label">{% if lang == "ja" %}装備時{% else %}With Gear -{% endif %}</p>
-                                    <p class="gadget-cooldown__value">{{ "%.1f"|format((gadget.cooldown_with_buffie or 0) * 0.85) if gadget.cooldown_with_buffie else "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldownWithGear()">{{ "%.1f"|format((gadget.cooldown or 0) * 0.85) if gadget.cooldown else "-" }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="accessory-item__body gadget-item__body" x-show="hasBuffie()" x-cloak style="display:none;">
+                                <p class="accessory-description gadget-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - <span x-html="displayBuffieDescriptionHtml()"></span></p>
+                                <div class="gadget-cooldown">
+                                    <p class="gadget-cooldown__label">{% if lang == "ja" %}クールダウン{% else %}Cooldown{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldown()"></p>
+                                    <img src="https://cdn.brawlify.com/gears/regular/62000017.png" alt="Gadget Cooldown Gear" class="gadget-cooldown__icon">
+                                    <p class="gadget-cooldown__gear-label">{% if lang == "ja" %}装備時{% else %}With Gear -{% endif %}</p>
+                                    <p class="gadget-cooldown__value" x-text="formatCooldownWithGear()"></p>
                                 </div>
                             </div>
                             {% endif %}
@@ -401,8 +433,8 @@
             {% else %}
                 <div class="info-block" style="padding: 0;">
                     <p class="info-block__text">
-                        {% if lang == "ja" %}ここには、このキャラクターのガジェットの情報と多くのプレイヤーデータから集計した<b>所持率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
-                        {% else %}This section will display information about this brawler's gadgets and their <b>ownership rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% if lang == "ja" %}ここには、このキャラクターのガジェットの情報と多くのプレイヤーデータから集計した<b>所持率</b>・<b>使用率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's gadgets and their <b>ownership rates</b> and <b>usage rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
                         {% endif %}
                     </p>
                 </div>
@@ -411,7 +443,7 @@
     </section>
 
     {# ^ 4. スターパワー #}
-    <section id="section-starpowers" class="brawler-guide-section" x-data="brawlerStatusManager()">
+    <section id="section-starpowers" class="brawler-guide-section" x-data="{ open: true }">
         <h2 class="section-title tools-page__section-title" @click="open = !open">
             <span>{% if lang == "ja" %}スターパワー{% else %}Star Powers{% endif %}</span>
             <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
@@ -420,8 +452,8 @@
             {% if brawler.star_powers %}
                 <div class="info-block" style="padding: 0;">
                     <p class="info-block__text">
-                        {% if lang == "ja" %}スターパワーの情報と、多くのプレイヤーデータから集計した<b>所持率</b>をまとめています。どちらのスターパワーを購入するかの参考にご活用ください。所持率は毎日更新されます。ガジェット・スターパワーはギアと異なり、2つともコンプリートしようとするプレイヤーが相当数いるため、所持率は拮抗しやすくなります。数%の差であっても、所持率の高い方がおすすめになる場合が多いです。
-                        {% else %}This section provides information on star powers and their <b>ownership rates</b>, aggregated from a large amount of player data. Use this as a reference to help you decide which star power to purchase. Ownership rates are updated daily.
+                        {% if lang == "ja" %}スターパワーの情報と、多くのプレイヤーデータから集計した<b>所持率</b>と<b>使用率</b>をまとめています。どちらのスターパワーを購入するかの参考にご活用ください。データは毎日更新されます。
+                        {% else %}This section summarizes star power info along with <b>ownership</b> and <b>usage</b> rates aggregated from a large amount of player data. Use it as a reference when deciding which star power to purchase. Data is updated daily.
                         {% endif %}
                     </p>
                 </div>
@@ -438,10 +470,10 @@
                 {% endif %}
                 <div class="accessory-grid starpower-grid">
                     {% for star_power in brawler.star_powers %}
-                        <div class="accessory-item starpower-item">
+                        <div class="accessory-item starpower-item" x-data="accessoryLevelItem('star_powers', {{ star_power.id }})">
                             <div class="accessory-item__header starpower-item__header">
-                                <img src="{{ url_for('static', path='/images/' + ('starpowers/' + star_power.id|string + '.png')) }}" alt="{{ star_power.name.ja if lang == 'ja' else star_power.name.en }}" class="accessory-image starpower-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/accessories/starpower.png') }}';">
-                                <p class="accessory-name starpower-name">{{ star_power.name.ja if lang == "ja" and star_power.name.ja else star_power.name.en if star_power.name.en else "-" }}</p>
+                                <img src="{{ url_for('static', path='/images/' + ('starpowers/' + star_power.id|string + '.png')) }}" alt="{{ star_power.name.ja if lang == 'ja' else star_power.name.en }}" :alt="displayName()" class="accessory-image starpower-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/accessories/starpower.png') }}';">
+                                <p class="accessory-name starpower-name" x-text="displayName()">{{ star_power.name.ja if lang == "ja" and star_power.name.ja else star_power.name.en if star_power.name.en else "-" }}</p>
                             </div>
                             <div class="accessory-item__body starpower-item__body">
                                 <div class="accessory-ownership-rate starpower-ownership-rate">
@@ -449,21 +481,24 @@
                                     <p class="accessory-ownership-rate__value">{% if accessory_stats and accessory_stats.star_powers and star_power.id in accessory_stats.star_powers %}{{ "%.2f"|format(accessory_stats.star_powers[star_power.id]) }}%{% else %}--{% endif %}</p>
                                     <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
                                 </div>
-                                <p class="accessory-description starpower-description">{{ (star_power.description.ja if lang == "ja" else star_power.description.en) | bold_numbers }}</p>
+                                <div class="accessory-ownership-rate starpower-usage-rate" x-show="hasUseRate()" {% if not (star_power.use_rate is defined and star_power.use_rate is not none) %}x-cloak style="display:none;"{% endif %}>
+                                    <p class="accessory-ownership-rate__label">{% if lang == "ja" %}使用率{% else %}Usage Rate{% endif %}</p>
+                                    <p class="accessory-ownership-rate__value" x-text="formatUseRate()">{% if star_power.use_rate is defined and star_power.use_rate is not none %}{{ "%.2f"|format(star_power.use_rate) }}%{% endif %}</p>
+                                    <p class="accessory-ownership-rate__description">{% if lang == "ja" %}データの出典：BSInfo API{% else %}Source: BSInfo API{% endif %}</p>
+                                </div>
+                                <p class="accessory-description starpower-description" x-html="displayDescriptionHtml()">{{ (star_power.description.ja if lang == "ja" else star_power.description.en) | bold_numbers }}</p>
                             </div>
-                            {% if star_power.description_with_buffie %}
-                            <div class="accessory-item__body starpower-item__body">
-                                <p class="accessory-description starpower-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - {{ (star_power.description_with_buffie.ja if lang == "ja" else star_power.description_with_buffie.en) | bold_numbers }}</p>
+                            <div class="accessory-item__body starpower-item__body" x-show="hasBuffie()" {% if not star_power.description_with_buffie %}x-cloak style="display:none;"{% endif %}>
+                                <p class="accessory-description starpower-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - <span x-html="displayBuffieDescriptionHtml()">{% if star_power.description_with_buffie %}{{ (star_power.description_with_buffie.ja if lang == "ja" else star_power.description_with_buffie.en) | bold_numbers }}{% endif %}</span></p>
                             </div>
-                            {% endif %}
                         </div>
                     {% endfor %}
                 </div>
             {% else %}
                 <div class="info-block" style="padding: 0;">
                     <p class="info-block__text">
-                        {% if lang == "ja" %}ここには、このキャラクターのスターパワーの情報と多くのプレイヤーデータから集計した<b>所持率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
-                        {% else %}This section will display information about this brawler's star powers and their <b>ownership rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
+                        {% if lang == "ja" %}ここには、このキャラクターのスターパワーの情報と多くのプレイヤーデータから集計した<b>所持率</b>・<b>使用率</b>が掲載されます。このキャラクターのデータは現在準備中です。更新までお待ちください。
+                        {% else %}This section will display information about this brawler's star powers and their <b>ownership rates</b> and <b>usage rates</b>, aggregated from a large amount of player data. Data for this brawler is currently being prepared. Please wait for the update.
                         {% endif %}
                     </p>
                 </div>
@@ -539,7 +574,7 @@
     </section>
 
     {# ^ 6. ハイパーチャージ #}
-    <section id="section-hypercharge" class="brawler-guide-section" x-data="brawlerStatusManager()">
+    <section id="section-hypercharge" class="brawler-guide-section" x-data="{ open: true }">
         <h2 class="section-title tools-page__section-title" @click="open = !open">
             <span>{% if lang == "ja" %}ハイパーチャージ{% else %}Hypercharge{% endif %}</span>
             <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
@@ -553,10 +588,10 @@
                         {% endif %}
                     </p>
                 </div>
-                <div class="accessory-item hypercharge-item">
+                <div class="accessory-item hypercharge-item" x-data="accessoryLevelItem('hypercharges', {{ brawler.hypercharge.id }})">
                     <div class="accessory-item__header hypercharge-item__header">
                         <img src="{{ url_for('static', path='/images/' + ('hypercharge/' + brawler.hypercharge.id|string + '.png')) }}" alt="Hypercharge" class="accessory-image hypercharge-image" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/hypercharge.webp') }}';">
-                        <p class="accessory-name hypercharge-name">{{ brawler.hypercharge.name.ja if lang == "ja" and brawler.hypercharge.name.ja else brawler.hypercharge.name.en if brawler.hypercharge.name.en else "-" }}</p>
+                        <p class="accessory-name hypercharge-name" x-text="displayName()">{{ brawler.hypercharge.name.ja if lang == "ja" and brawler.hypercharge.name.ja else brawler.hypercharge.name.en if brawler.hypercharge.name.en else "-" }}</p>
                     </div>
                     <div class="accessory-item__body hypercharge-item__body">
                         <div class="accessory-ownership-rate gear-ownership-rate">
@@ -571,21 +606,19 @@
                             <p class="accessory-ownership-rate__description">{% if lang == "ja" %}高レベルなプレイヤーから集計した所持率{% else %}Aggregated from high-level players{% endif %}</p>
                         </div>
                         {% endif %}
-                        <p class="accessory-description hypercharge-description">{% if lang == "ja" %}スピード：<b>+20%</b>、ダメージ：<b>+5%</b>、シールド：<b>+5%</b>{% else %}Speed: <b>+20%</b> Damage: <b>+5%</b> Shield: <b>+5%</b>{% endif %}<br>{{ (brawler.hypercharge.description.ja if lang == "ja" else brawler.hypercharge.description.en) | bold_numbers }}</p>
+                        <p class="accessory-description hypercharge-description">{% if lang == "ja" %}スピード：<b>+20%</b>、ダメージ：<b>+5%</b>、シールド：<b>+5%</b>{% else %}Speed: <b>+20%</b> Damage: <b>+5%</b> Shield: <b>+5%</b>{% endif %}<br><span x-html="displayDescriptionHtml()">{{ (brawler.hypercharge.description.ja if lang == "ja" else brawler.hypercharge.description.en) | bold_numbers }}</span></p>
                         <div class="hypercharge-duration">
                             <p class="hypercharge-duration__label">{% if lang == "ja" %}効果時間{% else %}Duration{% endif %}</p>
                             <p class="hypercharge-duration__value">{{ brawler.hypercharge.duration | int }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
                         </div>
                     </div>
-                    {% if brawler.hypercharge.description_with_buffie.ja or brawler.hypercharge.description_with_buffie.en %}
-                    <div class="accessory-item__body hypercharge-item__body">
-                        <p class="accessory-description hypercharge-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - {{ (brawler.hypercharge.description_with_buffie.ja if lang == "ja" else brawler.hypercharge.description_with_buffie.en) | bold_numbers }}</p>
+                    <div class="accessory-item__body hypercharge-item__body" x-show="hasBuffie()" {% if not (brawler.hypercharge.description_with_buffie and (brawler.hypercharge.description_with_buffie.ja or brawler.hypercharge.description_with_buffie.en)) %}x-cloak style="display:none;"{% endif %}>
+                        <p class="accessory-description hypercharge-description"><b>{% if lang == "ja" %}バフィー装備時{% else %}With Buffie{% endif %}</b> - <span x-html="displayBuffieDescriptionHtml()">{% if brawler.hypercharge.description_with_buffie %}{{ (brawler.hypercharge.description_with_buffie.ja if lang == "ja" else brawler.hypercharge.description_with_buffie.en) | bold_numbers }}{% endif %}</span></p>
                         <div class="hypercharge-duration">
                             <p class="hypercharge-duration__label">{% if lang == "ja" %}効果時間{% else %}Duration{% endif %}</p>
                             <p class="hypercharge-duration__value">{{ brawler.hypercharge.duration_with_buffie | int }}{% if lang == "ja" %}秒{% else %}s{% endif %}</p>
                         </div>
                     </div>
-                    {% endif %}
                 </div>
             {% else %}
                 <div class="info-block" style="padding: 0;">
@@ -1018,17 +1051,164 @@
             };
         }
     </script>
-    {% if brawler.has_bsinfo_data %}
+    <style>[x-cloak]{display:none!important}</style>
     <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('brawlerGuide', {
+                powerLevel: 11,
+            });
+        });
+
+        const BRAWLER_GUIDE_LANG = {{ lang | tojson }};
+        const BSINFO_ACCESSORY_LEVELS = {{ bsinfo_accessory_levels | default({}) | tojson | safe }};
+        const ACCESSORY_DB_FALLBACK = {{ accessory_db_fallback | default({}) | tojson | safe }};
+
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function boldNumbersHtml(text) {
+            if (!text) return '';
+            return escapeHtml(text).replace(/(\d+(?:\.\d+)?%?)/g, '<b>$1</b>');
+        }
+
+        function accessoryLevelItem(kind, accessoryId) {
+            const idKey = String(accessoryId);
+            return {
+                kind,
+                idKey,
+                currentPowerLevel() {
+                    return this.$store.brawlerGuide.powerLevel;
+                },
+                getBsinfoOverlay() {
+                    const levels = BSINFO_ACCESSORY_LEVELS?.[this.kind] || {};
+                    const levelMap = levels[String(this.currentPowerLevel())] || {};
+                    return levelMap[this.idKey] || null;
+                },
+                getDbFallback() {
+                    return ACCESSORY_DB_FALLBACK?.[this.kind]?.[this.idKey] || null;
+                },
+                pickLocalized(overlayFieldJa, overlayFieldEn, dbPathJa, dbPathEn) {
+                    const overlay = this.getBsinfoOverlay();
+                    if (overlay) {
+                        const fromOverlay = BRAWLER_GUIDE_LANG === 'ja' ? overlay[overlayFieldJa] : overlay[overlayFieldEn];
+                        if (fromOverlay) return fromOverlay;
+                        const fallbackOverlay = BRAWLER_GUIDE_LANG === 'ja' ? overlay[overlayFieldEn] : overlay[overlayFieldJa];
+                        if (fallbackOverlay) return fallbackOverlay;
+                    }
+                    const db = this.getDbFallback();
+                    if (!db) return null;
+                    const fromDb = BRAWLER_GUIDE_LANG === 'ja' ? dbPathJa(db) : dbPathEn(db);
+                    if (fromDb) return fromDb;
+                    return BRAWLER_GUIDE_LANG === 'ja' ? dbPathEn(db) : dbPathJa(db);
+                },
+                displayName() {
+                    return this.pickLocalized(
+                        'name_ja',
+                        'name_en',
+                        (db) => db?.name?.ja,
+                        (db) => db?.name?.en,
+                    ) || '-';
+                },
+                displayDescription() {
+                    return this.pickLocalized(
+                        'description_ja',
+                        'description_en',
+                        (db) => db?.description?.ja,
+                        (db) => db?.description?.en,
+                    ) || '';
+                },
+                displayDescriptionHtml() {
+                    return boldNumbersHtml(this.displayDescription());
+                },
+                displayBuffieDescription() {
+                    const overlay = this.getBsinfoOverlay();
+                    if (overlay) {
+                        const fromOverlay = BRAWLER_GUIDE_LANG === 'ja'
+                            ? overlay.buddy_description_ja
+                            : overlay.buddy_description_en;
+                        if (fromOverlay) return fromOverlay;
+                        const fallbackOverlay = BRAWLER_GUIDE_LANG === 'ja'
+                            ? overlay.buddy_description_en
+                            : overlay.buddy_description_ja;
+                        if (fallbackOverlay) return fallbackOverlay;
+                        return '';
+                    }
+                    const db = this.getDbFallback();
+                    if (!db?.description_with_buffie) return '';
+                    return (BRAWLER_GUIDE_LANG === 'ja'
+                        ? db.description_with_buffie.ja
+                        : db.description_with_buffie.en)
+                        || db.description_with_buffie.en
+                        || db.description_with_buffie.ja
+                        || '';
+                },
+                displayBuffieDescriptionHtml() {
+                    return boldNumbersHtml(this.displayBuffieDescription());
+                },
+                hasBuffie() {
+                    return !!this.displayBuffieDescription();
+                },
+                getCooldown() {
+                    const overlay = this.getBsinfoOverlay();
+                    if (overlay && overlay.cooldown != null) return Number(overlay.cooldown);
+                    const db = this.getDbFallback();
+                    return db?.cooldown != null ? Number(db.cooldown) : null;
+                },
+                formatCooldown() {
+                    const cooldown = this.getCooldown();
+                    if (cooldown == null || Number.isNaN(cooldown)) return '-';
+                    const value = Number.isInteger(cooldown) ? String(cooldown) : String(Math.trunc(cooldown));
+                    return BRAWLER_GUIDE_LANG === 'ja' ? `${value}秒` : `${value}s`;
+                },
+                formatCooldownWithGear() {
+                    const cooldown = this.getCooldown();
+                    if (cooldown == null || Number.isNaN(cooldown)) return '-';
+                    const value = (cooldown * 0.85).toFixed(1);
+                    return BRAWLER_GUIDE_LANG === 'ja' ? `${value}秒` : `${value}s`;
+                },
+                getUseRate() {
+                    const overlay = this.getBsinfoOverlay();
+                    if (overlay && overlay.use_rate != null && !Number.isNaN(Number(overlay.use_rate))) {
+                        return Number(overlay.use_rate);
+                    }
+                    const levels = BSINFO_ACCESSORY_LEVELS?.[this.kind] || {};
+                    for (const level of Object.keys(levels)) {
+                        const item = levels[level]?.[this.idKey];
+                        if (item && item.use_rate != null && !Number.isNaN(Number(item.use_rate))) {
+                            return Number(item.use_rate);
+                        }
+                    }
+                    return null;
+                },
+                hasUseRate() {
+                    return this.getUseRate() != null;
+                },
+                formatUseRate() {
+                    const rate = this.getUseRate();
+                    if (rate == null) return '';
+                    return `${rate.toFixed(2)}%`;
+                },
+            };
+        }
+
+        {% if brawler.has_bsinfo_data %}
         function brawlerStatusManager() {
             return {
                 open: true,
                 baseStatus: {{ brawler | tojson | safe }},
-                powerLevel: 11,
                 powerCubes: 0,
                 speedGearActive: "false",
                 damageGearActive: "false",
 
+                get powerLevel() {
+                    return this.$store.brawlerGuide.powerLevel;
+                },
                 get powerLevelMultiplier() {
                     return 1 + (this.powerLevel - 1) * 0.1;
                 },
@@ -1069,17 +1249,12 @@
                 },
             }
         }
-    </script>
-    {% else %}
-    <script>
-        // statusオブジェクトがない場合でもエラーにならないように空の関数を定義します
+        {% else %}
         function brawlerStatusManager() {
-            return {
-                open: true,
-            }
+            return { open: true };
         }
+        {% endif %}
     </script>
-    {% endif %}
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
