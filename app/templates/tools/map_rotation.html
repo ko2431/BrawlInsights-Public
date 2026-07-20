@@ -28,12 +28,12 @@
     <p class="tools-page__description">
         {% if lang == "ja" %}
         <span style="font-weight: bold; color: var(--c-red);"></span>
-        2026年4月アップデート後のマップ周期です。常設の11スロットのマップ周期を表示しています。<br>
-        <span style="font-weight: bold; color: var(--c-red);">【アップデート直後のため、マップ周期は調整中です。7月中旬ごろ完成する予定です。】</span>
+        2026年6月アップデート後のマップ周期です。常設の11スロットのマップ周期を表示しています。<br>
+        {% if false %}<span style="font-weight: bold; color: var(--c-red);">【アップデート直後のため、マップ周期は調整中です。7月中旬ごろ完成する予定です。】</span>{% endif %}
         {% else %}
         <span style="font-weight: bold; color: var(--c-red);"></span>
         Here are the map rotation of Brawl Stars.<br>
-        <span style="font-weight: bold; color: var(--c-red);">*Currently, the map rotation is being adjusted due to the update. It is expected to be completed by the middle of July.</span>
+        {% if false %}<span style="font-weight: bold; color: var(--c-red);">*Currently, the map rotation is being adjusted due to the update. It is expected to be completed by the middle of July.</span>{% endif %}
         {% endif %}
     </p>
 
@@ -150,7 +150,7 @@ function mapRotationApp() {
             {
                 name_ja: 'バトロイ', name_en: 'Showdown',
                 icons: ['soloShowdown.png'],
-                baseDate: '2026-02-24T05:00:00+09:00',
+                baseDate: '2026-06-30T05:00:00+09:00',
                 maps: [
                     { mode: 'soloShowdown', name_ja: 'よそ者お断り', name_en: 'Gated Community', id: '15001121' },
                     { mode: 'soloShowdown', name_ja: '激動の洞窟', name_en: 'Cavern Churn', id: '15000953' },
@@ -159,11 +159,11 @@ function mapRotationApp() {
                     { mode: 'soloShowdown', name_ja: '天国と地獄', name_en: 'Feast or Famine', id: '15000950' },
                     { mode: 'soloShowdown', name_ja: '空飛ぶ絨毯', name_en: 'Flying Fantasies', id: '15000959' },
                     { mode: 'soloShowdown', name_ja: 'リリーラグーン', name_en: 'Lilypond Grove', id: '15000990' },
-                    { mode: 'soloShowdown', name_ja: '安全センター', name_en: 'Safety Center', id: '15000968' },
+                    { mode: 'soloShowdown', name_ja: '沿岸クロッシング', name_en: 'Crossing the Coast', id: '15001279' },
                     { mode: 'soloShowdown', name_ja: 'クロケット', name_en: 'Kroket', id: '15001119' },
                     { mode: 'soloShowdown', name_ja: '岩壁の決戦', name_en: 'Rockwall Brawl', id: '15000947' },
                     { mode: 'soloShowdown', name_ja: 'ガイコツ川', name_en: 'Skull Creek', id: '15000944' },
-                    { mode: 'soloShowdown', name_ja: '即席足場', name_en: 'Makeshift Scaffolding', id: '15001122' },
+                    { mode: 'soloShowdown', name_ja: '田園', name_en: 'Rice Field', id: '15001284' },
                     { mode: 'soloShowdown', name_ja: 'マグマの心臓', name_en: 'Molten to the Core', id: '15001213' },
                     { mode: 'soloShowdown', name_ja: '酸性湖', name_en: 'Acid Lakes', id: '15000032' },
                 ]
@@ -172,18 +172,18 @@ function mapRotationApp() {
             {
                 name_ja: 'サッカー', name_en: 'Brawl Ball',
                 icons: ['brawlBall.png'],
-                baseDate: '2026-02-24T17:00:00+09:00',
+                baseDate: '2026-06-30T17:00:00+09:00',
                 maps: [
                     { mode: 'brawlBall', name_ja: 'ビーチボール', name_en: 'Beach Ball', id: '15000143' },
                     { mode: 'brawlBall', name_ja: 'ピンボールドリーム', name_en: 'Pinball Dreams', id: '15000118' },
                     { mode: 'brawlBall', name_ja: '狭き門', name_en: 'Pinhole Punt', id: '15000026' },
-                    { mode: 'brawlBall', name_ja: 'サイドトラック', name_en: 'Sidetrack', id: '15001053' },
+                    { mode: 'brawlBall', name_ja: 'ワイワイカップ', name_en: 'Bustling Business', id: '15001270' },
                     { mode: 'brawlBall', name_ja: 'ナツメグ', name_en: 'Nutmeg', id: '15001168' },
                     { mode: 'brawlBall', name_ja: 'クサムスビ平原', name_en: 'Grass Knot', id: '15001020' },
                     { mode: 'brawlBall', name_ja: 'マッチ1123581321', name_en: 'Match 1123581321', id: '15001054' },
                     { mode: 'brawlBall', name_ja: 'サニーサッカー', name_en: 'Sunny Soccer', id: '15000144' },
                     { mode: 'brawlBall', name_ja: 'スーパービーチ', name_en: 'Super Beach', id: '15000051' },
-                    { mode: 'brawlBall', name_ja: 'ゴールキーパーズ', name_en: 'Goalies', id: '15001204' },
+                    { mode: 'brawlBall', name_ja: 'デッドロック', name_en: 'Deadlock', id: '15001271' },
                     { mode: 'brawlBall', name_ja: 'トリプル・ドリブル', name_en: 'Triple Dribble', id: '15000025' },
                     { mode: 'brawlBall', name_ja: '静かな広場', name_en: 'Sneaky Fields', id: '15000050' },
                     { mode: 'brawlBall', name_ja: '鉄壁の護り', name_en: 'Backyard Bowl', id: '15000024' },
@@ -194,17 +194,17 @@ function mapRotationApp() {
             {
                 name_ja: 'エメハン', name_en: 'Gem Grab',
                 icons: ['gemGrab.png'],
-                baseDate: '2026-04-22T09:00:00+09:00',
+                baseDate: '2026-07-01T09:00:00+09:00',
                 maps: [
                     { mode: 'gemGrab', name_ja: 'サボテンの罠', name_en: 'Deathcap Trap', id: '15000009' },
                     { mode: 'gemGrab', name_ja: 'スネークピット', name_en: 'Snake Pit', id: '15001171' },
                     { mode: 'gemGrab', name_ja: 'エメラルドの要塞', name_en: 'Gem Fort', id: '15000010' },
                     { mode: 'gemGrab', name_ja: 'ごつごつ坑道', name_en: 'Hard Rock Mine', id: '15000007' },
                     { mode: 'gemGrab', name_ja: '始まりの地', name_en: 'Ancestral Roots', id: '15001246' },
-                    { mode: 'gemGrab', name_ja: 'クリスタルアーケード', name_en: 'Crystal Arcade', id: '15000008' },
+                    { mode: 'gemGrab', name_ja: 'ボトムペア', name_en: 'Bottom Two', id: '15001274' },
                     { mode: 'gemGrab', name_ja: 'フォトスポット', name_en: 'Picturesque', id: '15001208' },
                     { mode: 'gemGrab', name_ja: 'オープンスペース', name_en: 'Open Space', id: '15000499' },
-                    { mode: 'gemGrab', name_ja: 'サトミの泉', name_en: 'Satomi Springs', id: '15001209' },
+                    { mode: 'gemGrab', name_ja: 'ダンスフロア', name_en: 'Let Me Dance', id: '15001275' },
                     { mode: 'gemGrab', name_ja: 'アンダーマイン', name_en: 'Undermine', id: '15000011' },
                     { mode: 'gemGrab', name_ja: '囁きのヴェール', name_en: 'Whisper Vale', id: '15001051' },
                     { mode: 'gemGrab', name_ja: '連勝街道', name_en: 'On a Roll', id: '15001026' },
@@ -216,16 +216,16 @@ function mapRotationApp() {
             {
                 name_ja: 'ノック', name_en: 'Knockout',
                 icons: ['knockout.png'],
-                baseDate: '2026-04-19T11:00:00+09:00',
+                baseDate: '2026-07-12T11:00:00+09:00',
                 maps: [
                     { mode: 'knockout', name_ja: 'コナッコル', name_en: 'Konnakol', id: '15001173' },
                     { mode: 'knockout', name_ja: 'ゴールドアームの渓谷', name_en: "Goldarm Gulch", id: '15000367' },
                     { mode: 'knockout', name_ja: 'ベルの岩', name_en: "Belle's Rock", id: '15000368' },
                     { mode: 'knockout', name_ja: '先読み街道', name_en: 'Think Ahead', id: '15001058' },
-                    { mode: 'knockout', name_ja: 'リスキーロード', name_en: 'Healthy Middle Ground', id: '15000581' },
+                    { mode: 'knockout', name_ja: 'ジャングルトップ', name_en: 'Jungle Top', id: '15001276' },
                     { mode: 'knockout', name_ja: 'オープニングムーブ', name_en: 'Opening Move', id: '15001210' },
                     { mode: 'knockout', name_ja: 'オープンフィールド', name_en: 'Out in the Open', id: '15000548' },
-                    { mode: 'knockout', name_ja: '燃える不死鳥', name_en: 'Flaring Phoenix', id: '15000440' },
+                    { mode: 'knockout', name_ja: 'ドッグジャンプ', name_en: 'Leaping Dogs', id: '15001277' },
                     { mode: 'knockout', name_ja: 'クラブクロー', name_en: 'Crab Claws', id: '15001211' },
                     { mode: 'knockout', name_ja: '騎士道', name_en: 'Chivalry', id: '15001127' },
                     { mode: 'knockout', name_ja: '名もなき道', name_en: 'Streets with No Name', id: '15001019' },
@@ -238,19 +238,19 @@ function mapRotationApp() {
             {
                 name_ja: '強奪／ホッゾ', name_en: 'Heist/HZ',
                 icons: ['heist.png', 'hotZone.png'],
-                baseDate: '2026-02-26T03:00:00+09:00',
+                baseDate: '2026-07-08T03:00:00+09:00',
                 maps: [
-                    { mode: 'heist', name_ja: '安全地帯', name_en: 'Safe Zone', id: '15000019' },
+                    { mode: 'heist', name_ja: 'ジェドナ', name_en: 'Jedna', id: '15001273' },
                     { mode: 'hotZone', name_ja: '次元の狭間', name_en: 'In the Liminal', id: '15001023' },
                     { mode: 'heist', name_ja: 'ホットポテト', name_en: 'Hot Potato', id: '15000053' },
-                    { mode: 'hotZone', name_ja: 'ヒヤシンスハウス', name_en: 'Hyacinth House', id: '15001203' },
+                    { mode: 'hotZone', name_ja: '星まで届け', name_en: 'Reach for the Stars', id: '15001268' },
                     { mode: 'heist', name_ja: '那由多', name_en: 'Quintillion', id: '15001170' },
-                    { mode: 'hotZone', name_ja: 'オープンビジネス', name_en: 'Open Business', id: '15000292' },
+                    { mode: 'hotZone', name_ja: '高圧地帯', name_en: 'Under Pressure', id: '15001269' },
                     { mode: 'heist', name_ja: 'モリモリタイム！', name_en: 'Eating Good!', id: '15001245' },
                     { mode: 'hotZone', name_ja: 'パラレルワールド', name_en: 'Parallel Plays', id: '15000293' },
                     { mode: 'heist', name_ja: 'フォトンインフェルノ', name_en: 'Photic Doom', id: '15001099' },
                     { mode: 'hotZone', name_ja: 'ゴールデンベイ', name_en: 'Golden Bay', id: '15001202' },
-                    { mode: 'heist', name_ja: 'チューニングフォーク', name_en: 'Tuning Fork', id: '15001206' },
+                    { mode: 'heist', name_ja: 'ホットタブ', name_en: 'Hot Tubs', id: '15001272' },
                     { mode: 'hotZone', name_ja: 'アブラカタブラ', name_en: 'Abracadabra', id: '15001022' },
                 ]
             },
@@ -258,10 +258,10 @@ function mapRotationApp() {
             {
                 name_ja: 'ホッケー', name_en: 'Hockey',
                 icons: ['brawlHockey.png'],
-                baseDate: '2026-04-25T19:00:00+09:00',
+                baseDate: '2026-06-30T19:00:00+09:00',
                 maps: [
-                    { mode: 'brawlHockey', name_ja: 'ハイパースペース', name_en: 'Hyperspace', id: '15001178' },
-                    { mode: 'brawlHockey', name_ja: 'つま先立ち', name_en: 'Tip Toe', id: '15001221' },
+                    { mode: 'brawlHockey', name_ja: 'ヌルスケープ', name_en: 'Nullscapes', id: '15001265' },
+                    { mode: 'brawlHockey', name_ja: '海の怒り', name_en: 'Raging Ocean', id: '15001266' },
                     { mode: 'brawlHockey', name_ja: 'キャビンフィーバー', name_en: 'Cabin Fever', id: '15001222' },
                     { mode: 'brawlHockey', name_ja: 'スーパーセンター', name_en: 'Super Center', id: '15000850' },
                     { mode: 'brawlHockey', name_ja: 'ツルツル大乱闘', name_en: 'Slippery Showdown', id: '15001248' },
@@ -272,13 +272,13 @@ function mapRotationApp() {
             {
                 name_ja: '殲滅／バスケ', name_en: 'WO/Basket',
                 icons: ['wipeout.png', 'basketBrawl.png'],
-                baseDate: '2026-02-25T13:00:00+09:00',
+                baseDate: '2026-07-03T13:00:00+09:00',
                 maps: [
                     { mode: 'wipeout', name_ja: '熱砂のお散歩', name_en: 'WALKING ON HOT SAND', id: '15001163' },
                     { mode: 'basketBrawl', name_ja: 'ポケットパス', name_en: 'Pocket Pass', id: '15000386' },
                     { mode: 'wipeout', name_ja: '消耗戦', name_en: 'Attrition', id: '15001244' },
                     { mode: 'basketBrawl', name_ja: 'ターンオーバー', name_en: 'Turnover', id: '15000387' },
-                    { mode: 'wipeout', name_ja: '出会いと別れ', name_en: 'Hello Always Ends With a Goodbye', id: '15001200' },
+                    { mode: 'wipeout', name_ja: '孤独な深海魚', name_en: 'Solitary Deep Sea Fish', id: '15001267' },
                     { mode: 'basketBrawl', name_ja: '独壇場', name_en: 'Ball Hog', id: '15000384' },
                     { mode: 'wipeout', name_ja: 'パレット広場', name_en: 'Palette Hangout', id: '15001201' },
                     { mode: 'basketBrawl', name_ja: 'トリプルダブル', name_en: 'Triple-Double', id: '15000390' },
@@ -288,7 +288,7 @@ function mapRotationApp() {
             {
                 name_ja: '5対5', name_en: '5v5',
                 icons: ['5v5.png'],
-                baseDate: '2026-02-25T21:00:00+09:00',
+                baseDate: '2026-07-01T21:00:00+09:00',
                 maps: [
                     { mode: 'brawlBall', name_ja: 'シベリアの決闘', name_en: 'Siberian Stand Off', id: '15000971' },
                     { mode: 'wipeout', name_ja: 'ガクブル公園', name_en: 'Icy ice park', id: '15000646' },
@@ -305,7 +305,7 @@ function mapRotationApp() {
             {
                 name_ja: 'デュエル／賞金', name_en: 'Duels/Bounty',
                 icons: ['duels.png', 'bounty.png'],
-                baseDate: '2026-02-24T01:00:00+09:00',
+                baseDate: '2026-06-30T01:00:00+09:00',
                 maps: [
                     { mode: 'duels', name_ja: '見えざる大蛇', name_en: 'Shrouding Serpent', id: '15000461' },
                     { mode: 'bounty', name_ja: '隠れ家', name_en: 'Hideout', id: '15000022' },
@@ -318,16 +318,16 @@ function mapRotationApp() {
                     { mode: 'duels', name_ja: 'サーチ＆デストロイ', name_en: 'Search and Destroy', id: '15001061' },
                     { mode: 'bounty', name_ja: '流れ星', name_en: 'Shooting Star', id: '15000005' },
                     { mode: 'duels', name_ja: '不屈の精神', name_en: 'No Surrender', id: '15000460' },
-                    { mode: 'bounty', name_ja: 'ヒット&ラン', name_en: 'Hit and Run', id: '15001220' },
+                    { mode: 'bounty', name_ja: 'ベリーベリー', name_en: 'Tasty Berry', id: '15001288' },
                     { mode: 'duels', name_ja: 'グレート・マイティー・ルー', name_en: 'The Great Mighty Lou', id: '15001097' },
-                    { mode: 'bounty', name_ja: '乾燥地帯', name_en: 'Dry Season', id: '15000083' },
+                    { mode: 'bounty', name_ja: 'スーパーカット', name_en: 'Supercut', id: '15001287' },
                 ]
             },
             // Slot 10: アリーナ
             {
                 name_ja: 'アリーナ', name_en: 'Arena',
                 icons: ['brawlArena.png'],
-                baseDate: '2026-04-21T23:00:00+09:00',
+                baseDate: '2026-06-30T23:00:00+09:00',
                 maps: [
                     { mode: 'brawlArena', name_ja: '幻影のアリーナ', name_en: 'Mirage Arena', id: '15000997' },
                     { mode: 'brawlArena', name_ja: '怪獣の湖', name_en: 'Kaiju Lake', id: '15000993' },
