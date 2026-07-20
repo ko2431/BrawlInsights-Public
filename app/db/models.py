@@ -665,6 +665,7 @@ class GiftCode(Base):
     usage_limit_per_user = Column(Integer, nullable=True)
     usage_limit_total = Column(Integer, nullable=True)
     is_invalid = Column(Boolean, nullable=False, server_default='False')
+    start_datetime = Column(DateTime(timezone=True), nullable=True)  # 利用開始日時。NULL=即時利用可
     expiration_datetime = Column(DateTime(timezone=True), nullable=True)
 
 

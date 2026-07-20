@@ -51,6 +51,7 @@
     {# フィルターボタン #}
     <div class="filter-buttons" style="margin-top: 15px;">
         <a href="/{{ lang }}/admin/giftcodes?filter=all" class="button {% if current_filter == 'all' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'all' %}disabled{% endif %}>すべて</a>
+        <a href="/{{ lang }}/admin/giftcodes?filter=upcoming" class="button {% if current_filter == 'upcoming' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'upcoming' %}disabled{% endif %}>今後追加</a>
         <a href="/{{ lang }}/admin/giftcodes?filter=valid" class="button {% if current_filter == 'valid' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'valid' %}disabled{% endif %}>有効</a>
         <a href="/{{ lang }}/admin/giftcodes?filter=invalid" class="button {% if current_filter == 'invalid' %}button--primary{% else %}button--secondary{% endif %}" {% if current_filter == 'invalid' %}disabled{% endif %}>無効</a>
     </div>
@@ -76,6 +77,10 @@
             <div class="form-group">
                 <label for="new_limit_total" class="form-label">総使用回数上限 (任意, 空欄=無制限)</label>
                 <input type="number" id="new_limit_total" class="form-input" x-model.number="newGiftcode.usage_limit_total" min="1">
+            </div>
+            <div class="form-group">
+                <label for="new_start" class="form-label">利用開始 (空欄=即時)</label>
+                <input type="datetime-local" id="new_start" class="form-input" x-model="newGiftcode.start_datetime">
             </div>
              <div class="form-group">
                 <label for="new_expiration" class="form-label">有効期限 (空欄=無期限)</label>
@@ -116,6 +121,7 @@
                 <th @click="sortBy('usage_limit_per_user')" style="min-width: 75px;"><span>上限(ユーザー)</span><span x-show="sortColumn === 'usage_limit_per_user'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th @click="sortBy('usage_limit_total')" style="min-width: 75px;"><span>上限(合計)</span><span x-show="sortColumn === 'usage_limit_total'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th @click="sortBy('is_invalid')"><span>無効</span><span x-show="sortColumn === 'is_invalid'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('start_datetime')"><span>利用開始</span><span x-show="sortColumn === 'start_datetime'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                 <th @click="sortBy('expiration_datetime')"><span>有効期限</span><span x-show="sortColumn === 'expiration_datetime'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
             </thead>
             <tbody>
@@ -129,6 +135,7 @@
                         <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_per_user" :class="{ 'changed': isLimitUserDirty }" @input.debounce.300ms="updateAndNotify()"></td>
                         <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_total" :class="{ 'changed': isLimitTotalDirty }" @input.debounce.300ms="updateAndNotify()"></td>
                         <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_invalid" @change="updateAndNotify()"></td>
+                        <td><input type="datetime-local" class="form-input" x-model="currentRow.start_datetime" :class="{ 'changed': isStartDirty }" @change="updateAndNotify()"></td>
                         <td><input type="datetime-local" class="form-input" x-model="currentRow.expiration_datetime" :class="{ 'changed': isExpirationDirty }" @change="updateAndNotify()"></td>
                     </tr>
                 </template>
@@ -155,6 +162,7 @@
                     is_admin_only: false,
                     usage_limit_per_user: 1,
                     usage_limit_total: null,
+                    start_datetime: '',
                     expiration_datetime: ''
                 },
                 newGiftcodeStatus: { code: '', reward_str: '' },
@@ -213,6 +221,7 @@
                         const payload = { ...this.newGiftcode };
                         if (payload.usage_limit_per_user === '') payload.usage_limit_per_user = null;
                         if (payload.usage_limit_total === '') payload.usage_limit_total = null;
+                        if (payload.start_datetime === '') payload.start_datetime = null;
                         if (payload.expiration_datetime === '') payload.expiration_datetime = null;
                         
                         const response = await fetch("{{ url_for('admin_add_giftcode', lang=lang) }}", {
@@ -314,6 +323,7 @@
                 get isRewardDirty() { return initialData.reward_str !== this.currentRow.reward_str; },
                 get isLimitUserDirty() { return initialData.usage_limit_per_user !== this.currentRow.usage_limit_per_user; },
                 get isLimitTotalDirty() { return initialData.usage_limit_total !== this.currentRow.usage_limit_total; },
+                get isStartDirty() { return initialData.start_datetime !== this.currentRow.start_datetime; },
                 get isExpirationDirty() { return initialData.expiration_datetime !== this.currentRow.expiration_datetime; },
                 get isDirty() {
                     return initialData.reward_str !== this.currentRow.reward_str ||
@@ -321,6 +331,7 @@
                            initialData.usage_limit_per_user !== this.currentRow.usage_limit_per_user ||
                            initialData.usage_limit_total !== this.currentRow.usage_limit_total ||
                            initialData.is_invalid !== this.currentRow.is_invalid ||
+                           initialData.start_datetime !== this.currentRow.start_datetime ||
                            initialData.expiration_datetime !== this.currentRow.expiration_datetime;
                 },
                 isRewardValid: true,
