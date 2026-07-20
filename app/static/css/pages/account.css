@@ -549,9 +549,11 @@
     border-radius: 12px;
     transition: transform 0.5s ease;
     transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
 }
 .minigame-card.is-flipped .minigame-card__inner {
     transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
 }
 .minigame-card__back,
 .minigame-card__front {
@@ -564,7 +566,17 @@
     border-radius: 12px;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    /* iOS WKWebView で 3D フリップ時に裏面が残る対策 */
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
     transition: border-color 0.55s ease, box-shadow 0.55s ease;
+}
+/* めくり完了（0.5s）後にだけ裏面を強制非表示。途中で切ると体感が速くなる */
+.minigame-card.is-flipped .minigame-card__back {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0s linear 0.5s, visibility 0s linear 0.5s;
 }
 .minigame-card__back::before,
 .minigame-card__front::before {
@@ -602,6 +614,7 @@
     background: linear-gradient(160deg, #3a4560 0%, #2a3348 55%, #1e2638 100%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
 }
 .dark .minigame-card__front {
     background: linear-gradient(160deg, #4a5670 0%, #343e55 55%, #262f42 100%);

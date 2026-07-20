@@ -4,7 +4,7 @@
 {% block content %}
 <div class="admin-page__container" x-data="minigameCampaignAdmin()">
     <h1 class="page-title--main">ミニゲーム企画管理</h1>
-    <p class="admin-page__description">開始済み企画では、開始日時と景品設定は変更できません。価格などの運用項目は変更できます。</p>
+    <p class="admin-page__description">開始済み企画では、開始日時・ゲーム種別・景品設定は変更できません。価格などの運用項目は変更できます。</p>
     <div class="save-changes-block">
         <p x-text="form.id ? `企画 #${form.id} を編集` : '新しい企画を作成'"></p>
         <button type="button" class="button button--secondary" x-show="form.id" @click="reset()">新規作成に戻る</button>
@@ -14,7 +14,7 @@
             <label>企画名（日本語）<input class="form-input" required x-model.trim="form.name_ja"></label>
             <label>企画名（英語）<input class="form-input" required x-model.trim="form.name_en"></label>
             <label>ゲーム種別
-                <select class="form-input" x-model="form.game_type">
+                <select class="form-input" x-model="form.game_type" :disabled="started">
                     <option value="card_flip_single">カード1枚</option><option value="card_flip_multi1">カード3枚（最高ランク）</option><option value="card_flip_multi2">カード3枚（組み合わせ）</option><option value="scratch1">スクラッチ1（組み合わせ）</option>
                 </select>
             </label>
