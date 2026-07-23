@@ -48,7 +48,7 @@
   <label>ユーザー名 <input name="user_name" class="form-input" value="{{ user_name }}"></label>
   <input type="hidden" name="sort" value="{{ current_sort }}"><button class="button button--primary" style="margin-top: 5px;">絞り込む</button>
  </form>
- <p class="admin-page__description">表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件（最大100件/ページ）</p>
+ <p class="admin-page__description">表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大100件/ページ）</p>
  {{ render_pagination() }}
  <div class="table-wrapper" style="margin-top: 10px;"><table class="data-table purchase-table"><thead><tr>
   <th @click="sort('id')">ID</th><th @click="sort('created')">参加日時 (JST)</th><th>企画</th><th @click="sort('user')">ユーザー</th><th>方法</th><th>消費</th><th @click="sort('rank')">等級</th><th>景品</th><th>参加状態</th><th @click="sort('completed')">受取日時 (JST)</th><th>ギフト発送</th>
