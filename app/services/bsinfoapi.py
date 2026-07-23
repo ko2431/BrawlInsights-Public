@@ -452,6 +452,8 @@ async def _get_accessory_all_levels_bundled(
     bundled = {level_key: level_data for level_key, level_data in pairs}
 
     if any(bundled.values()):
+        if include_use_rate and isinstance(cached_data, dict) and cached_data:
+            bundled = _preserve_cached_use_rates_bundled(bundled, cached_data)
         await set_cache(key=cache_key, value=bundled, ttl=None)
         await set_cache(key=cache_key_update_lock, value=True, ttl=BSINFO_ACCESSORY_UPDATE_LOCK_TTL)
         return bundled
@@ -497,6 +499,8 @@ async def _get_brawler_accessory_map(
     )
 
     if merged:
+        if include_use_rate and isinstance(cached_data, dict) and cached_data:
+            merged = _preserve_cached_use_rates(merged, cached_data)
         await set_cache(key=cache_key, value=merged, ttl=None)
         await set_cache(key=cache_key_update_lock, value=True, ttl=BSINFO_ACCESSORY_UPDATE_LOCK_TTL)
         return merged
@@ -743,6 +747,43 @@ def _coalesce(*values):
     return None
 
 
+def _preserve_cached_use_rates(
+    new_map: dict[str, dict[str, Any]],
+    cached_map: dict[str, dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    """Keep previously cached use_rate when a fresh API response omits or nulls it."""
+    if not isinstance(cached_map, dict) or not cached_map:
+        return new_map
+
+    for accessory_id, entry in new_map.items():
+        if not isinstance(entry, dict) or entry.get("use_rate") is not None:
+            continue
+        cached_entry = cached_map.get(accessory_id)
+        if not isinstance(cached_entry, dict):
+            continue
+        cached_use_rate = cached_entry.get("use_rate")
+        if cached_use_rate is not None:
+            entry["use_rate"] = cached_use_rate
+    return new_map
+
+
+def _preserve_cached_use_rates_bundled(
+    new_bundled: dict[str, dict[str, dict[str, Any]]],
+    cached_bundled: dict[str, dict[str, dict[str, Any]]] | None,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Preserve use_rate per level/accessory across bundled accessory caches."""
+    if not isinstance(cached_bundled, dict) or not cached_bundled:
+        return new_bundled
+
+    for level_key, new_level_map in new_bundled.items():
+        if not isinstance(new_level_map, dict):
+            continue
+        cached_level_map = cached_bundled.get(level_key)
+        if isinstance(cached_level_map, dict):
+            _preserve_cached_use_rates(new_level_map, cached_level_map)
+    return new_bundled
+
+
 def apply_bsinfo_overlay_to_accessory(
     accessory: dict[str, Any],
     overlay: dict[str, Any] | None,
@@ -782,8 +823,8 @@ def apply_bsinfo_overlay_to_accessory(
         accessory["cooldown"] = overlay["cooldown"]
         accessory["cooldown_with_buffie"] = overlay["cooldown"]
 
-    if "use_rate" in overlay:
-        accessory["use_rate"] = overlay.get("use_rate")
+    if overlay.get("use_rate") is not None:
+        accessory["use_rate"] = overlay["use_rate"]
 
     return accessory
 
