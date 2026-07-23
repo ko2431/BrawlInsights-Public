@@ -25,6 +25,7 @@ DEFAULT_PRICE_AD_TOKENS = 7
 DEFAULT_PRICE_TOKEN_TOKENS = 20
 DEFAULT_AD_DAILY_LIMIT = 5
 AD_SKIP_TICKET_COST = 2
+MINIGAME_AD_PLAY_CUTOFF_SECONDS = 60
 USER_HISTORY_LIMIT = 10
 MAX_PRIZE_TIERS = 6
 MIN_PRIZE_TIERS = 2
@@ -40,6 +41,36 @@ _RNG = random.SystemRandom()
 
 def _message(lang: str, ja: str, en: str) -> str:
     return ja if lang == "ja" else en
+
+
+def _as_utc(dt: datetime.datetime) -> datetime.datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.timezone.utc)
+    return dt
+
+
+def is_within_ad_play_cutoff(
+    ends_at: datetime.datetime,
+    *,
+    now: datetime.datetime | None = None,
+    cutoff_seconds: int = MINIGAME_AD_PLAY_CUTOFF_SECONDS,
+) -> bool:
+    """広告視聴が必要な ad 参加を締め切る終了直前の猶予かどうか。"""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return (_as_utc(ends_at) - now).total_seconds() <= cutoff_seconds
+
+
+def ad_play_requires_rewarded_ad(*, is_delete_ads: bool, can_spend_tickets: bool) -> bool:
+    """割引 ad 参加でリワード広告の視聴が必要か（広告削除・チケットスキップ時は不要）。"""
+    return not is_delete_ads and not can_spend_tickets
+
+
+_AD_PLAY_CUTOFF_MESSAGE_JA = (
+    "まもなく企画が終了するため、広告視聴による参加はできません。ご了承ください。"
+)
+_AD_PLAY_CUTOFF_MESSAGE_EN = (
+    "Ad-based entry is unavailable because the event is ending soon. Thank you for your understanding."
+)
 
 
 def _record(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
@@ -166,7 +197,7 @@ async def get_user_pending_play(db: asyncpg.Connection, user_id: int) -> dict[st
     row = await db.fetchrow(
         """SELECT p.*, c.name_ja, c.name_en, c.game_type FROM minigame_plays p
            JOIN minigame_campaigns c ON c.id = p.campaign_id
-           WHERE p.user_id = $1 AND p.status = 'pending_reveal'
+           WHERE p.user_id = $1 AND p.status = 'pending_reveal' AND c.ends_at >= now()
            ORDER BY p.created_at DESC LIMIT 1""",
         user_id,
     )
@@ -568,6 +599,37 @@ def build_animation_payload(
     return payload
 
 
+async def auto_complete_ended_campaign_pending_plays(
+    db: asyncpg.Connection, user: User, *, lang: str
+) -> list[dict[str, Any]]:
+    """終了済み企画の未開封プレイを自動で確定し、抽選済み景品を付与する。"""
+    rows = await db.fetch(
+        """SELECT p.id FROM minigame_plays p
+           JOIN minigame_campaigns c ON c.id = p.campaign_id
+           WHERE p.user_id = $1 AND p.status = 'pending_reveal' AND c.ends_at < now()
+           ORDER BY p.created_at ASC""",
+        user.id,
+    )
+    if not rows:
+        return []
+    completed: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            result = await complete_play(db, user, row["id"], skip=False, lang=lang)
+            completed.append(result)
+        except Exception as e:
+            logger.error(
+                "終了済みミニゲームの自動確定に失敗 (User: %s, Play: %s): %s",
+                user.id,
+                row["id"],
+                e,
+                exc_info=True,
+            )
+    if completed:
+        await delete_cache(f"user:{user.id}")
+    return completed
+
+
 async def increment_minigame_ad_play(db: asyncpg.Connection, user_id: int, daily_limit: int) -> bool:
     """広告参加の日次回数を競合なく増加させる。"""
     today = _current_token_claim_date()
@@ -592,6 +654,7 @@ async def start_play(
     require_tickets: bool = False,
 ) -> dict[str, Any]:
     """参加費を消費して未開封の抽選結果を作成する。"""
+    await auto_complete_ended_campaign_pending_plays(db, user, lang=lang)
     if method not in {"ad", "token"}:
         raise ValueError(_message(lang, "参加方法が不正です。", "Invalid play method."))
     if method == "ad" and platform not in {"ios"}:
@@ -649,6 +712,17 @@ async def start_play(
                     "チケットが不足しているか、チケット使用設定がオフです。",
                     "Not enough tickets, or ticket usage is turned off.",
                 )
+            )
+        if (
+            method == "ad"
+            and ad_play_requires_rewarded_ad(
+                is_delete_ads=bool(locked_user["is_delete_ads"]),
+                can_spend_tickets=can_spend_tickets,
+            )
+            and is_within_ad_play_cutoff(campaign["ends_at"])
+        ):
+            raise ValueError(
+                _message(lang, _AD_PLAY_CUTOFF_MESSAGE_JA, _AD_PLAY_CUTOFF_MESSAGE_EN)
             )
         if method == "ad" and not await increment_minigame_ad_play(db, user.id, ad_limit):
             raise ValueError(

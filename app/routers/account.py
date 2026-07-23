@@ -16,6 +16,7 @@ from app.services import minigame_service
 from app.services.minigame_service import (
     AD_SKIP_TICKET_COST,
     DEFAULT_AD_DAILY_LIMIT,
+    MINIGAME_AD_PLAY_CUTOFF_SECONDS,
     USER_HISTORY_LIMIT,
     resolve_prices,
 )
