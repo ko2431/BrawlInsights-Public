@@ -475,8 +475,8 @@ def build_animation_payload(
                 else:
                     faces[i] = ranks[result_rank]
             else:
-                lower = [face for rank, face in ranks.items() if rank > result_rank] + decoys
-                faces[i] = _RNG.choice(lower or decoys or list(ranks.values()))
+                candidates = [face for rank, face in ranks.items() if rank >= result_rank] + decoys
+                faces[i] = _RNG.choice(candidates or decoys or list(ranks.values()))
         # 金カードは結果絵柄（例外混在済み）を優先して配置し直す
         for i in gold_indices:
             if faces[i] not in {ranks[result_rank], ranks.get(2)}:
