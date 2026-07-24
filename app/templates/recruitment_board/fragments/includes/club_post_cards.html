@@ -1,0 +1,236 @@
+        {% for id, post in posts.items() %}
+        {# > 投稿者のIDを変数に格納 --- #}
+        {% set author_user_id = post.data.host_id %}
+        {% set author_anonymous_id = post.data.host_anonymous_id %}
+
+        {# > 投稿者がブロックリストに含まれているか判定 --- #}
+        {% if (author_user_id and author_user_id in blocked_ids.user_ids) or 
+                (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids) %}
+            
+            {# === ブロック中のユーザーの投稿だった場合の表示 (プレースホルダー) === #}
+            <div class="post-card-wrapper"
+                    data-post-id="{{ id }}"
+                    data-blocked-user-id="{{ author_user_id or '' }}"
+                    data-blocked-anonymous-id="{{ author_anonymous_id or '' }}">
+                <div class="card post-card">
+                    <div class="post-card__blocked-text-container">
+                        <p class="blocked-post__text">{% if lang == "ja" %}ブロック中のユーザーの投稿です。{% else %}This post is from a user you blocked.{% endif %}</p>
+                    </div>
+                    <div class="post-card__link-container">
+                        <button class="button post-card__show-button">{% if lang == "ja" %}表示する{% else %}Show{% endif %}</button>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <div class="post-card-wrapper">
+                <div class="card post-card post-card--club">
+                    {# プレイヤー名とn分前テキスト #}
+                    <div class="post-card__header">
+                        <img src="{{ url_for('static', path='/images/club_badges/' + post.data.hostclub.badge_id|string + '.png') }}" alt="クラブバッジ" class="post-card__player-icon">
+                        <p class="post-card__title">{{ post.data.hostclub.name|safe }}</p>
+                        <div style="display: flex; flex: 1;"></div>
+                        <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                    </div>
+                    {# ガチバトルランクの翻訳表 (ダイヤモンドはダイヤに省略) #}
+                    {% set rank_map_ja = {
+                        22: 'プロ', 21: 'マスター Ⅲ', 20: 'マスター Ⅱ', 19: 'マスター Ⅰ',
+                        18: 'レジェ Ⅲ', 17: 'レジェ Ⅱ', 16: 'レジェ Ⅰ',
+                        15: 'エリ Ⅲ', 14: 'エリ Ⅱ', 13: 'エリ Ⅰ',
+                        12: 'ダイヤ Ⅲ', 11: 'ダイヤ Ⅱ', 10: 'ダイヤ Ⅰ',
+                        9: 'ゴールド Ⅲ', 8: 'ゴールド Ⅱ', 7: 'ゴールド Ⅰ',
+                        6: 'シルバー Ⅲ', 5: 'シルバー Ⅱ', 4: 'シルバー Ⅰ',
+                        3: 'ブロンズ Ⅲ', 2: 'ブロンズ Ⅱ', 1: 'ブロンズ Ⅰ', 0: 'ランクなし'
+                    } %}
+                    {% set rank_map_en = {
+                        22: 'Pro', 21: 'Mst. Ⅲ', 20: 'Mst. Ⅱ', 19: 'Mst. Ⅰ',
+                        18: 'Leg. Ⅲ', 17: 'Leg. Ⅱ', 16: 'Leg. Ⅰ',
+                        15: 'Myth. Ⅲ', 14: 'Myth. Ⅱ', 13: 'Myth. Ⅰ',
+                        12: 'Dia. Ⅲ', 11: 'Dia. Ⅱ', 10: 'Dia. Ⅰ',
+                        9: 'Gld. Ⅲ', 8: 'Gld. Ⅱ', 7: 'Gld. Ⅰ',
+                        6: 'Slv. Ⅲ', 5: 'Slv. Ⅱ', 4: 'Slv. Ⅰ',
+                        3: 'Brz. Ⅲ', 2: 'Brz. Ⅱ', 1: 'Brz. Ⅰ', 0: 'No Rank'
+                    } %}
+                    {# ホスト情報と条件 #}
+                    <div class="post-card__info-and-conditions" style="min-width: 210px;">
+                        <div class="post-card__host-info">
+                            <p class="post-card__host-info-title">{% if lang == "ja" %}クラブ情報{% else %}Club Info{% endif %}</p>
+                            {% if post.data.hostclub %}
+                            <div class="post-card__host-info-scroll-area">
+                            <div class="post-card__host-info-stats">
+                                <div class="post-card__host-info-stat">
+                                    <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="icon--stat post-card__host-info-stat-icon">
+                                    <p class="post-card__host-info-stat-text">{% if lang == "ja" %}合計トロフィー{% else %}Total Trophies{% endif %}</p>
+                                    <p class="post-card__host-info-stat-value">{{ "{:,}".format(post.data.hostclub.trophies) if post.data.hostclub.trophies else "-" }}</p>
+                                </div>
+                            </div>
+                            <div class="post-card__host-info-stats">
+                                <div style="flex: 1;">
+                                    <div class="post-card__host-info-stat">
+                                        <img src="{{ url_for('static', path='/images/ui/member.png') }}" alt="メンバー" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}メンバー{% else %}Members{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ post.data.hostclub.member_count }}</p>
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div class="post-card__host-info-stat">
+                                        <img src="{{ url_for('static', path='/images/ui/notification_green.png') }}" alt="オンライン" class="icon--stat post-card__host-info-stat-icon">
+                                        <p class="post-card__host-info-stat-text">{% if lang == "ja" %}オンライン{% else %}Online{% endif %}</p>
+                                        <p class="post-card__host-info-stat-value">{{ post.data.hostclub.members_online if post.data.hostclub.members_online is not none else "-" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="post-card__host-info-stats">
+                                <div class="post-card__host-info-stat">
+                                    <img src="{{ url_for('static', path='/images/ui/megapig.webp') }}" alt="メガピッグ" class="icon--stat post-card__host-info-stat-icon">
+                                    <p class="post-card__host-info-stat-text">{% if lang == "ja" %}直近のメガピッグ勝利数{% else %}Prev. Megapig Wins{% endif %}</p>
+                                    <p class="post-card__host-info-stat-value">{{ post.data.hostclub.total_megapig_wins if post.data.hostclub.total_megapig_wins else "-" }}</p>
+                                </div>
+                            </div>
+                            <div class="post-card__host-info-stats">
+                                <div class="post-card__host-info-stat">
+                                    <img src="{{ url_for('static', path='/images/ui/member.png') }}" alt="メンバー" class="icon--stat post-card__host-info-stat-icon">
+                                    <p class="post-card__host-info-stat-text">{% if lang == "ja" %}直近のメガピッグ参加者数{% else %}Prev. Megapig Players{% endif %}</p>
+                                    <p class="post-card__host-info-stat-value">{{ post.data.hostclub.played_megapig_members if post.data.hostclub.played_megapig_members else "-" }}</p>
+                                </div>
+                            </div>
+                            </div>
+                            <a href="{{ url_for('get_club_profile', lang=lang, tag=post.data.hostclub.tag[1:]) }}">
+                                <div class="button button--primary post-card__host-info-button" style="border-color: #111;">
+                                    {% if lang == "ja" %}詳細なクラブ情報を確認{% else %}Check Detailed Information{% endif %}
+                                </div>
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div class="post-card__conditions-box" style="min-width: 130px;">
+                            <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
+                            {% if not post.data.required_highest_trophies and not post.data.required_ranked_highest_rank and not post.data.required_solo_pl_rank and not post.data.required_prestige %}
+                            <div class="post-card__conditions-list-wrapper">
+                                <p class="post-card__no-conditions-text">({% if lang == "ja" %}条件はありません{% else %}No Conditions{% endif %})</p>
+                            </div>
+                            {% else %}
+                                <div class="post-card__conditions-list-wrapper">
+                                    {% if post.data.required_highest_trophies %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}" alt="最多トロフィー" class="icon--stat post-card__host-info-stat-icon">
+                                            <p class="post-card__host-info-stat-text">{% if lang == "ja" %}最多{% else %}Hi.{% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ "{:,}".format(post.data.required_highest_trophies) }}+</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_ranked_highest_rank %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ranked_icons/' + post.data.required_ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                            <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}最高{% else %}Hi. {% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ rank_map_ja[post.data.required_ranked_highest_rank] if lang == "ja" else rank_map_en[post.data.required_ranked_highest_rank] }}</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_solo_pl_rank %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ranked_mini_icons/' + post.data.required_solo_pl_rank|string + ('_old' if post.data.required_solo_pl_rank == 19 else '') + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                            <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}ソロPL{% else %}Solo PL {% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ (rank_map_ja[post.data.required_solo_pl_rank] if lang == "ja" else rank_map_en[post.data.required_solo_pl_rank])[:(-2 if post.data.required_solo_pl_rank == 19 else none)] }}</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_prestige %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ui/prestige.png') }}" alt="トップランカー" class="icon--stat post-card__host-info-stat-icon">
+                                            <p class="post-card__host-info-stat-text">{% if lang == "ja" %}所持{% else %}{% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ post.data.required_prestige }}+</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if post.data.conditions_application_type == "and" %}
+                                    <div class="button button--red post-card__host-info-button">
+                                        {% if lang == "ja" %}<b>すべて</b>満たす{% else %}<b>All</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="button button--blue post-card__host-info-button">
+                                        {% if lang == "ja" %}<b>いずれか</b>を満たす{% else %}<b>Any</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {# コメント #}
+                    <div class="post-card__comment-container">
+                        <p class="post-card__comment-container-title">{% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
+                        <div class="post-card__comment-scroll">
+                            {% if post.data.comment %}
+                            <p class="post-card__comment-text">{{ post.data.comment|censor }}</p>
+                            {% elif post.data.hostclub.description %}<p style="line-height: 1.3;">
+                            <span class="post-card__comment-empty">{% if lang == "ja" %}コメントがないため、クラブの説明文を代わりに表示しています:{% else %}Since there are no comments, the club description is displayed instead:{% endif %}</span>
+                            <span class="post-card__comment-text">{{ post.data.hostclub.description|safe }}</span></p>
+                            {% else %}
+                            <p class="post-card__comment-empty">({% if lang == "ja" %}コメントはありません{% else %}No Comment{% endif %})</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {# チャット/通報or削除/ブロック/リンク #}
+                    <div class="post-card__link-container">
+                        {% if post.data.chat_permission_level <= 0 %}
+                        <div class="button post-card__chat-button disabled">
+                            <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="チャット" class="post-card__link-button-icon">
+                            {% if lang == "ja" %}閉鎖{% else %}Closed{% endif %}
+                        </div>
+                        {% else %}
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=id) }}" style="display: flex;">
+                            <div class="button post-card__chat-button">
+                                <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="チャット" class="post-card__link-button-icon">
+                                {{ post.data.message_count }}
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% if current_user and (current_user.id == post.data.host_id or current_user.is_admin) or ip == post.data.host_ip %}
+                            <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
+                                {% if lang == "ja" %}削除{% else %}Delete{% endif %}
+                            </div>
+                        {% else %}
+                            <div id="report-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__report-button">
+                                {% if lang == "ja" %}通報{% else %}Report{% endif %}
+                            </div>
+                            <div class="button post-card__block-button"
+                                data-blocked-user-id="{{ author_user_id or '' }}"
+                                data-blocked-anonymous-id="{{ author_anonymous_id or '' }}">
+                                {% if lang == "ja" %}ブロック{% else %}Block{% endif %}
+                            </div>
+                        {% endif %}
+                        {% if post.is_permitted_to_click_link or (current_user and current_user.id == post.data.host_id or ip == post.data.host_ip) %}
+                        <a href="{{ post.data.link }}" style="display: flex; flex: 1;" {% if platform != 'web' %}target="_blank"{% endif %}>
+                            <div class="button button--primary post-card__link-button">
+                                {% if current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
+                                    {% if lang == "ja" %}あなたの投稿です{% else %}Your Post{% endif %}
+                                {% else %}
+                                    {% if lang == "ja" %}参加{% else %}Join{% endif %}
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% else %}
+                        <div class="button button--primary post-card__link-button disabled"
+                            onclick='
+                            {% if current_user and main_account %}
+                                {% if lang == "ja" %}
+                                    alert("あなたのメインアカウント(\"{{ main_account.name }}\")の情報が条件を満たしていないため、このクラブには参加できません。\nなお、メインアカウントを変更したい場合はアカウントタブから行えます。");
+                                {% else %}
+                                    alert("You cannot join the club because your main account (\"{{ main_account.name }}\") does not meet the conditions.\nIf you want to change your main account, you can do so from the Account tab.");
+                                {% endif %}
+                            {% else %}
+                                {% if lang == "ja" %}
+                                    alert("条件付きのクラブ募集に参加するには、条件判定のためアカウントタブよりログインしてください。\nアカウント作成にメールアドレス等は不要です。");
+                                {% else %}
+                                    alert("To apply for posts with conditions, please log in from the Account tab to verify the conditions.\nNo email address is required to create an account.");
+                                {% endif %}
+                            {% endif %}
+                            '
+                        >
+                            {% if current_user and main_account %}
+                                {% if lang == "ja" %}条件を満たしていません{% else %}Conditions Not Met{% endif %}
+                            {% else %}
+                                {% if lang == "ja" %}ログインして条件判定{% else %}Log In to Apply{% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        {% endfor %}

@@ -1,0 +1,21 @@
+{# /app/templates/recruitment_board/fragments/club_posts_fragment.html #}
+<div class="board-fragment__content">
+    {% if posts %}
+    {# フィルター下の説明文 #}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">{% if lang == "ja" %}<b>条件指定</b>&<b>チャット機能</b>付きの募集掲示板です。{% if not current_user %}条件の設定されている募集に参加するには、アカウントタブより<b>ログイン</b>してください。ログインしていない場合は、条件の設定されていない募集にのみ参加できます。{% endif %}{% else %}This is a recruitment board with condition specification and chat function.{% if not current_user %} To apply for posts with conditions, please <b>log in</b> from the Account tab. If you are not logged in, you can only apply for posts without conditions.{% endif %}{% endif %}</p>
+    </div>
+
+    {# 投稿を表示 #}
+    <div class="posts__container view-compact">
+        {% include "recruitment_board/fragments/includes/club_post_cards.html" %}
+    </div>
+    {% include "recruitment_board/fragments/includes/board_load_more.html" %}
+    {% elif filter == "only_own_posts" %}
+    {# postsが空リスト="only_own_posts"の場合は自分の投稿がまだない場合にも発生 #}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
+    {% else %}
+    {# postsが空リスト=filterがその他の場合はブロスタがメンテナンス時に発生 #}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在、ブロスタがメンテナンス中のため、募集掲示板はご利用いただけません。ブロスタのメンテナンスが終了してからご利用ください！{% else %}The recruitment board is currently unavailable due to Brawl Stars maintenance. Please use it after the maintenance is finished!{% endif %}</p>
+    {% endif %}
+</div>

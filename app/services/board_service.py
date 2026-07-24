@@ -99,6 +99,7 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
 async def get_trending_general_posts(
     db: asyncpg.Connection,
     per_page: int = 60,
+    page: int = 1,
     region: str | None = None,
     category: str | None = None,
 ) -> tuple[list[Post], int]:
@@ -106,7 +107,7 @@ async def get_trending_general_posts(
 
     スコア = (weight_likes * ln(1+いいね) + weight_comments * ln(1+コメント))
              / (経過時間[h] + age_offset_hours) ^ gravity
-    集約SQLと共有キャッシュを使い、リクエストごとのN+1を避ける。
+    集約SQLと共有キャッシュを使い、リクエストごとのN+1を避える。
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 

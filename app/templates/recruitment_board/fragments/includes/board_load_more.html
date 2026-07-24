@@ -1,0 +1,9 @@
+{# 「さらに表示」ボタン（Phase 3） #}
+{% if has_more %}
+<button type="button"
+        class="board-load-more"
+        data-next-page="{{ page + 1 }}"
+        aria-label="{% if lang == 'ja' %}さらに表示{% else %}Load more{% endif %}">
+    {% if lang == "ja" %}さらに表示...{% else %}Load more...{% endif %}
+</button>
+{% endif %}

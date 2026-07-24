@@ -49,6 +49,25 @@ def get_ip(request: Request) -> str:
     return get_remote_ip(request)
 
 
+BOARD_POST_LIMIT_QUERY = Query(60, ge=1, le=100, description="1回あたりの投稿表示数")
+BOARD_PAGE_QUERY = Query(1, ge=1, description="取得ページ")
+
+
+def _board_has_more(page: int, limit: int, fetched_count: int, total: int) -> bool:
+    if fetched_count <= 0:
+        return False
+    return (page - 1) * limit + fetched_count < total
+
+
+def _board_pagination_context(page: int, limit: int, fetched_count: int, total: int) -> dict:
+    return {
+        "page": page,
+        "has_more": _board_has_more(page, limit, fetched_count, total),
+        "total_posts": total,
+        "append_mode": page > 1,
+    }
+
+
 #* /---*---*---*---*---*---*---*---*/
 #* WebSocket接続管理
 #* /---*---*---*---*---*---*---*---*/
@@ -185,19 +204,22 @@ class GoodToggleResponse(BaseModel):
 #* /---*---*---*---*---*---*---*---*/
 #* チーム募集タブ
 #* /---*---*---*---*---*---*---*---*/
-@router.get("/team", name="team_recruitment_board")
-async def team_recruitment_board(
+TEAM_BOARD_CATEGORIES = frozenset({"all", "trophy", "ranked", "friendly", "event"})
+
+
+async def _fetch_team_board_posts(
+    db: asyncpg.Connection,
     request: Request,
-    lang: str,
-    limit: int = Query(60, ge=1, le=1000, description="投稿表示数の上限"),
-    category: str = Query("all", description="表示するカテゴリー"),
-    mode: str = Query("all", description="表示するモード"),
-    region: str = Query("all", description="表示する地域"),
-    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
-    eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
-    db: asyncpg.Connection = Depends(get_shared_db)
-):
-    # ユーザー情報とメインアカウント情報を取得
+    *,
+    page: int,
+    limit: int,
+    category: str,
+    mode: str,
+    filter: str,
+    region: str,
+    eliminate_duplicates: bool,
+) -> tuple[dict, dict, int]:
+    """チーム募集掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
     main_account: Player | None = None
 
@@ -208,29 +230,26 @@ async def team_recruitment_board(
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
-    
-    # ブロックリストを取得
+
     blocker_user_id = user.id if user else None
-    blocker_anonymous_id = request.cookies.get('brawlanonid') if not user else None
-    
+    blocker_anonymous_id = request.cookies.get("brawlanonid") if not user else None
+
     if blocker_user_id or blocker_anonymous_id:
-        # ユーザーIDか匿名IDが存在する場合のみ、DBからブロックリストを取得
         blocked_ids = await get_blocked_ids(
             db,
             blocker_user_id=blocker_user_id,
-            blocker_anonymous_id=blocker_anonymous_id
+            blocker_anonymous_id=blocker_anonymous_id,
         )
     else:
-        # どちらのIDも存在しない場合は、空の辞書を生成
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
 
-    # 投稿が許可されているか確認
-    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "team", ip = get_ip(request), user_id = user.id if user else None)
+    if category not in TEAM_BOARD_CATEGORIES:
+        category = "all"
 
-    # 投稿を取得
     try:
-        posts_data, _ = await get_posts(
+        posts_data, total_posts = await get_posts(
             db,
+            page=page,
             per_page=limit,
             type="team",
             region=None if region.lower() == "all" else region,
@@ -241,25 +260,121 @@ async def team_recruitment_board(
             eliminate_duplicates=eliminate_duplicates,
             author_user_id=user.id if filter == "only_own_posts" and user else None,
             author_ip=get_ip(request) if filter == "only_own_posts" else None,
-            filter=filter
+            filter=filter,
         )
-    except BrawlStarsAPIError as e:
-        posts_data = [] # APIエラーの場合はブロスタがメンテナンス中のため、投稿は空として渡す
+    except BrawlStarsAPIError:
+        posts_data = []
+        total_posts = 0
     except DataBaseError as e:
         logger.error(f"投稿取得中にデータベースエラー: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
-    
-    # チャットができるかどうかと、リンククリックができるかどうかの情報を各投稿に対して取得
+        raise HTTPException(status_code=500, detail="Error rendering page") from e
+
     posts = {
         post.id: {
             "data": post.to_dict(),
             "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
-            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None)
+            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None),
         }
         for post in posts_data
     }
-    
-    # テンプレートに渡すコンテキスト
+
+    return posts, blocked_ids, total_posts
+
+
+@router.get("/team/fragment", name="team_recruitment_board_fragment")
+async def team_recruitment_board_fragment(
+    request: Request,
+    lang: str,
+    limit: int = BOARD_POST_LIMIT_QUERY,
+    page: int = BOARD_PAGE_QUERY,
+    category: str = Query("all", description="表示するカテゴリー"),
+    mode: str = Query("all", description="表示するモード"),
+    region: str = Query("all", description="表示する地域"),
+    filter: str = Query("all", description="フィルター"),
+    eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    posts, blocked_ids, total_posts = await _fetch_team_board_posts(
+        db,
+        request,
+        page=page,
+        limit=limit,
+        category=category,
+        mode=mode,
+        filter=filter,
+        region=region,
+        eliminate_duplicates=eliminate_duplicates,
+    )
+
+    fetched_count = len(posts)
+    context = {
+        "request": request,
+        "lang": lang,
+        "ip": get_ip(request),
+        "limit": limit,
+        "region": region,
+        "category": category if category in TEAM_BOARD_CATEGORIES else "all",
+        "mode": mode,
+        "filter": filter,
+        "eliminate_duplicates": eliminate_duplicates,
+        "main_account": main_account,
+        "posts": posts,
+        "blocked_ids": blocked_ids,
+        **_board_pagination_context(page, limit, fetched_count, total_posts),
+    }
+
+    template_name = (
+        "recruitment_board/fragments/team_posts_append.html"
+        if page > 1
+        else "recruitment_board/fragments/team_posts_fragment.html"
+    )
+
+    try:
+        return templates.TemplateResponse(template_name, context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
+
+
+@router.get("/team", name="team_recruitment_board")
+async def team_recruitment_board(
+    request: Request,
+    lang: str,
+    limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
+    category: str = Query("all", description="表示するカテゴリー"),
+    mode: str = Query("all", description="表示するモード"),
+    region: str = Query("all", description="表示する地域"),
+    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "team", ip=get_ip(request), user_id=user.id if user else None)
+
+    if category not in TEAM_BOARD_CATEGORIES:
+        category = "all"
+
     context = {
         "request": request,
         "lang": lang,
@@ -271,35 +386,36 @@ async def team_recruitment_board(
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
         "main_account": main_account,
-        "posts": posts,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
-        "blocked_ids": blocked_ids,
-        "current_page": "board"
+        "current_page": "board",
     }
     await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/team.html", context)
-    except Exception as render_err: # テンプレートレンダリングエラーも捕捉
+    except Exception as render_err:
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
 
 
 #* /---*---*---*---*---*---*---*---*/
-#* フレンド募集タブ
+#* フレンド募集タブ / クラブ募集タブ
 #* /---*---*---*---*---*---*---*---*/
-@router.get("/friend", name="friend_recruitment_board")
-async def friend_recruitment_board(
+
+
+async def _fetch_recruitment_board_posts(
+    db: asyncpg.Connection,
     request: Request,
-    lang: str,
-    limit: int = Query(60, ge=1, le=1000, description="投稿表示数の上限"),
-    region: str = Query("all", description="表示する地域"),
-    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
-    eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
-    db: asyncpg.Connection = Depends(get_shared_db)
-):
-    # ユーザー情報とメインアカウント情報を取得
+    *,
+    post_type: str,
+    page: int,
+    limit: int,
+    filter: str,
+    region: str,
+    eliminate_duplicates: bool,
+) -> tuple[dict, dict, int]:
+    """フレンド/クラブ募集掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
     main_account: Player | None = None
 
@@ -311,55 +427,85 @@ async def friend_recruitment_board(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
-    # ブロックリストを取得
     blocker_user_id = user.id if user else None
-    blocker_anonymous_id = request.cookies.get('brawlanonid') if not user else None
-    
+    blocker_anonymous_id = request.cookies.get("brawlanonid") if not user else None
+
     if blocker_user_id or blocker_anonymous_id:
-        # ユーザーIDか匿名IDが存在する場合のみ、DBからブロックリストを取得
         blocked_ids = await get_blocked_ids(
             db,
             blocker_user_id=blocker_user_id,
-            blocker_anonymous_id=blocker_anonymous_id
+            blocker_anonymous_id=blocker_anonymous_id,
         )
     else:
-        # どちらのIDも存在しない場合は、空の辞書を生成
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
 
-    # 投稿が許可されているか確認
-    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "friend", ip = get_ip(request), user_id = user.id if user else None)
-
-    # 投稿を取得
     try:
-        posts_data, _ = await get_posts(
+        posts_data, total_posts = await get_posts(
             db,
+            page=page,
             per_page=limit,
-            type="friend",
+            type=post_type,
             region=None if region.lower() == "all" else region,
             target_user=user if filter == "only_can_participate" and user else None,
             target_player=main_account if filter == "only_can_participate" and main_account else None,
             eliminate_duplicates=eliminate_duplicates,
             author_user_id=user.id if filter == "only_own_posts" and user else None,
             author_ip=get_ip(request) if filter == "only_own_posts" else None,
-            filter=filter
+            filter=filter,
         )
-    except BrawlStarsAPIError as e:
-        posts_data = [] # APIエラーの場合はブロスタがメンテナンス中のため、投稿は空として渡す
+    except BrawlStarsAPIError:
+        posts_data = []
+        total_posts = 0
     except DataBaseError as e:
         logger.error(f"投稿取得中にデータベースエラー: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
-    
-    # チャットができるかどうかと、リンククリックができるかどうかの情報を各投稿に対して取得
+        raise HTTPException(status_code=500, detail="Error rendering page") from e
+
     posts = {
         post.id: {
             "data": post.to_dict(),
             "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
-            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None)
+            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None),
         }
         for post in posts_data
     }
-    
-    # テンプレートに渡すコンテキスト
+
+    return posts, blocked_ids, total_posts
+
+
+@router.get("/friend/fragment", name="friend_recruitment_board_fragment")
+async def friend_recruitment_board_fragment(
+    request: Request,
+    lang: str,
+    limit: int = BOARD_POST_LIMIT_QUERY,
+    page: int = BOARD_PAGE_QUERY,
+    region: str = Query("all", description="表示する地域"),
+    filter: str = Query("all", description="フィルター"),
+    eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    posts, blocked_ids, total_posts = await _fetch_recruitment_board_posts(
+        db,
+        request,
+        post_type="friend",
+        page=page,
+        limit=limit,
+        filter=filter,
+        region=region,
+        eliminate_duplicates=eliminate_duplicates,
+    )
+
+    fetched_count = len(posts)
     context = {
         "request": request,
         "lang": lang,
@@ -370,34 +516,79 @@ async def friend_recruitment_board(
         "eliminate_duplicates": eliminate_duplicates,
         "main_account": main_account,
         "posts": posts,
+        "blocked_ids": blocked_ids,
+        **_board_pagination_context(page, limit, fetched_count, total_posts),
+    }
+
+    template_name = (
+        "recruitment_board/fragments/friend_posts_append.html"
+        if page > 1
+        else "recruitment_board/fragments/friend_posts_fragment.html"
+    )
+
+    try:
+        return templates.TemplateResponse(template_name, context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
+
+
+@router.get("/friend", name="friend_recruitment_board")
+async def friend_recruitment_board(
+    request: Request,
+    lang: str,
+    limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
+    region: str = Query("all", description="表示する地域"),
+    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "friend", ip=get_ip(request), user_id=user.id if user else None)
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "ip": get_ip(request),
+        "limit": limit,
+        "region": region,
+        "filter": filter,
+        "eliminate_duplicates": eliminate_duplicates,
+        "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
-        "blocked_ids": blocked_ids,
-        "current_page": "board"
+        "current_page": "board",
     }
     await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/friend.html", context)
-    except Exception as render_err: # テンプレートレンダリングエラーも捕捉
+    except Exception as render_err:
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
 
 
-#* /---*---*---*---*---*---*---*---*/
-#* クラブ募集タブ
-#* /---*---*---*---*---*---*---*---*/
-@router.get("/club", name="club_recruitment_board")
-async def club_recruitment_board(
+@router.get("/club/fragment", name="club_recruitment_board_fragment")
+async def club_recruitment_board_fragment(
     request: Request,
     lang: str,
-    limit: int = Query(60, ge=1, le=1000, description="投稿表示数の上限"),
+    limit: int = BOARD_POST_LIMIT_QUERY,
+    page: int = BOARD_PAGE_QUERY,
     region: str = Query("all", description="表示する地域"),
-    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    filter: str = Query("all", description="フィルター"),
     eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
-    db: asyncpg.Connection = Depends(get_shared_db)
+    db: asyncpg.Connection = Depends(get_shared_db),
 ):
-    # ユーザー情報とメインアカウント情報を取得
     user: User | None = getattr(request.state, "current_user", None)
     main_account: Player | None = None
 
@@ -409,55 +600,18 @@ async def club_recruitment_board(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
-    # ブロックリストを取得
-    blocker_user_id = user.id if user else None
-    blocker_anonymous_id = request.cookies.get('brawlanonid') if not user else None
-    
-    if blocker_user_id or blocker_anonymous_id:
-        # ユーザーIDか匿名IDが存在する場合のみ、DBからブロックリストを取得
-        blocked_ids = await get_blocked_ids(
-            db,
-            blocker_user_id=blocker_user_id,
-            blocker_anonymous_id=blocker_anonymous_id
-        )
-    else:
-        # どちらのIDも存在しない場合は、空の辞書を生成
-        blocked_ids = {"user_ids": [], "anonymous_ids": []}
+    posts, blocked_ids, total_posts = await _fetch_recruitment_board_posts(
+        db,
+        request,
+        post_type="club",
+        page=page,
+        limit=limit,
+        filter=filter,
+        region=region,
+        eliminate_duplicates=eliminate_duplicates,
+    )
 
-    # 投稿が許可されているか確認
-    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "club", ip = get_ip(request), user_id = user.id if user else None)
-
-    # 投稿を取得
-    try:
-        posts_data, _ = await get_posts(
-            db,
-            per_page=limit,
-            type="club",
-            region=None if region.lower() == "all" else region,
-            target_user=user if filter == "only_can_participate" and user else None,
-            target_player=main_account if filter == "only_can_participate" and main_account else None,
-            eliminate_duplicates=eliminate_duplicates,
-            author_user_id=user.id if filter == "only_own_posts" and user else None,
-            author_ip=get_ip(request) if filter == "only_own_posts" else None,
-            filter=filter
-        )
-    except BrawlStarsAPIError as e:
-        posts_data = [] # APIエラーの場合はブロスタがメンテナンス中のため、投稿は空として渡す
-    except DataBaseError as e:
-        logger.error(f"投稿取得中にデータベースエラー: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
-    
-    # チャットができるかどうかと、リンククリックができるかどうかの情報を各投稿に対して取得
-    posts = {
-        post.id: {
-            "data": post.to_dict(),
-            "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
-            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None)
-        }
-        for post in posts_data
-    }
-    
-    # テンプレートに渡すコンテキスト
+    fetched_count = len(posts)
     context = {
         "request": request,
         "lang": lang,
@@ -468,23 +622,68 @@ async def club_recruitment_board(
         "eliminate_duplicates": eliminate_duplicates,
         "main_account": main_account,
         "posts": posts,
+        "blocked_ids": blocked_ids,
+        **_board_pagination_context(page, limit, fetched_count, total_posts),
+    }
+
+    template_name = (
+        "recruitment_board/fragments/club_posts_append.html"
+        if page > 1
+        else "recruitment_board/fragments/club_posts_fragment.html"
+    )
+
+    try:
+        return templates.TemplateResponse(template_name, context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
+
+
+@router.get("/club", name="club_recruitment_board")
+async def club_recruitment_board(
+    request: Request,
+    lang: str,
+    limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
+    region: str = Query("all", description="表示する地域"),
+    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "club", ip=get_ip(request), user_id=user.id if user else None)
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "ip": get_ip(request),
+        "limit": limit,
+        "region": region,
+        "filter": filter,
+        "eliminate_duplicates": eliminate_duplicates,
+        "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
-        "blocked_ids": blocked_ids,
-        "current_page": "board"
+        "current_page": "board",
     }
     await _append_board_notification_context(context, db, user)
 
     try:
         return templates.TemplateResponse("recruitment_board/club.html", context)
-    except Exception as render_err: # テンプレートレンダリングエラーも捕捉
+    except Exception as render_err:
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
 
 
-#* /---*---*---*---*---*---*---*---*/
-#* なんでも掲示板タブ
-#* /---*---*---*---*---*---*---*---*/
 #* /---*---*---*---*---*---*---*---*/
 #* なんでも掲示板タブ
 #* /---*---*---*---*---*---*---*---*/
@@ -493,46 +692,11 @@ GENERAL_BOARD_TABS = frozenset({"latest", "trending", "own", "participated", "li
 LEGACY_GENERAL_TAB_FILTERS = {"trending": "trending", "only_own_posts": "own", "only_liked_posts": "liked"}
 
 
-@router.get("/general", name="general_board")
-async def general_board(
-    request: Request,
-    lang: str,
-    limit: int = Query(60, ge=1, le=1000, description="投稿表示数の上限"),
-    tab: str = Query("latest", description="表示タブ(latest/trending/own/participated/liked)"),
-    filter: str = Query("all", description="投稿タイプのカテゴリーフィルター"),
-    region: str = Query("all", description="表示する地域"),
-    eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
-    db: asyncpg.Connection = Depends(get_shared_db)
-):
-    # ユーザー情報とメインアカウント情報を取得
-    user: User | None = getattr(request.state, "current_user", None)
-    main_account: Player | None = None
-
-    if user:
-        try:
-            main_account = await get_player_from_db(user.main_account, db)
-        except BrawlStarsAPIError as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
-        except Exception as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
-
-    # ブロックリストを取得
-    blocker_user_id = user.id if user else None
-    blocker_anonymous_id = request.cookies.get('brawlanonid') if not user else None
-    
-    if blocker_user_id or blocker_anonymous_id:
-        blocked_ids = await get_blocked_ids(
-            db,
-            blocker_user_id=blocker_user_id,
-            blocker_anonymous_id=blocker_anonymous_id
-        )
-    else:
-        blocked_ids = {"user_ids": [], "anonymous_ids": []}
-
-    # 投稿が許可されているか確認
-    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "general", ip = get_ip(request), user_id = user.id if user else None)
-
-    # 旧URL互換: filter にタブ相当の値が入っている場合は tab に移す
+def _normalize_general_board_query(
+    filter: str,
+    tab: str,
+) -> tuple[str, str, str | None]:
+    """なんでも掲示板の tab / filter クエリを正規化する。"""
     if filter in LEGACY_GENERAL_TAB_FILTERS:
         tab = LEGACY_GENERAL_TAB_FILTERS[filter]
         filter = "all"
@@ -543,12 +707,43 @@ async def general_board(
     if filter not in GENERAL_BOARD_CATEGORY_FILTERS and filter != "all":
         filter = "all"
 
-    # 投稿を取得
+    return tab, filter, category_filter
+
+
+async def _fetch_general_board_posts(
+    db: asyncpg.Connection,
+    request: Request,
+    *,
+    page: int,
+    limit: int,
+    tab: str,
+    filter: str,
+    region: str,
+    eliminate_duplicates: bool,
+) -> tuple[dict, dict, int]:
+    """なんでも掲示板の投稿一覧とブロックリストを取得する。"""
+    user: User | None = getattr(request.state, "current_user", None)
+
+    blocker_user_id = user.id if user else None
+    blocker_anonymous_id = request.cookies.get("brawlanonid") if not user else None
+
+    if blocker_user_id or blocker_anonymous_id:
+        blocked_ids = await get_blocked_ids(
+            db,
+            blocker_user_id=blocker_user_id,
+            blocker_anonymous_id=blocker_anonymous_id,
+        )
+    else:
+        blocked_ids = {"user_ids": [], "anonymous_ids": []}
+
+    tab, filter, category_filter = _normalize_general_board_query(filter, tab)
+
     try:
         if tab == "trending":
-            posts_data, _ = await get_trending_general_posts(
+            posts_data, total_posts = await get_trending_general_posts(
                 db,
                 per_page=limit,
+                page=page,
                 region=None if region.lower() == "all" else region,
                 category=category_filter,
             )
@@ -568,8 +763,9 @@ async def general_board(
                 posts_filter = "only_liked_posts"
                 target_user_for_posts = user
 
-            posts_data, _ = await get_posts(
+            posts_data, total_posts = await get_posts(
                 db,
+                page=page,
                 per_page=limit,
                 type="general",
                 region=None if region.lower() == "all" else region,
@@ -579,18 +775,19 @@ async def general_board(
                 eliminate_duplicates=eliminate_duplicates,
                 author_user_id=author_user_id,
                 author_ip=author_ip,
-                filter=posts_filter
+                filter=posts_filter,
             )
-    except BrawlStarsAPIError as e:
+    except BrawlStarsAPIError:
         posts_data = []
+        total_posts = 0
     except DataBaseError as e:
         logger.error(f"投稿取得中にデータベースエラー: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error rendering page")
+        raise HTTPException(status_code=500, detail="Error rendering page") from e
 
     vote_summary = await get_general_post_vote_summary(
         db,
         [post.id for post in posts_data],
-        user_id=user.id if user else None
+        user_id=user.id if user else None,
     )
 
     for post in posts_data:
@@ -599,18 +796,55 @@ async def general_board(
             post.up_vote_count = int(summary.get("up_vote_count", 0))
             post.down_vote_count = int(summary.get("down_vote_count", 0))
             post.is_up_voted_by_current_user = bool(summary.get("is_up_voted_by_current_user", False))
-    
-    # チャットができるかどうかと、リンククリックができるかどうかの情報を各投稿に対して取得
+
     posts = {
         post.id: {
             "data": post.to_dict(),
             "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
-            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None)
+            "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None),
         }
         for post in posts_data
     }
-    
-    # テンプレートに渡すコンテキスト
+
+    return posts, blocked_ids, total_posts
+
+
+@router.get("/general/fragment", name="general_board_fragment")
+async def general_board_fragment(
+    request: Request,
+    lang: str,
+    limit: int = BOARD_POST_LIMIT_QUERY,
+    page: int = BOARD_PAGE_QUERY,
+    tab: str = Query("latest", description="表示タブ(latest/trending/own/participated/liked)"),
+    filter: str = Query("all", description="投稿タイプのカテゴリーフィルター"),
+    region: str = Query("all", description="表示する地域"),
+    eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    tab, filter, _ = _normalize_general_board_query(filter, tab)
+    posts, blocked_ids, total_posts = await _fetch_general_board_posts(
+        db,
+        request,
+        page=page,
+        limit=limit,
+        tab=tab,
+        filter=filter,
+        region=region,
+        eliminate_duplicates=eliminate_duplicates,
+    )
+
+    fetched_count = len(posts)
     context = {
         "request": request,
         "lang": lang,
@@ -622,9 +856,64 @@ async def general_board(
         "eliminate_duplicates": eliminate_duplicates,
         "main_account": main_account,
         "posts": posts,
+        "blocked_ids": blocked_ids,
+        **_board_pagination_context(page, limit, fetched_count, total_posts),
+    }
+
+    template_name = (
+        "recruitment_board/fragments/general_posts_append.html"
+        if page > 1
+        else "recruitment_board/fragments/general_posts_fragment.html"
+    )
+
+    try:
+        return templates.TemplateResponse(template_name, context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
+
+
+@router.get("/general", name="general_board")
+async def general_board(
+    request: Request,
+    lang: str,
+    limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
+    tab: str = Query("latest", description="表示タブ(latest/trending/own/participated/liked)"),
+    filter: str = Query("all", description="投稿タイプのカテゴリーフィルター"),
+    region: str = Query("all", description="表示する地域"),
+    eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    # ユーザー情報とメインアカウント情報を取得
+    user: User | None = getattr(request.state, "current_user", None)
+    main_account: Player | None = None
+
+    if user:
+        try:
+            main_account = await get_player_from_db(user.main_account, db)
+        except BrawlStarsAPIError as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+        except Exception as e:
+            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+
+    # 投稿が許可されているか確認
+    is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "general", ip = get_ip(request), user_id = user.id if user else None)
+
+    tab, filter, _ = _normalize_general_board_query(filter, tab)
+
+    # テンプレートに渡すコンテキスト（投稿一覧はフラグメントで遅延読み込み）
+    context = {
+        "request": request,
+        "lang": lang,
+        "ip": get_ip(request),
+        "limit": limit,
+        "region": region,
+        "tab": tab,
+        "filter": filter,
+        "eliminate_duplicates": eliminate_duplicates,
+        "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
-        "blocked_ids": blocked_ids,
         "current_page": "board"
     }
     await _append_board_notification_context(context, db, user)

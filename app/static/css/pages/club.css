@@ -335,11 +335,11 @@
 }
 
 .club-shell__loading-text {
-    color: var(--color-text-secondary, #888);
+    color: var(--color-888, #888);
     font-size: 14px;
 }
 .club-shell__description-text {
-    color: var(--color-text-secondary, #888);
+    color: var(--color-888, #888);
     font-size: 13px;
 }
 
@@ -352,7 +352,7 @@
     gap: 12px;
     padding: 40px 20px;
     text-align: center;
-    color: var(--color-text-secondary, #888);
+    color: var(--color-888, #888);
 }
 
 .club-error-msg {

@@ -1,0 +1,31 @@
+{# /app/templates/recruitment_board/fragments/general_posts_fragment.html #}
+<div class="board-fragment__content">
+    {% if posts %}
+    {# フィルター下の説明文 #}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">
+        {% if lang == "ja" %}
+            ブロスタ関連の<b>雑談</b>や<b>質問</b>、<b>Discordサーバー</b>の募集などに使えるなんでも掲示板です。各投稿には<b>チャットスレッド</b>が付属しています。
+            <br><span style="color: var(--c-red);"><b>【プレゼント企画】</b>7/31(金)まで、なんでも掲示板・キャラクター掲示板での投稿やチャットで<b>ブロスタパス+</b>などが当たる大規模企画。たくさん活動するほど当選確率が<b>最大150倍</b>にアップ。景品や詳細は<a href="/ja/help/announcements#175" style="text-decoration: underline; font-weight: bold;">こちら</a>！</span>
+        {% else %}
+            A general board for Brawl Stars related <b>chats</b>, <b>questions</b>, <b>Discord server</b> promotions, and more. Each post has a <b>chat thread</b> attached.
+            <br><span style="color: var(--c-red);"><b>【Giveaway】</b>Until Jul 31, a large-scale giveaway for a chance to win Brawl Pass Plus and more by posting and chatting on the general board and brawler board. The more you participate, the higher your chances—up to <b>150x</b>. Check <a href="/en/help/announcements#175" style="text-decoration: underline; font-weight: bold;">here</a> for details!</span>
+        {% endif %}
+        </p>
+    </div>
+
+    {# 投稿を表示 #}
+    <div class="posts__container view-compact">
+        {% include "recruitment_board/fragments/includes/general_post_cards.html" %}
+    </div>
+    {% include "recruitment_board/fragments/includes/board_load_more.html" %}
+    {% elif tab == "own" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
+    {% elif tab == "liked" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在いいねした投稿はありません。投稿をいいねして、いつでも見返したりチャットしたりできます。{% else %}No liked posts yet. Like posts to revisit them and chat anytime.{% endif %}</p>
+    {% elif tab == "participated" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}チャットに参加した投稿がここに表示されます。{% else %}Posts you join in chat will appear here.{% endif %}</p>
+    {% else %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在投稿がありません。最初の投稿者になりましょう！{% else %}No posts yet. Be the first to post!{% endif %}</p>
+    {% endif %}
+</div>

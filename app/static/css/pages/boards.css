@@ -279,7 +279,7 @@
     border: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.2s ease;
+    transition: background-color 0.35s ease, transform 0.2s ease, opacity 0.35s ease;
     right: 30px; /* PC版 右からの距離 */
     bottom: calc(30px + var(--banner-ad-height, 0px) + env(safe-area-inset-bottom)); /* PC版 下からの距離 */
     z-index: 1000;
@@ -917,7 +917,7 @@ body.modal-open {
     padding: 5px 10px;
     font-size: 16px;
     font-weight: bold;
-    transition: background-color 0.2s;
+    transition: background-color 0.35s ease, opacity 0.35s ease;
 }
 .reload-button__container:hover {
     background-color: #555;
@@ -932,6 +932,11 @@ body.modal-open {
 .reload-button__container p {
     margin: 0;
     line-height: 1;
+}
+.reload-button__container--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 @media (max-width: 539px) {
@@ -1206,4 +1211,81 @@ body.modal-open {
     .notification-type { min-width: 33px; max-width: 33px; }
     .notification-title__container { font-size: 15px; }
     .notification-target__container { font-size: 15px; }
+}
+
+/* ===== 掲示板シェル ローディング・エラースタイル ===== */
+.board-shell__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 16px;
+    padding: 40px 20px;
+}
+
+.board-shell__spinner {
+    width: 48px;
+    height: 48px;
+    background-color: var(--color-888, #888);
+    -webkit-mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(240 50 50)' opacity='.9'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='black' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M50 15V28' opacity='.1'/%3E%3Cpath d='M50 15V28' transform='rotate(30 50 50)' opacity='.2'/%3E%3Cpath d='M50 15V28' transform='rotate(60 50 50)' opacity='.3'/%3E%3Cpath d='M50 15V28' transform='rotate(90 50 50)' opacity='.4'/%3E%3Cpath d='M50 15V28' transform='rotate(120 50 50)' opacity='.5'/%3E%3Cpath d='M50 15V28' transform='rotate(150 50 50)' opacity='.6'/%3E%3Cpath d='M50 15V28' transform='rotate(180 50 50)' opacity='.7'/%3E%3Cpath d='M50 15V28' transform='rotate(210 50 50)' opacity='.8'/%3E%3Cpath d='M50 15V28' transform='rotate(240 50 50)' opacity='.9'/%3E%3Cpath d='M50 15V28' transform='rotate(270 50 50)' opacity='1'/%3E%3Cpath d='M50 15V28' transform='rotate(300 50 50)' opacity='.08'/%3E%3Cpath d='M50 15V28' transform='rotate(330 50 50)' opacity='.08'/%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-size: cover;
+    mask-size: cover;
+    animation: board-shell-spin 1s steps(12) infinite;
+}
+
+@keyframes board-shell-spin {
+    to { transform: rotate(360deg); }
+}
+
+.board-shell__loading-text {
+    color: var(--color-888, #888);
+    font-size: 14px;
+}
+
+.board-shell__error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-888, #888);
+}
+
+/* ===== さらに表示ボタン（Phase 3） ===== */
+.board-load-more {
+    display: block;
+    width: 100%;
+    margin: 10px auto 8px;
+    padding: 4px 20px;
+    border: 2px dashed var(--color-888, #888);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--color-888, #888);
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.25s ease, opacity 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+@media (max-width: 539px) {
+    .board-load-more {
+        width: 105%;
+        margin: 10px -2.5% 8px;
+    }
+}
+
+.board-load-more:hover:not(.board-load-more--loading) {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: var(--color-333, #333);
+    color: var(--color-333, #333);
+}
+
+.board-load-more--loading {
+    opacity: 0.55;
+    cursor: wait;
+    pointer-events: none;
 }
