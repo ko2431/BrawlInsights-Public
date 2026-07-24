@@ -100,6 +100,7 @@ async def get_trending_general_posts(
     db: asyncpg.Connection,
     per_page: int = 60,
     region: str | None = None,
+    category: str | None = None,
 ) -> tuple[list[Post], int]:
     """なんでも掲示板の投稿を話題順で取得する。候補は直近 candidate_max_age_days 日以内。
 

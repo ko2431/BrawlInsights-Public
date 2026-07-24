@@ -485,12 +485,21 @@ async def club_recruitment_board(
 #* /---*---*---*---*---*---*---*---*/
 #* なんでも掲示板タブ
 #* /---*---*---*---*---*---*---*---*/
+#* /---*---*---*---*---*---*---*---*/
+#* なんでも掲示板タブ
+#* /---*---*---*---*---*---*---*---*/
+GENERAL_BOARD_CATEGORY_FILTERS = frozenset({"chat", "question", "brawl_info", "x", "discord", "youtube", "tiktok"})
+GENERAL_BOARD_TABS = frozenset({"latest", "trending", "own", "participated", "liked"})
+LEGACY_GENERAL_TAB_FILTERS = {"trending": "trending", "only_own_posts": "own", "only_liked_posts": "liked"}
+
+
 @router.get("/general", name="general_board")
 async def general_board(
     request: Request,
     lang: str,
     limit: int = Query(60, ge=1, le=1000, description="投稿表示数の上限"),
-    filter: str = Query("all", description="カテゴリーフィルター、話題の投稿(trending)、自分の投稿のみ表示(only_own_posts)、いいねした投稿のみ表示(only_liked_posts)"),
+    tab: str = Query("latest", description="表示タブ(latest/trending/own/participated/liked)"),
+    filter: str = Query("all", description="投稿タイプのカテゴリーフィルター"),
     region: str = Query("all", description="表示する地域"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db)
@@ -523,32 +532,54 @@ async def general_board(
     # 投稿が許可されているか確認
     is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "general", ip = get_ip(request), user_id = user.id if user else None)
 
-    # filterからカテゴリーを判定
-    category_filter = None
-    if filter in ["chat", "question", "brawl_info", "x", "discord", "youtube", "tiktok"]:
-        category_filter = filter
+    # 旧URL互換: filter にタブ相当の値が入っている場合は tab に移す
+    if filter in LEGACY_GENERAL_TAB_FILTERS:
+        tab = LEGACY_GENERAL_TAB_FILTERS[filter]
+        filter = "all"
+    if tab not in GENERAL_BOARD_TABS:
+        tab = "latest"
+
+    category_filter = filter if filter in GENERAL_BOARD_CATEGORY_FILTERS else None
+    if filter not in GENERAL_BOARD_CATEGORY_FILTERS and filter != "all":
+        filter = "all"
 
     # 投稿を取得
     try:
-        if filter == "trending":
+        if tab == "trending":
             posts_data, _ = await get_trending_general_posts(
                 db,
                 per_page=limit,
                 region=None if region.lower() == "all" else region,
+                category=category_filter,
             )
         else:
+            posts_filter = None
+            target_user_for_posts = None
+            author_user_id = None
+            author_ip = None
+
+            if tab == "own":
+                author_user_id = user.id if user else None
+                author_ip = get_ip(request)
+            elif tab == "participated":
+                posts_filter = "only_participated_threads"
+                target_user_for_posts = user
+            elif tab == "liked":
+                posts_filter = "only_liked_posts"
+                target_user_for_posts = user
+
             posts_data, _ = await get_posts(
                 db,
                 per_page=limit,
                 type="general",
                 region=None if region.lower() == "all" else region,
-                target_user=user if filter == "only_liked_posts" else None,
+                target_user=target_user_for_posts,
                 target_player=None,
                 category=category_filter,
                 eliminate_duplicates=eliminate_duplicates,
-                author_user_id=user.id if filter == "only_own_posts" and user else None,
-                author_ip=get_ip(request) if filter == "only_own_posts" else None,
-                filter=filter
+                author_user_id=author_user_id,
+                author_ip=author_ip,
+                filter=posts_filter
             )
     except BrawlStarsAPIError as e:
         posts_data = []
@@ -586,6 +617,7 @@ async def general_board(
         "ip": get_ip(request),
         "limit": limit,
         "region": region,
+        "tab": tab,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
         "main_account": main_account,

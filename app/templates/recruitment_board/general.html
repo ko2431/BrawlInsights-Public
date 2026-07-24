@@ -45,17 +45,49 @@
 
     {# フィルター #}
     <div class="board-filters__container">
-        <div class="board-filters__filter-row">
-            <form method="get" id="filterForm" class="filter-form">
+        <nav class="sub-tab-nav">
+            <ul class="sub-tab-nav__list">
+                <li class="sub-tab-nav__item">
+                    <a href="{% if tab == 'latest' %}#{% else %}?tab=latest&filter={{ filter }}&limit={{ limit }}&region={{ region }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if tab == 'latest' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/refresh.png') }}" alt="{% if lang == 'ja' %}最新{% else %}Latest{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}最新{% else %}Latest{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if tab == 'trending' %}#{% else %}?tab=trending&filter={{ filter }}&limit={{ limit }}&region={{ region }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if tab == 'trending' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="{% if lang == 'ja' %}話題{% else %}Hot{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}話題{% else %}Hot{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if tab == 'own' %}#{% else %}?tab=own&filter={{ filter }}&limit={{ limit }}&region={{ region }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if tab == 'own' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/battlelog.png') }}" alt="{% if lang == 'ja' %}自分の投稿{% else %}Mine{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}自分の投稿{% else %}Mine{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if tab == 'participated' %}#{% else %}?tab=participated&filter={{ filter }}&limit={{ limit }}&region={{ region }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if tab == 'participated' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}自分が参加{% else %}Joined{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}自分が参加{% else %}Joined{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="{% if tab == 'liked' %}#{% else %}?tab=liked&filter={{ filter }}&limit={{ limit }}&region={{ region }}&eliminate_duplicates={{ eliminate_duplicates }}{% endif %}" class="sub-tab-nav__link {% if tab == 'liked' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="{% if lang == 'ja' %}いいね済み{% else %}Liked{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}いいね済み{% else %}Liked{% endif %}</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <div class="board-filters__filter-row" style="margin-top: 10px;">
+            <form method="get" id="filterForm" class="filter-form" style="margin-top: 0;">
+                <input type="hidden" name="tab" value="{{ tab }}">
                 <input type="hidden" name="limit" value="{{ limit }}">
                 <input type="hidden" name="region" value="{{ region }}">
                 <input type="hidden" name="eliminate_duplicates" value="{{ eliminate_duplicates }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
                 <select name="filter" id="filterSelect" class="filter-form__select" onchange="document.getElementById('filterForm').submit();">
                     <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
-                    <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>
-                    <option value="only_liked_posts" {% if filter == "only_liked_posts" %}selected{% endif %}>{% if lang == "ja" %}いいねした投稿のみ表示{% else %}Only Show Liked Posts{% endif %}</option>
-                    <option value="trending" {% if filter == "trending" %}selected{% endif %}>{% if lang == "ja" %}話題の投稿{% else %}Trending{% endif %}</option>
                     <option value="chat" {% if filter == "chat" %}selected{% endif %}>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</option>
                     <option value="question" {% if filter == "question" %}selected{% endif %}>{% if lang == "ja" %}質問{% else %}Question{% endif %}</option>
                     <option value="brawl_info" {% if filter == "brawl_info" %}selected{% endif %}>{% if lang == "ja" %}ブロスタ情報{% else %}Brawl Info{% endif %}</option>
@@ -331,10 +363,12 @@
         {% endif %}
         {% endfor %}
     </div>
-    {% elif filter == "only_own_posts" %}
+    {% elif tab == "own" %}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
-    {% elif filter == "only_liked_posts" %}
+    {% elif tab == "liked" %}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在いいねした投稿はありません。投稿をいいねして、いつでも見返したりチャットしたりできます。{% else %}No liked posts yet. Like posts to revisit them and chat anytime.{% endif %}</p>
+    {% elif tab == "participated" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}チャットに参加した投稿がここに表示されます。{% else %}Posts you join in chat will appear here.{% endif %}</p>
     {% else %}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在投稿がありません。最初の投稿者になりましょう！{% else %}No posts yet. Be the first to post!{% endif %}</p>
     {% endif %}

@@ -100,7 +100,7 @@
                     </p>
                 </div>
                 {% if notification.target_kind == "general_own_posts" %}
-                <a href="{{ url_for('general_board', lang=lang) }}?filter=only_own_posts" class="notification-target__link">
+                <a href="{{ url_for('general_board', lang=lang) }}?tab=own" class="notification-target__link">
                 {% elif notification.target_kind == "chat" %}
                 <a href="{{ url_for('chat_thread', lang=lang, thread_id=notification.thread_id) }}" class="notification-target__link">
                 {% else %}
