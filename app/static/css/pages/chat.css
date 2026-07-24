@@ -214,6 +214,7 @@
     color: var(--color-555);
     margin-left: 3px;
     margin-bottom: 1px;
+    line-height: 1.25;
 }
 @media (max-width: 539px) {
     .message-bubble__user-name { font-size: 12px; }
