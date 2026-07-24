@@ -25,10 +25,14 @@
     <p class="tools-page__description">{% if lang == "ja" %}現在のガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。現在のガチバトルでは、以下の<b>26マップ</b>からマップがランダムに出現します。{% else %}The following is a list of maps selected for the current ranked season, with map images. In the current ranked season, maps are randomly selected from the following <b>26 maps</b>.{% endif %}</p>
 
     <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202606_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202607_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
     </div>
 
     <p class="tools-page__description" style="margin-top: 20px;">{% if lang == "ja" %}以下は、過去のシーズンのマップ一覧です。{% else %}Below is a list of maps from past seasons.{% endif %}</p>
+
+    <div class="tools-page__image-box">
+        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202606_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    </div>
 
     <div class="tools-page__image-box">
         <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202605_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
