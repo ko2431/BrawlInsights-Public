@@ -217,10 +217,12 @@
                     {% endif %}
                     <div class="message-bubble__content-wrapper">
                         {% if not (current_user and message.user_id == current_user.id) %}
+                            {% set display_name = message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') %}
+                            {% set admin_badge %}{% if message.user_is_admin %}<span class="message-bubble__admin-badge">{% if lang == "ja" %}Brawl Insights 管理者{% else %}Brawl Insights Admin{% endif %}</span>{% endif %}{% endset %}
                             {% if message.user_id and message.user_id == post.host_id %}
-                                <span class="message-bubble__user-name"><b>{{ message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') }}</b> ({% if lang == "ja" %}ホスト{% else %}Host{% endif %})</span>
+                                <span class="message-bubble__user-name"><b>{{ display_name }}</b> ({% if lang == "ja" %}ホスト{% else %}Host{% endif %}){{ admin_badge }}</span>
                             {% else %}
-                                <span class="message-bubble__user-name">{{ message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') }}</span>
+                                <span class="message-bubble__user-name">{{ display_name }}{{ admin_badge }}</span>
                             {% endif %}
                         {% endif %}
                         <div class="message-bubble__content">{{ message.message|censor }}</div>
@@ -563,10 +565,13 @@
                 let userNameHtml = '';
                 if (!isSelf) {
                     const userName = message.user_name || guestName;
+                    const adminBadgeHtml = message.user_is_admin
+                        ? `<span class="message-bubble__admin-badge">${lang === 'ja' ? 'Brawl Insights 管理者' : 'Brawl Insights Admin'}</span>`
+                        : '';
                     if (isHost) {
-                        userNameHtml = `<span class="message-bubble__user-name"><b>${userName}</b> (${lang === 'ja' ? 'ホスト' : 'Host'})</span>`;
+                        userNameHtml = `<span class="message-bubble__user-name"><b>${userName}</b> (${lang === 'ja' ? 'ホスト' : 'Host'})${adminBadgeHtml}</span>`;
                     } else {
-                        userNameHtml = `<span class="message-bubble__user-name">${userName}</span>`;
+                        userNameHtml = `<span class="message-bubble__user-name">${userName}${adminBadgeHtml}</span>`;
                     }
                 }
 

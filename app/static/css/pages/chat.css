@@ -216,6 +216,23 @@
     margin-bottom: 1px;
     line-height: 1.25;
 }
+.message-bubble__admin-badge {
+    display: inline-block;
+    margin-top: -1px;
+    margin-left: 5px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.4;
+    vertical-align: middle;
+    white-space: nowrap;
+    background-color: #e74c3c;
+    color: #fff;
+}
+.dark .message-bubble__admin-badge {
+    background-color: #c0392b;
+}
 @media (max-width: 539px) {
     .message-bubble__user-name { font-size: 12px; }
 }
