@@ -113,6 +113,12 @@
                         <img src="{{ url_for('static', path='/images/banners/brawlpass_calc_banner_slim_' + lang + '.png') }}" alt="報酬量計算機" class="tools-page__content-image--slim">
                     </div>
                 </a>
+                <a href="{{ url_for('trophy_reward_calc', lang=lang) }}">
+                    <div class="tools-page__content tools-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/trophy_reward_banner_' + lang + '.webp') }}" alt="{% if lang == 'ja' %}トロフィー目標報酬計算機{% else %}Trophy Road Reward Calculator{% endif %}" class="tools-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/trophy_reward_banner_slim_' + lang + '.webp') }}" alt="{% if lang == 'ja' %}トロフィー目標報酬計算機{% else %}Trophy Road Reward Calculator{% endif %}" class="tools-page__content-image--slim">
+                    </div>
+                </a>
                 <a href="{{ url_for('starrdrop_chances', lang=lang) }}">
                     <div class="tools-page__content tools-page__content--responsive">
                         <img src="{{ url_for('static', path='/images/banners/drop_chances_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}各種ドロップ/ボックス確率表{% else %}Drop / Box Chances{% endif %}" class="tools-page__content-image">

@@ -41,12 +41,25 @@ router = APIRouter(
 )
 
 DROP_BOXES_PATH = Path(__file__).resolve().parent.parent / "data" / "drop_boxes.json"
+TROPHY_REWARDS_PATH = Path(__file__).resolve().parent.parent / "data" / "trophy_rewards.json"
 LANDSCAPE_ONLY_PROFILE_IMAGE_TYPES: set[str] = {"equipment_skins"}
 
 
 def load_drop_boxes_data() -> dict:
     with DROP_BOXES_PATH.open("r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_trophy_rewards_data() -> dict:
+    with TROPHY_REWARDS_PATH.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def normalize_trophy_rewards_data(request: Request, raw_data: dict) -> dict:
+    data = copy.deepcopy(raw_data)
+    for reward_type in data.get("reward_types", {}).values():
+        reward_type["icon"] = build_static_url(request, reward_type.get("icon"))
+    return data
 
 
 def build_static_url(request: Request, path: str | None) -> str:
@@ -237,6 +250,27 @@ async def reward_calc(
     try:
         return templates.TemplateResponse("tools/reward_calc.html", context)
     except Exception as render_err: # テンプレートレンダリングエラーも捕捉
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page")
+
+@router.get("/trophy_reward_calc", name="trophy_reward_calc")
+async def trophy_reward_calc(
+    request: Request,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    trophy_rewards_data = normalize_trophy_rewards_data(request, load_trophy_rewards_data())
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "trophy_rewards_data": trophy_rewards_data,
+        "current_page": "tools",
+    }
+
+    try:
+        return templates.TemplateResponse("tools/trophy_reward_calc.html", context)
+    except Exception as render_err:
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
 

@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="14.5_V3",
+    version="14.5_V4",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -261,6 +261,7 @@ async def sitemap(request: Request, db: asyncpg.Connection = Depends(get_shared_
         "/ja/tools/ranked_maps", "/en/tools/ranked_maps",
         "/ja/tools/cost_calc", "/en/tools/cost_calc",
         "/ja/tools/reward_calc", "/en/tools/reward_calc",
+        "/ja/tools/trophy_reward_calc", "/en/tools/trophy_reward_calc",
         "/ja/tools/starrdrop_calc", "/en/tools/starrdrop_calc",
         "/ja/tools/trophy_table", "/en/tools/trophy_table",
         "/ja/tools/starrdrop_chances", "/en/tools/starrdrop_chances",

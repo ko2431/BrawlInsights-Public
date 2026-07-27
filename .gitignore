@@ -15,6 +15,7 @@ instance/
 data/
 !app/data/
 !app/data/drop_boxes.json
+!app/data/trophy_rewards.json
 *.db
 *.db-shm
 *.db-wal

@@ -1,0 +1,193 @@
+{# /app/templates/tools/trophy_reward_calc.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】トロフィー目標報酬計算機{% else %}Trophy Road Reward Calculator{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}トロフィーを上げた時に獲得できるトロフィー目標報酬の量を計算できます。{% else %}Calculate the Trophy Road rewards you can earn by reaching higher trophy milestones.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container" x-data="trophyRewardCalculator()" x-init="calculateRewards()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}トロフィー目標報酬計算機{% else %}Trophy Road Reward Calculator{% endif %}</h1>
+
+    <p class="tools-page__description">
+        {% if lang == "ja" %}
+            トロフィーを上げた時に獲得できるトロフィー目標報酬の量を計算できます。
+        {% else %}
+            Calculate the Trophy Road rewards you can earn by reaching higher trophy milestones.
+        {% endif %}
+    </p>
+
+    <div class="tools-page__section" style="margin-top: 0;">
+        <div class="filters__container cost-calc-filters">
+            <div style="display: flex; padding: 0 5px;">
+                <div class="trophy-reward-range">
+                    <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="{% if lang == 'ja' %}トロフィー{% else %}Trophy{% endif %}" class="trophy-reward-range__icon">
+                    <input type="text"
+                        class="form-input starrdrop-form-input trophy-reward-range__input"
+                        placeholder="0"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        autocomplete="off"
+                        :value="startInput"
+                        @input="handleNumericInput('startInput', $event)">
+                    <span class="trophy-reward-range__label">
+                        {% if lang == "ja" %}から{% else %}to{% endif %}
+                    </span>
+                    <input type="text"
+                        class="form-input starrdrop-form-input trophy-reward-range__input"
+                        placeholder="0"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        autocomplete="off"
+                        :value="endInput"
+                        @input="handleNumericInput('endInput', $event)">
+                    <span class="trophy-reward-range__label">
+                        {% if lang == "ja" %}まで{% else %}{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cost__container{% if lang == 'en' %} cost__container--en{% endif %}">
+            <h3 class="cost-section-title">{% if lang == "ja" %}合計報酬量{% else %}Total Rewards{% endif %}</h3>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/coin.png') }}" alt="{% if lang == 'ja' %}コイン{% else %}Coins{% endif %}" class="cost-image">
+                <p class="cost-text" x-text="totals.coins.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/power_point.png') }}" alt="{% if lang == 'ja' %}パワーポイント{% else %}Power Points{% endif %}" class="cost-image">
+                <p class="cost-text" x-text="totals.powerPoints.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/credit.png') }}" alt="{% if lang == 'ja' %}クレジット{% else %}Credits{% endif %}" class="cost-image">
+                <p class="cost-text" x-text="totals.credits.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/bling.png') }}" alt="{% if lang == 'ja' %}ジュエルチップ{% else %}Bling{% endif %}" class="cost-image">
+                <p class="cost-text" x-text="totals.bling.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}スタードロップ{% else %}Starr Drops{% endif %}" class="cost-image cost-image--big">
+                <p class="cost-text" x-text="totals.starrDrops.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}レジェンドレアスタードロップ{% else %}Legendary Starr Drops{% endif %}" class="cost-image cost-image--big">
+                <p class="cost-label cost-label--legendary">{% if lang == "ja" %}レジェンドレア{% else %}Legendary{% endif %}</p>
+                <p class="cost-text" x-text="totals.legendaryStarrDrops.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/chaosdrop.png') }}" alt="{% if lang == 'ja' %}カオスドロップ{% else %}Chaos Drops{% endif %}" class="cost-image cost-image--big">
+                <p class="cost-text" x-text="totals.chaosDrops.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/hypercharge_drop.png') }}" alt="{% if lang == 'ja' %}ハイパーチャージ{% else %}Hypercharge{% endif %}" class="cost-image cost-image--semi-big">
+                <p class="cost-text" x-text="totals.hypercharge.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/icon_brawler_rare.png') }}" alt="{% if lang == 'ja' %}レアキャラクター{% else %}Rare Brawler{% endif %}" class="cost-image">
+                <p class="cost-text" x-text="totals.rareBrawler.toLocaleString()"></p>
+            </div>
+            <div class="cost">
+                <img src="{{ url_for('static', path='/images/ui/icon_brawler_super_rare.png') }}" alt="{% if lang == 'ja' %}スーパーレアキャラクター{% else %}Super Rare Brawler{% endif %}" class="cost-image">
+                <p class="cost-text" x-text="totals.superRareBrawler.toLocaleString()"></p>
+            </div>
+        </div>
+        <p class="info-block__text block total-reward-info-block__text">
+            {% if lang == "ja" %}
+                開始地点の報酬は受け取り済みとして計算されません。機能解放は計算対象に含まれていません。
+            {% else %}
+                Rewards at the starting trophy count are treated as already claimed and excluded. Feature unlocks are not included in the calculation.
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.back-button').forEach(button => {
+            button.addEventListener('click', () => history.back());
+        });
+    });
+</script>
+<script>
+    function trophyRewardCalculator() {
+        const milestones = {{ trophy_rewards_data.milestones | tojson | safe }};
+        const emptyTotals = {
+            coins: 0,
+            powerPoints: 0,
+            credits: 0,
+            bling: 0,
+            starrDrops: 0,
+            legendaryStarrDrops: 0,
+            chaosDrops: 0,
+            hypercharge: 0,
+            rareBrawler: 0,
+            superRareBrawler: 0,
+        };
+
+        return {
+            startInput: '',
+            endInput: '100000',
+            totals: { ...emptyTotals },
+
+            handleNumericInput(field, event) {
+                const sanitized = event.target.value.replace(/\D/g, '');
+                if (event.target.value !== sanitized) {
+                    event.target.value = sanitized;
+                }
+                this[field] = sanitized;
+                this.calculateRewards();
+            },
+
+            parseInput(value) {
+                if (value === '' || value === null || value === undefined) {
+                    return 0;
+                }
+                const parsed = Number(String(value).replace(/,/g, '').trim());
+                if (!Number.isFinite(parsed) || parsed < 0) {
+                    return 0;
+                }
+                return Math.floor(parsed);
+            },
+
+            calculateRewards() {
+                const start = this.parseInput(this.startInput);
+                const end = this.parseInput(this.endInput);
+
+                if (start > end) {
+                    this.totals = { ...emptyTotals };
+                    return;
+                }
+
+                const totals = { ...emptyTotals };
+
+                for (const milestone of milestones) {
+                    const trophy = milestone.trophy;
+                    if (start < trophy && trophy <= end) {
+                        for (const reward of milestone.rewards) {
+                            totals[reward.type] = (totals[reward.type] || 0) + reward.amount;
+                        }
+                    }
+                }
+
+                this.totals = totals;
+            },
+        };
+    }
+</script>
+{% endblock %}
