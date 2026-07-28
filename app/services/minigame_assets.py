@@ -36,5 +36,5 @@ CARD_ASSETS: dict[tuple[str, int], dict] = {
     ("scratch1", 3): {"pool": [_pin(52000064), _pin(52000145), _pin(52000005)]},
     ("scratch1", 4): {"ranks": {1: _pin(52002867), 2: _pin(52002838)}, "decoys": [_pin(52002839), _pin(52002865), _pin(52002829)]},
     ("scratch1", 5): {"ranks": {1: _pin(52002407), 2: _pin(52003172), 3: _pin(52002329)}, "decoys": [_pin(52002325), _pin(52002328)]},
-    ("scratch1", 6): {"ranks": {1: _pin(52001307), 2: _pin(52000368), 3: _pin(52002639)}, "decoys": [_pin(52000608), _pin(52000365)]},
+    ("scratch1", 6): {"ranks": {1: _pin(52001307), 2: _pin(52000368), 3: _pin(52002639)}, "decoys": [_pin(52000608)]},
 }
