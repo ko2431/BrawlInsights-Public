@@ -169,8 +169,8 @@
         const iconTemplate = "{{ url_for('static', path='/images/ranked_icons/1.png') }}";
         return {
             distribution,
-            metric: 'highest',
-            mode: 'percent',
+            metric: 'current',
+            mode: 'rank',
             showAll: false,
             get currentData() {
                 return this.distribution ? this.distribution[this.metric] : null;

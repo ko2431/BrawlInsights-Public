@@ -160,6 +160,7 @@ th {
     background: #222;
     border-color: #222;
     color: #fff;
+    cursor: default;
 }
 .ranked-dist-tabs__btn--active:hover {
     background: #222;
@@ -211,7 +212,7 @@ th {
     color: var(--color-333);
 }
 .dark .ranked-dist-row__percent-label {
-    color: #222;
+    color: #eee;
 }
 .ranked-dist-row__percent {
     font-weight: 700;
@@ -220,7 +221,7 @@ th {
     color: var(--color-222);
 }
 .dark .ranked-dist-row__percent {
-    color: #1a1a1a;
+    color: #fff;
 }
 .ranked-dist-row__rank-icon {
     width: 22px;
@@ -234,7 +235,7 @@ th {
     white-space: nowrap;
 }
 .dark .ranked-dist-row__rank-name {
-    color: #1a1a1a;
+    color: #fff;
 }
 .ranked-dist-row__rank-name--emphasis {
     font-size: 14.5px;
@@ -247,11 +248,12 @@ th {
     margin-left: 2px;
 }
 .dark .ranked-dist-row__score {
-    color: #111;
+    color: #fff;
 }
 .ranked-dist-row__left--rank .ranked-dist-row__score {
     font-size: 12.5px;
     margin-top: 2px;
+    margin-left: 0;
 }
 
 /* 評価グレード (プロフィール評価と同一) */
