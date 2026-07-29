@@ -1,0 +1,212 @@
+{# /app/templates/stats/ranked_rank_distribution.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトル最高スコア・現在スコアの分布を確認できます。{% else %}View the distribution of Brawl Stars Ranked highest and current scores, with top %, rating grades, and in-game ranks.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="stats-page__container ranked-dist-page"
+     x-data='rankedDistPage({{ distribution | tojson }})'>
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}</h1>
+
+    <div class="info-block ranked-dist-page__info">
+        <p class="info-block__text">
+            {% if lang == "ja" %}
+            多くのアクティブなプレイヤーデータから算出した、ガチバトルスコアの分布です。アクティブでないプレイヤーは含まれないため、ゲーム内で遭遇する分布に近い、<b>ややレベルの高い評価</b>になっています。
+            {% else %}
+            This is the distribution of Ranked scores calculated from many active players. Inactive players are excluded, so it tends to be slightly higher and closer to the distribution you'll encounter in-game.
+            {% endif %}
+        </p>
+    </div>
+
+    {# 指標タブ: 最高 / 現在 #}
+    <div class="ranked-dist-tabs" role="tablist" aria-label="{% if lang == 'ja' %}スコア種別{% else %}Score type{% endif %}">
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': metric === 'highest' }"
+                @click="metric = 'highest'"
+                role="tab"
+                :aria-selected="metric === 'highest'">
+            {% if lang == "ja" %}最高スコア{% else %}Highest Score{% endif %}
+        </button>
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': metric === 'current' }"
+                @click="metric = 'current'"
+                role="tab"
+                :aria-selected="metric === 'current'">
+            {% if lang == "ja" %}現在スコア{% else %}Current Score{% endif %}
+        </button>
+    </div>
+
+    {# 表示モードタブ: 上位% / ランク #}
+    <div class="ranked-dist-tabs ranked-dist-tabs--secondary" role="tablist" aria-label="{% if lang == 'ja' %}表示モード{% else %}View mode{% endif %}">
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': mode === 'percent' }"
+                @click="mode = 'percent'"
+                role="tab"
+                :aria-selected="mode === 'percent'">
+            {% if lang == "ja" %}上位%ベース{% else %}By Top %{% endif %}
+        </button>
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': mode === 'rank' }"
+                @click="mode = 'rank'"
+                role="tab"
+                :aria-selected="mode === 'rank'">
+            {% if lang == "ja" %}ランクベース{% else %}By Rank{% endif %}
+        </button>
+    </div>
+
+    {# <p class="ranked-dist-page__meta" x-show="currentMetaText" x-text="currentMetaText" x-cloak></p> #} {# 非表示 #}
+
+    <template x-if="!currentData || !currentData.available">
+        <p class="ranked-dist-page__empty">
+            {% if lang == "ja" %}分布データを読み込めませんでした。しばらくしてから再度お試しください。{% else %}Could not load distribution data. Please try again later.{% endif %}
+        </p>
+    </template>
+
+    {# --- 上位%ベース --- #}
+    <div class="ranked-dist-list" x-show="currentData && currentData.available && mode === 'percent'" x-cloak>
+        <template x-for="row in visiblePercentRows" :key="metric + '-p-' + row.percent_key">
+            <div class="ranked-dist-row" :class="row.theme_class">
+                <div class="ranked-dist-row__left">
+                    <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
+                    <span class="ranked-dist-row__percent-label">{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
+                </div>
+                <div class="ranked-dist-row__right">
+                    <template x-if="row.rank > 0">
+                        <img :src="rankedIconUrl(row.rank)"
+                             :alt="rankName(row.rank)"
+                             class="ranked-dist-row__rank-icon">
+                    </template>
+                    <span class="ranked-dist-row__rank-name" x-text="rankName(row.rank)"></span>
+                    <span class="ranked-dist-row__score" x-text="formatScore(row.score)"></span>
+                </div>
+            </div>
+        </template>
+
+        <button type="button" class="ranked-dist-toggle" @click="showAll = !showAll">
+            <span x-show="!showAll">{% if lang == "ja" %}表示を増やす{% else %}Show More{% endif %}</span>
+            <span x-show="showAll" x-cloak>{% if lang == "ja" %}表示を減らす{% else %}Show Less{% endif %}</span>
+            <span class="ranked-dist-toggle__icon" x-text="showAll ? '△' : '▽'"></span>
+        </button>
+    </div>
+
+    {# --- ランクベース --- #}
+    <div class="ranked-dist-list" x-show="currentData && currentData.available && mode === 'rank'" x-cloak>
+        <template x-for="row in currentData.rank_rows" :key="metric + '-r-' + row.rank">
+            <div class="ranked-dist-row" :class="row.theme_class">
+                <div class="ranked-dist-row__left ranked-dist-row__left--rank">
+                    <template x-if="row.rank > 0">
+                        <img :src="rankedIconUrl(row.rank)"
+                             :alt="rankName(row.rank)"
+                             class="ranked-dist-row__rank-icon">
+                    </template>
+                    <span class="ranked-dist-row__rank-name ranked-dist-row__rank-name--emphasis" x-text="rankName(row.rank)"></span>
+                    <span class="ranked-dist-row__score" x-text="formatScore(row.score)"></span>
+                </div>
+                <div class="ranked-dist-row__right ranked-dist-row__right--rank">
+                    <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
+                    <span class="ranked-dist-row__percent-label">{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    function rankedDistPage(distribution) {
+        const rankNames = {% if lang == "ja" %}{
+            0: 'ランクなし', 1: 'ブロンズ Ⅰ', 2: 'ブロンズ Ⅱ', 3: 'ブロンズ Ⅲ',
+            4: 'シルバー Ⅰ', 5: 'シルバー Ⅱ', 6: 'シルバー Ⅲ',
+            7: 'ゴールド Ⅰ', 8: 'ゴールド Ⅱ', 9: 'ゴールド Ⅲ',
+            10: 'ダイヤモンド Ⅰ', 11: 'ダイヤモンド Ⅱ', 12: 'ダイヤモンド Ⅲ',
+            13: 'エリート Ⅰ', 14: 'エリート Ⅱ', 15: 'エリート Ⅲ',
+            16: 'レジェンド Ⅰ', 17: 'レジェンド Ⅱ', 18: 'レジェンド Ⅲ',
+            19: 'マスター Ⅰ', 20: 'マスター Ⅱ', 21: 'マスター Ⅲ',
+            22: 'プロ'
+        }{% else %}{
+            0: 'No Rank', 1: 'Bronze Ⅰ', 2: 'Bronze Ⅱ', 3: 'Bronze Ⅲ',
+            4: 'Silver Ⅰ', 5: 'Silver Ⅱ', 6: 'Silver Ⅲ',
+            7: 'Gold Ⅰ', 8: 'Gold Ⅱ', 9: 'Gold Ⅲ',
+            10: 'Diamond Ⅰ', 11: 'Diamond Ⅱ', 12: 'Diamond Ⅲ',
+            13: 'Mythic Ⅰ', 14: 'Mythic Ⅱ', 15: 'Mythic Ⅲ',
+            16: 'Legendary Ⅰ', 17: 'Legendary Ⅱ', 18: 'Legendary Ⅲ',
+            19: 'Masters Ⅰ', 20: 'Masters Ⅱ', 21: 'Masters Ⅲ',
+            22: 'Pro'
+        }{% endif %};
+        const lang = {{ lang | tojson }};
+        const iconTemplate = "{{ url_for('static', path='/images/ranked_icons/1.png') }}";
+        return {
+            distribution,
+            metric: 'highest',
+            mode: 'percent',
+            showAll: false,
+            get currentData() {
+                return this.distribution ? this.distribution[this.metric] : null;
+            },
+            get visiblePercentRows() {
+                const data = this.currentData;
+                if (!data) return [];
+                return this.showAll ? data.percent_rows_expanded : data.percent_rows_compact;
+            },
+            get currentMetaText() {
+                const data = this.currentData;
+                if (!data || !data.available || !data.population) return '';
+                const pop = Number(data.population).toLocaleString();
+                if (lang === 'ja') {
+                    return `集計対象: 約${pop}人のアクティブプレイヤー`;
+                }
+                return `Based on about ${pop} active players`;
+            },
+            rankName(rank) {
+                return rankNames[rank] || rankNames[String(rank)] || '-';
+            },
+            rankedIconUrl(rank) {
+                if (!rank || rank <= 0) return '';
+                return iconTemplate.replace('1.png', String(rank) + '.png');
+            },
+            formatScore(score) {
+                if (score == null) return '-';
+                return Number(score).toLocaleString();
+            }
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelector('.ranked-dist-page')?.addEventListener('click', (e) => {
+            if (e.target.closest('.back-button')) history.back();
+        });
+    });
+    </script>
+{% endblock %}

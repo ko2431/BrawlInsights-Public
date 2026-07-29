@@ -106,3 +106,236 @@ th {
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+/* =========================================
+   ガチバトルランク分布
+   ========================================= */
+.ranked-dist-page__info {
+    margin: 12px 0 18px;
+    padding: 0;
+}
+.ranked-dist-page__meta {
+    margin: 8px 0 12px;
+    font-size: 13px;
+    color: var(--color-555);
+}
+.ranked-dist-page__empty {
+    margin-top: 24px;
+    text-align: center;
+    color: var(--color-555);
+}
+
+.ranked-dist-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.ranked-dist-tabs--secondary {
+    margin-bottom: 12px;
+}
+.ranked-dist-tabs__btn {
+    flex: 1;
+    border: 1px solid var(--color-ccc);
+    background: var(--color-fff);
+    color: var(--color-333);
+    border-radius: 10px;
+    padding: 4px 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dark .ranked-dist-tabs__btn {
+    background: #2a2a2a;
+    border-color: #555;
+    color: #eee;
+}
+.ranked-dist-tabs__btn:hover {
+    background: var(--color-eee);
+}
+.dark .ranked-dist-tabs__btn:hover {
+    background: #333;
+}
+.ranked-dist-tabs__btn--active {
+    background: #222;
+    border-color: #222;
+    color: #fff;
+}
+.ranked-dist-tabs__btn--active:hover {
+    background: #222;
+    color: #fff;
+}
+.dark .ranked-dist-tabs__btn--active,
+.dark .ranked-dist-tabs__btn--active:hover {
+    background: #fff;
+    border-color: #ccc;
+    color: #333;
+}
+
+.ranked-dist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.ranked-dist-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    border-radius: 9px;
+    padding: 2px 6px;
+    min-height: 32px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.dark .ranked-dist-row {
+    border-color: rgba(255, 255, 255, 0.08);
+}
+.ranked-dist-row__left,
+.ranked-dist-row__right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+}
+.ranked-dist-row__left {
+    flex: 1 1 auto;
+}
+.ranked-dist-row__right {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+}
+.ranked-dist-row__percent-label {
+    font-size: 0.95em;
+    color: var(--color-333);
+}
+.dark .ranked-dist-row__percent-label {
+    color: #222;
+}
+.ranked-dist-row__percent {
+    font-weight: 700;
+    font-size: 14.5px;
+    margin-left: -2px;
+    color: var(--color-222);
+}
+.dark .ranked-dist-row__percent {
+    color: #1a1a1a;
+}
+.ranked-dist-row__rank-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+.ranked-dist-row__rank-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--color-222);
+    white-space: nowrap;
+}
+.dark .ranked-dist-row__rank-name {
+    color: #1a1a1a;
+}
+.ranked-dist-row__rank-name--emphasis {
+    font-size: 14.5px;
+}
+.ranked-dist-row__score {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-size: 14.5px;
+    color: var(--color-111);
+    margin-left: 2px;
+}
+.dark .ranked-dist-row__score {
+    color: #111;
+}
+.ranked-dist-row__left--rank .ranked-dist-row__score {
+    font-size: 12.5px;
+    margin-top: 2px;
+}
+
+/* 評価グレード (プロフィール評価と同一) */
+.ranked-dist-page .stats-table-rating-grade {
+    font-size: 13.5px;
+    font-weight: bold;
+    padding: 0 4px;
+    background-color: var(--color-ddd);
+    border-radius: 5px;
+    margin-right: 2px;
+}
+.ranked-dist-page .stats-table-rating-grade--SS { background-color: rgba(253, 0, 207, 0.8); color: #fff; }
+.ranked-dist-page .stats-table-rating-grade--S\+ { background-color: rgba(253, 0, 105, 0.8); color: #fff; }
+.ranked-dist-page .stats-table-rating-grade--S { background-color: rgba(253, 0, 0, 0.8); color: #fff; }
+.ranked-dist-page .stats-table-rating-grade--S- { background-color: rgba(253, 76, 0, 0.8); color: #fff; }
+.ranked-dist-page .stats-table-rating-grade--A\+ { background-color: rgba(253, 202, 0, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--A { background-color: rgba(253, 228, 0, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--A- { background-color: rgba(215, 253, 0, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--B\+ { background-color: rgba(105, 253, 0, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--B { background-color: rgba(0, 253, 101, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--B- { background-color: rgba(0, 253, 169, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--C\+ { background-color: rgba(0, 253, 253, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--C { background-color: rgba(0, 219, 253, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--C- { background-color: rgba(0, 190, 253, 0.8); color: #000; }
+.ranked-dist-page .stats-table-rating-grade--D\+ { background-color: rgba(0, 152, 253, 0.8); color: #fff; }
+.ranked-dist-page .stats-table-rating-grade--D { background-color: rgba(0, 93, 253, 0.8); color: #fff; }
+.ranked-dist-page .stats-table-rating-grade--D- { background-color: rgba(0, 38, 253, 0.8); color: #fff; }
+
+/* ランク帯テーマカラー */
+.ranked-dist-row--none { background-color: rgba(160, 160, 160, 0.28); }
+.ranked-dist-row--bronze { background-color: rgba(176, 125, 72, 0.34); }
+.ranked-dist-row--silver { background-color: rgba(160, 170, 185, 0.42); }
+.ranked-dist-row--gold { background-color: rgba(230, 180, 40, 0.38); }
+.ranked-dist-row--diamond { background-color: rgba(70, 190, 230, 0.36); }
+.ranked-dist-row--mythic { background-color: rgba(160, 90, 230, 0.34); }
+.ranked-dist-row--legendary { background-color: rgba(235, 70, 70, 0.34); }
+.ranked-dist-row--masters { background-color: rgba(245, 210, 40, 0.42); }
+.ranked-dist-row--pro { background-color: rgba(150, 220, 50, 0.40); }
+
+.ranked-dist-toggle {
+    margin-top: 2px;
+    width: 100%;
+    border: none;
+    border-radius: 9px;
+    padding: 4px 12px;
+    background: var(--color-eee);
+    color: var(--color-555);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.dark .ranked-dist-toggle {
+    background: #333;
+    color: #ccc;
+}
+.ranked-dist-toggle:hover {
+    filter: brightness(0.97);
+}
+.ranked-dist-toggle__icon {
+    font-size: 12px;
+}
+
+@media (max-width: 539px) {
+    .ranked-dist-tabs__btn {
+        font-size: 15px;
+        padding: 3px 6px;
+    }
+    .ranked-dist-list {
+        gap: 6px;
+    }
+    .ranked-dist-row__rank-name {
+        font-size: 13px;
+    }
+    .ranked-dist-row__right .ranked-dist-row__score,
+    .ranked-dist-row__percent {
+        font-size: 13.5px;
+    }
+    .ranked-dist-row__left--rank .ranked-dist-row__score {
+        font-size: 11px;
+    }
+    .ranked-dist-row__right--rank {
+        gap: 3px 5px;
+    }
+}

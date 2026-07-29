@@ -34,6 +34,14 @@
                         <img src="{{ url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png') }}" alt="ガチバトルTier表" class="stats-page__content-image">
                     </div>
                 </a>
+                {% if current_user and current_user.is_admin %}
+                <a href="{{ url_for('ranked_rank_distribution', lang=lang) }}">
+                    <div class="stats-page__content stats-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/ranked_dist_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}" class="stats-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/ranked_dist_banner_slim_' + lang + '.png') }}" alt="{% if lang == 'ja' %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}" class="stats-page__content-image--slim">
+                    </div>
+                </a>
+                {% endif %}
                 <a href="{{ url_for('ranked_ranking', lang=lang) }}">
                     <div class="stats-page__content stats-page__content--responsive">
                         <img src="{{ url_for('static', path='/images/banners/ranked_lb_banner_' + lang + '.png') }}" alt="ガチバトルランキング" class="stats-page__content-image">
