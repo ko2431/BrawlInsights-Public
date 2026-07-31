@@ -1318,11 +1318,25 @@
                 });
 
                 textarea.addEventListener('keydown', function(event) {
-                    // Cmd+Enter (Mac) または Ctrl+Enter (Windows) が押された場合
-                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                        event.preventDefault(); // デフォルトの動作をキャンセル
-                        if (!sendButton.disabled) {
-                            sendButton.click(); // 送信ボタンのクリックイベントを発火させる
+                    if (event.key === 'Enter') {
+                        // Cmd+Enter (Mac) または Ctrl+Enter (Windows) は常に送信
+                        if (event.metaKey || event.ctrlKey) {
+                            event.preventDefault();
+                            if (!sendButton.disabled) {
+                                sendButton.click();
+                            }
+                            return;
+                        }
+                        // Shift+Enter は常に改行
+                        if (event.shiftKey) {
+                            return;
+                        }
+                        // Enter 単体: 「改行キーで送信」がオンの場合のみ送信
+                        if (localStorage.getItem('bi_chat_enter_to_send') === 'true') {
+                            event.preventDefault();
+                            if (!sendButton.disabled) {
+                                sendButton.click();
+                            }
                         }
                     }
 
