@@ -1317,7 +1317,7 @@ async def websocket_endpoint(
 
         # 3. 接続処理とリスナー開始
         await manager.connect(websocket, thread_id)
-        logger.info(f"WebSocket接続確立 (スレッド: {thread_id}, ユーザー: {user_info['name']})")
+        logger.debug(f"WebSocket接続確立 (スレッド: {thread_id}, ユーザー: {user_info['name']})")
 
         # 4. メッセージ受信ループ (ここではDB接続を保持しない)
         while True:
@@ -1341,7 +1341,6 @@ async def websocket_endpoint(
                     logger.warning(f"未定義のイベントタイプを受信: {event_type}")
 
             except WebSocketDisconnect:
-                logger.debug(f"クライアントが切断しました (スレッド: {thread_id}, ユーザー: {user_info['name']})")
                 break # ループを抜けてfinallyへ
             except json.JSONDecodeError:
                 logger.warning(f"不正なJSONデータを受信しました。")
@@ -1358,7 +1357,7 @@ async def websocket_endpoint(
 
     finally:
         # 終了処理 ---
-        logger.info(f"WebSocket接続終了 (スレッド: {thread_id}, ユーザー: {user_info['name']})")
+        logger.debug(f"WebSocket接続終了 (スレッド: {thread_id}, ユーザー: {user_info['name']})")
         # タイピング終了を通知
         await manager.broadcast(
             thread_id,
