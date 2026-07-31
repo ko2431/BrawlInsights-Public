@@ -224,6 +224,9 @@
                 <p class="post-comment">{%- if post.comment -%}<b>{% if lang == "ja" %}ホストのコメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}{%- else -%}<span style="color: #888;"><i>({% if lang == "ja" %}ホストのコメントはありません{% else %}No Comment{% endif %})</i></span>{%- endif -%}{%- if post.type in ['team', 'friend', 'general'] and post.hostplayer -%}<br><b>{% if lang == "ja" %}ホストのプロフィール{% else %}Host Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=post.hostplayer.tag[1:]) }}" class="post-comment__profile-link">{{ post.hostplayer.name }} ({{ post.hostplayer.tag }})</a>{%- endif -%}</p>
             {% endif %}
         </div>
+        <div id="older-messages-loader" class="older-messages-loader" hidden aria-hidden="true">
+            <span class="older-messages-loader__text">{% if lang == "ja" %}読み込み中...{% else %}Loading...{% endif %}</span>
+        </div>
         {% for message_id, msg_data in messages.items() %}
             {% set message = msg_data.data %}
             {% if not message.is_deleted and message.user_id not in blocked_ids.user_ids %} {# 削除済みメッセージとブロック済みメッセージは表示しない #}
@@ -379,7 +382,10 @@
             const reactionListMenu = document.getElementById('reaction-list-menu');
             const reactionListBody = document.getElementById('reaction-list-body');
             const newMessagesIndicator = document.getElementById('new-messages-indicator');
+            const olderMessagesLoader = document.getElementById('older-messages-loader');
             const NEAR_BOTTOM_THRESHOLD_PX = 100;
+            const LOAD_OLDER_THRESHOLD_PX = 200;
+            const CHAT_MESSAGES_BATCH_SIZE = 200;
             
             // --- 状態管理とJinja2からの変数 ---
             let currentPostState = {{ post.to_dict() | tojson }};
@@ -389,6 +395,8 @@
             const postHostId = {{ post.host_id if post.host_id else 'null' }};
             const lang = "{{ lang }}";
             const threadId = {{ post.id }};
+            let hasMoreOlderMessages = {{ 'true' if has_more_older_messages else 'false' }};
+            let isLoadingOlderMessages = false;
 
             const EMOJIS = ["❤️", "👀", "😄", "😲", "🥲", "😭", "😡"];
             let activeMessageId = null;
@@ -398,7 +406,7 @@
             // リアクションの状態を管理するオブジェクト
             let messageReactions = {};
             {% for msg_id, msg_data in messages.items() %}
-                messageReactions[{{ msg_id }}] = {{ msg_data.reactions[0] | tojson }};
+                messageReactions[{{ msg_id }}] = {{ msg_data.reactions | tojson }};
             {% endfor %}
 
             // --- 初期化処理 ---
@@ -658,22 +666,24 @@
                 newMessagesIndicator.hidden = true;
             }
 
-            // --- 新しいメッセージを画面に追加 ---
-            function appendNewMessage(message) {
-                // 自分のメッセージかどうかを判定
+            function getOldestLoadedMessageId() {
+                const firstBubble = messagesContainer?.querySelector('.message-bubble:not(.message-bubble--deleting)');
+                if (!firstBubble) return null;
+                const messageId = Number(firstBubble.dataset.messageId);
+                return Number.isFinite(messageId) ? messageId : null;
+            }
+
+            function setOlderMessagesLoaderVisible(visible) {
+                if (!olderMessagesLoader) return;
+                olderMessagesLoader.hidden = !visible;
+                olderMessagesLoader.setAttribute('aria-hidden', visible ? 'false' : 'true');
+            }
+
+            function buildMessageBubbleHtml(message, { includeReactionPrompt = false } = {}) {
                 const isSelf = message.user_id === currentUserId;
                 const bubbleClass = isSelf ? 'message-bubble message-bubble--self' : 'message-bubble';
                 const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
-                // 追加前に判定（追加後は scrollHeight が増えて誤判定になる）
-                const stickToBottom = isSelf || isNearBottom();
 
-                // 以前のプロンプトを削除する
-                const existingPrompt = document.querySelector('.reaction-prompt');
-                if (existingPrompt) {
-                    existingPrompt.remove();
-                }
-                
-                // アイコンとユーザー名部分のHTML（他人メッセージのみ）
                 let authorIconHtml = '';
                 if (!isSelf) {
                     const clickableClass = message.user_main_account_tag ? 'message-bubble__icon-wrapper--clickable' : '';
@@ -684,6 +694,7 @@
                         </div>
                     `;
                 }
+
                 const isHost = message.user_id && message.user_id === postHostId;
                 let userNameHtml = '';
                 if (!isSelf) {
@@ -698,21 +709,18 @@
                     }
                 }
 
-                // タイムスタンプの生成
                 const timestampText = lang === 'ja' ? message.created_at_text_ja : message.created_at_text_en;
-                
-                // 新しいメッセージなので、必ずプロンプト付きのタイムスタンプを生成
+                const reactionPromptHtml = includeReactionPrompt
+                    ? `<span class="reaction-prompt"> - ${lang === 'ja' ? 'メッセージをタップしてリアクション' : 'Tap message to react'}</span>`
+                    : '';
                 const timestampHtml = `
                     <span class="message-bubble__timestamp">
                         ${timestampText}
-                        <span class="reaction-prompt">
-                            - ${lang === 'ja' ? 'メッセージをタップしてリアクション' : 'Tap message to react'}
-                        </span>
+                        ${reactionPromptHtml}
                     </span>
                 `;
 
-                // data-* 属性を含めてメッセージ全体を生成
-                const messageHtml = `
+                return `
                     <div class="${bubbleClass}"
                         id="message-${message.id}"
                         data-message-id="${message.id}"
@@ -730,6 +738,81 @@
                         </div>
                     </div>
                 `;
+            }
+
+            function prependOlderMessages(messagesPayload) {
+                if (!messagesContainer || !messagesPayload.length) return;
+
+                const previousScrollHeight = messagesContainer.scrollHeight;
+                const insertionTarget = messagesContainer.querySelector('.message-bubble');
+                const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
+
+                if (insertionTarget) {
+                    insertionTarget.insertAdjacentHTML('beforebegin', messagesHtml);
+                } else {
+                    messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
+                }
+
+                messagesPayload.forEach(item => {
+                    messageReactions[item.data.id] = item.reactions || [];
+                    renderReactionSummary(item.data.id);
+                });
+
+                updateMessageGrouping();
+                messagesContainer.scrollTop += messagesContainer.scrollHeight - previousScrollHeight;
+            }
+
+            async function loadOlderMessages() {
+                if (!hasMoreOlderMessages || isLoadingOlderMessages) return;
+
+                const beforeMessageId = getOldestLoadedMessageId();
+                if (!beforeMessageId) return;
+
+                isLoadingOlderMessages = true;
+                setOlderMessagesLoaderVisible(true);
+
+                try {
+                    const params = new URLSearchParams({
+                        before_message_id: String(beforeMessageId),
+                        per_page: String(CHAT_MESSAGES_BATCH_SIZE),
+                    });
+                    const response = await fetch(`/${lang}/boards/chat/${threadId}/messages?${params.toString()}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to load older messages');
+                    }
+
+                    const data = await response.json();
+                    prependOlderMessages(data.messages || []);
+                    hasMoreOlderMessages = Boolean(data.has_more);
+                } catch (error) {
+                    console.error('Error loading older messages:', error);
+                } finally {
+                    isLoadingOlderMessages = false;
+                    setOlderMessagesLoaderVisible(false);
+                }
+            }
+
+            function maybeLoadOlderMessages() {
+                if (!messagesContainer || !hasMoreOlderMessages || isLoadingOlderMessages) return;
+                if (messagesContainer.scrollTop <= LOAD_OLDER_THRESHOLD_PX) {
+                    loadOlderMessages();
+                }
+            }
+
+            // --- 新しいメッセージを画面に追加 ---
+            function appendNewMessage(message) {
+                // 自分のメッセージかどうかを判定
+                const isSelf = message.user_id === currentUserId;
+                // 追加前に判定（追加後は scrollHeight が増えて誤判定になる）
+                const stickToBottom = isSelf || isNearBottom();
+
+                // 以前のプロンプトを削除する
+                const existingPrompt = document.querySelector('.reaction-prompt');
+                if (existingPrompt) {
+                    existingPrompt.remove();
+                }
+
+                const messageHtml = buildMessageBubbleHtml(message, { includeReactionPrompt: true });
                 
                 messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
                 updateMessageGrouping();
@@ -1213,6 +1296,7 @@
                 hideMessageMenu();
                 hideHostMenu();
                 hideReactionMenu();
+                maybeLoadOlderMessages();
                 if (isNearBottom()) {
                     hideNewMessagesIndicator();
                 }

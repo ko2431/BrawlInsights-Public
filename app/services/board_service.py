@@ -176,7 +176,8 @@ async def get_message(db: asyncpg.Connection, id: int, include_deleted_message: 
     # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_messages(db: asyncpg.Connection, page: int = 1, per_page: int = 100, thread_id: int | None = None,
-                       include_deleted_message: bool = False, after_message_id: int | None = None) -> tuple[list[Message], int]:
+                       include_deleted_message: bool = False, after_message_id: int | None = None,
+                       before_message_id: int | None = None) -> tuple[list[Message], int]:
     """メッセージを、条件に合わせて新しい順に取得する。1秒間のキャッシュを使用する。
 
     Args:
@@ -186,6 +187,7 @@ async def get_messages(db: asyncpg.Connection, page: int = 1, per_page: int = 10
         thread_id (int | None): スレッドのID。指定されなかった場合は、スレッドで絞り込みせずすべてのメッセージを取得する。
         include_deleted_message (bool): 削除されているメッセージも取得対象とするかどうか。デフォルトはFalse。
         after_message_id (int | None): 指定した場合、このメッセージIDより後のメッセージのみ取得する。
+        before_message_id (int | None): 指定した場合、このメッセージIDより前のメッセージのみ取得する。
         
     Raises:
         DataBaseError: データベースエラー

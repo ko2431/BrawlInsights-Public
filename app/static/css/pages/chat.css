@@ -233,6 +233,19 @@ body.has-top-banner .chat-ad-banner-spacer {
     color: inherit;
 }
 
+.older-messages-loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0 4px;
+    color: var(--color-888);
+    font-size: 12.5px;
+}
+
+.older-messages-loader[hidden] {
+    display: none !important;
+}
+
 
 /* * --- * --- * --- * */
 /* * --- メッセージ吹き出し --- */

@@ -33,6 +33,9 @@ router = APIRouter(
     tags=["Boards"]
 )
 
+CHAT_MESSAGES_INITIAL_LOAD = 100
+CHAT_MESSAGES_OLDER_LOAD = 200
+
 
 #* /---*---*---*---*---*---*---*---*/
 #* ヘルパー関数
@@ -47,6 +50,48 @@ async def _append_board_notification_context(
 
 def get_ip(request: Request) -> str:
     return get_remote_ip(request)
+
+
+async def _fetch_chat_messages_payload(
+    db: asyncpg.Connection,
+    *,
+    thread_id: int,
+    blocked_user_ids: list[int],
+    before_message_id: int | None = None,
+    per_page: int = CHAT_MESSAGES_OLDER_LOAD,
+) -> tuple[list[dict], bool]:
+    """チャット表示用のメッセージとリアクションを取得する。"""
+    fetch_kwargs: dict = {
+        "db": db,
+        "per_page": per_page,
+        "thread_id": thread_id,
+    }
+    if before_message_id is not None:
+        fetch_kwargs["before_message_id"] = before_message_id
+
+    messages_data, _ = await get_messages(**fetch_kwargs)
+    messages_data.reverse()
+
+    payload: list[dict] = []
+    for message in messages_data:
+        if message.is_deleted or message.user_id in blocked_user_ids:
+            continue
+        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+        message_dict = message.to_dict()
+        message_dict["message"] = censor_filter(message_dict["message"])
+        payload.append({"data": message_dict, "reactions": reactions})
+
+    has_more = False
+    if messages_data:
+        oldest_id = messages_data[0].id
+        older_exists = await db.fetchrow(
+            "SELECT 1 FROM messages WHERE thread_id = $1 AND is_deleted = FALSE AND id < $2 LIMIT 1",
+            thread_id,
+            oldest_id,
+        )
+        has_more = older_exists is not None
+
+    return payload, has_more
 
 
 BOARD_POST_LIMIT_QUERY = Query(60, ge=1, le=100, description="1回あたりの投稿表示数")
@@ -963,9 +1008,9 @@ async def chat_thread(
         # どちらのIDも存在しない場合は、空の辞書を生成
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
     
-    # メッセージ一覧を新しい順に取得(上限1000)
+    # メッセージ一覧を新しい順に取得
     try:
-        messages_data, total_messages = await get_messages(db, per_page=1000, thread_id=thread_id)
+        messages_data, total_messages = await get_messages(db, per_page=CHAT_MESSAGES_INITIAL_LOAD, thread_id=thread_id)
     except DataBaseError as e:
         logger.error(f"メッセージ取得中にデータベースエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
@@ -973,14 +1018,22 @@ async def chat_thread(
     # 取得したもの内を古い順に並び替え
     messages_data.reverse()
     
+    blocked_user_ids = blocked_ids["user_ids"]
+
     # リアクション一覧も取得
-    messages = {
-        message.id: {
-            "data": message.to_dict(),
-            "reactions": await get_reactions(db, per_page=1000, message_id=message.id)
+    messages: dict[int, dict] = {}
+    for message in messages_data:
+        if message.is_deleted or message.user_id in blocked_user_ids:
+            continue
+        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+        message_dict = message.to_dict()
+        message_dict["message"] = censor_filter(message_dict["message"])
+        messages[message.id] = {
+            "data": message_dict,
+            "reactions": reactions,
         }
-        for message in messages_data
-    }
+
+    has_more_older_messages = total_messages > len(messages_data)
     
     # テンプレートに渡すコンテキスト
     # brawler_guide型の場合はキャラクター情報を取得し、current_pageをtoolsに変更する
@@ -1002,6 +1055,7 @@ async def chat_thread(
         "post": post,
         "messages": messages,
         "total_messages": total_messages,
+        "has_more_older_messages": has_more_older_messages,
         "is_permitted_to_chat": is_permitted_to_chat,
         "blocked_ids": blocked_ids,
         "current_page": chat_current_page,
@@ -1016,6 +1070,55 @@ async def chat_thread(
     except Exception as render_err: # テンプレートレンダリングエラーも捕捉
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+@router.get("/chat/{thread_id}/messages", name="get_chat_messages")
+async def get_chat_messages(
+    request: Request,
+    lang: str,
+    thread_id: int,
+    before_message_id: int = Query(..., ge=1, description="このIDより古いメッセージを取得する"),
+    per_page: int = Query(CHAT_MESSAGES_OLDER_LOAD, ge=1, le=CHAT_MESSAGES_OLDER_LOAD),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """チャットスレッドの過去メッセージを追加取得する。"""
+    post = await get_post(db, id=thread_id, include_deleted_post=True)
+    if not post:
+        raise HTTPException(status_code=404, detail="Chat thread not found")
+
+    anchor_message = await get_message(db, before_message_id)
+    if not anchor_message or anchor_message.thread_id != thread_id:
+        raise HTTPException(status_code=400, detail="Invalid before_message_id")
+
+    user: User | None = getattr(request.state, "current_user", None)
+    blocker_user_id = user.id if user else None
+    blocker_anonymous_id = request.cookies.get("brawlanonid") if not user else None
+
+    if blocker_user_id or blocker_anonymous_id:
+        blocked_ids = await get_blocked_ids(
+            db,
+            blocker_user_id=blocker_user_id,
+            blocker_anonymous_id=blocker_anonymous_id,
+        )
+    else:
+        blocked_ids = {"user_ids": [], "anonymous_ids": []}
+
+    try:
+        messages_payload, has_more = await _fetch_chat_messages_payload(
+            db,
+            thread_id=thread_id,
+            blocked_user_ids=blocked_ids["user_ids"],
+            before_message_id=before_message_id,
+            per_page=per_page,
+        )
+    except DataBaseError as e:
+        logger.error(f"過去メッセージ取得中にデータベースエラー (thread: {thread_id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+    return {
+        "messages": messages_payload,
+        "has_more": has_more,
+    }
 
 
 #* /---*---*---*---*---*---*---*---*/
