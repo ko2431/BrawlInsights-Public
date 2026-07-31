@@ -158,6 +158,11 @@
     white-space: pre-wrap;
     color: var(--color-222);
 }
+.post-comment__profile-link {
+    text-decoration: underline;
+    font-weight: normal;
+    color: inherit;
+}
 
 
 /* * --- * --- * --- * */
