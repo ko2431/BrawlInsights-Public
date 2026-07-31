@@ -179,9 +179,16 @@ class ConnectionManager:
             except asyncio.CancelledError:
                 # タスクがキャンセルされた場合は正常終了
                 logger.debug(f"Redisリスナーが正常にキャンセルされました (スレッド: {thread_id})")
+            except WebSocketDisconnect:
+                # クライアント切断後にRedisメッセージを転送しようとした場合（サスペンド等）
+                logger.debug(f"WebSocket接続が既に閉じられています (スレッド: {thread_id})")
             except RuntimeError as e:
                 # WebSocketが既に閉じられている場合のエラーは無視する
-                if "Unexpected ASGI message" in str(e) or "websocket.close" in str(e):
+                if (
+                    "Unexpected ASGI message" in str(e)
+                    or "websocket.close" in str(e)
+                    or "WebSocket is not connected" in str(e)
+                ):
                     logger.debug(f"WebSocket接続が既に閉じられています (スレッド: {thread_id})")
                 else:
                     logger.error(f"Redisリスナーで予期せぬRuntimeError (スレッド: {thread_id}): {e}", exc_info=True)
