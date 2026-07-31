@@ -84,13 +84,11 @@
                 <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
             </h2>
             <div class="tools-page__contents-box" x-show="open" x-transition>
-                {% if lang == "ja" %}
                 <a href="{{ url_for('map_rotation', lang=lang) }}">
                     <div class="tools-page__content">
                         <img src="{{ url_for('static', path='/images/banners/map_rotation_banner_' + lang + '.png') }}" alt="マップ周期" class="tools-page__content-image">
                     </div>
                 </a>
-                {% endif %}
                 <a href="{{ url_for('trophy_table', lang=lang) }}">
                     <div class="tools-page__content tools-page__content--responsive">
                         <img src="{{ url_for('static', path='/images/banners/trophy_table_banner_' + lang + '.png') }}" alt="トロフィー増減表" class="tools-page__content-image">
