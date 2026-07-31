@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="tools-page__container" x-data>
+<div class="tools-page__container" x-data data-back-fallback="{{ url_for('brawler_guide_menu', lang=lang) }}">
     {# 戻るボタン (アプリのみ) #}
     {% if platform != "web" %}
     <div class="back-button__container"
