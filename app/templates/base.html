@@ -1,6 +1,16 @@
 {# [この部分は公開用リポジトリでは非公開にされています] #}
 
             // --- メインの実行処理 ---
+            const applyBannerForCurrentPage = async () => {
+                // 前ページの残留バナー（位置違い含む）を必ず破棄してから出し直す
+                await destroyBanner();
+
+                if (!shouldShowBannerForUser()) {
+                    return;
+                }
+                await setupAndShowBanner();
+            };
+
             const main = async () => {
                 try {
                     // ユーザーの種類やページに関わらず、SDKを最初に必ず初期化する
@@ -10,34 +20,23 @@
                     // リワードイベント橋渡しをアプリ遷移を跨いで重複登録しないよう管理
                     await ensureRewardedAdEventBridge();
 
-                    // 次に、条件に応じてバナーの表示・非表示を制御する
-                    {% if hide_ads %}
-                        // チャット画面など、バナーを強制的に非表示にするページ
-                        await hideBanner();
+                    await applyBannerForCurrentPage();
 
-                    {% elif current_user and (current_user.is_admin or current_user.is_delete_ads) %}
-                        // 管理者または広告非表示ユーザー
-                        await hideBanner();
-                        
-                    {% else %}
-                        // 未ログイン端末で広告削除済み(localStorage)ならバナーを隠す
-                        const isLoggedIn = {{ 'true' if current_user else 'false' }};
-                        let hasGuestRemoveAds = false;
-                        if (!isLoggedIn) {
-                            try {
-                                hasGuestRemoveAds = localStorage.getItem('bi_guest_remove_ads') === 'true';
-                            } catch (_e) {
-                                hasGuestRemoveAds = false;
-                            }
-                        }
+                    // ページ退出時: ネイティブバナーを破棄し、次ページでの居座りを防ぐ
+                    window.addEventListener('pagehide', () => {
+                        isBannerCreated = false;
+                        currentBannerPosition = null;
+                        clearBannerLayoutClasses();
+                        try { AdMob.removeBanner(); } catch (e) {}
+                    });
 
-                        if (hasGuestRemoveAds) {
-                            await hideBanner();
-                        } else {
-                            // 上記以外の、バナー広告を表示すべきユーザーとページ
-                            await setupAndShowBanner();
-                        }
-                    {% endif %}
+                    // bfcache 復元時は DOMContentLoaded が再走しないため、バナーを再同期する
+                    window.addEventListener('pageshow', (event) => {
+                        if (!event.persisted || isFullscreenAdActive) return;
+                        applyBannerForCurrentPage().catch((e) => {
+                            console.error('Error re-syncing banner after bfcache restore:', e);
+                        });
+                    });
 
                     // モーダルの開閉を監視し、バナーを一時非表示にする処理
                     let isBannerHiddenByModal = false;

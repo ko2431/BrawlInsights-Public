@@ -1005,7 +1005,8 @@ async def chat_thread(
         "is_permitted_to_chat": is_permitted_to_chat,
         "blocked_ids": blocked_ids,
         "current_page": chat_current_page,
-        "hide_ads": True,
+        # チャットは下部入力欄があるため、AdMobバナーはヘッダー直下(上部)に出す
+        "admob_banner_position": "top",
         "hide_navigation_controls": True,
         "brawler": brawler_for_chat,
     }

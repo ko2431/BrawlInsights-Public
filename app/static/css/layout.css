@@ -329,9 +329,16 @@ body {
 body.has-bottom-banner {
     --banner-ad-height: 55px; /* スマホのAdaptive Bannerの標準的な高さ+少し余裕 */
 }
+/* 上部バナー（チャット等）。body の padding-bottom には使わず、ページ内スペーサー用 */
+body.has-top-banner {
+    --banner-ad-height-top: 55px;
+}
 @media (min-width: 600px) {
     body.has-bottom-banner {
         --banner-ad-height: 90px; /* タブレットの標準的な高さ */
+    }
+    body.has-top-banner {
+        --banner-ad-height-top: 90px;
     }
 }
 
