@@ -38,11 +38,14 @@
                     <label>配分 <select class="form-input" x-model="tier.allocation" :disabled="started"><option value="stock">在庫</option><option value="weight">重み</option></select></label>
                     <label>
                         <span x-text="tier.allocation === 'stock' ? '在庫数' : '重み'"></span>
-                        <input class="form-input" type="number" min="1" x-model.number="tier.quantity" :disabled="started">
+                        <input class="form-input" type="number"
+                            :min="tier.allocation === 'stock' ? 1 : 0.001"
+                            :step="tier.allocation === 'stock' ? 1 : 'any'"
+                            x-model.number="tier.quantity" :disabled="started">
                     </label>
                     <label x-show="tier.allocation === 'stock'">
                         最大確率（%、空欄=制限なし）
-                        <input class="form-input" type="number" min="0" max="100" step="0.01"
+                        <input class="form-input" type="number" min="0" max="100" step="0.001"
                             :value="tier.max_probability == null ? '' : (tier.max_probability * 100)"
                             @input="tier.max_probability = $event.target.value === '' ? null : Number($event.target.value) / 100"
                             :disabled="started">

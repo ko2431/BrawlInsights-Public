@@ -144,8 +144,11 @@ def validate_prizes(prizes: dict) -> list[str]:
         allocation, quantity = tier.get("allocation"), tier.get("quantity")
         if allocation not in {"stock", "weight"}:
             errors.append(f"ランク{tier.get('rank', '?')}の配分方式が不正です。")
-        if not isinstance(quantity, int) or quantity <= 0:
-            errors.append(f"ランク{tier.get('rank', '?')}の数量は1以上にしてください。")
+        elif allocation == "stock":
+            if not isinstance(quantity, int) or quantity <= 0:
+                errors.append(f"ランク{tier.get('rank', '?')}の在庫数は1以上の整数で設定してください。")
+        elif not isinstance(quantity, (int, float)) or isinstance(quantity, bool) or quantity <= 0:
+            errors.append(f"ランク{tier.get('rank', '?')}の重みは0より大きい値で設定してください。")
         if allocation == "weight":
             weighted += 1
         probability = tier.get("max_probability")
@@ -341,12 +344,12 @@ async def draw_prize_rank(
         weights = [tier for tier in tiers if tier.get("allocation") == "weight"]
         if not weights:
             raise RuntimeError("No weight prizes available")
-        total_w = sum(int(tier["quantity"]) for tier in weights)
+        total_w = sum(float(tier["quantity"]) for tier in weights)
         w_roll = _RNG.uniform(0, total_w)
         cursor_w = 0.0
         chosen = weights[-1]
         for tier in weights:
-            cursor_w += int(tier["quantity"])
+            cursor_w += float(tier["quantity"])
             if w_roll <= cursor_w:
                 chosen = tier
                 break
