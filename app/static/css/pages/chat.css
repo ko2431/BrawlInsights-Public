@@ -330,6 +330,7 @@
     background-color: #fefefe;
     border-top: 1px solid #e0e0e0;
     padding: 15px;
+    position: relative;
     z-index: 10;
     flex-shrink: 0; /* フッターが縮まないようにする */
 }
@@ -344,6 +345,32 @@
         border-right: none;
         padding: 15px 10px;
     }
+}
+
+/* 上スクロール中の新着案内 */
+.new-messages-indicator {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 12px);
+    transform: translateX(-50%);
+    z-index: 20;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 16px;
+    background-color: #319fe3;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+.new-messages-indicator:hover {
+    background-color: #2b8fcc;
+}
+.dark .new-messages-indicator {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
 .chat-input__form {

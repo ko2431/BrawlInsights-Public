@@ -238,6 +238,9 @@
     
     {# フッター (メッセージ入力など) #}
     <footer class="chat-footer">
+        <button type="button" id="new-messages-indicator" class="new-messages-indicator" hidden>
+            {% if lang == "ja" %}新着メッセージ{% else %}New messages{% endif %}
+        </button>
         {# 入力中ユーザー表示エリア #}
         <div id="typing-indicator" class="typing-indicator">
             <p><b>ユーザー名</b>が入力中...</p>
@@ -368,6 +371,8 @@
 
             const reactionListMenu = document.getElementById('reaction-list-menu');
             const reactionListBody = document.getElementById('reaction-list-body');
+            const newMessagesIndicator = document.getElementById('new-messages-indicator');
+            const NEAR_BOTTOM_THRESHOLD_PX = 100;
             
             // --- 状態管理とJinja2からの変数 ---
             let currentPostState = {{ post.to_dict() | tojson }};
@@ -623,12 +628,37 @@
                 el.classList.toggle('message-bubble--compact', !hasReactions);
             }
 
+            // --- スクロール位置・新着案内 ---
+            function isNearBottom() {
+                if (!messagesContainer) return true;
+                const distanceFromBottom =
+                    messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+                return distanceFromBottom <= NEAR_BOTTOM_THRESHOLD_PX;
+            }
+
+            function scrollMessagesToBottom() {
+                if (!messagesContainer) return;
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            function showNewMessagesIndicator() {
+                if (!newMessagesIndicator) return;
+                newMessagesIndicator.hidden = false;
+            }
+
+            function hideNewMessagesIndicator() {
+                if (!newMessagesIndicator) return;
+                newMessagesIndicator.hidden = true;
+            }
+
             // --- 新しいメッセージを画面に追加 ---
             function appendNewMessage(message) {
                 // 自分のメッセージかどうかを判定
                 const isSelf = message.user_id === currentUserId;
                 const bubbleClass = isSelf ? 'message-bubble message-bubble--self' : 'message-bubble';
                 const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
+                // 追加前に判定（追加後は scrollHeight が増えて誤判定になる）
+                const stickToBottom = isSelf || isNearBottom();
 
                 // 以前のプロンプトを削除する
                 const existingPrompt = document.querySelector('.reaction-prompt');
@@ -696,12 +726,15 @@
                 
                 messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
                 updateMessageGrouping();
-                // 新しいメッセージが表示されるように下にスクロール
-                setTimeout(() => {
-                    if (messagesContainer) {
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    }
-                }, 0);
+
+                if (stickToBottom) {
+                    hideNewMessagesIndicator();
+                    setTimeout(() => {
+                        scrollMessagesToBottom();
+                    }, 0);
+                } else {
+                    showNewMessagesIndicator();
+                }
             }
 
             // --- メッセージ削除処理 ---
@@ -1173,7 +1206,17 @@
                 hideMessageMenu();
                 hideHostMenu();
                 hideReactionMenu();
+                if (isNearBottom()) {
+                    hideNewMessagesIndicator();
+                }
             });
+
+            if (newMessagesIndicator) {
+                newMessagesIndicator.addEventListener('click', () => {
+                    hideNewMessagesIndicator();
+                    scrollMessagesToBottom();
+                });
+            }
 
             // --- その他のイベントリスナー ---
             if (textarea) {
@@ -1212,9 +1255,8 @@
                     // Step 2: チャットコンテナを最下部にスクロールする
                     // setTimeoutを使い、ブラウザの再描画処理の後に実行されるようにする
                     setTimeout(() => {
-                        if (messagesContainer) {
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        }
+                        scrollMessagesToBottom();
+                        hideNewMessagesIndicator();
                     }, 0); // 0ミリ秒の遅延でも、実行タイミングを遅らせる効果がある
                 });
             }
