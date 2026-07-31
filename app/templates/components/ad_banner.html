@@ -5,13 +5,19 @@
    左右マージンを追加したい場合:
    <div style="margin: 0 16px;">{% include "components/ad_banner.html" %}</div>
 
+   ラベルをバナー左上に重ねる（チャット画面等）:
+   {% with ad_banner_overlay_label=true %}
+   {% include "components/ad_banner.html" %}
+   {% endwith %}
+
    非表示ロジック:
    - ログインユーザーで is_delete_ads=True かつ is_admin=False → サーバー側で ad_banner=None のため描画不要
    - 匿名アプリユーザーで広告削除購入済み → Alpine.jsで localStorage:'bi_guest_remove_ads' をチェック
      （account_settings.html の setGuestRemoveAdsFlag() が購入時にこのキーを設定する）
 #}
 {% if ad_banner %}
-<div class="ad-banner-wrap"
+{% set _overlay_label = ad_banner_overlay_label|default(false) %}
+<div class="ad-banner-wrap{% if _overlay_label %} ad-banner-wrap--overlay-label{% endif %}"
      x-data="{ _adVisible: true }"
      x-init="(() => {
          try {
@@ -20,6 +26,24 @@
      })()"
      x-show="_adVisible"
      style="display: none;">
+    {% if _overlay_label %}
+    <div class="ad-banner__frame">
+        <p class="ad-banner__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
+        {% if ad_banner.click_url %}
+        <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
+            <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
+                 alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
+                 class="ad-banner__img"
+                 loading="lazy">
+        </a>
+        {% else %}
+        <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
+             alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
+             class="ad-banner__img"
+             loading="lazy">
+        {% endif %}
+    </div>
+    {% else %}
     <p class="ad-banner__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
     {% if ad_banner.click_url %}
     <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
@@ -30,6 +54,7 @@
              loading="lazy">
     {% if ad_banner.click_url %}
     </a>
+    {% endif %}
     {% endif %}
 </div>
 {% endif %}

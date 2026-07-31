@@ -120,6 +120,61 @@ body.has-top-banner .chat-ad-banner-spacer {
     transition: height 0.3s ease;
 }
 
+/* Web版: ヘッダー直下の独自スポンサーバナー（角丸なし・横幅上限あり） */
+.chat-web-ad-banner {
+    flex-shrink: 0;
+    width: 100%;
+}
+.chat-web-ad-banner:not(:has(.ad-banner-wrap)) {
+    display: none; /* 広告なし（広告削除ユーザー等）のとき余白を残さない */
+}
+.chat-web-ad-banner .ad-banner-wrap {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+}
+/* バナー本体を中央揃え。ラベルは frame 内左上に重ねる */
+.chat-web-ad-banner .ad-banner__frame {
+    position: relative;
+    width: 100%;
+}
+.chat-web-ad-banner .ad-banner__label {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    z-index: 1;
+    margin: 0;
+    padding: 1px 5px;
+    max-width: none;
+    width: auto;
+    font-size: 10px;
+    line-height: 1.3;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    border-radius: 5px;
+}
+.dark .chat-web-ad-banner .ad-banner__label {
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.55);
+}
+.chat-web-ad-banner .ad-banner__link {
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+.chat-web-ad-banner .ad-banner__img {
+    display: block;
+    width: 100%;
+    max-width: none;
+    max-height: 120px;
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+}
+
 
 .back-button__container {
     margin: 0;

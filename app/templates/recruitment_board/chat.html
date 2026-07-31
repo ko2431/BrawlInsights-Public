@@ -192,8 +192,17 @@
         </div>
     </header>
 
+    {% if platform == 'web' %}
+    {# Web版: 独自スポンサーバナー（ヘッダー直下）。広告非表示ユーザーは ad_banner=None で描画されない #}
+    <div class="chat-web-ad-banner">
+        {% with ad_banner_overlay_label=true %}
+        {% include "components/ad_banner.html" %}
+        {% endwith %}
+    </div>
+    {% else %}
     {# アプリ版 AdMob 上部バナー用スペーサー（has-top-banner 時のみ高さが付く） #}
     <div class="chat-ad-banner-spacer" aria-hidden="true"></div>
+    {% endif %}
 
     {# メッセージ表示部分 #}
     <main class="messages__container" id="messages-container">
