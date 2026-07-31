@@ -173,7 +173,19 @@
             </div>
             {% endif %}
             {% if platform != "web" %}
-            <div class="back-button__container">
+            {# タブ跨ぎ時の戻る先（親ページ） #}
+            {% if post.type == "brawler_guide" and brawler %}
+                {% set chat_back_fallback = url_for('brawler_guide', lang=lang, brawler_id=brawler.id) %}
+            {% elif post.type == "friend" %}
+                {% set chat_back_fallback = url_for('friend_recruitment_board', lang=lang) %}
+            {% elif post.type == "club" %}
+                {% set chat_back_fallback = url_for('club_recruitment_board', lang=lang) %}
+            {% elif post.type == "general" %}
+                {% set chat_back_fallback = url_for('general_board', lang=lang) %}
+            {% else %}
+                {% set chat_back_fallback = url_for('team_recruitment_board', lang=lang) %}
+            {% endif %}
+            <div class="back-button__container" data-back-fallback="{{ chat_back_fallback }}">
                 <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
             </div>
             {% endif %}
@@ -185,11 +197,11 @@
         {# 説明文 #}
         <div class="chat-description">
             {% if post.type == "brawler_guide" %}
-                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか<b>ツールタブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>To close the chat screen, press the <b>Back button</b> or tap the <b>Tools tab</b> again.{% endif %}</p>
+                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
             {% elif current_user and current_user.id == post.host_id %}
-                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>また、ユーザーのアイコンをタップして<b>リンククリックを個別に許可</b>を選択すると、この募集の条件にかかわらず、その人にリンククリックをできるようにさせることが可能です。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか<b>募集掲示板タブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>Additionally, by tapping the user's icon and selecting <b>Individually Allow Link Clicks</b>, you can enable link clicking for that person regardless of the conditions of this recruitment.{% endif %}</p>
+                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>また、ユーザーのアイコンをタップして<b>リンククリックを個別に許可</b>を選択すると、この募集の条件にかかわらず、その人にリンククリックをできるようにさせることが可能です。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>Additionally, by tapping the user's icon and selecting <b>Individually Allow Link Clicks</b>, you can enable link clicking for that person regardless of the conditions of this recruitment.{% endif %}</p>
             {% else %}
-                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>チャット画面を閉じるには、<b>戻るボタン</b>を押すか</b><b>募集掲示板タブ</b>のところをもう一度押してください。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
+                <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
             {% endif %}
         </div>
         {# まず、Postのコメントを表示 #}
@@ -330,21 +342,6 @@
 
 {% block scripts %}
     {{ super() }}
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
-        const backButtons = document.querySelectorAll('.back-button');
-
-        // 取得した各ボタンにクリックイベントリスナーを設定します
-        backButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // クリックされたら、ブラウザの履歴を一つ前に戻します
-                history.back();
-            });
-        });
-    });
-    </script>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // --- DOM要素の定義 ---

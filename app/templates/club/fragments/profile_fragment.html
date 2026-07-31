@@ -311,18 +311,4 @@ function clubBookmarkButtonHandler(viewedClubTag, viewedClubName) {
         }
     };
 }
-
-const initClubBackButtons = () => {
-    const backButtons = document.querySelectorAll('.back-button');
-    backButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            history.back();
-        });
-    });
-};
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initClubBackButtons, { once: true });
-} else {
-    initClubBackButtons();
-}
 </script>

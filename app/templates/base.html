@@ -135,7 +135,11 @@
         
             backButton.addEventListener('click', () => {
                 if (!backButton.classList.contains('disabled')) {
-                    history.back();
+                    if (window.BrawlInsightsSmartBack) {
+                        window.BrawlInsightsSmartBack.go(backButton);
+                    } else {
+                        history.back();
+                    }
                 }
             });
         
@@ -162,6 +166,8 @@
             updateNavigationState();
         });
     </script>
+
+    <script src="{{ url_for('static', path='/js/smart_back.js') }}?v={{ app_version }}"></script>
 
     {# 各ページで追加のJavaScriptが必要な場合に使うブロック #}
     {% block scripts %}

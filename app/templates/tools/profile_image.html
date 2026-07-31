@@ -442,20 +442,6 @@
 
 {% block scripts %}
     {{ super() }}
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // 'back-button'クラスを持つ全ての要素（上下のボタン）を取得します
-        const backButtons = document.querySelectorAll('.back-button');
-
-        // 取得した各ボタンにクリックイベントリスナーを設定します
-        backButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // クリックされたら、ブラウザの履歴を一つ前に戻します
-                history.back();
-            });
-        });
-    });
-    </script>
     
     <script>
         function profileImageTool(config) {

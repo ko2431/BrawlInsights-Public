@@ -295,15 +295,6 @@
 {% block scripts %}
     {{ super() }}
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const backButtons = document.querySelectorAll('.back-button');
-        backButtons.forEach(button => {
-            button.addEventListener('click', () => history.back());
-        });
-    });
-    </script>
-
-    <script>
         function dropBoxChancesApp() {
             return {
                 isJa: '{{ lang }}' === 'ja',

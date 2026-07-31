@@ -114,12 +114,4 @@ function loadBrawlVideo(wrapper, videoId, platform) {
 
 {% block scripts %}
     {{ super() }}
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const backButtons = document.querySelectorAll('.back-button');
-        backButtons.forEach(btn => {
-            btn.addEventListener('click', () => history.back());
-        });
-    });
-    </script>
 {% endblock %}
