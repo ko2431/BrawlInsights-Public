@@ -211,7 +211,8 @@
                     data-user-id="{{ message.user_id }}"
                     data-user-name="{{ message.user_name }}"
                     data-main-account-tag="{{ message.user_main_account_tag }}"
-                    data-main-account-name="{{ message.user_main_account_name }}">
+                    data-main-account-name="{{ message.user_main_account_name }}"
+                    data-created-at="{{ message.created_at }}">
                     {% if not (current_user and message.user_id == current_user.id) %}
                         <div class="message-bubble__icon-wrapper {% if message.user_main_account_tag %}message-bubble__icon-wrapper--clickable{% endif %}"><img src="{{ message.user_icon_path }}" alt="User Icon" class="message-bubble__icon"></div>
                     {% endif %}
@@ -428,6 +429,7 @@
             Object.keys(messageReactions).forEach(messageId => {
                 renderReactionSummary(messageId);
             });
+            updateMessageGrouping();
 
             // --- WebSocket接続とメッセージ処理 ---
             function connectWebSocket() {
@@ -461,6 +463,8 @@
                             if (messageElement) {
                                 // 1. アニメーション用のCSSクラスを追加
                                 messageElement.classList.add('message-bubble--deleting');
+                                // 削除中メッセージを除外して連投表示を即時再計算
+                                updateMessageGrouping();
                                 
                                 // 2. アニメーション完了後にDOMから完全に削除
                                 setTimeout(() => {
@@ -537,6 +541,88 @@
                 }
             }
             
+            // --- 連投メッセージのグルーピング表示を更新（クライアント側のみ） ---
+            function parseCreatedAtMs(createdAt) {
+                if (!createdAt) return NaN;
+                // 'YYYY-MM-DD HH:MM:SSZ' を Date.parse 可能な形式へ
+                const normalized = createdAt.includes('T') ? createdAt : createdAt.replace(' ', 'T');
+                return Date.parse(normalized);
+            }
+
+            function areWithinOneDisplayMinute(msA, msB) {
+                if (Number.isNaN(msA) || Number.isNaN(msB)) return false;
+                // 表示時刻（分単位）の差が1以下なら連続（12:00↔12:01 OK、12:00↔12:02 NG）
+                return Math.abs(Math.floor(msA / 60000) - Math.floor(msB / 60000)) <= 1;
+            }
+
+            function updateMessageGrouping() {
+                if (!messagesContainer) return;
+
+                const bubbles = Array.from(
+                    messagesContainer.querySelectorAll('.message-bubble:not(.message-bubble--deleting)')
+                );
+                const groupingClasses = [
+                    'message-bubble--hide-timestamp',
+                    'message-bubble--hide-author',
+                    'message-bubble--compact',
+                    'message-bubble--compact-with-reaction'
+                ];
+
+                bubbles.forEach(el => el.classList.remove(...groupingClasses));
+                if (bubbles.length < 2) return;
+
+                let i = 0;
+                while (i < bubbles.length) {
+                    let j = i + 1;
+                    while (j < bubbles.length) {
+                        const prev = bubbles[j - 1];
+                        const curr = bubbles[j];
+                        const prevUserId = prev.dataset.userId;
+                        const currUserId = curr.dataset.userId;
+                        // user_id が無いゲスト同士などは誤ってまとめない
+                        const sameUser = Boolean(prevUserId) && prevUserId === currUserId;
+                        if (!sameUser) break;
+                        if (!areWithinOneDisplayMinute(
+                            parseCreatedAtMs(prev.dataset.createdAt),
+                            parseCreatedAtMs(curr.dataset.createdAt)
+                        )) break;
+                        j += 1;
+                    }
+
+                    if (j - i > 1) {
+                        for (let k = i; k < j; k++) {
+                            const el = bubbles[k];
+                            const isFirst = k === i;
+                            const isLast = k === j - 1;
+                            const isSelf = el.classList.contains('message-bubble--self');
+
+                            if (!isLast) {
+                                el.classList.add('message-bubble--hide-timestamp');
+                                const hasReactions = (messageReactions[el.dataset.messageId] || []).length > 0;
+                                el.classList.add(
+                                    hasReactions
+                                        ? 'message-bubble--compact-with-reaction'
+                                        : 'message-bubble--compact'
+                                );
+                            }
+                            if (!isSelf && !isFirst) {
+                                el.classList.add('message-bubble--hide-author');
+                            }
+                        }
+                    }
+                    i = j;
+                }
+            }
+
+            // 連投中メッセージのコンパクト余白だけ、リアクション有無に応じて切り替える
+            function updateCompactMarginForMessage(messageId) {
+                const el = document.getElementById(`message-${messageId}`);
+                if (!el || !el.classList.contains('message-bubble--hide-timestamp')) return;
+                const hasReactions = (messageReactions[messageId] || []).length > 0;
+                el.classList.toggle('message-bubble--compact-with-reaction', hasReactions);
+                el.classList.toggle('message-bubble--compact', !hasReactions);
+            }
+
             // --- 新しいメッセージを画面に追加 ---
             function appendNewMessage(message) {
                 // 自分のメッセージかどうかを判定
@@ -593,10 +679,11 @@
                     <div class="${bubbleClass}"
                         id="message-${message.id}"
                         data-message-id="${message.id}"
-                        data-user-id="${message.user_id}"
-                        data-user-name="${message.user_name}"
+                        data-user-id="${message.user_id != null ? message.user_id : ''}"
+                        data-user-name="${message.user_name || ''}"
                         data-main-account-tag="${message.user_main_account_tag || ''}"
-                        data-main-account-name="${message.user_main_account_name || ''}">
+                        data-main-account-name="${message.user_main_account_name || ''}"
+                        data-created-at="${message.created_at || ''}">
                         ${authorIconHtml}
                         <div class="message-bubble__content-wrapper">
                             ${userNameHtml}
@@ -608,6 +695,7 @@
                 `;
                 
                 messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+                updateMessageGrouping();
                 // 新しいメッセージが表示されるように下にスクロール
                 setTimeout(() => {
                     if (messagesContainer) {
@@ -969,6 +1057,7 @@
                 if (reactions.length === 0) {
                     container.innerHTML = '';
                     container.onclick = null;
+                    updateCompactMarginForMessage(messageId);
                     return;
                 }
 
@@ -994,6 +1083,7 @@
 
                 container.innerHTML = summaryHtml;
                 container.onclick = () => setupAndShowReactionMenu(container, messageId);
+                updateCompactMarginForMessage(messageId);
             }
 
             function setupAndShowReactionMenu(targetElement, messageId) {

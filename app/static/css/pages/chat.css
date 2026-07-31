@@ -270,6 +270,28 @@
     overflow: hidden;
 }
 
+/* * 連投メッセージのグルーピング表示 * */
+.message-bubble--hide-timestamp .message-bubble__timestamp {
+    display: none;
+}
+/* アイコン列の幅は維持し、左端のズレを防ぐ（高さは潰して余白を詰める） */
+.message-bubble--hide-author .message-bubble__icon-wrapper {
+    height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+}
+.message-bubble--hide-author .message-bubble__user-name {
+    display: none;
+}
+.message-bubble--compact > .message-bubble__content-wrapper {
+    margin-bottom: -10px;
+}
+.message-bubble--compact-with-reaction > .message-bubble__content-wrapper {
+    margin-bottom: -5px;
+}
+
 /* * 自分のメッセージ * */
 .message-bubble--self {
     align-self: flex-end;
