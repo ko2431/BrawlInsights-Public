@@ -490,6 +490,10 @@ body.modal-open {
     gap: 10px;
     margin-top: 10px;
 }
+.post-card-wrapper {
+    min-width: 0; /* grid子要素が長い未改行テキストで横に膨らまないようにする */
+    max-width: 100%;
+}
 @media (max-width: 539px) {
     .posts__container {
         width: 105%;
@@ -511,6 +515,10 @@ body.modal-open {
     border-radius: 10px;
     padding: 5px;
     background-color: #f9f9f9;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 .dark .team-board .post-card {
     border: 1px solid #eee;
@@ -547,6 +555,7 @@ body.modal-open {
     gap: 5px;
     margin-top: 2px;
     margin-bottom: 5px;
+    min-width: 0;
 }
 .post-card__host-info,
 .post-card__conditions-box,
@@ -556,6 +565,7 @@ body.modal-open {
     border-radius: 7px;
     padding: 2px 5px 5px;
     background-color: #fff;
+    min-width: 0;
 }
 .dark .post-card__host-info,
 .dark .post-card__conditions-box,
@@ -650,11 +660,21 @@ body.modal-open {
 }
 .post-card__comment-text {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .post-card__comment-empty,
 .post-card__no-conditions-text {
     color: var(--color-999);
     font-style: italic;
+}
+.post-card__host-info-scroll-area {
+    min-width: 0;
+    overflow-x: hidden;
+}
+.post-card__host-info-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .post-card__comment-scroll {
     max-height: 60px;       /* 高さ上限 */
