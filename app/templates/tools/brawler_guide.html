@@ -252,10 +252,10 @@
                                             {% if brawler.reload_speed >= 2.3 %}
                                                 {% set label_text = "超低速" if lang == "ja" else "Very Slow" %}
                                                 {% set label_rank = "D" %}
-                                            {% elif 1.9 < brawler.reload_speed < 2.3 %}
+                                            {% elif 2.0 <= brawler.reload_speed < 2.3 %}
                                                 {% set label_text = "低速" if lang == "ja" else "Slow" %}
                                                 {% set label_rank = "C" %}
-                                            {% elif 1.5 <= brawler.reload_speed <= 1.9 %}
+                                            {% elif 1.5 <= brawler.reload_speed < 2.0 %}
                                                 {% set label_text = "普通" if lang == "ja" else "Normal" %}
                                                 {% set label_rank = "B" %}
                                             {% elif 1.3 < brawler.reload_speed < 1.5 %}
