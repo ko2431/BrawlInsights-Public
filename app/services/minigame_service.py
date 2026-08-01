@@ -1151,20 +1151,38 @@ def _multi2_legend_faces(
     return ([], 0, 3)
 
 
-async def sync_prize_stocks(db: asyncpg.Connection, campaign_id: int, prizes: dict[str, Any]) -> None:
-    """stock 配分の在庫行を作成・更新し、不要行を削除する。"""
+async def sync_prize_stocks(
+    db: asyncpg.Connection,
+    campaign_id: int,
+    prizes: dict[str, Any],
+    *,
+    overwrite_remaining: bool = True,
+) -> None:
+    """stock 配分の在庫行を作成・更新し、不要行を削除する。
+
+    overwrite_remaining=False のときは既存行の remaining を触らない
+   （開始後の企画情報編集で消費済み在庫が復活するのを防ぐ）。
+    """
     stock_tiers = [tier for tier in prizes["tiers"] if tier["allocation"] == "stock"]
     ranks = [tier["rank"] for tier in stock_tiers]
     for tier in stock_tiers:
+        if overwrite_remaining:
+            await db.execute(
+                """INSERT INTO minigame_prize_stocks (campaign_id, rank, remaining) VALUES ($1, $2, $3)
+                   ON CONFLICT (campaign_id, rank) DO UPDATE SET remaining = EXCLUDED.remaining""",
+                campaign_id, tier["rank"], tier["quantity"],
+            )
+        else:
+            await db.execute(
+                """INSERT INTO minigame_prize_stocks (campaign_id, rank, remaining) VALUES ($1, $2, $3)
+                   ON CONFLICT (campaign_id, rank) DO NOTHING""",
+                campaign_id, tier["rank"], tier["quantity"],
+            )
+    if overwrite_remaining:
         await db.execute(
-            """INSERT INTO minigame_prize_stocks (campaign_id, rank, remaining) VALUES ($1, $2, $3)
-               ON CONFLICT (campaign_id, rank) DO UPDATE SET remaining = EXCLUDED.remaining""",
-            campaign_id, tier["rank"], tier["quantity"],
+            "DELETE FROM minigame_prize_stocks WHERE campaign_id = $1 AND NOT (rank = ANY($2::smallint[]))",
+            campaign_id, ranks,
         )
-    await db.execute(
-        "DELETE FROM minigame_prize_stocks WHERE campaign_id = $1 AND NOT (rank = ANY($2::smallint[]))",
-        campaign_id, ranks,
-    )
 
 
 async def create_campaign(db: asyncpg.Connection, data: dict[str, Any]) -> dict[str, Any]:
@@ -1182,7 +1200,7 @@ async def create_campaign(db: asyncpg.Connection, data: dict[str, Any]) -> dict[
                 for column in columns
             ),
         )
-        await sync_prize_stocks(db, row["id"], data["prizes"])
+        await sync_prize_stocks(db, row["id"], data["prizes"], overwrite_remaining=True)
     await delete_cache("minigame:display_campaign:user"); await delete_cache("minigame:display_campaign:admin")
     return _record(row)
 
@@ -1203,7 +1221,15 @@ async def update_campaign(db: asyncpg.Connection, campaign_id: int, data: dict[s
             ), campaign_id,
         )
         if not row: raise ValueError("企画が見つかりません。")
-        await sync_prize_stocks(db, campaign_id, data["prizes"])
+        # 開始前のみ残在庫を景品定義に合わせて上書き。開始後は消費済み在庫を維持する。
+        starts_at = _as_utc(row["starts_at"])
+        has_started = starts_at <= datetime.datetime.now(datetime.timezone.utc)
+        await sync_prize_stocks(
+            db,
+            campaign_id,
+            data["prizes"],
+            overwrite_remaining=not has_started,
+        )
     await delete_cache("minigame:display_campaign:user"); await delete_cache("minigame:display_campaign:admin")
     return _record(row)
 
