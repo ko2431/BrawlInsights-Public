@@ -11,6 +11,7 @@ from typing import Any
 import asyncpg
 
 from app.core.cache import delete_cache, get_cache, set_cache
+from app.core.config import settings
 from app.core.logger import logger
 from app.services.brawl_service import (
     add_auto_tracking_time,
@@ -830,7 +831,12 @@ async def _grant_items(db: asyncpg.Connection, user: User, items: list[dict[str,
                 raise ValueError("Main account is required.")
             player = await get_player_from_db(user.main_account, db)
             months = int(item["months"])
-            current = await get_battle_log_retention_months(db, user.main_account) or 0
+            current_raw = await get_battle_log_retention_months(db, user.main_account)
+            current = (
+                current_raw
+                if current_raw is not None
+                else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS
+            )
             granted_months = min(months, max(0, MAX_BATTLE_LOG_RETENTION_MONTHS - current))
             if granted_months:
                 await extend_battle_log_retention(db, user.main_account, current + granted_months)
