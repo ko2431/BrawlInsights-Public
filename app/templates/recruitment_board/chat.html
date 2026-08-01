@@ -85,6 +85,12 @@
         {% set color1 = "#fff6d4" %}
         {% set color2 = "#ffeed4" %}
         {% set dark = false %}
+    {% elif post.category == "offtopic" %}
+        {% set image_path = "/images/ui/gameroom.png" %}
+        {% set title = "オフトピック" if lang == "ja" else "Off Topic" %}
+        {% set color1 = "#e8d4ff" %}
+        {% set color2 = "#f0d4ff" %}
+        {% set dark = false %}
     {% elif post.category == "brawl_info" %}
         {% set image_path = "/images/ui/starrdrop.png" %}
         {% set title = "ブロスタ情報" if lang == "ja" else "Brawl Info" %}

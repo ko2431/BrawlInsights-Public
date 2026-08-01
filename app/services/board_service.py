@@ -67,7 +67,7 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
                     region: str | None = None, target_user: User | None = None, target_player: Player | None = None,
                     category: str | None = None, mode: str | None = None, hashtag: str | None = None, include_deleted_post: bool = False,
                     eliminate_duplicates: bool = False, author_user_id: int | None = None, author_ip: str | None = None,
-                    filter: str | None = None) -> tuple[list[Post], int]:
+                    filter: str | None = None, exclude_category: str | None = None) -> tuple[list[Post], int]:
     """投稿を、条件に合わせて新しい順に取得する。3秒間のキャッシュを使用する。
 
     Args:
@@ -86,6 +86,7 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
         author_user_id (int | None): 指定した場合、そのユーザーIDがホストの投稿のみを取得する。
         author_ip (str | None): 指定した場合、そのIPアドレスがホストの投稿のみを取得する。author_user_idと同時に指定するとOR条件になる。
         filter (str | None): 絞り込み種別。'only_can_participate'が指定され、かつ未ログインの場合の判定に用いる。
+        exclude_category (str | None): 指定した場合、該当カテゴリーの投稿を除外する。デフォルトはNone。
         
     Raises:
         BrawlStarsAPIError: APIエラー
@@ -102,6 +103,7 @@ async def get_trending_general_posts(
     page: int = 1,
     region: str | None = None,
     category: str | None = None,
+    exclude_category: str | None = None,
 ) -> tuple[list[Post], int]:
     """なんでも掲示板の投稿を話題順で取得する。候補は直近 candidate_max_age_days 日以内。
 

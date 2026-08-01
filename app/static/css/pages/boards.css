@@ -1024,13 +1024,26 @@ body.modal-open {
 .dark .general-board-warning-note {
     color: #ff6b6b;
 }
+.general-board-warning-exception {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: normal;
+    color: #555;
+    line-height: 1.3;
+}
+.dark .general-board-warning-exception {
+    color: #aaa;
+}
 
 /* カテゴリー選択グリッド */
 .general-board-category-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
     margin-top: 6px;
+}
+.general-board-category-grid--admin {
+    grid-template-columns: repeat(4, 1fr);
 }
 .general-board-category-item {
     display: flex;
@@ -1064,8 +1077,9 @@ body.modal-open {
 }
 
 @media (max-width: 539px) {
-    .general-board-category-grid {
-        grid-template-columns: repeat(6, 1fr);
+    .general-board-category-grid,
+    .general-board-category-grid--admin {
+        grid-template-columns: repeat(4, 1fr);
     }
     .general-board-category-item {
         border-radius: 8px;
@@ -1089,6 +1103,7 @@ body.modal-open {
 /* カテゴリーアイコン個別サイズ調整 */
 .general-icon--chat    { height: 30px; }
 .general-icon--question { height: 30px; }
+.general-icon--offtopic { height: 30px; }
 .general-icon--brawl-info { height: 34px; margin: -2px 0; }
 .general-icon--x       { height: 22px; margin: 4px 0; }
 .general-icon--discord { height: 22px; margin: 4px 0; }
@@ -1097,6 +1112,7 @@ body.modal-open {
 @media (max-width: 539px) {
     .general-icon--chat    { height: 26px; }
     .general-icon--question { height: 26px; }
+    .general-icon--offtopic { height: 26px; }
     .general-icon--brawl-info { height: 30px; margin: -2px 0; }
     .general-icon--x       { height: 20px; margin: 3px 0; }
     .general-icon--discord { height: 20px; margin: 3px 0; }
@@ -1106,6 +1122,7 @@ body.modal-open {
 
 .category-icon--chat    { height: 23px; margin: 0.5px 0; margin-right: 2px; }
 .category-icon--question { height: 24px; margin-right: 2px; }
+.category-icon--offtopic { height: 24px; margin-right: 2px; }
 .category-icon--brawl_info { height: 27px; margin: -1.5px 0; }
 .category-icon--x       { height: 18px; margin: 3px 0; margin-right: 3px; }
 .category-icon--discord { height: 18px; margin: 3px 0; margin-right: 3px; }
@@ -1114,6 +1131,7 @@ body.modal-open {
 @media (max-width: 539px) {
     .category-icon--chat    { height: 21px; margin-right: 1.5px; }
     .category-icon--question { height: 21px; margin-right: 1.5px; }
+    .category-icon--offtopic { height: 21px; margin-right: 1.5px; }
     .category-icon--brawl_info { height: 24px; margin: -1.5px 0; }
     .category-icon--x       { height: 16px; margin: 2.5px 0; margin-right: 2px; }
     .category-icon--discord { height: 16px; margin: 2.5px 0; margin-right: 2px; }

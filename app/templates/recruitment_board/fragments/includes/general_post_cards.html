@@ -2,14 +2,15 @@
 {% set category_colors = {
     'chat': {'color1': '#d4e6ff', 'color2': '#d4f0ff', 'icon': 'family_friendly.png', 'dark': false},
     'question': {'color1': '#fff6d4', 'color2': '#ffeed4', 'icon': 'mystery.png', 'dark': false},
+    'offtopic': {'color1': '#e8d4ff', 'color2': '#f0d4ff', 'icon': 'gameroom.png', 'dark': false},
     'brawl_info': {'color1': '#d8f7cb', 'color2': '#c5f2b1', 'icon': 'starrdrop.png', 'dark': false},
     'x': {'color1': '#3a3a3a', 'color2': '#4a4a4a', 'icon': 'x.png', 'dark': true},
     'discord': {'color1': '#4752c4', 'color2': '#5865f2', 'icon': 'discord.svg', 'dark': true},
     'youtube': {'color1': '#ffd4d4', 'color2': '#ffd4de', 'icon': 'youtube.png', 'dark': false},
     'tiktok': {'color1': '#ffd4ef', 'color2': '#ffd4e6', 'icon': 'tiktok_white.png', 'dark': false}
 } %}
-{% set category_names_ja = {'chat': '雑談', 'question': '質問', 'brawl_info': 'ブロスタ情報', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
-{% set category_names_en = {'chat': 'Chat', 'question': 'Question', 'brawl_info': 'Brawl Info', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
+{% set category_names_ja = {'chat': '雑談', 'question': '質問', 'offtopic': 'オフトピック', 'brawl_info': 'ブロスタ情報', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
+{% set category_names_en = {'chat': 'Chat', 'question': 'Question', 'offtopic': 'Off Topic', 'brawl_info': 'Brawl Info', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
 {% set link_categories = ['brawl_info', 'x', 'discord', 'youtube', 'tiktok'] %}
 {% set rank_map_ja = {
     22: 'プロ', 21: 'マスター Ⅲ', 20: 'マスター Ⅱ', 19: 'マスター Ⅰ',

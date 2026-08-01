@@ -443,7 +443,6 @@
 
             if (!fab.classList.contains('fab--grayed-out')) {
                 fab.addEventListener('click', async () => {
-                    if (fab.classList.contains('disabled')) return;
                     try {
                         const response = await fetch(checkPostPermissionUrl);
                         const data = await response.json();

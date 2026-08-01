@@ -6,9 +6,38 @@
 
     const RELOAD_BUTTON_COOLDOWN_MS = 1500;
     const AGO_UPDATE_INTERVAL_MS = 60000;
+    const DEFAULT_FILTER = 'all_except_offtopic';
+    const FILTER_INCLUDE_ALL = 'all';
+    const FILTER_EXCLUDE_OFFTOPIC = 'all_except_offtopic';
+    const STORAGE_KEY_TAB = 'generalBoardTab';
+    const STORAGE_KEY_FILTER = 'generalBoardFilter';
+    const VALID_TABS = new Set(['latest', 'trending', 'own', 'participated', 'liked']);
+    const VALID_FILTERS = new Set([
+        'all', 'all_except_offtopic', 'chat', 'question', 'offtopic',
+        'brawl_info', 'x', 'discord', 'youtube', 'tiktok',
+    ]);
 
     let fabCooldownTimer = null;
     let postDelegationBound = false;
+
+    function readStoredPref(key, validValues) {
+        try {
+            const value = sessionStorage.getItem(key);
+            if (value && validValues.has(value)) return value;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    function writeStoredPrefs(tab, filter) {
+        try {
+            if (VALID_TABS.has(tab)) sessionStorage.setItem(STORAGE_KEY_TAB, tab);
+            if (VALID_FILTERS.has(filter)) sessionStorage.setItem(STORAGE_KEY_FILTER, filter);
+        } catch {
+            /* ignore */
+        }
+    }
 
     function parseUtcDatetime(str) {
         if (!str) return null;
@@ -162,7 +191,11 @@
             applyStateFromUrl() {
                 const params = new URLSearchParams(window.location.search);
                 this.tab = params.get('tab') || initialTab || 'latest';
-                this.filter = params.get('filter') || initialFilter || 'all';
+                this.filter = params.get('filter') || initialFilter || DEFAULT_FILTER;
+            },
+
+            persistPrefs() {
+                writeStoredPrefs(this.tab, this.filter);
             },
 
             async load({ updateHistory = false } = {}) {
@@ -173,6 +206,7 @@
 
                 this.isLoading = true;
                 this.hasError = false;
+                this.persistPrefs();
 
                 try {
                     const response = await fetch(this.buildFragmentUrl(), {
@@ -230,14 +264,35 @@
                 if (this.tab !== 'own') {
                     this.tab = 'latest';
                 }
-                if (this.filter !== 'all' && this.filter !== postedCategory) {
-                    this.filter = 'all';
+                if (this.filter === FILTER_INCLUDE_ALL) {
+                    // オフトピック含む表示中はカテゴリに関わらずそのまま
+                } else if (this.filter === FILTER_EXCLUDE_OFFTOPIC) {
+                    if (postedCategory === 'offtopic') {
+                        this.filter = FILTER_INCLUDE_ALL;
+                    }
+                } else if (this.filter !== postedCategory) {
+                    // 個別フィルターと不一致: オフトピック投稿は「含む」、それ以外は「除く」
+                    this.filter = postedCategory === 'offtopic'
+                        ? FILTER_INCLUDE_ALL
+                        : FILTER_EXCLUDE_OFFTOPIC;
                 }
                 return this.load({ updateHistory: true });
             },
 
             init() {
                 window.generalBoardFragment = this;
+
+                const params = new URLSearchParams(window.location.search);
+                if (!params.has('tab')) {
+                    const storedTab = readStoredPref(STORAGE_KEY_TAB, VALID_TABS);
+                    if (storedTab) this.tab = storedTab;
+                }
+                if (!params.has('filter')) {
+                    const storedFilter = readStoredPref(STORAGE_KEY_FILTER, VALID_FILTERS);
+                    if (storedFilter) this.filter = storedFilter;
+                }
+
+                this.persistPrefs();
                 this.syncShellUi();
                 history.replaceState({ generalBoard: this.getQueryParams() }, '', this.buildShellUrl());
                 return this.load({ updateHistory: false });
@@ -422,7 +477,7 @@
             if (event.state?.generalBoard) {
                 const state = event.state.generalBoard;
                 window.generalBoardFragment.tab = state.tab || 'latest';
-                window.generalBoardFragment.filter = state.filter || 'all';
+                window.generalBoardFragment.filter = state.filter || DEFAULT_FILTER;
             } else {
                 window.generalBoardFragment.applyStateFromUrl();
             }
@@ -436,7 +491,6 @@
 
             if (!fab.classList.contains('fab--grayed-out')) {
                 fab.addEventListener('click', async () => {
-                    if (fab.classList.contains('disabled')) return;
                     try {
                         const response = await fetch(checkPostPermissionUrl);
                         const data = await response.json();

@@ -739,7 +739,11 @@ async def club_recruitment_board(
 #* /---*---*---*---*---*---*---*---*/
 #* なんでも掲示板タブ
 #* /---*---*---*---*---*---*---*---*/
-GENERAL_BOARD_CATEGORY_FILTERS = frozenset({"chat", "question", "brawl_info", "x", "discord", "youtube", "tiktok"})
+GENERAL_BOARD_CATEGORY_FILTERS = frozenset({
+    "chat", "question", "offtopic", "brawl_info", "x", "discord", "youtube", "tiktok",
+})
+GENERAL_BOARD_ALL_FILTERS = frozenset({"all", "all_except_offtopic"})
+GENERAL_BOARD_DEFAULT_FILTER = "all_except_offtopic"
 GENERAL_BOARD_TABS = frozenset({"latest", "trending", "own", "participated", "liked"})
 LEGACY_GENERAL_TAB_FILTERS = {"trending": "trending", "only_own_posts": "own", "only_liked_posts": "liked"}
 
@@ -747,8 +751,12 @@ LEGACY_GENERAL_TAB_FILTERS = {"trending": "trending", "only_own_posts": "own", "
 def _normalize_general_board_query(
     filter: str,
     tab: str,
-) -> tuple[str, str, str | None]:
-    """なんでも掲示板の tab / filter クエリを正規化する。"""
+) -> tuple[str, str, str | None, str | None]:
+    """なんでも掲示板の tab / filter クエリを正規化する。
+
+    Returns:
+        (tab, filter, category_filter, exclude_category)
+    """
     if filter in LEGACY_GENERAL_TAB_FILTERS:
         tab = LEGACY_GENERAL_TAB_FILTERS[filter]
         filter = "all"
@@ -756,10 +764,14 @@ def _normalize_general_board_query(
         tab = "latest"
 
     category_filter = filter if filter in GENERAL_BOARD_CATEGORY_FILTERS else None
-    if filter not in GENERAL_BOARD_CATEGORY_FILTERS and filter != "all":
-        filter = "all"
+    exclude_category: str | None = None
+    if filter == "all_except_offtopic":
+        exclude_category = "offtopic"
+    elif filter not in GENERAL_BOARD_CATEGORY_FILTERS and filter not in GENERAL_BOARD_ALL_FILTERS:
+        filter = GENERAL_BOARD_DEFAULT_FILTER
+        exclude_category = "offtopic"
 
-    return tab, filter, category_filter
+    return tab, filter, category_filter, exclude_category
 
 
 async def _fetch_general_board_posts(
@@ -788,7 +800,7 @@ async def _fetch_general_board_posts(
     else:
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
 
-    tab, filter, category_filter = _normalize_general_board_query(filter, tab)
+    tab, filter, category_filter, exclude_category = _normalize_general_board_query(filter, tab)
 
     try:
         if tab == "trending":
@@ -798,6 +810,7 @@ async def _fetch_general_board_posts(
                 page=page,
                 region=None if region.lower() == "all" else region,
                 category=category_filter,
+                exclude_category=exclude_category,
             )
         else:
             posts_filter = None
@@ -824,6 +837,7 @@ async def _fetch_general_board_posts(
                 target_user=target_user_for_posts,
                 target_player=None,
                 category=category_filter,
+                exclude_category=exclude_category,
                 eliminate_duplicates=eliminate_duplicates,
                 author_user_id=author_user_id,
                 author_ip=author_ip,
@@ -868,7 +882,7 @@ async def general_board_fragment(
     limit: int = BOARD_POST_LIMIT_QUERY,
     page: int = BOARD_PAGE_QUERY,
     tab: str = Query("latest", description="表示タブ(latest/trending/own/participated/liked)"),
-    filter: str = Query("all", description="投稿タイプのカテゴリーフィルター"),
+    filter: str = Query(GENERAL_BOARD_DEFAULT_FILTER, description="投稿タイプのカテゴリーフィルター"),
     region: str = Query("all", description="表示する地域"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db),
@@ -884,7 +898,7 @@ async def general_board_fragment(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
-    tab, filter, _ = _normalize_general_board_query(filter, tab)
+    tab, filter, _, _ = _normalize_general_board_query(filter, tab)
     posts, blocked_ids, total_posts = await _fetch_general_board_posts(
         db,
         request,
@@ -931,7 +945,7 @@ async def general_board(
     lang: str,
     limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
     tab: str = Query("latest", description="表示タブ(latest/trending/own/participated/liked)"),
-    filter: str = Query("all", description="投稿タイプのカテゴリーフィルター"),
+    filter: str = Query(GENERAL_BOARD_DEFAULT_FILTER, description="投稿タイプのカテゴリーフィルター"),
     region: str = Query("all", description="表示する地域"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db)
@@ -951,7 +965,7 @@ async def general_board(
     # 投稿が許可されているか確認
     is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "general", ip = get_ip(request), user_id = user.id if user else None)
 
-    tab, filter, _ = _normalize_general_board_query(filter, tab)
+    tab, filter, _, _ = _normalize_general_board_query(filter, tab)
 
     # テンプレートに渡すコンテキスト（投稿一覧はフラグメントで遅延読み込み）
     context = {
