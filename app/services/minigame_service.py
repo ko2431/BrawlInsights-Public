@@ -765,11 +765,12 @@ async def start_play(
             campaign["game_type"], len(campaign["prizes"]["tiers"]), rank, prizes
         )
         has_gift = any(item.get("type") == "gift" for item in prizes.get("items", []))
+        # asyncpg の jsonb codec があるため dict をそのまま渡す（json.dumps すると二重エンコードになる）
         row = await db.fetchrow(
             """INSERT INTO minigame_plays (
                    campaign_id, user_id, play_method, tokens_spent, tickets_spent, result_rank,
                    result_prizes, animation_payload, is_admin_play, gift_fulfillment_status
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10)
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                RETURNING *""",
             campaign["id"],
             user.id,
@@ -777,8 +778,8 @@ async def start_play(
             price,
             tickets_spent,
             rank,
-            json.dumps(prizes),
-            json.dumps(animation),
+            prizes,
+            animation,
             bool(user.is_admin),
             "pending" if has_gift else None,
         )
@@ -870,9 +871,9 @@ async def complete_play(db: asyncpg.Connection, user: User, play_id: int, *, ski
             prizes = json.loads(prizes)
         if skip:
             updated = await db.fetchrow(
-                """UPDATE minigame_plays SET status = 'skipped', grant_log = $1::jsonb,
+                """UPDATE minigame_plays SET status = 'skipped', grant_log = $1,
                    completed_at = now(), gift_fulfillment_status = NULL WHERE id = $2 RETURNING *""",
-                json.dumps({"items": [], "skipped": True}),
+                {"items": [], "skipped": True},
                 play_id,
             )
             record = _record(updated)
@@ -885,9 +886,9 @@ async def complete_play(db: asyncpg.Connection, user: User, play_id: int, *, ski
         grants = await _grant_items(db, user, prizes.get("items", []))
         gift = any(item["type"] == "gift" for item in grants)
         updated = await db.fetchrow(
-            """UPDATE minigame_plays SET status = 'completed', grant_log = $1::jsonb, granted_at = now(),
+            """UPDATE minigame_plays SET status = 'completed', grant_log = $1, granted_at = now(),
                completed_at = now(), gift_fulfillment_status = $2 WHERE id = $3 RETURNING *""",
-            json.dumps({"items": grants, "skipped": False}),
+            {"items": grants, "skipped": False},
             "pending" if gift else None,
             play_id,
         )
@@ -1199,12 +1200,10 @@ async def create_campaign(db: asyncpg.Connection, data: dict[str, Any]) -> dict[
         raise ValueError("ゲーム種別または景品階層数が不正です。")
     columns = ("name_ja", "name_en", "game_type", "starts_at", "ends_at", "prizes", "price_ad_tokens", "price_token_tokens", "ad_daily_limit", "expected_total_plays", "terms_extra_ja", "terms_extra_en")
     async with db.transaction():
+        # asyncpg の jsonb codec があるため prizes は dict のまま渡す
         row = await db.fetchrow(
             f"INSERT INTO minigame_campaigns ({', '.join(columns)}) VALUES ({', '.join(f'${i}' for i in range(1, len(columns)+1))}) RETURNING *",
-            *(
-                json.dumps(data["prizes"]) if column == "prizes" else data.get(column)
-                for column in columns
-            ),
+            *(data.get(column) for column in columns),
         )
         await sync_prize_stocks(db, row["id"], data["prizes"], overwrite_remaining=True)
     await delete_cache("minigame:display_campaign:user"); await delete_cache("minigame:display_campaign:admin")
@@ -1219,12 +1218,10 @@ async def update_campaign(db: asyncpg.Connection, campaign_id: int, data: dict[s
         raise ValueError("ゲーム種別または景品階層数が不正です。")
     fields = ("name_ja", "name_en", "game_type", "starts_at", "ends_at", "prizes", "price_ad_tokens", "price_token_tokens", "ad_daily_limit", "expected_total_plays", "is_invalid", "terms_extra_ja", "terms_extra_en")
     async with db.transaction():
+        # asyncpg の jsonb codec があるため prizes は dict のまま渡す
         row = await db.fetchrow(
             f"UPDATE minigame_campaigns SET {', '.join(f'{field} = ${i}' for i, field in enumerate(fields, 1))}, updated_at = now() WHERE id = ${len(fields)+1} RETURNING *",
-            *(
-                json.dumps(data["prizes"]) if field == "prizes" else data.get(field)
-                for field in fields
-            ), campaign_id,
+            *(data.get(field) for field in fields), campaign_id,
         )
         if not row: raise ValueError("企画が見つかりません。")
         # 開始前のみ残在庫を景品定義に合わせて上書き。開始後は消費済み在庫を維持する。
