@@ -5,7 +5,13 @@ import asyncio
 from app.core.logger import logger
 from app.db.db import get_db_connection_for_bg_task
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
-from app.services.brawl_service import get_player, get_available_brawlers, calc_num_of_available_brawlers, get_max_accessory_counts
+from app.services.brawl_service import (
+    get_player,
+    get_available_brawlers,
+    calc_num_of_available_brawlers,
+    get_max_accessory_counts,
+    get_all_skins,
+)
 from app.services.image_generation_service import (
     claim_next_queued_image_generation_job,
     mark_image_generation_job_completed,
@@ -24,6 +30,8 @@ async def process_image_generation_job_once() -> bool:
 
     try:
         async with get_db_connection_for_bg_task() as db:
+            # 装備スキン一覧などは skin_cache 依存のため、Redisヒット時でも必ずロードする
+            await get_all_skins(db)
             player = await get_player(job.player_tag, db, is_bg_task=True)
             available_brawlers = await get_available_brawlers(db)
             num_of_available_brawlers = await calc_num_of_available_brawlers(db)
