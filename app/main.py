@@ -249,6 +249,7 @@ async def sitemap(request: Request, db: asyncpg.Connection = Depends(get_shared_
         "/ja/stats", "/en/stats",
         "/ja/stats/prestige", "/en/stats/prestige",
         "/ja/stats/ranked_tier_list", "/en/stats/ranked_tier_list",
+        "/ja/stats/ranked_rank_distribution", "/en/stats/ranked_rank_distribution",
         "/ja/stats/skin_ranking", "/en/stats/skin_ranking",
         "/ja/stats/pins_ranking", "/en/stats/pins_ranking",
         "/ja/stats/player_icon_ranking", "/en/stats/player_icon_ranking",
