@@ -976,12 +976,12 @@ body.modal-open {
 /* コンパクト表示関連のスタイル */
 .posts__container.view-compact .post-card__host-info,
 .posts__container.view-compact .post-card__conditions-box {
-    height: 110px;
+    height: 91px;
     display: flex;
     flex-direction: column;
 }
 .general-post-card__host-info {
-    min-height: 60px;
+    min-height: 50px;
     height: auto !important;
     max-height: 110px;
 }
