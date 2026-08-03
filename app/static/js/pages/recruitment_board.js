@@ -6,9 +6,36 @@
 
     const RELOAD_BUTTON_COOLDOWN_MS = 1500;
     const AGO_UPDATE_INTERVAL_MS = 60000;
+    const STORAGE_KEY_FILTER = {
+        friend: 'friendBoardFilter',
+        club: 'clubBoardFilter',
+    };
+    const VALID_FILTERS = new Set([
+        'all', 'eliminate_duplicates', 'only_can_participate', 'only_own_posts',
+    ]);
 
     const fabCooldownTimers = {};
     const postDelegationBound = {};
+
+    function readStoredPref(key, validValues) {
+        try {
+            const value = localStorage.getItem(key);
+            if (value && validValues.has(value)) return value;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    function writeStoredFilter(boardType, selectValue) {
+        try {
+            if (VALID_FILTERS.has(selectValue)) {
+                localStorage.setItem(STORAGE_KEY_FILTER[boardType], selectValue);
+            }
+        } catch {
+            /* ignore */
+        }
+    }
 
     function parseUtcDatetime(str) {
         if (!str) return null;
@@ -191,6 +218,13 @@
                 this.eliminateDuplicates = state.eliminateDuplicates;
             },
 
+            persistPrefs() {
+                writeStoredFilter(
+                    boardType,
+                    getFilterSelectValue(this.filter, this.eliminateDuplicates),
+                );
+            },
+
             async load({ updateHistory = false } = {}) {
                 if (abortController) abortController.abort();
                 abortController = new AbortController();
@@ -199,6 +233,7 @@
 
                 this.isLoading = true;
                 this.hasError = false;
+                this.persistPrefs();
 
                 try {
                     const response = await fetch(this.buildFragmentUrl(), {
@@ -257,6 +292,18 @@
                     window.recruitmentBoardFragments = {};
                 }
                 window.recruitmentBoardFragments[boardType] = this;
+
+                const params = new URLSearchParams(window.location.search);
+                if (!params.has('filter') && !params.has('eliminate_duplicates')) {
+                    const storedFilter = readStoredPref(STORAGE_KEY_FILTER[boardType], VALID_FILTERS);
+                    if (storedFilter) {
+                        const next = applyFilterSelectValue(storedFilter);
+                        this.filter = next.filter;
+                        this.eliminateDuplicates = next.eliminateDuplicates;
+                    }
+                }
+
+                this.persistPrefs();
                 this.syncShellUi();
                 history.replaceState({ [stateKey]: this.getQueryParams() }, '', this.buildShellUrl());
                 return this.load({ updateHistory: false });

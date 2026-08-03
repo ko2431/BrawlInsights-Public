@@ -6,9 +6,32 @@
 
     const RELOAD_BUTTON_COOLDOWN_MS = 1500;
     const AGO_UPDATE_INTERVAL_MS = 60000;
+    const STORAGE_KEY_CATEGORY = 'teamBoardCategory';
+    const STORAGE_KEY_FILTER = 'teamBoardFilter';
+    const VALID_CATEGORIES = new Set(['all', 'trophy', 'ranked', 'friendly', 'event']);
+    const VALID_FILTERS = new Set(['all', 'only_can_participate', 'only_own_posts']);
 
     let fabCooldownTimer = null;
     let postDelegationBound = false;
+
+    function readStoredPref(key, validValues) {
+        try {
+            const value = localStorage.getItem(key);
+            if (value && validValues.has(value)) return value;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    function writeStoredPrefs(category, filter) {
+        try {
+            if (VALID_CATEGORIES.has(category)) localStorage.setItem(STORAGE_KEY_CATEGORY, category);
+            if (VALID_FILTERS.has(filter)) localStorage.setItem(STORAGE_KEY_FILTER, filter);
+        } catch {
+            /* ignore */
+        }
+    }
 
     function parseUtcDatetime(str) {
         if (!str) return null;
@@ -175,6 +198,10 @@
                 }
             },
 
+            persistPrefs() {
+                writeStoredPrefs(this.category, this.filter);
+            },
+
             async load({ updateHistory = false } = {}) {
                 if (abortController) abortController.abort();
                 abortController = new AbortController();
@@ -183,6 +210,7 @@
 
                 this.isLoading = true;
                 this.hasError = false;
+                this.persistPrefs();
 
                 try {
                     const response = await fetch(this.buildFragmentUrl(), {
@@ -245,6 +273,18 @@
 
             init() {
                 window.teamBoardFragment = this;
+
+                const params = new URLSearchParams(window.location.search);
+                if (!params.has('category')) {
+                    const storedCategory = readStoredPref(STORAGE_KEY_CATEGORY, VALID_CATEGORIES);
+                    if (storedCategory) this.category = storedCategory;
+                }
+                if (!params.has('filter')) {
+                    const storedFilter = readStoredPref(STORAGE_KEY_FILTER, VALID_FILTERS);
+                    if (storedFilter) this.filter = storedFilter;
+                }
+
+                this.persistPrefs();
                 this.syncShellUi();
                 history.replaceState({ teamBoard: this.getQueryParams() }, '', this.buildShellUrl());
                 return this.load({ updateHistory: false });

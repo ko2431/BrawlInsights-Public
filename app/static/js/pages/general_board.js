@@ -22,7 +22,7 @@
 
     function readStoredPref(key, validValues) {
         try {
-            const value = sessionStorage.getItem(key);
+            const value = localStorage.getItem(key);
             if (value && validValues.has(value)) return value;
         } catch {
             /* ignore */
@@ -32,8 +32,8 @@
 
     function writeStoredPrefs(tab, filter) {
         try {
-            if (VALID_TABS.has(tab)) sessionStorage.setItem(STORAGE_KEY_TAB, tab);
-            if (VALID_FILTERS.has(filter)) sessionStorage.setItem(STORAGE_KEY_FILTER, filter);
+            if (VALID_TABS.has(tab)) localStorage.setItem(STORAGE_KEY_TAB, tab);
+            if (VALID_FILTERS.has(filter)) localStorage.setItem(STORAGE_KEY_FILTER, filter);
         } catch {
             /* ignore */
         }
