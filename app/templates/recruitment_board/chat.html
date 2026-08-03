@@ -401,6 +401,8 @@
             const postHostId = {{ post.host_id if post.host_id else 'null' }};
             const lang = "{{ lang }}";
             const threadId = {{ post.id }};
+            // ブロック済みユーザーID（WebSocket新着のクライアント側フィルタ用。ページ再読込で最新化）
+            const blockedUserIds = new Set({{ blocked_ids.user_ids | tojson }});
             let hasMoreOlderMessages = {{ 'true' if has_more_older_messages else 'false' }};
             let isLoadingOlderMessages = false;
 
@@ -474,14 +476,20 @@
                     
                     // イベントタイプに応じて処理を分岐
                     switch (data.type) {
-                        case 'new_message':
+                        case 'new_message': {
+                            const incomingMessage = data.data.message;
                             // メッセージを受信したら、その送信者は入力中ではないとみなす
-                            if (typingUsers[data.data.message.user_id]) {
-                                delete typingUsers[data.data.message.user_id];
+                            if (typingUsers[incomingMessage.user_id]) {
+                                delete typingUsers[incomingMessage.user_id];
                                 updateTypingIndicator();
                             }
-                            appendNewMessage(data.data.message);
+                            // ブロック済みユーザーの新着は描画しない（初回HTML/過去取得APIと同条件）
+                            if (incomingMessage.user_id != null && blockedUserIds.has(incomingMessage.user_id)) {
+                                break;
+                            }
+                            appendNewMessage(incomingMessage);
                             break;
+                        }
 
                         case 'delete_message':
                             const messageIdToDelete = data.data.message_id;
@@ -518,8 +526,8 @@
                         }
                         // 入力中イベントの処理
                         case 'user_typing':
-                            // 自分のイベントは無視
-                            if (data.data.id !== currentUserId) {
+                            // 自分・ブロック済みユーザーのイベントは無視
+                            if (data.data.id !== currentUserId && !blockedUserIds.has(data.data.id)) {
                                 typingUsers[data.data.id] = data.data.name;
                                 updateTypingIndicator();
                             }
