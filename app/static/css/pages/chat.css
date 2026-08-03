@@ -221,8 +221,8 @@ body.has-top-banner .chat-ad-banner-spacer {
     border-radius: 14px;
     padding: 10px;
     margin-bottom: 5px;
+    flex-shrink: 0;
     min-width: 0;
-    overflow-x: hidden;
 }
 .post-comment {
     font-size: 13.5px;
