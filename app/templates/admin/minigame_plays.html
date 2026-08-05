@@ -47,16 +47,52 @@
 {% endif %}
 {% endmacro %}
 {% block content %}
-<div class="admin-page__container" x-data="minigamePlayAdmin()">
+<div class="admin-page__container" x-data="minigamePlayAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
  <h1 class="page-title--main">ミニゲーム参加履歴</h1>
- <form class="admin-filters__container" method="get">
-  <label><span class="admin-filters__label-text">企画</span> <select name="campaign_id" class="form-input admin-filters__select"><option value="">すべて</option>{% for campaign in campaigns %}<option value="{{ campaign.id }}" {% if campaign.id == campaign_id %}selected{% endif %}>#{{ campaign.id }} {{ campaign.name_ja }}</option>{% endfor %}</select></label>
-  <label><span class="admin-filters__label-text">参加状態</span> <select name="status_filter" class="form-input admin-filters__select"><option value="all">すべて</option><option value="pending_reveal" {% if status_filter == 'pending_reveal' %}selected{% endif %}>pending_reveal</option><option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>completed</option><option value="skipped" {% if status_filter == 'skipped' %}selected{% endif %}>skipped</option></select></label>
-  <label><span class="admin-filters__label-text">ギフト発送</span> <select name="gift_fulfillment_status" class="form-input admin-filters__select"><option value="all">すべて</option><option value="pending" {% if gift_fulfillment_status == 'pending' %}selected{% endif %}>未発送</option><option value="done" {% if gift_fulfillment_status == 'done' %}selected{% endif %}>発送済み</option></select></label>
-  <label><span class="admin-filters__label-text">ユーザータイプ</span> <select name="user_type" class="form-input admin-filters__select"><option value="all" {% if user_type == 'all' %}selected{% endif %}>すべて</option><option value="admin" {% if user_type == 'admin' %}selected{% endif %}>管理者</option><option value="general" {% if user_type == 'general' %}selected{% endif %}>一般</option></select></label>
-  <label><span class="admin-filters__label-text">等級</span> <select name="rank_filter" class="form-input admin-filters__select">{% for option in rank_filter_options %}<option value="{{ option.value }}" {% if rank_filter == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></label>
-  <label><span class="admin-filters__label-text">ユーザー名</span> <input name="user_name" class="form-input admin-filters__input" value="{{ user_name }}"></label>
-  <input type="hidden" name="sort" value="{{ current_sort }}"><button class="button button--primary admin-filters__submit-button">絞り込む</button>
+ <form class="admin-filters__container" @submit.prevent="submitFilters()">
+  <label>
+   <span class="admin-filters__label-text">企画</span>
+   <select class="form-input admin-filters__select" x-model="draft.campaign_id">
+    <option value="">すべて</option>
+    {% for campaign in campaigns %}<option value="{{ campaign.id }}">#{{ campaign.id }} {{ campaign.name_ja }}</option>{% endfor %}
+   </select>
+  </label>
+  <label>
+   <span class="admin-filters__label-text">参加状態</span>
+   <select class="form-input admin-filters__select" x-model="draft.status_filter">
+    <option value="all">すべて</option>
+    <option value="pending_reveal">pending_reveal</option>
+    <option value="completed">completed</option>
+    <option value="skipped">skipped</option>
+   </select>
+  </label>
+  <label>
+   <span class="admin-filters__label-text">ギフト発送</span>
+   <select class="form-input admin-filters__select" x-model="draft.gift_fulfillment_status">
+    <option value="all">すべて</option>
+    <option value="pending">未発送</option>
+    <option value="done">発送済み</option>
+   </select>
+  </label>
+  <label>
+   <span class="admin-filters__label-text">ユーザータイプ</span>
+   <select class="form-input admin-filters__select" x-model="draft.user_type">
+    <option value="all">すべて</option>
+    <option value="admin">管理者</option>
+    <option value="general">一般</option>
+   </select>
+  </label>
+  <label>
+   <span class="admin-filters__label-text">等級</span>
+   <select class="form-input admin-filters__select" x-model="draft.rank_filter">
+    {% for option in rank_filter_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
+   </select>
+  </label>
+  <label>
+   <span class="admin-filters__label-text">ユーザー名</span>
+   <input class="form-input admin-filters__input" x-model="draft.user_name" maxlength="100">
+  </label>
+  <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
  </form>
  <p class="admin-page__description">表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大100件／ページ）</p>
  {{ render_pagination(pagination, campaign_id, status_filter, gift_fulfillment_status, user_type, user_name, rank_filter, current_sort) }}
@@ -77,5 +113,116 @@
 </style>
 {% endblock %}
 {% block scripts %}{{ super() }}<script>
-function minigamePlayAdmin(){return {sort(column){const url=new URL(location.href), current='{{ current_sort }}'; url.searchParams.set('sort',current.startsWith(column+'_')&&current.endsWith('_desc')?column+'_asc':column+'_desc');url.searchParams.set('page','1');location.href=url;},async toggleGift(id,current){const next=current==='done'?'pending':'done';if(!confirm(`ギフトを「${next==='done'?'発送済み':'未発送'}」に変更しますか？`))return;const r=await fetch('{{ url_for("admin_minigame_gift_status", lang=lang) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({play_id:id,gift_fulfillment_status:next})});const d=await r.json();if(d.success)location.reload();else alert(d.message);}}}
+document.addEventListener('alpine:init', () => {
+    Alpine.data('minigamePlayAdmin', () => ({
+        applied: {},
+        draft: {
+            campaign_id: '',
+            status_filter: 'all',
+            gift_fulfillment_status: 'all',
+            user_type: 'all',
+            rank_filter: 'all',
+            user_name: '',
+        },
+        filterDefaults: {
+            campaign_id: '',
+            status_filter: 'all',
+            gift_fulfillment_status: 'all',
+            user_type: 'all',
+            rank_filter: 'all',
+            user_name: '',
+        },
+        currentSort: '{{ current_sort }}',
+
+        initFilters(appliedFilters) {
+            this.applied = appliedFilters;
+            this.draft = { ...appliedFilters };
+        },
+
+        get canSubmitFilters() {
+            if (!this.isFilterInputValid()) {
+                return false;
+            }
+            return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+        },
+
+        normalizedDraft() {
+            return this.normalizeFilters(this.draft);
+        },
+
+        normalizedApplied() {
+            return this.normalizeFilters(this.applied);
+        },
+
+        normalizeFilters(filters) {
+            return {
+                campaign_id: String(filters.campaign_id ?? '').trim(),
+                status_filter: filters.status_filter || 'all',
+                gift_fulfillment_status: filters.gift_fulfillment_status || 'all',
+                user_type: filters.user_type || 'all',
+                rank_filter: filters.rank_filter || 'all',
+                user_name: (filters.user_name || '').trim(),
+            };
+        },
+
+        isFilterInputValid() {
+            const draft = this.normalizedDraft();
+            if (draft.campaign_id && !/^\d+$/.test(draft.campaign_id)) {
+                return false;
+            }
+            return true;
+        },
+
+        submitFilters() {
+            if (!this.canSubmitFilters) {
+                return;
+            }
+            const url = new URL(window.location.href);
+            const draft = this.normalizedDraft();
+            url.searchParams.delete('page');
+            Object.keys(this.filterDefaults).forEach((key) => {
+                const value = draft[key];
+                if (value && value !== this.filterDefaults[key]) {
+                    url.searchParams.set(key, value);
+                } else {
+                    url.searchParams.delete(key);
+                }
+            });
+            if (this.currentSort && this.currentSort !== 'created_desc') {
+                url.searchParams.set('sort', this.currentSort);
+            }
+            url.searchParams.set('page', '1');
+            window.location.href = url.toString();
+        },
+
+        sort(column) {
+            const url = new URL(location.href);
+            const current = this.currentSort;
+            const nextSort = current.startsWith(column + '_') && current.endsWith('_desc')
+                ? column + '_asc'
+                : column + '_desc';
+            url.searchParams.set('sort', nextSort);
+            url.searchParams.set('page', '1');
+            location.href = url;
+        },
+
+        async toggleGift(id, current) {
+            const next = current === 'done' ? 'pending' : 'done';
+            if (!confirm(`ギフトを「${next === 'done' ? '発送済み' : '未発送'}」に変更しますか？`)) {
+                return;
+            }
+            const response = await fetch('{{ url_for("admin_minigame_gift_status", lang=lang) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ play_id: id, gift_fulfillment_status: next }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        },
+    }));
+});
 </script>{% endblock %}
