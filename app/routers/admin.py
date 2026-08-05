@@ -15,7 +15,7 @@ from app.core.config import settings
 
 from app.services.brawl_service import get_all_maps, get_all_modes, upsert_map, upsert_mode, get_available_brawlers, update_brawler, get_player_name
 from app.services.user_service import User, get_all_regions, update_region, delete_region, insert_region, get_all_secret_questions, insert_secret_question, update_secret_question, get_all_gift_codes, create_gift_code, get_gift_code, get_user, get_user_include_invalid, get_feedbacks, get_feedback, get_all_announcements, insert_announcement, update_announcement, delete_announcement, search_users, get_usage_stat_trend
-from app.services.board_service import get_posts, get_messages, get_reactions, get_reports, get_post, get_message, get_report
+from app.services.board_service import get_posts, get_reactions, get_reports, get_post, get_message, get_report
 from app.utils.utils import parse_utc_datetime
 from app.db.db import get_shared_db
 from app.exceptions.custom_exceptions import DataBaseError
