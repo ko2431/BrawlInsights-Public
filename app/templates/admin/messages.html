@@ -11,13 +11,14 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, status_filter, user_type, user_name, user_id, message_text, message_regex) %}
+{% macro render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, message_text, message_regex) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="メッセージページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
                 {% if status_filter != 'all' %}{% set _ = base_query_parts.append("status_filter=" + status_filter) %}{% endif %}
                 {% if user_type != 'all' %}{% set _ = base_query_parts.append("user_type=" + user_type) %}{% endif %}
+                {% if message_id %}{% set _ = base_query_parts.append("message_id=" + message_id) %}{% endif %}
                 {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
                 {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
                 {% if message_text %}{% set _ = base_query_parts.append("message_text=" + (message_text | urlencode)) %}{% endif %}
@@ -62,6 +63,10 @@
     <h1 class="page-title--main">メッセージ確認</h1>
 
     <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">メッセージID</span>
+            <input class="form-input admin-filters__input" x-model="draft.message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeMessageId()">
+        </label>
         <label>
             <span class="admin-filters__label-text">状態</span>
             <select class="form-input admin-filters__select" x-model="draft.status_filter">
@@ -113,7 +118,7 @@
         （最大1,000件／ページ）
     </p>
 
-    {{ render_pagination(pagination, status_filter, user_type, user_name, user_id, message_text, message_regex) }}
+    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, message_text, message_regex) }}
 
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
@@ -167,7 +172,7 @@
         </table>
     </div>
 
-    {{ render_pagination(pagination, status_filter, user_type, user_name, user_id, message_text, message_regex) }}
+    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, message_text, message_regex) }}
 </div>
 {% endblock %}
 
@@ -180,6 +185,7 @@
                 draft: {
                     status_filter: 'all',
                     user_type: 'all',
+                    message_id: '',
                     user_name: '',
                     user_id: '',
                     message_text: '',
@@ -190,6 +196,7 @@
                 filterDefaults: {
                     status_filter: 'all',
                     user_type: 'all',
+                    message_id: '',
                     user_name: '',
                     user_id: '',
                     message_text: '',
@@ -230,6 +237,7 @@
                     return {
                         status_filter: filters.status_filter || 'all',
                         user_type: filters.user_type || 'all',
+                        message_id: (filters.message_id || '').trim(),
                         user_name: (filters.user_name || '').trim(),
                         user_id: (filters.user_id || '').trim(),
                         message_text: (filters.message_text || '').trim(),
@@ -240,6 +248,9 @@
                 isFilterInputValid() {
                     const draft = this.normalizedDraft();
                     if (draft.message_text && draft.message_regex) {
+                        return false;
+                    }
+                    if (draft.message_id && !/^\d+$/.test(draft.message_id)) {
                         return false;
                     }
                     if (draft.user_id && !/^\d+$/.test(draft.user_id)) {
@@ -262,6 +273,10 @@
 
                 sanitizeUserId() {
                     this.draft.user_id = (this.draft.user_id || '').replace(/\D/g, '');
+                },
+
+                sanitizeMessageId() {
+                    this.draft.message_id = (this.draft.message_id || '').replace(/\D/g, '');
                 },
 
                 submitFilters() {

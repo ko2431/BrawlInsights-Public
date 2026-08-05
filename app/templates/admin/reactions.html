@@ -11,27 +11,29 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{# ページネーションUIマクロ #}
-{% macro render_pagination(pagination, grouping) %}
+{% macro render_pagination(pagination, reaction_id, user_name, user_id, emoji_filter, target_message_id, message_sender_name, message_sender_id, thread_id) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="リアクションページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
-                {% if grouping %}{% set _ = base_query_parts.append("grouping=True") %}{% endif %}
+                {% if reaction_id %}{% set _ = base_query_parts.append("reaction_id=" + reaction_id) %}{% endif %}
+                {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
+                {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
+                {% if emoji_filter != 'all' %}{% set _ = base_query_parts.append("emoji_filter=" + (emoji_filter | urlencode)) %}{% endif %}
+                {% if target_message_id %}{% set _ = base_query_parts.append("target_message_id=" + target_message_id) %}{% endif %}
+                {% if message_sender_name %}{% set _ = base_query_parts.append("message_sender_name=" + (message_sender_name | urlencode)) %}{% endif %}
+                {% if message_sender_id %}{% set _ = base_query_parts.append("message_sender_id=" + message_sender_id) %}{% endif %}
+                {% if thread_id %}{% set _ = base_query_parts.append("thread_id=" + thread_id) %}{% endif %}
                 {% set base_query = base_query_parts | join('&') %}
                 {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
 
-                {# 1. "＜" (前へ) ボタン #}
                 {% if pagination.has_prev %}
                     <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
                 {% endif %}
 
-                {# 2. ページ番号のロジック #}
                 {% set page_numbers = [] %}
                 {% for p in range(1, pagination.total_pages + 1) %}
-                    {# 最初と最後、および現在ページ±2のページ番号を表示対象とする #}
                     {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
-                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
                         {% if page_numbers and p > page_numbers[-1] + 1 %}
                             {% set _ = page_numbers.append('...') %}
                         {% endif %}
@@ -39,7 +41,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# 3. ページ番号リストを元にHTMLを生成 #}
                 {% for p in page_numbers %}
                     {% if p == '...' %}
                         <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
@@ -50,7 +51,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# 4. ">" (次へ) ボタン #}
                 {% if pagination.has_next %}
                     <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
                 {% endif %}
@@ -60,41 +60,70 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container">
+<div class="admin-page__container" x-data="reactionAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     <h1 class="page-title--main">リアクション確認</h1>
 
-    {# フィルター #}
-    <div class="admin-filters__container">
-        <form method="get" id="groupingForm" class="filter-form">
-            <label for="groupingSelect" class="filter-form__label">グルーピング:</label>
-            <select name="grouping" id="groupingSelect" class="filter-form__select" onchange="document.getElementById('groupingForm').submit();">
-                <option value="True" {% if grouping %}selected{% endif %}>する</option>
-                <option value="False" {% if not grouping %}selected{% endif %}>しない</option>
+    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">リアクションID</span>
+            <input class="form-input admin-filters__input" x-model="draft.reaction_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('reaction_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">絵文字</span>
+            <select class="form-input admin-filters__select" x-model="draft.emoji_filter">
+                {% for option in emoji_filter_options %}
+                <option value="{{ option.value }}">{{ option.label }}</option>
+                {% endfor %}
             </select>
-            <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
-        </form>
-    </div>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">該当メッセージID</span>
+            <input class="form-input admin-filters__input" x-model="draft.target_message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('target_message_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">該当メッセージ送信者名</span>
+            <input class="form-input admin-filters__input" x-model="draft.message_sender_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">該当メッセージ送信者ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.message_sender_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('message_sender_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">該当スレッドID</span>
+            <input class="form-input admin-filters__input" x-model="draft.thread_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('thread_id')">
+        </label>
+        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    </form>
 
     <p class="admin-page__description">
-        リアクション総数: <b>{{ '{:,}'.format(total_count) }}</b> 件
+        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大1,000件／ページ）
     </p>
 
-    {# ページネーション (上) #}
-    {{ render_pagination(pagination, grouping) }}
+    {{ render_pagination(pagination, reaction_id, user_name, user_id, emoji_filter, target_message_id, message_sender_name, message_sender_id, thread_id) }}
 
-    {# テーブル #}
-    <div class="table-wrapper" style="margin-top: 1em;">
+    <div class="table-wrapper" style="margin-top: 10px;">
         <table class="data-table reaction-table">
             <thead>
-                <th>ID</th>
-                <th>日時 (JST)</th>
-                <th>ユーザー</th>
-                <th>ユーザーID</th>
-                <th>絵文字</th>
-                <th>該当メッセージ</th>
-                <th>該当メッセージID</th>
-                <th>該当メッセージ送信者</th>
-                <th>該当メッセージ送信者ID</th>
+                <tr>
+                    <th>ID</th>
+                    <th>日時 (JST)</th>
+                    <th>ユーザー</th>
+                    <th>ユーザーID</th>
+                    <th>絵文字</th>
+                    <th>該当メッセージ</th>
+                    <th>該当メッセージID</th>
+                    <th>該当メッセージ送信者</th>
+                    <th>該当メッセージ送信者ID</th>
+                    <th>該当スレッドID</th>
+                </tr>
             </thead>
             <tbody>
                 {% for reaction in reactions %}
@@ -104,27 +133,129 @@
                     <td>{{ reaction.user_name }}</td>
                     <td>{{ reaction.user_id }}</td>
                     <td>{{ reaction.emoji }}</td>
-                    <td>{{ reaction.message.message }}</td>
-                    <td>{{ reaction.message_id }}</td>
-                    <td>{{ reaction.message.user_name if reaction.message.user_name else "(ゲスト)" }}</td>
-                    <td>{{ reaction.message.user_id if reaction.message.user_id else reaction.message.user_ip }}</td>
+                    <td class="col-message">
+                        <div class="col-message-content">{{ reaction.message_text }}</div>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin_messages', lang=lang) }}?message_id={{ reaction.message_id }}"
+                           class="admin-thread-link"
+                           {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reaction.message_id }}</a>
+                    </td>
+                    <td>{{ reaction.message_user_name if reaction.message_user_id else "(ゲスト)" }}</td>
+                    <td>{{ reaction.message_user_id if reaction.message_user_id else reaction.message_user_ip }}</td>
+                    <td>
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=reaction.thread_id) }}"
+                           class="admin-thread-link"
+                           {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reaction.thread_id }}</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" style="text-align: center; color: #777;">リアクションはありません。</td>
                 </tr>
                 {% endfor %}
-                {% if not reactions %}
-                <tr>
-                    <td colspan="9" style="text-align: center; color: #777;">リアクションはありません。</td>
-                </tr>
-                {% endif %}
             </tbody>
         </table>
     </div>
 
-    {# ページネーション (下) #}
-    {{ render_pagination(pagination, grouping) }}
-
+    {{ render_pagination(pagination, reaction_id, user_name, user_id, emoji_filter, target_message_id, message_sender_name, message_sender_id, thread_id) }}
 </div>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('reactionAdmin', () => ({
+                applied: {},
+                draft: {
+                    reaction_id: '',
+                    user_name: '',
+                    user_id: '',
+                    emoji_filter: 'all',
+                    target_message_id: '',
+                    message_sender_name: '',
+                    message_sender_id: '',
+                    thread_id: '',
+                },
+                filterDefaults: {
+                    reaction_id: '',
+                    user_name: '',
+                    user_id: '',
+                    emoji_filter: 'all',
+                    target_message_id: '',
+                    message_sender_name: '',
+                    message_sender_id: '',
+                    thread_id: '',
+                },
+                numericFields: ['reaction_id', 'user_id', 'target_message_id', 'message_sender_id', 'thread_id'],
+
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) {
+                        return false;
+                    }
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        reaction_id: (filters.reaction_id || '').trim(),
+                        user_name: (filters.user_name || '').trim(),
+                        user_id: (filters.user_id || '').trim(),
+                        emoji_filter: filters.emoji_filter || 'all',
+                        target_message_id: (filters.target_message_id || '').trim(),
+                        message_sender_name: (filters.message_sender_name || '').trim(),
+                        message_sender_id: (filters.message_sender_id || '').trim(),
+                        thread_id: (filters.thread_id || '').trim(),
+                    };
+                },
+
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    for (const field of this.numericFields) {
+                        if (draft[field] && !/^\d+$/.test(draft[field])) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+
+                sanitizeNumericField(field) {
+                    this.draft[field] = (this.draft[field] || '').replace(/\D/g, '');
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) {
+                        return;
+                    }
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+            }));
+        });
+    </script>
 {% endblock %}
