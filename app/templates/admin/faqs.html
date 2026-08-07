@@ -12,6 +12,14 @@
 
 {% block content %}
 <div class="admin-page__container" x-data="faqAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
     <h1 class="page-title--main">FAQ管理</h1>
 
     <p class="admin-page__description">
@@ -117,6 +125,14 @@
             </tbody>
         </table>
     </div>
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

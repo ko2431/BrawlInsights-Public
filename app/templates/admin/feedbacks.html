@@ -62,6 +62,14 @@
 
 {% block content %}
 <div class="admin-page__container" x-data="feedbackAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
     <h1 class="page-title--main">フィードバック確認</h1>
 
     {# フィルターボタン #}
@@ -137,6 +145,14 @@
     {# ページネーション (下) #}
     {{ render_pagination(pagination, current_filter, current_sort) }}
 
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

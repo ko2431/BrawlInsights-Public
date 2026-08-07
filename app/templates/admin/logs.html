@@ -50,6 +50,14 @@
 
 {% block content %}
 <div class="admin-page__container">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
     <h1 class="page-title--main">ログ確認</h1>
 
     <div class="filter-form" style="margin-top: 20px; margin-bottom: 20px;">
@@ -117,6 +125,14 @@
                 ログファイル <b>{{ log_file_name }}</b> は見つかりませんでした。
             </p>
         </div>
+    {% endif %}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
     {% endif %}
 </div>
 {% endblock %}
