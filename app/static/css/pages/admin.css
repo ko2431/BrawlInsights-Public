@@ -287,7 +287,11 @@ th {
     white-space: pre-wrap; /* 改行を反映 */
     word-break: break-all;
 }
-.user-table .col-list-content a { text-decoration: none; color: inherit; } /* リンクの下線をなくす */
+.user-table .col-list-content a,
+.user-table .col-main-account a {
+    text-decoration: underline;
+    color: inherit;
+}
 .user-table .col-limit { min-width: 130px; }
 .user-table .col-checkbox { min-width: 100px; text-align: center; }
 .user-table .col-json { min-width: 250px; }
