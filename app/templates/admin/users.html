@@ -152,7 +152,7 @@
     </form>
 
     <p class="admin-page__description">
-        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b> 件（最大1,000件／ページ）
+        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b> 件（最大100件／ページ）
     </p>
 
     {{ render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, invalid_filter, prohibit_posting_filter) }}
