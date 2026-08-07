@@ -11,27 +11,37 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{# ページネーションUIマクロ #}
-{% macro render_pagination(pagination, current_filter) %}
+{% macro render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="通報ページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
-                {% if current_filter != 'unchecked' %}{% set _ = base_query_parts.append("filter=" + current_filter) %}{% endif %}
+                {% if report_id %}{% set _ = base_query_parts.append("report_id=" + report_id) %}{% endif %}
+                {% if status_filter != 'unchecked' %}{% set _ = base_query_parts.append("status_filter=" + status_filter) %}{% endif %}
+                {% if user_type != 'all' %}{% set _ = base_query_parts.append("user_type=" + user_type) %}{% endif %}
+                {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
+                {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
+                {% if user_ip %}{% set _ = base_query_parts.append("user_ip=" + (user_ip | urlencode)) %}{% endif %}
+                {% if target_type != 'all' %}{% set _ = base_query_parts.append("target_type=" + target_type) %}{% endif %}
+                {% if post_id %}{% set _ = base_query_parts.append("post_id=" + post_id) %}{% endif %}
+                {% if message_id %}{% set _ = base_query_parts.append("message_id=" + message_id) %}{% endif %}
+                {% if target_content %}{% set _ = base_query_parts.append("target_content=" + (target_content | urlencode)) %}{% endif %}
+                {% if target_content_regex %}{% set _ = base_query_parts.append("target_content_regex=" + (target_content_regex | urlencode)) %}{% endif %}
+                {% if category != 'all' %}{% set _ = base_query_parts.append("category=" + category) %}{% endif %}
+                {% if comment_text %}{% set _ = base_query_parts.append("comment_text=" + (comment_text | urlencode)) %}{% endif %}
+                {% if comment_regex %}{% set _ = base_query_parts.append("comment_regex=" + (comment_regex | urlencode)) %}{% endif %}
+                {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
+                {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
                 {% set base_query = base_query_parts | join('&') %}
                 {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
 
-                {# 1. "＜" (前へ) ボタン #}
                 {% if pagination.has_prev %}
                     <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
                 {% endif %}
 
-                {# 2. ページ番号のロジック #}
                 {% set page_numbers = [] %}
                 {% for p in range(1, pagination.total_pages + 1) %}
-                    {# 最初と最後、および現在ページ±2のページ番号を表示対象とする #}
                     {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
-                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
                         {% if page_numbers and p > page_numbers[-1] + 1 %}
                             {% set _ = page_numbers.append('...') %}
                         {% endif %}
@@ -39,7 +49,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# 3. ページ番号リストを元にHTMLを生成 #}
                 {% for p in page_numbers %}
                     {% if p == '...' %}
                         <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
@@ -50,7 +59,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# 4. ">" (次へ) ボタン #}
                 {% if pagination.has_next %}
                     <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
                 {% endif %}
@@ -60,7 +68,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container" x-data="reportAdmin()">
+<div class="admin-page__container" x-data="reportAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -69,23 +77,112 @@
         <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
     </div>
     {% endif %}
+
     <h1 class="page-title--main">通報確認</h1>
 
-    {# フィルターボタン #}
-    <div class="filter-buttons" style="margin-top: 15px;">
-        <a href="/{{ lang }}/admin/reports?filter=all" class="button {% if current_filter == 'all' %}button--primary{% else %}button--secondary{% endif %}">すべて</a>
-        <a href="/{{ lang }}/admin/reports?filter=unchecked" class="button {% if current_filter == 'unchecked' %}button--primary{% else %}button--secondary{% endif %}">未チェック</a>
-        <a href="/{{ lang }}/admin/reports?filter=checked" class="button {% if current_filter == 'checked' %}button--primary{% else %}button--secondary{% endif %}">チェック済み</a>
-    </div>
+    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">通報ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.report_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('report_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">状態</span>
+            <select class="form-input admin-filters__select" x-model="draft.status_filter">
+                <option value="all">すべて</option>
+                <option value="unchecked">未チェック</option>
+                <option value="checked">チェック済み</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザータイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.user_type">
+                <option value="all">すべて</option>
+                <option value="logged_in">ログイン済み</option>
+                <option value="guest">未ログイン</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">IPアドレス</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_ip" maxlength="45">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ターゲット種別</span>
+            <select class="form-input admin-filters__select" x-model="draft.target_type">
+                <option value="all">すべて</option>
+                <option value="post">投稿</option>
+                <option value="message">メッセージ</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">投稿ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.post_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('post_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">メッセージID</span>
+            <input class="form-input admin-filters__input" x-model="draft.message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('message_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ターゲット内容</span>
+            <input class="form-input admin-filters__input" x-model="draft.target_content" maxlength="200" :disabled="!!draft.target_content_regex.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ターゲット内容（正規表現）</span>
+            <input class="form-input admin-filters__input" x-model="draft.target_content_regex" maxlength="200" :disabled="!!draft.target_content.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">カテゴリー</span>
+            <select class="form-input admin-filters__select" x-model="draft.category">
+                <option value="all">すべて</option>
+                {% for option in category_options %}
+                <option value="{{ option.value }}">{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">本文</span>
+            <input class="form-input admin-filters__input" x-model="draft.comment_text" maxlength="200" :disabled="!!draft.comment_regex.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">本文（正規表現）</span>
+            <input class="form-input admin-filters__input" x-model="draft.comment_regex" maxlength="200" :disabled="!!draft.comment_text.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以降</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_after">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以前</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_before">
+        </label>
+        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    </form>
 
     <p class="admin-page__description">
-        通報総数: <b>{{ '{:,}'.format(total_count) }}</b> 件
+        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／
+        {% set logged_in_users = pagination.total_logged_in_users %}
+        {% set guest_users = pagination.total_guest_users %}
+        {% if logged_in_users > 0 and guest_users > 0 %}
+            <b>{{ '{:,}'.format(logged_in_users) }}</b>＋ゲスト<b>{{ '{:,}'.format(guest_users) }}</b>人
+        {% elif logged_in_users > 0 %}
+            <b>{{ '{:,}'.format(logged_in_users) }}</b>人
+        {% elif guest_users > 0 %}
+            ゲスト<b>{{ '{:,}'.format(guest_users) }}</b>人
+        {% else %}
+            <b>0</b>人
+        {% endif %}
+        （最大1,000件／ページ）
     </p>
 
-    {# ページネーション (上) #}
-    {{ render_pagination(pagination, current_filter) }}
+    {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
 
-    {# 保存UI #}
     <div class="save-changes-block">
         <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
@@ -95,64 +192,87 @@
          x-text="saveStatus.message" style="margin-bottom: 10px;">
     </div>
 
-    {# テーブル #}
-    <div class="table-wrapper">
+    <div class="table-wrapper" style="margin-top: 10px;">
         <table class="data-table report-table">
             <thead>
-                <th>ID</th>
-                <th>日時 (JST)</th>
-                <th>ユーザー</th>
-                <th>ユーザーID / IP</th>
-                <th>ターゲット</th>
-                <th>ターゲットID</th>
-                <th>ターゲット内容</th>
-                <th>カテゴリー</th>
-                <th>本文</th>
-                <th>チェック</th>
+                <tr>
+                    <th>ID</th>
+                    <th>日時 (JST)</th>
+                    <th>ユーザー</th>
+                    <th>ユーザーID / IP</th>
+                    <th>ターゲット</th>
+                    <th>投稿ID</th>
+                    <th>メッセージID</th>
+                    <th>ターゲット内容</th>
+                    <th>カテゴリー</th>
+                    <th>本文</th>
+                    <th>チェック</th>
+                </tr>
             </thead>
             <tbody>
-                <template x-for="report in reportsData" :key="report.id">
-                    <tr x-data="reportRow(report)">
-                        <td x-text="report.id"></td>
-                        <td x-text="report.created_at_text"></td>
-                        <td x-text="report.user_name || '(ゲスト)'"></td>
-                        <td x-text="report.user_id || report.user_ip"></td>
-                        <td x-text="report.target_type === 'message' ? 'メッセージ' : '投稿'"></td>
-                        <td x-text="report.target_id"></td>
-                        <td x-text="report.target_type === 'message' 
-                            ? (report.target_message ? report.target_message.message : '(対象メッセージなし)') 
-                            : (report.target_post ? (report.target_post.comment || '(コメントなし)') : '(対象投稿なし)')">
-                        </td>
-                        <td x-text="getReportTypeJa(report.category)"></td>
-                        <td class="col-message" style="min-width: 200px; max-width: 300px; white-space: normal;">
-                            <div class="col-message-content" x-text="report.text || '(なし)'"></div>
-                        </td>
-                        <td class="cell-center">
-                            <input type="checkbox" class="form-checkbox" x-model="is_checked_current" @change="updateAndNotify()">
-                        </td>
-                    </tr>
-                </template>
-                {% if not reports %}
-                <tr>
-                    <td colspan="10" style="text-align: center; color: #777;">通報はありません。</td>
+                {% for report in reports %}
+                <tr x-data="reportRow" x-init='initData({{ {"id": report.id, "is_checked": report.is_checked} | tojson }})' :class="{ 'changed': isDirty() }">
+                    <td>{{ report.id }}</td>
+                    <td>{{ report.created_at_text }}</td>
+                    <td>{{ report.user_name if report.user_name else "(ゲスト)" }}</td>
+                    <td>
+                        {% if report.user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ report.user_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.user_id }}</a>
+                        {% else %}
+                            {{ report.user_ip }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge target-{{ report.target_type }}">{{ report.target_type_label }}</span>
+                    </td>
+                    <td>
+                        {% if report.post_id %}
+                            <a href="{{ url_for('chat_thread', lang=lang, thread_id=report.post_id) }}"
+                               class="admin-thread-link"
+                               data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ report.post_id }}"
+                               onclick="return handleAdminThreadLinkClick(event, this)"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.post_id }}</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if report.message_id %}
+                            <a href="{{ url_for('admin_messages', lang=lang) }}?message_id={{ report.message_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.message_id }}</a>
+                        {% endif %}
+                    </td>
+                    <td class="col-message">
+                        <div class="col-message-content">{{ report.target_content }}</div>
+                    </td>
+                    <td>{{ report.category_ja }}</td>
+                    <td class="col-message">
+                        <div class="col-message-content">{{ report.text if report.text else "(なし)" }}</div>
+                    </td>
+                    <td class="form-checkbox-cell cell-center">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_checked">
+                    </td>
                 </tr>
-                {% endif %}
+                {% else %}
+                <tr>
+                    <td colspan="11" style="text-align: center; color: #777;">通報はありません。</td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
-    {# 保存UI (下) #}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
     </div>
     <div x-show="saveStatus.message" class="form-field-status server-response"
-        :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
-        x-text="saveStatus.message" style="margin-top: -5px;">
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-top: -5px;">
     </div>
 
-    {# ページネーション (下) #}
-    {{ render_pagination(pagination, current_filter) }}
+    {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
 
     {% if platform != "web" %}
     <div class="back-button__container"
@@ -168,112 +288,241 @@
 {% block scripts %}
     {{ super() }}
     <script>
-        function reportAdmin() {
-            return {
-                reportsData: {{ reports | tojson | safe }},
+        function handleAdminThreadLinkClick(event, el) {
+            if (!event.altKey) {
+                return true;
+            }
+            event.preventDefault();
+            const url = el.dataset.adminPostsUrl;
+            if (!url) {
+                return false;
+            }
+            if (el.target === '_blank') {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            } else {
+                window.location.href = url;
+            }
+            return false;
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('reportAdmin', () => ({
+                applied: {},
+                draft: {
+                    report_id: '',
+                    status_filter: 'unchecked',
+                    user_type: 'all',
+                    user_name: '',
+                    user_id: '',
+                    user_ip: '',
+                    target_type: 'all',
+                    post_id: '',
+                    message_id: '',
+                    target_content: '',
+                    target_content_regex: '',
+                    category: 'all',
+                    comment_text: '',
+                    comment_regex: '',
+                    created_after: '',
+                    created_before: '',
+                },
+                filterDefaults: {
+                    report_id: '',
+                    status_filter: 'unchecked',
+                    user_type: 'all',
+                    user_name: '',
+                    user_id: '',
+                    user_ip: '',
+                    target_type: 'all',
+                    post_id: '',
+                    message_id: '',
+                    target_content: '',
+                    target_content_regex: '',
+                    category: 'all',
+                    comment_text: '',
+                    comment_regex: '',
+                    created_after: '',
+                    created_before: '',
+                },
+                numericFields: ['report_id', 'user_id', 'post_id', 'message_id'],
                 hasUnsavedChanges: false,
                 saveStatus: { message: '', success: false },
 
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
                 init() {
-                    // 各行の変更を監視
-                    this.$root.addEventListener('rowinputchanged', () => {
-                        this.$nextTick(() => this.checkForAnyChanges());
-                    });
-                    // ページを離れる前の警告
+                    this.$root.addEventListener('report-row-change', () => this.checkForChanges());
                     window.addEventListener('beforeunload', (event) => {
-                        if (this.hasUnsavedChanges) { event.preventDefault(); event.returnValue = ''; }
+                        if (this.hasUnsavedChanges) {
+                            event.preventDefault();
+                            event.returnValue = '';
+                        }
                     });
                 },
 
-                getReportTypeJa(type) {
-                    const map = {
-                        'unpleasant_content': '不快なコンテンツ',
-                        'hateful_content': '攻撃的なコンテンツ',
-                        'spam': 'スパム',
-                        'tos_violation': '規約違反行為の呼びかけ'
-                    };
-                    return map[type] || type;
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) {
+                        return false;
+                    }
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
                 },
 
-                checkForAnyChanges() {
-                    this.hasUnsavedChanges = this.reportsData.some(
-                        (original, index) => {
-                            const current = this.$root.querySelectorAll('tbody tr[x-data]')[index];
-                            if (current) {
-                                return original.is_checked !== Alpine.$data(current).is_checked_current;
-                            }
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        report_id: (filters.report_id || '').trim(),
+                        status_filter: filters.status_filter || 'unchecked',
+                        user_type: filters.user_type || 'all',
+                        user_name: (filters.user_name || '').trim(),
+                        user_id: (filters.user_id || '').trim(),
+                        user_ip: (filters.user_ip || '').trim(),
+                        target_type: filters.target_type || 'all',
+                        post_id: (filters.post_id || '').trim(),
+                        message_id: (filters.message_id || '').trim(),
+                        target_content: (filters.target_content || '').trim(),
+                        target_content_regex: (filters.target_content_regex || '').trim(),
+                        category: filters.category || 'all',
+                        comment_text: (filters.comment_text || '').trim(),
+                        comment_regex: (filters.comment_regex || '').trim(),
+                        created_after: (filters.created_after || '').trim(),
+                        created_before: (filters.created_before || '').trim(),
+                    };
+                },
+
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    if (draft.target_content && draft.target_content_regex) {
+                        return false;
+                    }
+                    if (draft.comment_text && draft.comment_regex) {
+                        return false;
+                    }
+                    for (const field of this.numericFields) {
+                        if (draft[field] && !/^\d+$/.test(draft[field])) {
                             return false;
                         }
-                    );
+                    }
+                    if (draft.target_content_regex && !this.isValidRegex(draft.target_content_regex)) {
+                        return false;
+                    }
+                    if (draft.comment_regex && !this.isValidRegex(draft.comment_regex)) {
+                        return false;
+                    }
+                    if (draft.created_after && draft.created_before && draft.created_after > draft.created_before) {
+                        return false;
+                    }
+                    return true;
                 },
-                
+
+                isValidRegex(pattern) {
+                    try {
+                        new RegExp(pattern);
+                        return true;
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                sanitizeNumericField(field) {
+                    this.draft[field] = (this.draft[field] || '').replace(/\D/g, '');
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) {
+                        return;
+                    }
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+
+                checkForChanges() {
+                    this.hasUnsavedChanges = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                        .some((el) => Alpine.$data(el).isDirty());
+                },
+
                 confirmSaveChanges() {
-                    this.checkForAnyChanges();
+                    this.checkForChanges();
                     if (!this.hasUnsavedChanges) {
                         this.saveStatus = { message: '変更点はありません。', success: true };
                         setTimeout(() => this.saveStatus.message = '', 3000);
                         return;
                     }
-                    const changedReports = this.$root.querySelectorAll('tbody tr[x-data]');
-                    const itemsToUpdate = Array.from(changedReports).map(rowEl => {
-                        const rowData = Alpine.$data(rowEl);
-                        return { id: rowData.id, is_checked: rowData.is_checked_current };
-                    }).filter(item => {
-                        const original = this.reportsData.find(fb => fb.id === item.id);
-                        return original && original.is_checked !== item.is_checked;
-                    });
+                    const itemsToUpdate = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                        .filter((el) => Alpine.$data(el).isDirty())
+                        .map((el) => Alpine.$data(el).getCurrentData());
 
                     if (itemsToUpdate.length === 0) {
                         this.saveStatus = { message: '有効な変更点はありませんでした。', success: true };
                         setTimeout(() => this.saveStatus.message = '', 3000);
                         return;
                     }
-                    
+
                     if (confirm(`${itemsToUpdate.length}件の通報のチェック状態を更新しますか？`)) {
                         this.saveChanges(itemsToUpdate);
                     }
                 },
-                
+
                 async saveChanges(itemsToUpdate) {
                     this.saveStatus = { message: '保存中...', success: false };
                     try {
                         const response = await fetch("{{ url_for('admin_update_reports', lang=lang) }}", {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ reports: itemsToUpdate })
+                            body: JSON.stringify({ reports: itemsToUpdate }),
                         });
                         const data = await response.json();
                         this.saveStatus = { message: data.message, success: data.success };
                         if (data.success) {
                             this.hasUnsavedChanges = false;
-                            // 成功したらリロードして表示を確定させる
                             setTimeout(() => window.location.reload(), 1500);
                         }
                     } catch (error) {
                         this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
                     }
-                }
-            }
-        }
-
-        function reportRow(initialData) {
-            return {
-                id: initialData.id,
-                is_checked_initial: initialData.is_checked,
-                is_checked_current: initialData.is_checked,
-                
-                get isDirty() {
-                    return this.is_checked_initial !== this.is_checked_current;
                 },
-                updateAndNotify() {
-                    this.$dispatch('rowinputchanged');
-                }
-            }
-        }
+            }));
 
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('reportAdmin', reportAdmin);
-            Alpine.data('reportRow', reportRow);
+            Alpine.data('reportRow', () => ({
+                id: null,
+                is_checked_initial: false,
+                is_checked: false,
+
+                initData(data) {
+                    this.id = data.id;
+                    this.is_checked_initial = data.is_checked;
+                    this.is_checked = data.is_checked;
+                    this.$watch('is_checked', () => this.$dispatch('report-row-change'));
+                },
+
+                isDirty() {
+                    return this.is_checked_initial !== this.is_checked;
+                },
+
+                getCurrentData() {
+                    return { id: this.id, is_checked: this.is_checked };
+                },
+            }));
         });
     </script>
 {% endblock %}

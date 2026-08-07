@@ -125,7 +125,7 @@ th {
 }
 
 .message-table .col-message,
-.post-table .col-message
+.post-table .col-message,
 .report-table .col-message {
     min-width: 200px; /* メッセージカラムの最小幅 */
     max-width: 400px;
@@ -141,6 +141,23 @@ th {
     white-space: pre-wrap; /* HTML内の改行を維持しつつ、必要に応じて折り返す */
     word-break: break-all; /* 長い単語やURLの途中でも強制的に改行する */
     padding-right: 5px; /* スクロールバーとテキストの間に余白を設ける */
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.target-post {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.target-message {
+    background: #e0f2fe;
+    color: #075985;
 }
 
 .feedback-table th.sortable-header {
