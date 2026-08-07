@@ -200,7 +200,15 @@
                     <td>{{ post.created_at_text }}</td>
                     <td>{{ post.type_label }}</td>
                     <td>{{ post.host_user_name if post.host_user_name else "(ゲスト)" }}</td>
-                    <td>{{ post.host_id if post.host_id else "(なし)" }}</td>
+                    <td>
+                        {% if post.host_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ post.host_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ post.host_id }}</a>
+                        {% else %}
+                            (なし)
+                        {% endif %}
+                    </td>
                     <td>{{ post.host_ip }}</td>
                     <td>{{ post.region }}</td>
                     <td>{{ post.entity_name }}</td>

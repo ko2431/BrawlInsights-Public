@@ -174,7 +174,15 @@
                     <td>{{ message.id }}</td>
                     <td>{{ message.created_at_text }}</td>
                     <td>{{ message.user_name if message.user_name else "(ゲスト)" }}</td>
-                    <td>{{ message.user_id if message.user_id else "(なし)" }}</td>
+                    <td>
+                        {% if message.user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ message.user_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ message.user_id }}</a>
+                        {% else %}
+                            (なし)
+                        {% endif %}
+                    </td>
                     <td>{{ message.user_ip }}</td>
                     <td>
                         <a href="{{ url_for('chat_thread', lang=lang, thread_id=message.thread_id) }}"
