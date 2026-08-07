@@ -587,7 +587,7 @@ body.modal-open {
 }
 .post-card__comment-container {
     margin-top: 5px;
-    padding-bottom: 3px;
+    padding: 3px 5px 2px;
 }
 .post-card__blocked-text-container {
     padding: 5px;
@@ -662,6 +662,7 @@ body.modal-open {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
+    line-height: 1.45;
 }
 .post-card__comment-empty,
 .post-card__no-conditions-text {

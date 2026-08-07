@@ -153,7 +153,7 @@
                     </div>
                     {# コメント #}
                     <div class="post-card__comment-container">
-                        <p class="post-card__comment-container-title">{% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
+                        {# <p class="post-card__comment-container-title">{% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p> #}
                         <div class="post-card__comment-scroll">
                             {% if post.data.comment %}
                             <p class="post-card__comment-text">{{ post.data.comment|censor }}</p>
