@@ -50,6 +50,15 @@
 {% endmacro %}
 {% block content %}
 <div class="admin-page__container" x-data="minigamePlayAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+ {# 戻るボタン #}
+ {% if platform != "web" %}
+ <div class="back-button__container"
+      x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+      x-show="showManualBackButton"
+      style="display: none;" {# FOUC(ちらつき)防止 #}>
+     <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+ </div>
+ {% endif %}
  <h1 class="page-title--main">ミニゲーム参加履歴</h1>
  <form class="admin-filters__container" @submit.prevent="submitFilters()">
   <label>
@@ -112,6 +121,15 @@
   <td>{{ play.id }}</td><td>{{ play.created_at_text }}</td><td>#{{ play.campaign_id }} {{ play.campaign_name }}</td><td>{{ play.user_name }} (ID: {{ play.user_id }}){% if play.is_admin_play %} <b>管理者</b>{% endif %}</td><td>{{ play.play_method_label }}</td><td>{{ play.tokens_spent }}</td><td>{{ play.result_rank }}等</td><td>{{ play.prize_label }}</td><td><span class="minigame-play-status-badge is-{{ play.status }}">{{ play.status }}</span></td><td>{{ play.completed_at_text }}</td><td>{% if play.gift_fulfillment_status %}<button class="minigame-gift-badge {{ 'is-done' if play.gift_fulfillment_status == 'done' else '' }}" @click="toggleGift({{ play.id }}, '{{ play.gift_fulfillment_status }}')">{{ '発送済み' if play.gift_fulfillment_status == 'done' else '未発送' }}</button>{% else %}-{% endif %}</td>
  </tr>{% else %}<tr><td colspan="11" style="text-align:center">参加履歴はありません。</td></tr>{% endfor %}</tbody></table></div>
  {{ render_pagination(pagination, campaign_id, status_filter, gift_fulfillment_status, user_type, user_name, rank_filter, current_sort, created_after, created_before) }}
+ {# 戻るボタン #}
+ {% if platform != "web" %}
+ <div class="back-button__container"
+      x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+      x-show="showManualBackButton"
+      style="display: none;" {# FOUC(ちらつき)防止 #}>
+     <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+ </div>
+ {% endif %}
 </div>
 <style>
 .minigame-gift-badge{border:0;border-radius:6px;padding:3px 8px;background:#fef3c7;color:#92400e;font-weight:600;cursor:pointer}

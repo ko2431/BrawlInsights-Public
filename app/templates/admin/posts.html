@@ -66,6 +66,16 @@
 
 {% block content %}
 <div class="admin-page__container" x-data="postAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
     <h1 class="page-title--main">投稿確認</h1>
 
     <form class="admin-filters__container" @submit.prevent="submitFilters()">
@@ -228,6 +238,16 @@
     </div>
 
     {{ render_pagination(pagination, post_id, post_type, status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) }}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

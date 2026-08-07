@@ -63,6 +63,16 @@
 
 {% block content %}
 <div class="admin-page__container" x-data="messageAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
     <h1 class="page-title--main">メッセージ確認</h1>
 
     <form class="admin-filters__container" @submit.prevent="submitFilters()">
@@ -190,6 +200,16 @@
     </div>
 
     {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, message_text, message_regex, created_after, created_before) }}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
