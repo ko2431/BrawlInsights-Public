@@ -134,12 +134,25 @@ th {
 
 .message-table .col-message-content,
 .post-table .col-message-content,
-.report-table .col-message-content {
+.report-table .col-message-content,
+.feedback-table .col-message-content {
     max-height: 80px; /* 高さを80pxに制限 */
     overflow-y: auto;  /* 高さを超えた場合に縦スクロールを表示 */
     white-space: pre-wrap; /* HTML内の改行を維持しつつ、必要に応じて折り返す */
     word-break: break-all; /* 長い単語やURLの途中でも強制的に改行する */
     padding-right: 5px; /* スクロールバーとテキストの間に余白を設ける */
+}
+
+.feedback-table th.sortable-header {
+    cursor: pointer;
+}
+.feedback-table th.sortable-header:hover {
+    background-color: #f0f0f0;
+}
+.feedback-table .col-message {
+    min-width: 200px;
+    max-width: 400px;
+    white-space: normal;
 }
 
 
