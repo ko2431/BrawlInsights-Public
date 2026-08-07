@@ -57,13 +57,25 @@
             </div>
             <div class="form-group">
                 <label for="new_category" class="form-label">カテゴリー (任意)</label>
-                <select id="new_category" class="form-input" x-model="newAnnouncement.category">
+                <select id="new_category" class="form-input" x-model="newAnnouncement.category" @change="applyCategoryTemplate()">
                     <option value="">なし (None)</option>
                     <option value="1">緊急のお知らせ (Urgent Notice)</option>
-                    <option value="2">お知らせ (Notice)</option>
-                    <option value="3">アップデート (Update)</option>
-                    <option value="4">プレゼント企画 (Giveaway)</option>
-                    <option value="5">当選発表 (Giveaway Results)</option>
+                    <option value="2-notice">お知らせ (Notice) - お知らせ</option>
+                    <option value="2-feedback">お知らせ (Notice) - フィードバック回答</option>
+                    <option value="2-survey">お知らせ (Notice) - アンケート</option>
+                    <option value="3-normal">アップデート (Update) - 通常</option>
+                    <option value="3-major">アップデート (Update) - 大型</option>
+                    <option value="4-old-guerrilla">プレゼント企画 (Giveaway) - 旧形式ゲリラ</option>
+                    <option value="4-old-normal">プレゼント企画 (Giveaway) - 旧形式通常</option>
+                    <option value="4-old-powerup">プレゼント企画 (Giveaway) - 旧形式パワーアップ</option>
+                    <option value="4-old-special">プレゼント企画 (Giveaway) - 旧形式特別</option>
+                    <option value="4-new">プレゼント企画 (Giveaway) - 新形式</option>
+                    <option value="4-board">プレゼント企画 (Giveaway) - 掲示板</option>
+                    <option value="5-old-guerrilla">当選発表 (Giveaway Results) - 旧形式ゲリラ</option>
+                    <option value="5-old-normal">当選発表 (Giveaway Results) - 旧形式通常</option>
+                    <option value="5-old-powerup">当選発表 (Giveaway Results) - 旧形式パワーアップ</option>
+                    <option value="5-old-special">当選発表 (Giveaway Results) - 旧形式特別</option>
+                    <option value="5-board">当選発表 (Giveaway Results) - 掲示板</option>
                 </select>
             </div>
              <div class="form-group">
@@ -165,6 +177,287 @@
              return html.replace(/<br\s*\/?>/gi, '\n');
         }
 
+        // ---------------------------------------------------------------------------
+        // 新規追加フォーム用：カテゴリー選択肢ごとの定型文
+        // - キーは <select> の value（先頭の数字が DB の category 1〜5 に対応）
+        // - 改行はそのまま書き、送信時に <br> へ自動変換される
+        // - 未作成のものは "" のまま。後からここを編集すれば反映される
+        // ---------------------------------------------------------------------------
+        const ANNOUNCEMENT_CATEGORY_TEMPLATES = {
+            '1': {
+                en_title: '<c2>【Urgent Notice】</c2>',
+                ja_title: '<c2>【緊急のお知らせ】</c2>',
+                en_text: '',
+                ja_text: '',
+            },
+            '2-notice': {
+                en_title: '<c5>【Notice】</c5>',
+                ja_title: '<c5>【お知らせ】</c5>',
+                en_text: '',
+                ja_text: '',
+            },
+            '2-feedback': {
+                en_title: '<c5>【Notice】</c5>Response to feedback',
+                ja_title: '<c5>【お知らせ】</c5>フィードバックへの回答です！',
+                en_text: [
+                    '<span style="font-size: larger;"><c9><b>Responses to Feedback</b></c9></span>',
+                    'We review all feedback, but we only publish responses to some feature requests. We will try our best to answer all questions and bug reports!',
+                    '',
+                    '1. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '2. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '3. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '4. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '5. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '6. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '7. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '8. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '9. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '10. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '11. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '12. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '13. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '14. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '15. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '16. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '17. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '18. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '19. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '20. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '21. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '22. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '23. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '24. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '25. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '26. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '',
+                    '27. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '28. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '',
+                    '29. <b><i>""</i></b>',
+                    '',
+                    '',
+                    '30. <b><i>""</i></b>',
+                    '',
+                    '',
+                    'For other inquiries, new feature/improvement requests, or bug reports, please use <b>Account</b> -> <b>Send Feedback</b>!',
+                ].join('\n'),
+                ja_text: [
+                    '<span style="font-size: larger;"><c9><b>フィードバックへの回答</b></c9></span>',
+                    'フィードバックはすべて確認していますが、要望系は一部のみ回答を掲載しています。質問や不具合報告系はできるだけ全てに回答できるようにします！',
+                    '',
+                    '',
+                    '',
+                    'その他、お問い合わせ・新機能や改善の要望・不具合の報告などあれば、ぜひ<b>アカウント</b>→<b>フィードバック送信</b>からお願いします！',
+                    '次回のフィードバック返信は⚠️日後を予定しています。',
+                    '',
+                    '<span style="font-size: larger;"><c9><b>今後のアプリ内でのプレゼント企画予定</b></c9></span>',
+                    'すべてアカウントタブから参加可能。予定は変更の可能性があります！',
+                    '',
+                    '現在開催中 🔵第⚠️回<b>ブロスタパス</b>プレゼント企画',
+                    '⚠️/⚠️(⚠️)〜 🟡第⚠️回<b>ブロスタパス</b>プレゼント企画',
+                    '',
+                    '🟡は後日当選したユーザーを発表する宝くじのような形式、🔵はすぐに結果がわかる新形式での実施です。',
+                ].join('\n'),
+            },
+            '2-survey': {
+                en_title: '<c5>【Notice】</c5>The ⚠️th User Survey is now live. <c5>100 tokens</c5> redeemable within the app will be awarded to all participants. Responses are greatly appreciated for future development and improvements!',
+                ja_title: '<c5>【お知らせ】</c5>第⚠️回ユーザーアンケートを実施します。回答でもれなく<c5>100トークン</c5>+抽選で3名に<c5>ブロスタパス</c5>を進呈します。ぜひご回答ください！前回のアンケートのブロスタパス当選者発表も<c5>こちら</c5>。',
+                en_text: [
+                    'The <b>⚠️th User Survey</b> has concluded, and the <b>⚠️th User Survey</b> has now started.',
+                    'To assist with future development and improvements, participation from all users—including those who responded to the previous survey—is highly valued.',
+                    '',
+                    '<b>100 tokens</b> redeemable within the app will be provided to all respondents.',
+                    'The survey is available via the button in the <b>Special Missions</b> section, located slightly down the <b>Account Tab</b>. Participation is greatly encouraged!',
+                ].join('\n'),
+                ja_text: [
+                    '⚠️月より実施していた<b>第⚠️回ユーザーアンケート</b>を終了し、新たに<b>第⚠️回ユーザーアンケート</b>を開始しました。',
+                    '今後の開発や改善の参考のため、前回回答された方も回答されていない方も、ぜひ回答してもらえると嬉しいです！',
+                    '',
+                    '回答でもれなくアプリ内で使える<b>100トークン</b>を進呈するほか、さらに抽選で3名に<b>ブロスタパス</b>が当たります。',
+                    '<b>アカウントタブ</b>→下に少しスクロールして<b>スペシャルミッション</b>のところにあるボタンから回答可能です。ぜひ回答お願いします！',
+                    '',
+                    '※第⚠️回アンケートの実施期間は⚠️月中を予定しています。',
+                    '※第⚠️回アンケートの集計結果については、時間が取れ次第noteにまとめて公表する予定です！',
+                    '',
+                    '※ブロスタパスの抽選企画は、日本国内に居住する方のみが対象となります。',
+                    '※当選発表は、アンケートの期間終了後にここの<b>お知らせ</b>にて行います。',
+                    '※アンケートの報酬100トークンを受け取ることで、同時にブロスタパス抽選企画へのエントリーも完了します。別途応募手続き等は不要です。',
+                    '※本キャンペーンはBrawl Insightsが主催するものです。Apple Inc.、Google LLC.、X Corp.、Supercellは、本キャンペーンのスポンサーではなく、本キャンペーンとは一切関係ありません。',
+                    '※不正な応募、複数アカウントでの応募などの不正行為や規約違反行為が確認された場合、当選資格は無効となります。',
+                    '※その他当選後の手続きや一般的な注意事項などは、Brawl Insightsの通常プレゼント企画のものと共通となります。通常プレゼント企画のお知らせの下の方にある規約をご確認ください。',
+                    '',
+                    '<span style="font-size: larger;"><c5><b>☆☆☆第⚠️回アンケート ブロスタパス抽選企画の当選者発表☆☆☆</b></c5></span>',
+                    '<span style="font-size: larger;"><b>■ アンケート回答者数</b></span>',
+                    '<b>⚠️名</b>',
+                    '',
+                    '<span style="font-size: larger;"><b>■ うち、企画への応募者数</b></span>',
+                    '<b>⚠️名</b>',
+                    '※企画への応募者数=100トークンを受け取るためのギフトコードを正常に入力したユーザー数です。',
+                    '',
+                    '<span style="font-size: larger;"><b>■ 当選者</b></span>',
+                    '※<b>ユーザー名 (ユーザーID)</b>の形式で表記。',
+                    '',
+                    '<b>【1等】ブロスタパス (3名)</b>',
+                    '※当選者の方は、下の方に書いてある<b>受け取り方法</b>をご確認ください。',
+                    '⚠️',
+                    '',
+                    '※ユーザー名は一部を伏字にしています。',
+                    '',
+                    '<b>（参考）応募口数の人数分布</b>',
+                    '1回: ⚠️人 (100.00%)',
+                    '',
+                    '<span style="font-size: larger;"><b>〈景品の受け取り方法〉</b></span><span style="font-size: smaller;">',
+                    '1. 当選者様は、当選発表後<b>168時間以内</b>に、公式X(旧Twitter)アカウントである、@BrawlInsightsへダイレクトメッセージ(DM)にてご連絡ください。',
+                    '※Xが利用できない場合はメール(contact.brawlinsights@gmail.com)での連絡も可能ですが、メールでは迷惑メールに振り分けられてしまう等で、返信が遅くなることがあります。できるだけXでの連絡をお願いいたします。',
+                    '※通常、連絡の期限は72時間以内としていますが、この企画は開催期間が長かったため特例で168時間以内としています。',
+                    '2. ご連絡の際は、ご自身のユーザーID、ユーザー名、メインアカウントのプレイヤー名 (いずれもアカウントタブ→アカウント情報より確認可能) をお知らせください。本人確認後、景品の受け渡しについてご案内いたします。',
+                    '〈例〉',
+                    'ユーザーID: 1',
+                    'ユーザー名: こうすけ',
+                    'プレイヤー名: 7位傀儡❄️',
+                    '3. 景品がブロスタパスの場合は、ブロスタパスの直接受け取り (受け渡し用のアカウントとフレンドになっていただきます。フレンドになった後、ブロスタの仕様で受け渡しができるようになるまでしばらく時間がかかります) 、1,500円分のギフトカードの受け取りのうち好きな方法をお選びいただけます。なお、景品がブロスタパス+の場合は2,000円分、景品がプロパスの場合は4,000円分となります。',
+                    '4. 景品が広告の無期限削除であり、すでに広告の無期限削除が有効の方が当選された場合、代替報酬を付与します。代替報酬は1,000トークンの予定です。',
+                    '※期限内にご連絡いただけない場合、当選は無効となりますのでご注意ください。</span>',
+                ].join('\n'),
+            },
+            '3-normal': {
+                en_title: '<c4>【Update】</c4>',
+                ja_title: '<c4>【アップデート】</c4>',
+                en_text: 'An update has been released.',
+                ja_text: 'アップデートを実施しました。',
+            },
+            '3-major': {
+                en_title: '<c8>【Major Update】</c8>',
+                ja_title: '<c8>【大型アップデート】</c8>',
+                en_text: 'A major update has been released!',
+                ja_text: '大型アップデートを実施しました！',
+            },
+            '4-old-guerrilla': {
+                en_title: '<c9>【Giveaway】</c9>〈Until ⚠️〉The ⚠️th Giveaway is now live. Check here for how to enter!',
+                ja_title: '<c9>【プレゼント企画】</c9>〈⚠️まで〉第⚠️回プレゼント企画を開催します。今回は1日限りのゲリラ企画。参加方法や景品など詳細はこちらをチェック！',
+                en_text: '',
+                ja_text: '',
+            },
+            '4-old-normal': {
+                en_title: '<c9>【Giveaway】</c9>〈Until ⚠️〉The ⚠️th Giveaway is now live. Check here for how to enter!',
+                ja_title: '<c9>【プレゼント企画】</c9>〈⚠️まで〉第⚠️回ブロスタパスプレゼント企画を開催します。参加方法や景品など詳細はこちらをチェック！',
+                en_text: '',
+                ja_text: '',
+            },
+            '4-old-powerup': {
+                en_title: '<c9>【Giveaway】</c9>〈Until ⚠️〉The ⚠️th Giveaway is now live. Check here for how to enter!',
+                ja_title: '<c9>【プレゼント企画】</c9>〈⚠️まで〉第⚠️回ブロスタパスプレゼント企画を開催します。今回は景品が<c9>ブロスタパス+</c9>にパワーアップ。参加方法や景品など詳細はこちらをチェック！',
+                en_text: '',
+                ja_text: '',
+            },
+            '4-old-special': {
+                en_title: '<c9>【<c2>Special</c2> Giveaway】</c9>〈Until ⚠️〉The ⚠️th Giveaway is now live. Check here for how to enter!',
+                ja_title: '<c9>【<c2>特別</c2>プレゼント企画】</c9>〈⚠️まで〉第⚠️回プレゼント企画を開催します。今回は⚠️を記念して、総当選者数が4→<c9>⚠️名</c9>に大幅増量。1等は<c9>⚠️</c9>！参加方法や景品など詳細はこちらをチェック！',
+                en_text: '',
+                ja_text: '',
+            },
+            '4-new': {
+                en_title: '<c9>【Giveaway】</c9>〈Until ⚠️〉The ⚠️th Giveaway is now open!',
+                ja_title: '<c9>【プレゼント企画】</c9>〈⚠️まで〉第⚠️回プレゼント企画「⚠️」がスタート！アカウントタブより参加可能。',
+                en_text: '',
+                ja_text: '',
+            },
+            '4-board': {
+                en_title: '<c9>【<c2>Special</c2> Giveaway】</c9>〈Until ⚠️〉Win Brawl Pass Plus and more in this large-scale giveaway—enter by posting and chatting on the boards! Check here for details!',
+                ja_title: '<c9>【<c2>特別</c2>プレゼント企画】</c9>〈⚠️まで〉掲示板での投稿やチャットで<c9>ブロスタパス+</c9>などが当たる大規模企画。当選者数は合計<c9>500人</c9>に大幅増量！詳しい参加方法や景品などはこちらをチェック！',
+                en_text: '',
+                ja_text: '',
+            },
+            '5-old-guerrilla': {
+                en_title: '<c5>【Notice】</c5>Announcing the Winner of the ⚠️th Giveaway!',
+                ja_title: '<c5>【お知らせ】</c5>第⚠️回プレゼント企画の当選者発表です！',
+                en_text: '',
+                ja_text: '',
+            },
+            '5-old-normal': {
+                en_title: '<c5>【Notice】</c5>Announcing the Winner of the ⚠️th Giveaway!',
+                ja_title: '<c5>【お知らせ】</c5>第⚠️回ブロスタパスプレゼント企画の当選者発表です！',
+                en_text: '',
+                ja_text: '',
+            },
+            '5-old-powerup': {
+                en_title: '<c5>【Notice】</c5>Announcing the Winner of the ⚠️th Giveaway!',
+                ja_title: '<c5>【お知らせ】</c5>第⚠️回ブロスタパスプレゼント企画の当選者発表です！',
+                en_text: '',
+                ja_text: '',
+            },
+            '5-old-special': {
+                en_title: '<c5>【Notice】</c5>Announcing the Winner of the ⚠️th Giveaway!',
+                ja_title: '<c5>【お知らせ】</c5>第⚠️回プレゼント企画（⚠️記念特別企画）の当選者発表です！',
+                en_text: '',
+                ja_text: '',
+            },
+            '5-board': {
+                en_title: '<c5>【Notice】</c5>Announcing the Winner of the Special Brawl Pass Giveaway!',
+                ja_title: '<c5>【お知らせ】</c5>特別ブロスタパスプレゼント企画（20⚠️年⚠️月 掲示板企画）の当選者発表です！',
+                en_text: '',
+                ja_text: '',
+            },
+        };
+        const ANNOUNCEMENT_TEMPLATE_FIELDS = ['en_title', 'ja_title', 'en_text', 'ja_text'];
+        const ANNOUNCEMENT_EMPTY_TEMPLATE = { en_title: '', ja_title: '', en_text: '', ja_text: '' };
+
         // Alpine.js コンポーネント
         function announcementAdmin() {
             return {
@@ -202,6 +495,29 @@
                     return this.isNewIdValid && this.isNewEnTitleValid && this.isNewEnTextValid;
                 },
 
+                canApplyCategoryTemplate() {
+                    const allEmpty = ANNOUNCEMENT_TEMPLATE_FIELDS.every(
+                        (field) => this.newAnnouncement[field] === ''
+                    );
+                    if (allEmpty) return true;
+                    return Object.values(ANNOUNCEMENT_CATEGORY_TEMPLATES).some((template) =>
+                        ANNOUNCEMENT_TEMPLATE_FIELDS.every(
+                            (field) => this.newAnnouncement[field] === template[field]
+                        )
+                    );
+                },
+
+                applyCategoryTemplate() {
+                    if (!this.canApplyCategoryTemplate()) return;
+                    const key = this.newAnnouncement.category;
+                    const template = ANNOUNCEMENT_CATEGORY_TEMPLATES[key] || ANNOUNCEMENT_EMPTY_TEMPLATE;
+                    for (const field of ANNOUNCEMENT_TEMPLATE_FIELDS) {
+                        this.newAnnouncement[field] = template[field];
+                    }
+                    this.validateNewEnTitle();
+                    this.validateNewEnText();
+                },
+
                 validateNewId() {
                     const id = this.newAnnouncement.id.trim();
                     if (!id) {
@@ -234,9 +550,13 @@
 
                 async addAnnouncement() {
                     this.addStatus = { message: '追加中...', success: false };
+                    // 選択肢 value（例: "2-feedback"）の先頭数字が DB の category（1〜5）
+                    const categoryValue = this.newAnnouncement.category
+                        ? parseInt(this.newAnnouncement.category, 10)
+                        : null;
                     const payload = {
                         ...this.newAnnouncement,
-                        category: this.newAnnouncement.category ? parseInt(this.newAnnouncement.category, 10) : null,
+                        category: Number.isFinite(categoryValue) ? categoryValue : null,
                         en_text: nl2br(this.newAnnouncement.en_text),
                         ja_text: nl2br(this.newAnnouncement.ja_text),
                     };
