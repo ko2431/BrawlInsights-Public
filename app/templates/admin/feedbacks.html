@@ -162,7 +162,7 @@
                     <td>{{ feedback.datetime_text }}</td>
                     <td>{{ feedback.feedback_type_ja }}</td>
                     <td class="col-message">
-                        <div class="col-message-content" style="white-space: pre-wrap; word-break: break-all; max-width: 400px;">{{ feedback.comment }}</div>
+                        <div class="col-message-content" style="white-space: pre-wrap; word-break: break-all;">{{ feedback.comment }}</div>
                     </td>
                     <td class="form-checkbox-cell cell-center">
                         <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_checked">
