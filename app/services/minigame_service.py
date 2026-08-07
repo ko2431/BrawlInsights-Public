@@ -1115,8 +1115,10 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
     if needs_main:
         main_note = _message(
             lang,
-            f"プレイヤー自動追跡／バトル履歴保存期間延長の報酬は、あなたのメインアカウント(<b>{main_account_name}</b>)に付与されます。",
-            f"Auto-tracking / battle log retention rewards are granted to your main account (<b>{main_account_name}</b>).",
+            f'プレイヤー自動追跡／バトル履歴保存期間延長の報酬は、あなたのメインアカウント(<b>{main_account_name}</b>)に付与されます。<br>'
+            f'<a href="/{lang}/help/automatic_acquisition" class="info-block__link">プレイヤー自動追跡機能とは？</a>',
+            f'Auto-tracking / battle log retention rewards are granted to your main account (<b>{main_account_name}</b>).<br>'
+            f'<a href="/{lang}/help/automatic_acquisition" class="info-block__link">What is player auto-tracking?</a>',
         )
 
     return {"lead": lead, "legend": legend, "note": note, "main_account_note": main_note}
