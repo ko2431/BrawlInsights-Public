@@ -156,6 +156,8 @@
                     <td>
                         <a href="{{ url_for('chat_thread', lang=lang, thread_id=reaction.thread_id) }}"
                            class="admin-thread-link"
+                           data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ reaction.thread_id }}"
+                           onclick="return handleAdminThreadLinkClick(event, this)"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reaction.thread_id }}</a>
                     </td>
                 </tr>
@@ -175,6 +177,23 @@
 {% block scripts %}
     {{ super() }}
     <script>
+        function handleAdminThreadLinkClick(event, el) {
+            if (!event.altKey) {
+                return true;
+            }
+            event.preventDefault();
+            const url = el.dataset.adminPostsUrl;
+            if (!url) {
+                return false;
+            }
+            if (el.target === '_blank') {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            } else {
+                window.location.href = url;
+            }
+            return false;
+        }
+
         document.addEventListener('alpine:init', () => {
             Alpine.data('reactionAdmin', () => ({
                 applied: {},

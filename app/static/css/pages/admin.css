@@ -321,6 +321,10 @@ th {
     vertical-align: middle;
     text-align: center;
 }
+.form-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
 
 
 /* +---+---+---+---+---+---+---+--- */

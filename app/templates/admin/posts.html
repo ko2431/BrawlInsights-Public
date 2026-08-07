@@ -11,27 +11,34 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{# ページネーションUIマクロ #}
-{% macro render_pagination(pagination, type) %}
+{% macro render_pagination(pagination, post_id, post_type, status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="投稿ページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
-                {% if type %}{% set _ = base_query_parts.append("type=" + type) %}{% endif %}
+                {% if post_id %}{% set _ = base_query_parts.append("post_id=" + post_id) %}{% endif %}
+                {% if post_type != 'all' %}{% set _ = base_query_parts.append("post_type=" + post_type) %}{% endif %}
+                {% if status_filter != 'all' %}{% set _ = base_query_parts.append("status_filter=" + status_filter) %}{% endif %}
+                {% if user_type != 'all' %}{% set _ = base_query_parts.append("user_type=" + user_type) %}{% endif %}
+                {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
+                {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
+                {% if host_ip %}{% set _ = base_query_parts.append("host_ip=" + (host_ip | urlencode)) %}{% endif %}
+                {% if entity_name %}{% set _ = base_query_parts.append("entity_name=" + (entity_name | urlencode)) %}{% endif %}
+                {% if entity_tag %}{% set _ = base_query_parts.append("entity_tag=" + (entity_tag | urlencode)) %}{% endif %}
+                {% if comment_text %}{% set _ = base_query_parts.append("comment_text=" + (comment_text | urlencode)) %}{% endif %}
+                {% if comment_regex %}{% set _ = base_query_parts.append("comment_regex=" + (comment_regex | urlencode)) %}{% endif %}
+                {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
+                {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
                 {% set base_query = base_query_parts | join('&') %}
                 {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
 
-                {# 1. "＜" (前へ) ボタン #}
                 {% if pagination.has_prev %}
                     <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
                 {% endif %}
 
-                {# 2. ページ番号のロジック #}
                 {% set page_numbers = [] %}
                 {% for p in range(1, pagination.total_pages + 1) %}
-                    {# 最初と最後、および現在ページ±2のページ番号を表示対象とする #}
                     {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
-                        {# 最後の表示ページ番号との間にギャップがあれば '...' を挿入 #}
                         {% if page_numbers and p > page_numbers[-1] + 1 %}
                             {% set _ = page_numbers.append('...') %}
                         {% endif %}
@@ -39,7 +46,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# 3. ページ番号リストを元にHTMLを生成 #}
                 {% for p in page_numbers %}
                     {% if p == '...' %}
                         <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
@@ -50,7 +56,6 @@
                     {% endif %}
                 {% endfor %}
 
-                {# 4. ">" (次へ) ボタン #}
                 {% if pagination.has_next %}
                     <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
                 {% endif %}
@@ -60,80 +65,379 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container">
+<div class="admin-page__container" x-data="postAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     <h1 class="page-title--main">投稿確認</h1>
 
-    {# フィルター #}
-    <div class="admin-filters__container">
-        <form method="get" id="typeForm" class="filter-form">
-            <label for="typeSelect" class="filter-form__label">絞り込み:</label>
-            <select name="type" id="typeSelect" class="filter-form__select" onchange="document.getElementById('typeForm').submit();">
-                <option value="all" {% if type == "all" %}selected{% endif %}>すべて</option>
-                <option value="team" {% if type == "team" %}selected{% endif %}>チーム募集</option>
-                <option value="friend" {% if type == "friend" %}selected{% endif %}>フレンド募集</option>
-                <option value="club" {% if type == "club" %}selected{% endif %}>クラブ募集</option>
-                <option value="general" {% if type == "general" %}selected{% endif %}>なんでも掲示板</option>
+    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">投稿ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.post_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('post_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">タイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.post_type">
+                <option value="all">すべて</option>
+                <option value="team">チーム募集</option>
+                <option value="friend">フレンド募集</option>
+                <option value="club">クラブ募集</option>
+                <option value="general">なんでも掲示板</option>
+                <option value="other">その他</option>
             </select>
-            <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
-        </form>
-    </div>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">状態</span>
+            <select class="form-input admin-filters__select" x-model="draft.status_filter">
+                <option value="all">すべて</option>
+                <option value="active">未削除</option>
+                <option value="deleted">削除済み</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザータイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.user_type">
+                <option value="all">すべて</option>
+                <option value="logged_in">ログイン済み</option>
+                <option value="guest">未ログイン</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">IPアドレス</span>
+            <input class="form-input admin-filters__input" x-model="draft.host_ip" maxlength="45">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">プレイヤー/クラブ名</span>
+            <input class="form-input admin-filters__input" x-model="draft.entity_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">プレイヤー/クラブタグ</span>
+            <input class="form-input admin-filters__input" x-model="draft.entity_tag" maxlength="20">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">コメント</span>
+            <input class="form-input admin-filters__input" x-model="draft.comment_text" maxlength="200" :disabled="!!draft.comment_regex.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">コメント（正規表現）</span>
+            <input class="form-input admin-filters__input" x-model="draft.comment_regex" maxlength="200" :disabled="!!draft.comment_text.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以降</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_after">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以前</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_before">
+        </label>
+        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    </form>
 
     <p class="admin-page__description">
-        投稿総数: <b>{{ '{:,}'.format(total_count) }}</b> 件
+        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／
+        {% set logged_in_users = pagination.total_logged_in_users %}
+        {% set guest_users = pagination.total_guest_users %}
+        {% if logged_in_users > 0 and guest_users > 0 %}
+            <b>{{ '{:,}'.format(logged_in_users) }}</b>＋ゲスト<b>{{ '{:,}'.format(guest_users) }}</b>人
+        {% elif logged_in_users > 0 %}
+            <b>{{ '{:,}'.format(logged_in_users) }}</b>人
+        {% elif guest_users > 0 %}
+            ゲスト<b>{{ '{:,}'.format(guest_users) }}</b>人
+        {% else %}
+            <b>0</b>人
+        {% endif %}
+        （最大1,000件／ページ）
     </p>
 
-    {# ページネーション (上) #}
-    {{ render_pagination(pagination, type) }}
+    {{ render_pagination(pagination, post_id, post_type, status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) }}
 
-    {# テーブル #}
-    <div class="table-wrapper" style="margin-top: 1em;">
+    <div class="save-changes-block">
+        <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
+        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
+    </div>
+    <div x-show="saveStatus.message" class="form-field-status server-response"
+         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
+         x-text="saveStatus.message" style="margin-bottom: 10px;">
+    </div>
+
+    <div class="table-wrapper" style="margin-top: 10px;">
         <table class="data-table post-table">
             <thead>
-                <th>ID</th>
-                <th>日時 (JST)</th>
-                <th>タイプ</th>
-                <th>ユーザー</th>
-                <th>ユーザーID</th>
-                <th>IPアドレス</th>
-                <th>地域</th>
-                <th>プレイヤー/クラブ名</th>
-                <th>プレイヤー/クラブタグ</th>
-                <th>コメント</th>
-                <th>削除</th>
+                <tr>
+                    <th>ID</th>
+                    <th>日時 (JST)</th>
+                    <th>タイプ</th>
+                    <th>ユーザー</th>
+                    <th>ユーザーID</th>
+                    <th>IPアドレス</th>
+                    <th>地域</th>
+                    <th>プレイヤー/クラブ名</th>
+                    <th>プレイヤー/クラブタグ</th>
+                    <th>コメント</th>
+                    <th>削除</th>
+                </tr>
             </thead>
             <tbody>
                 {% for post in posts %}
-                <tr>
+                <tr x-data="postRow" x-init='initData({{ {"id": post.id, "is_deleted": post.is_deleted, "can_delete": post.can_delete} | tojson }})' :class="{ 'changed': isDirty() }">
                     <td>{{ post.id }}</td>
                     <td>{{ post.created_at_text }}</td>
-                    <td>{% if post.type == "team" %}チーム{% elif post.type == "friend" %}フレンド{% elif post.type == "club" %}クラブ{% elif post.type == "general" %}なんでも{% endif %}</td>
+                    <td>{{ post.type_label }}</td>
                     <td>{{ post.host_user_name if post.host_user_name else "(ゲスト)" }}</td>
                     <td>{{ post.host_id if post.host_id else "(なし)" }}</td>
                     <td>{{ post.host_ip }}</td>
                     <td>{{ post.region }}</td>
-                    <td>{% if post.hostplayer %}{{ post.hostplayer.name }}{% elif post.hostclub %}{{ post.hostclub.name }}{% endif %}</td>
-                    <td>{% if post.hostplayer %}{{ post.hostplayer.tag }}{% elif post.hostclub %}{{ post.hostclub.tag }}{% endif %}</td>
+                    <td>{{ post.entity_name }}</td>
+                    <td>
+                        {% if post.entity_kind == 'player' and post.entity_tag %}
+                            <a href="{{ url_for('get_player_profile', lang=lang, tag=post.entity_tag[1:]) }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ post.entity_tag }}</a>
+                        {% elif post.entity_kind == 'club' and post.entity_tag %}
+                            <a href="{{ url_for('get_club_profile', lang=lang, tag=post.entity_tag[1:]) }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ post.entity_tag }}</a>
+                        {% else %}
+                            {{ post.entity_tag }}
+                        {% endif %}
+                    </td>
                     <td class="col-message">
                         <div class="col-message-content">{{ post.comment if post.comment else "(なし)" }}</div>
                     </td>
-                    <td>{% if post.is_deleted %}削除済み{% endif %}</td>
+                    <td class="form-checkbox-cell">
+                        <input type="checkbox" class="form-checkbox"
+                               :class="{'changed-field': isDirty()}"
+                               x-model="is_deleted"
+                               :disabled="!can_delete"
+                               {% if not post.can_delete %}title="保護対象の投稿のため変更できません"{% endif %}>
+                    </td>
                 </tr>
-                {% endfor %}
-                {% if not posts %}
+                {% else %}
                 <tr>
                     <td colspan="11" style="text-align: center; color: #777;">投稿はありません。</td>
                 </tr>
-                {% endif %}
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
-    {# ページネーション (下) #}
-    {{ render_pagination(pagination, type) }}
-
+    {{ render_pagination(pagination, post_id, post_type, status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) }}
 </div>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('postAdmin', () => ({
+                applied: {},
+                draft: {
+                    post_id: '',
+                    post_type: 'all',
+                    status_filter: 'all',
+                    user_type: 'all',
+                    user_name: '',
+                    user_id: '',
+                    host_ip: '',
+                    entity_name: '',
+                    entity_tag: '',
+                    comment_text: '',
+                    comment_regex: '',
+                    created_after: '',
+                    created_before: '',
+                },
+                hasUnsavedChanges: false,
+                saveStatus: { message: '', success: false },
+                filterDefaults: {
+                    post_id: '',
+                    post_type: 'all',
+                    status_filter: 'all',
+                    user_type: 'all',
+                    user_name: '',
+                    user_id: '',
+                    host_ip: '',
+                    entity_name: '',
+                    entity_tag: '',
+                    comment_text: '',
+                    comment_regex: '',
+                    created_after: '',
+                    created_before: '',
+                },
+                numericFields: ['post_id', 'user_id'],
+
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
+                init() {
+                    this.$root.addEventListener('post-row-change', () => this.checkForChanges());
+                    window.addEventListener('beforeunload', (e) => {
+                        if (this.hasUnsavedChanges) {
+                            e.preventDefault();
+                            e.returnValue = '';
+                        }
+                    });
+                },
+
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) {
+                        return false;
+                    }
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        post_id: (filters.post_id || '').trim(),
+                        post_type: filters.post_type || 'all',
+                        status_filter: filters.status_filter || 'all',
+                        user_type: filters.user_type || 'all',
+                        user_name: (filters.user_name || '').trim(),
+                        user_id: (filters.user_id || '').trim(),
+                        host_ip: (filters.host_ip || '').trim(),
+                        entity_name: (filters.entity_name || '').trim(),
+                        entity_tag: (filters.entity_tag || '').trim(),
+                        comment_text: (filters.comment_text || '').trim(),
+                        comment_regex: (filters.comment_regex || '').trim(),
+                        created_after: (filters.created_after || '').trim(),
+                        created_before: (filters.created_before || '').trim(),
+                    };
+                },
+
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    if (draft.comment_text && draft.comment_regex) {
+                        return false;
+                    }
+                    for (const field of this.numericFields) {
+                        if (draft[field] && !/^\d+$/.test(draft[field])) {
+                            return false;
+                        }
+                    }
+                    if (draft.comment_regex && !this.isValidRegex(draft.comment_regex)) {
+                        return false;
+                    }
+                    if (draft.created_after && draft.created_before && draft.created_after > draft.created_before) {
+                        return false;
+                    }
+                    return true;
+                },
+
+                isValidRegex(pattern) {
+                    try {
+                        new RegExp(pattern);
+                        return true;
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                sanitizeNumericField(field) {
+                    this.draft[field] = (this.draft[field] || '').replace(/\D/g, '');
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) {
+                        return;
+                    }
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+
+                checkForChanges() {
+                    this.hasUnsavedChanges = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                        .some((el) => Alpine.$data(el).isDirty());
+                },
+
+                confirmSaveChanges() {
+                    if (!this.hasUnsavedChanges) {
+                        return;
+                    }
+                    const itemsToUpdate = Array.from(this.$root.querySelectorAll('tbody tr[x-data]'))
+                        .filter((el) => Alpine.$data(el).isDirty())
+                        .map((el) => Alpine.$data(el).getCurrentData());
+
+                    if (itemsToUpdate.length > 0 && confirm(`${itemsToUpdate.length}件の投稿を更新しますか？`)) {
+                        this.saveChanges(itemsToUpdate);
+                    } else if (itemsToUpdate.length === 0) {
+                        alert('有効な変更点がありません。');
+                    }
+                },
+
+                async saveChanges(items) {
+                    this.saveStatus = { message: '保存中...', success: false };
+                    try {
+                        const response = await fetch("{{ url_for('admin_update_posts', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ posts: items }),
+                        });
+                        const data = await response.json();
+                        this.saveStatus = { message: data.message, success: data.success };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    } catch (error) {
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
+                    }
+                },
+            }));
+
+            Alpine.data('postRow', () => ({
+                initial: {},
+                id: null,
+                is_deleted: false,
+                can_delete: true,
+
+                initData(initialData) {
+                    this.initial = JSON.parse(JSON.stringify(initialData));
+                    this.id = initialData.id;
+                    this.is_deleted = initialData.is_deleted;
+                    this.can_delete = !!initialData.can_delete;
+                    this.$watch('is_deleted', () => this.$dispatch('post-row-change'));
+                },
+
+                isDirty() {
+                    if (!this.can_delete) {
+                        return false;
+                    }
+                    return this.initial.is_deleted !== this.is_deleted;
+                },
+
+                getCurrentData() {
+                    return {
+                        id: this.id,
+                        is_deleted: this.is_deleted,
+                    };
+                },
+            }));
+        });
+    </script>
 {% endblock %}
