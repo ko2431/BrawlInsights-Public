@@ -11,13 +11,24 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, current_sort, status_filter) %}
+{% macro render_pagination(pagination, job_id, status_filter, user_type, user_name, user_id, player_tag, image_type, orientation, platform_filter, lang_filter, created_after, created_before, current_sort) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="画像生成履歴ページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
-                {% if current_sort != 'created_desc' %}{% set _ = base_query_parts.append("sort=" + current_sort) %}{% endif %}
+                {% if job_id %}{% set _ = base_query_parts.append("job_id=" + job_id) %}{% endif %}
                 {% if status_filter != 'all' %}{% set _ = base_query_parts.append("status_filter=" + status_filter) %}{% endif %}
+                {% if user_type != 'all' %}{% set _ = base_query_parts.append("user_type=" + user_type) %}{% endif %}
+                {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
+                {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
+                {% if player_tag %}{% set _ = base_query_parts.append("player_tag=" + (player_tag | urlencode)) %}{% endif %}
+                {% if image_type != 'all' %}{% set _ = base_query_parts.append("image_type=" + (image_type | urlencode)) %}{% endif %}
+                {% if orientation != 'all' %}{% set _ = base_query_parts.append("orientation=" + orientation) %}{% endif %}
+                {% if platform_filter != 'all' %}{% set _ = base_query_parts.append("platform_filter=" + platform_filter) %}{% endif %}
+                {% if lang_filter != 'all' %}{% set _ = base_query_parts.append("lang_filter=" + lang_filter) %}{% endif %}
+                {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
+                {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
+                {% if current_sort != 'created_desc' %}{% set _ = base_query_parts.append("sort=" + current_sort) %}{% endif %}
                 {% set base_query = base_query_parts | join('&') %}
                 {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
 
@@ -54,32 +65,120 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container" style="max-width: none;" x-data="imageJobAdmin()">
+<div class="admin-page__container" style="max-width: none;" x-data="imageJobAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
     <h1 class="page-title--main">画像生成履歴確認</h1>
 
-    <div style="margin-bottom: 0.5em; display:flex; align-items:center; gap:0.5em; flex-wrap: wrap;">
-        <label style="font-weight:600;">ステータス:</label>
-        <select x-model="statusFilter" @change="changeStatusFilter()" style="border-radius: 10px; padding: 1px 2px; border: 1px solid var(--color-ccc);">
-            <option value="all">すべて</option>
-            <option value="queued">queued（待機中）</option>
-            <option value="processing">processing（処理中）</option>
-            <option value="completed">completed（完了）</option>
-            <option value="failed">failed（失敗）</option>
-        </select>
-    </div>
+    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">履歴ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.job_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('job_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ステータス</span>
+            <select class="form-input admin-filters__select" x-model="draft.status_filter">
+                <option value="all">すべて</option>
+                <option value="queued">queued（待機中）</option>
+                <option value="processing">processing（処理中）</option>
+                <option value="completed">completed（完了）</option>
+                <option value="failed">failed（失敗）</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザータイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.user_type">
+                <option value="all">すべて</option>
+                <option value="logged_in">ログイン済み</option>
+                <option value="guest">未ログイン</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">プレイヤータグ</span>
+            <input class="form-input admin-filters__input" x-model="draft.player_tag" maxlength="20">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">画像タイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.image_type">
+                <option value="all">すべて</option>
+                {% if image_type != 'all' and image_type not in image_type_options %}
+                <option value="{{ image_type }}">{{ image_type }}</option>
+                {% endif %}
+                {% for itype in image_type_options %}
+                <option value="{{ itype }}">{{ itype }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">向き</span>
+            <select class="form-input admin-filters__select" x-model="draft.orientation">
+                <option value="all">すべて</option>
+                <option value="landscape">横</option>
+                <option value="portrait">縦</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">プラットフォーム</span>
+            <select class="form-input admin-filters__select" x-model="draft.platform_filter">
+                <option value="all">すべて</option>
+                <option value="web">web</option>
+                <option value="ios">ios</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">言語</span>
+            <select class="form-input admin-filters__select" x-model="draft.lang_filter">
+                <option value="all">すべて</option>
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以降</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_after">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以前</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_before">
+        </label>
+        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    </form>
 
     <p class="admin-page__description">
-        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b> 件（フィルタ適用後）<br>
+        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／
+        {% set logged_in_users = pagination.total_logged_in_users %}
+        {% set guest_jobs = pagination.total_guest_jobs %}
+        {% if guest_jobs > 0 %}
+            <b>{{ '{:,}'.format(logged_in_users) }}</b>人＋未ログイン<b>{{ '{:,}'.format(guest_jobs) }}</b>件
+        {% else %}
+            <b>{{ '{:,}'.format(logged_in_users) }}</b>人
+        {% endif %}
+        （最大1,000件／ページ）<br>
         {% if status_counts %}
-        全体: queued=<b>{{ status_counts.get('queued', 0) | int }}</b>
-        / processing=<b>{{ status_counts.get('processing', 0) | int }}</b>
-        / completed=<b>{{ status_counts.get('completed', 0) | int }}</b>
-        / failed=<b>{{ status_counts.get('failed', 0) | int }}</b><br>
+        全体: queued=<b>{{ '{:,}'.format(status_counts.get('queued', 0) | int) }}</b>
+        / processing=<b>{{ '{:,}'.format(status_counts.get('processing', 0) | int) }}</b>
+        / completed=<b>{{ '{:,}'.format(status_counts.get('completed', 0) | int) }}</b>
+        / failed=<b>{{ '{:,}'.format(status_counts.get('failed', 0) | int) }}</b><br>
         {% endif %}
         この画面は読み取り専用です。編集・削除はできません。
     </p>
 
-    {{ render_pagination(pagination, current_sort, status_filter) }}
+    {{ render_pagination(pagination, job_id, status_filter, user_type, user_name, user_id, player_tag, image_type, orientation, platform_filter, lang_filter, created_after, created_before, current_sort) }}
 
     <div class="table-wrapper" style="margin-top: 1em;">
         <table class="data-table purchase-table">
@@ -114,8 +213,24 @@
                     <td>
                         <span class="status-badge status-{{ job.status }}">{{ job.status }}</span>
                     </td>
-                    <td class="col-user">{{ job.user_display }}</td>
-                    <td>{{ job.player_tag }}</td>
+                    <td class="col-user">
+                        {% if job.user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ job.user_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ job.user_display }}</a>
+                        {% else %}
+                            {{ job.user_display }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if job.player_tag_link %}
+                            <a href="{{ url_for('get_player_profile', lang=lang, tag=job.player_tag_link) }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ job.player_tag }}</a>
+                        {% else %}
+                            {{ job.player_tag }}
+                        {% endif %}
+                    </td>
                     <td>{{ job.image_type }}</td>
                     <td>{{ job.orientation }}</td>
                     <td>{{ job.platform }}</td>
@@ -136,17 +251,25 @@
                         {% endif %}
                     </td>
                 </tr>
-                {% endfor %}
-                {% if not jobs %}
+                {% else %}
                 <tr>
                     <td colspan="17" style="text-align: center; color: #777;">画像生成ジョブはありません。</td>
                 </tr>
-                {% endif %}
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
-    {{ render_pagination(pagination, current_sort, status_filter) }}
+    {{ render_pagination(pagination, job_id, status_filter, user_type, user_name, user_id, player_tag, image_type, orientation, platform_filter, lang_filter, created_after, created_before, current_sort) }}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -170,9 +293,117 @@
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('imageJobAdmin', () => ({
-                sortColumn: '{{ current_sort.split("_")[0] }}',
+                applied: {},
+                draft: {
+                    job_id: '',
+                    status_filter: 'all',
+                    user_type: 'all',
+                    user_name: '',
+                    user_id: '',
+                    player_tag: '',
+                    image_type: 'all',
+                    orientation: 'all',
+                    platform_filter: 'all',
+                    lang_filter: 'all',
+                    created_after: '',
+                    created_before: '',
+                },
+                filterDefaults: {
+                    job_id: '',
+                    status_filter: 'all',
+                    user_type: 'all',
+                    user_name: '',
+                    user_id: '',
+                    player_tag: '',
+                    image_type: 'all',
+                    orientation: 'all',
+                    platform_filter: 'all',
+                    lang_filter: 'all',
+                    created_after: '',
+                    created_before: '',
+                },
+                numericFields: ['job_id', 'user_id'],
+                sortColumn: '{{ current_sort.rsplit("_", 1)[0] }}',
                 sortDirection: '{{ "asc" if current_sort.endswith("asc") else "desc" }}',
-                statusFilter: '{{ status_filter }}',
+                currentSort: '{{ current_sort }}',
+
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) {
+                        return false;
+                    }
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        job_id: (filters.job_id || '').trim(),
+                        status_filter: filters.status_filter || 'all',
+                        user_type: filters.user_type || 'all',
+                        user_name: (filters.user_name || '').trim(),
+                        user_id: (filters.user_id || '').trim(),
+                        player_tag: (filters.player_tag || '').trim(),
+                        image_type: filters.image_type || 'all',
+                        orientation: filters.orientation || 'all',
+                        platform_filter: filters.platform_filter || 'all',
+                        lang_filter: filters.lang_filter || 'all',
+                        created_after: (filters.created_after || '').trim(),
+                        created_before: (filters.created_before || '').trim(),
+                    };
+                },
+
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    for (const field of this.numericFields) {
+                        if (draft[field] && !/^\d+$/.test(draft[field])) {
+                            return false;
+                        }
+                    }
+                    if (draft.created_after && draft.created_before && draft.created_after > draft.created_before) {
+                        return false;
+                    }
+                    return true;
+                },
+
+                sanitizeNumericField(field) {
+                    this.draft[field] = (this.draft[field] || '').replace(/\D/g, '');
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) {
+                        return;
+                    }
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    if (this.currentSort && this.currentSort !== 'created_desc') {
+                        url.searchParams.set('sort', this.currentSort);
+                    } else {
+                        url.searchParams.delete('sort');
+                    }
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
 
                 sortBy(column) {
                     const newDirection = (this.sortColumn === column)
@@ -180,21 +411,6 @@
                         : 'desc';
                     const url = new URL(window.location.href);
                     url.searchParams.set('sort', `${column}_${newDirection}`);
-                    url.searchParams.set('page', '1');
-                    if (this.statusFilter && this.statusFilter !== 'all') {
-                        url.searchParams.set('status_filter', this.statusFilter);
-                    } else {
-                        url.searchParams.delete('status_filter');
-                    }
-                    window.location.href = url.toString();
-                },
-                changeStatusFilter() {
-                    const url = new URL(window.location.href);
-                    if (this.statusFilter && this.statusFilter !== 'all') {
-                        url.searchParams.set('status_filter', this.statusFilter);
-                    } else {
-                        url.searchParams.delete('status_filter');
-                    }
                     url.searchParams.set('page', '1');
                     window.location.href = url.toString();
                 },
