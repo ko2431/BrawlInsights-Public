@@ -1,5 +1,6 @@
 {# /app/templates/admin/feedbacks.html #}
 {% extends "base.html" %}
+{% from "admin/macros/badges.html" import admin_badge %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -161,7 +162,10 @@
                     </td>
                     <td>{{ feedback.datetime_text }}</td>
                     <td>
-                        <span class="status-badge feedback-type-{{ feedback.feedback_type }}">{{ feedback.feedback_type_ja }}</span>
+                        {{ admin_badge(
+                            feedback.feedback_type_ja,
+                            {"inquiry": "purple", "suggestion": "yellow", "bug_report": "red", "message": "cyan"}.get(feedback.feedback_type, "gray")
+                        ) }}
                     </td>
                     <td class="col-message">
                         <div class="col-message-content" style="white-space: pre-wrap; word-break: break-all;">{{ feedback.comment }}</div>

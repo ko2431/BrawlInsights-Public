@@ -1,0 +1,12 @@
+{# /app/templates/admin/macros/badges.html #}
+{# 管理画面共通バッジ。color は red/blue/green/yellow/purple/cyan/gray。空文字は非表示。 #}
+
+{% macro admin_badge(text, color='gray') -%}
+{%- if text is not none and (text | string | trim) -%}
+<span class="admin-badge admin-badge--{{ color if color else 'gray' }}">{{ text }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro admin_badge_color(value, mapping) -%}
+{{- mapping.get(value, 'gray') if value is not none else 'gray' -}}
+{%- endmacro %}

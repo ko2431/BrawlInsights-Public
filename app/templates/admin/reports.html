@@ -1,5 +1,6 @@
 {# /app/templates/admin/reports.html #}
 {% extends "base.html" %}
+{% from "admin/macros/badges.html" import admin_badge %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -225,7 +226,10 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span class="status-badge target-{{ report.target_type }}">{{ report.target_type_label }}</span>
+                        {{ admin_badge(
+                            report.target_type_label,
+                            {"post": "red", "message": "cyan"}.get(report.target_type, "gray")
+                        ) }}
                     </td>
                     <td>
                         {% if report.post_id %}
@@ -247,7 +251,10 @@
                         <div class="col-message-content">{{ report.target_content }}</div>
                     </td>
                     <td>
-                        <span class="status-badge category-{{ report.category }}">{{ report.category_ja }}</span>
+                        {{ admin_badge(
+                            report.category_ja,
+                            {"unpleasant_content": "green", "hateful_content": "yellow", "spam": "red", "tos_violation": "purple"}.get(report.category, "gray")
+                        ) }}
                     </td>
                     <td class="col-message">
                         <div class="col-message-content">{{ report.text if report.text else "(なし)" }}</div>

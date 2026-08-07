@@ -1,5 +1,6 @@
 {# /app/templates/admin/posts.html #}
 {% extends "base.html" %}
+{% from "admin/macros/badges.html" import admin_badge %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -198,7 +199,7 @@
                 <tr x-data="postRow" x-init='initData({{ {"id": post.id, "is_deleted": post.is_deleted, "can_delete": post.can_delete} | tojson }})' :class="{ 'changed': isDirty() }">
                     <td>{{ post.id }}</td>
                     <td>{{ post.created_at_text }}</td>
-                    <td>{{ post.type_label }}</td>
+                    <td>{{ admin_badge(post.type_label, {"team": "red", "friend": "blue", "club": "green", "general": "yellow"}.get(post.type, "purple")) }}</td>
                     <td>{{ post.host_user_name if post.host_user_name else "(ゲスト)" }}</td>
                     <td>
                         {% if post.host_id %}
@@ -210,7 +211,7 @@
                         {% endif %}
                     </td>
                     <td>{{ post.host_ip }}</td>
-                    <td>{{ post.region }}</td>
+                    <td>{{ admin_badge(post.region, {"JP": "red", "EN": "blue"}.get(post.region, "gray")) }}</td>
                     <td>{{ post.entity_name }}</td>
                     <td>
                         {% if post.entity_kind == 'player' and post.entity_tag %}

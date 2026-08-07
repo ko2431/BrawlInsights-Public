@@ -207,7 +207,11 @@
                     <td class="col-index">{{ loop.index }}</td>
                     <td class="col-id" x-text="id"></td>
                     <td class="col-username" x-text="name"></td>
-                    <td class="col-lang" x-text="lang === 'ja' ? '日本語' : 'English'"></td>
+                    <td class="col-lang">
+                        <span class="admin-badge"
+                              :class="'admin-badge--' + (lang === 'ja' ? 'red' : lang === 'en' ? 'blue' : 'gray')"
+                              x-text="lang === 'ja' ? '日本語' : lang === 'en' ? 'English' : (lang || '不明')"></span>
+                    </td>
                     <td class="col-datetime" :data-sort-value="registration_datetime">{{ format_display_datetime(user.registration_datetime, 'ja') }}</td>
                     <td class="col-datetime" :data-sort-value="last_viewd_datetime">{{ format_display_datetime(user.last_viewd_datetime, 'ja') }}</td>
                     <td class="col-numeric" x-text="pv_count.toLocaleString()"></td>

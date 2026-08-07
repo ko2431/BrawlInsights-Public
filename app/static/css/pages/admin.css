@@ -143,6 +143,8 @@ th {
     padding-right: 5px; /* スクロールバーとテキストの間に余白を設ける */
 }
 
+/* 管理画面共通バッジ（色トークン） */
+.admin-badge,
 .status-badge {
     display: inline-block;
     padding: 2px 7px;
@@ -150,46 +152,63 @@ th {
     font-size: 0.8em;
     font-weight: 600;
     white-space: nowrap;
+    line-height: 1.4;
 }
-.target-post {
+.admin-badge--red {
     background: #fee2e2;
     color: #991b1b;
 }
-.target-message {
-    background: #e0f2fe;
-    color: #075985;
+.admin-badge--blue {
+    background: #dbeafe;
+    color: #1e40af;
 }
-.category-unpleasant_content {
+.admin-badge--green {
     background: #d1fae5;
     color: #065f46;
 }
-.category-hateful_content {
+.admin-badge--yellow {
     background: #fef3c7;
     color: #92400e;
 }
-.category-spam {
-    background: #fee2e2;
-    color: #991b1b;
-}
-.category-tos_violation {
+.admin-badge--purple {
     background: #ede9fe;
     color: #5b21b6;
 }
-.feedback-type-inquiry {
-    background: #ede9fe;
-    color: #5b21b6;
-}
-.feedback-type-suggestion {
-    background: #fef3c7;
-    color: #92400e;
-}
-.feedback-type-bug_report {
-    background: #fee2e2;
-    color: #991b1b;
-}
-.feedback-type-message {
+.admin-badge--cyan {
     background: #e0f2fe;
     color: #075985;
+}
+.admin-badge--gray {
+    background: #e5e7eb;
+    color: #374151;
+}
+.dark .admin-badge--red {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+.dark .admin-badge--blue {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+.dark .admin-badge--green {
+    background: #064e3b;
+    color: #a7f3d0;
+}
+.dark .admin-badge--yellow {
+    background: #78350f;
+    color: #fde68a;
+}
+.dark .admin-badge--purple {
+    background: #4c1d95;
+    color: #ddd6fe;
+}
+.dark .admin-badge--cyan {
+    background: #0c4a6e;
+    color: #bae6fd;
+}
+.dark .admin-badge--gray {
+    background: #374151;
+    color: #d1d5db;
 }
 
 .feedback-table th.sortable-header {

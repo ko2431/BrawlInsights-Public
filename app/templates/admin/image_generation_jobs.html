@@ -1,5 +1,6 @@
 {# /app/templates/admin/image_generation_jobs.html #}
 {% extends "base.html" %}
+{% from "admin/macros/badges.html" import admin_badge %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -211,7 +212,10 @@
                     <td class="col-datetime">{{ job.started_at_text }}</td>
                     <td class="col-datetime">{{ job.completed_at_text }}</td>
                     <td>
-                        <span class="status-badge status-{{ job.status }}">{{ job.status }}</span>
+                        {{ admin_badge(
+                            job.status,
+                            {"queued": "blue", "processing": "yellow", "completed": "green", "failed": "red"}.get(job.status, "gray")
+                        ) }}
                     </td>
                     <td class="col-user">
                         {% if job.user_id %}
@@ -232,9 +236,9 @@
                         {% endif %}
                     </td>
                     <td>{{ job.image_type }}</td>
-                    <td>{{ job.orientation }}</td>
-                    <td>{{ job.platform }}</td>
-                    <td>{{ job.lang }}</td>
+                    <td>{{ admin_badge(job.orientation, {"portrait": "red", "landscape": "blue"}.get(job.orientation, "gray")) }}</td>
+                    <td>{{ admin_badge(job.platform, {"web": "blue", "ios": "red", "android": "green"}.get(job.platform, "gray")) }}</td>
+                    <td>{{ admin_badge(job.lang, {"ja": "red", "en": "blue"}.get(job.lang, "gray")) }}</td>
                     <td style="text-align: right;">{{ job.priority }}</td>
                     <td>{{ 'true' if job.consume_ticket else 'false' }}</td>
                     <td>{{ 'true' if job.is_fast_lane else 'false' }}</td>
@@ -271,21 +275,6 @@
     </div>
     {% endif %}
 </div>
-
-<style>
-.status-badge {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 6px;
-    font-size: 0.8em;
-    font-weight: 600;
-    white-space: nowrap;
-}
-.status-queued     { background: #e8f0fe; color: #1a56db; }
-.status-processing { background: #fef3c7; color: #92400e; }
-.status-completed  { background: #d1fae5; color: #065f46; }
-.status-failed     { background: #fee2e2; color: #991b1b; }
-</style>
 {% endblock %}
 
 {% block scripts %}
