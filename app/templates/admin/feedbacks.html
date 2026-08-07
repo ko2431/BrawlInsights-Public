@@ -160,7 +160,9 @@
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ feedback.user_name }} ({{ feedback.user_id }})</a>
                     </td>
                     <td>{{ feedback.datetime_text }}</td>
-                    <td>{{ feedback.feedback_type_ja }}</td>
+                    <td>
+                        <span class="status-badge feedback-type-{{ feedback.feedback_type }}">{{ feedback.feedback_type_ja }}</span>
+                    </td>
                     <td class="col-message">
                         <div class="col-message-content" style="white-space: pre-wrap; word-break: break-all;">{{ feedback.comment }}</div>
                     </td>

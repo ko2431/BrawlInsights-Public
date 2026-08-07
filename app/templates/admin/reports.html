@@ -246,7 +246,9 @@
                     <td class="col-message">
                         <div class="col-message-content">{{ report.target_content }}</div>
                     </td>
-                    <td>{{ report.category_ja }}</td>
+                    <td>
+                        <span class="status-badge category-{{ report.category }}">{{ report.category_ja }}</span>
+                    </td>
                     <td class="col-message">
                         <div class="col-message-content">{{ report.text if report.text else "(なし)" }}</div>
                     </td>
