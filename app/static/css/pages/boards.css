@@ -587,7 +587,7 @@ body.modal-open {
 }
 .post-card__comment-container {
     margin-top: 5px;
-    padding: 3px 5px 2px;
+    padding: 4px 5px 3px;
 }
 .post-card__blocked-text-container {
     padding: 5px;
@@ -678,7 +678,7 @@ body.modal-open {
     word-break: break-word;
 }
 .post-card__comment-scroll {
-    max-height: 60px;       /* 高さ上限 */
+    max-height: 68px;       /* 高さ上限 */
     overflow-y: auto;        /* 縦スクロール */
     overflow-x: hidden;      /* 横スクロールは出さない */
     padding-right: 4px;      /* スクロールバーとの余白（任意） */
