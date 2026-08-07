@@ -3,6 +3,14 @@
 {% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">{% endblock %}
 {% block content %}
 <div class="admin-page__container" x-data="minigameCampaignAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
     <h1 class="page-title--main">ミニゲーム企画管理</h1>
     <p class="admin-page__description">開始済み企画では、開始日時・ゲーム種別・景品設定は変更できません。価格などの運用項目は変更できます。</p>
     <div class="save-changes-block">
@@ -66,6 +74,14 @@
     <div class="table-wrapper"><table class="data-table purchase-table"><thead><tr><th>ID</th><th>企画名</th><th>種別</th><th>開始（JST）</th><th>終了（JST）</th><th>参加数</th><th>状態</th><th></th></tr></thead><tbody>
     {% for campaign in campaigns %}<tr><td>{{ campaign.id }}</td><td>{{ campaign.name_ja }}</td><td>{{ campaign.game_type }}</td><td>{{ campaign.starts_at_text }}</td><td>{{ campaign.ends_at_text }}</td><td>{{ campaign.play_count }}</td><td>{{ '無効' if campaign.is_invalid else ('開始済み' if campaign.has_started else '予定') }}</td><td><a class="button button--secondary button--small" href="{{ url_for('admin_minigame_campaigns', lang=lang) }}?edit_id={{ campaign.id }}">編集</a></td></tr>{% endfor %}
     </tbody></table></div>
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}{{ super() }}<script>
