@@ -341,6 +341,23 @@ th {
     font-weight: bold;
     line-height: 1;
 }
+/* Parent / Child を淡い色で区別（ログレベルの濃い赤・緑などと混同しない） */
+.log-server-badge--parent {
+    background-color: #ffcdd2;
+    color: #b71c1c;
+}
+.log-server-badge--child-1 {
+    background-color: #bbdefb;
+    color: #0d47a1;
+}
+.dark .log-server-badge--parent {
+    background-color: #c62828;
+    color: #ffebee;
+}
+.dark .log-server-badge--child-1 {
+    background-color: #1565c0;
+    color: #e3f2fd;
+}
 
 .admin-log-scan-warning {
     margin: 10px 0 15px;
