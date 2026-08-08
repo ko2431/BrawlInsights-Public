@@ -145,7 +145,7 @@
 {% endif %}
 <div class="chat-page__container {% if post.type in ['team', 'general'] %}team-chat{% endif %}">
     {# ヘッダー部分 (スレッド情報) #}
-    <header class="chat-header" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
+    <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
         <div class="chat-header__content">
             {% if post.type == "brawler_guide" %}
             {# キャラクター図鑑用ヘッダー #}
@@ -191,8 +191,13 @@
             {% else %}
                 {% set chat_back_fallback = url_for('team_recruitment_board', lang=lang) %}
             {% endif %}
-            <div class="back-button__container" data-back-fallback="{{ chat_back_fallback }}">
-                <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+            <div class="chat-header__actions">
+                <div class="back-button__container" data-back-fallback="{{ chat_back_fallback }}">
+                    <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+                </div>
+                <div class="share-button__container">
+                    <button type="button" class="share-button" id="chat-share-button">{% if lang == "ja" %}共有{% else %}Share{% endif %}</button>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -1722,6 +1727,73 @@
                     closeReportModal();
                 }
             });
+
+            // --- アプリ版: チャットスレッド共有 ---
+            // text/title を渡すと iOS の「コピー」が本文だけを取るため、url のみ渡す
+            const chatShareButton = document.getElementById('chat-share-button');
+            if (chatShareButton && !isWebPlatform) {
+                const getChatShareUrl = () => `${window.location.origin}${window.location.pathname}`;
+                const shareDialogTitle = lang === 'ja' ? 'チャットを共有' : 'Share Chat';
+                const copiedMessage = lang === 'ja'
+                    ? 'リンクをクリップボードにコピーしました。'
+                    : 'Link copied to clipboard.';
+                const shareFailedMessage = lang === 'ja'
+                    ? '共有機能を利用できませんでした。'
+                    : 'Could not use the share feature.';
+
+                async function copyChatShareUrl(url) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(url);
+                        return;
+                    }
+                    const textarea = document.createElement('textarea');
+                    textarea.value = url;
+                    textarea.setAttribute('readonly', '');
+                    textarea.style.position = 'fixed';
+                    textarea.style.left = '-9999px';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    if (!ok) {
+                        throw new Error('execCommand copy failed');
+                    }
+                }
+
+                chatShareButton.addEventListener('click', async () => {
+                    const chatShareUrl = getChatShareUrl();
+                    try {
+                        if (window.Capacitor?.Plugins?.Share) {
+                            await window.Capacitor.Plugins.Share.share({
+                                url: chatShareUrl,
+                                dialogTitle: shareDialogTitle,
+                            });
+                            return;
+                        }
+                        if (navigator.share) {
+                            await navigator.share({ url: chatShareUrl });
+                            return;
+                        }
+                        await copyChatShareUrl(chatShareUrl);
+                        alert(copiedMessage);
+                    } catch (error) {
+                        const canceled =
+                            error?.errorMessage === 'Share canceled' ||
+                            error?.name === 'AbortError';
+                        if (canceled) {
+                            return;
+                        }
+                        console.error('Chat share failed:', error);
+                        try {
+                            await copyChatShareUrl(chatShareUrl);
+                            alert(copiedMessage);
+                        } catch (copyError) {
+                            console.error('Chat share clipboard fallback failed:', copyError);
+                            alert(shareFailedMessage);
+                        }
+                    }
+                });
+            }
         });
     </script>
 {% endblock %}
