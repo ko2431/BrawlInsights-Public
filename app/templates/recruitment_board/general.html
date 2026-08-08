@@ -237,6 +237,7 @@
             <div class="post-modal-section">
                 <p class="post-modal-section-title">2. {% if lang == "ja" %}コメント{% else %}Comment{% endif %}</p>
                 <textarea id="comment-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}コメントを入力{% else %}Enter your comment{% endif %}"></textarea>
+                <div id="comment-status" class="form-field-status" style="font-size: 0.8em;"></div>
             </div>
 
             {# 3. リンクを追加 #}
@@ -339,6 +340,7 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/url_detect.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/board_fragment_pagination.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/general_board.js') }}?v={{ app_version }}"></script>
     <script>
@@ -410,6 +412,7 @@
         const closeBtn = document.getElementById('modal-close-btn');
         const postBtn = document.getElementById('modal-post-btn');
         const commentForm = document.getElementById('comment-form');
+        const commentStatus = document.getElementById('comment-status');
         const linkSection = document.getElementById('link-section');
         const linkForm = document.getElementById('link-form');
         const linkStatus = document.getElementById('link-status');
@@ -438,8 +441,24 @@
         const postState = {
             selectedCategory: null,
             isValidLink: false,
+            isCommentValid: true,
             comment: '',
             link: ''
+        };
+
+        const updateCommentLinkStatus = () => {
+            const hasUrl = window.BrawlInsightsUrlDetect?.containsUrl(commentForm.value);
+            postState.isCommentValid = !hasUrl;
+            if (hasUrl) {
+                commentStatus.textContent = lang === 'ja'
+                    ? '❌ セキュリティ上、コメントにリンクを含めることはできません'
+                    : '❌ For security reasons, links are not allowed in comments.';
+                commentStatus.classList.add('text-red-500');
+            } else {
+                commentStatus.textContent = '';
+                commentStatus.classList.remove('text-red-500');
+            }
+            updatePostButtonState();
         };
 
         const updatePostButtonState = () => {
@@ -452,7 +471,7 @@
                 : (isRequiredLinkCategory
                     ? (hasLinkInput && postState.isValidLink)
                     : (!hasLinkInput || postState.isValidLink));
-            postBtn.disabled = !(postState.selectedCategory && hasComment && linkOk);
+            postBtn.disabled = !(postState.selectedCategory && hasComment && postState.isCommentValid && linkOk);
         };
 
         const conditionsSection = document.getElementById('conditions-section');
@@ -486,7 +505,7 @@
             });
         });
 
-        commentForm.addEventListener('input', updatePostButtonState);
+        commentForm.addEventListener('input', updateCommentLinkStatus);
 
         const normalizeUrl = (text) => {
             const t = text.trim();

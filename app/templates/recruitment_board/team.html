@@ -277,6 +277,7 @@
                 <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}コメントを自由に追加できます。サブアカウントでチーム募集をする場合は、その旨をこちらにご記入ください。{% else %}You can add a comment. If you are recruiting for a team with a sub-account, please indicate that here.{% endif %}</p>
                 {% endif %}
                 <textarea id="comment-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}コメントを追加できます。{% else %}You can add a comment.{% endif %}"></textarea>
+                <div id="comment-status" class="form-field-status" style="font-size: 0.8em;"></div>
             </div>
             <div class="post-modal-section">
                 <p class="post-modal-section-title">5. {% if lang == "ja" %}条件設定{% else %}Set Conditions{% endif %}</p>
@@ -386,6 +387,7 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/url_detect.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/board_fragment_pagination.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/team_board.js') }}?v={{ app_version }}"></script>
     <script>
@@ -394,6 +396,7 @@
             const postState = {
                 isHostValid: {{ 'true' if current_user and main_account else 'false' }},
                 isValidLink: false,
+                isCommentValid: true,
                 isCategoryValid: false,
                 isTermsAgreed: {{ 'true' if current_user or platform == 'web' else 'false' }}, // ログインユーザーは常に同意済みと見なす
                 link: '',
@@ -430,6 +433,7 @@
             const inviteLinkForm = document.getElementById('invite-link-form');
             const linkStatus = document.getElementById('link-status');
             const commentForm = document.getElementById('comment-form');
+            const commentStatus = document.getElementById('comment-status');
             const useLastPostBtn = document.getElementById('use-last-post-section');
             const hostPlayerTagForm = document.getElementById('host-player-tag-form');
             const hostPlayerTagStatus = document.getElementById('host-player-tag-status');
@@ -476,8 +480,25 @@
             
             // --- 投稿ボタンの状態を更新 ---
             const updatePostButtonState = () => {
-                postBtn.disabled = !(postState.isHostValid && postState.isValidLink && postState.isCategoryValid && postState.isTermsAgreed);
+                postBtn.disabled = !(postState.isHostValid && postState.isValidLink && postState.isCommentValid && postState.isCategoryValid && postState.isTermsAgreed);
             };
+
+            const updateCommentLinkStatus = () => {
+                const hasUrl = window.BrawlInsightsUrlDetect?.containsUrl(commentForm.value);
+                postState.isCommentValid = !hasUrl;
+                if (hasUrl) {
+                    commentStatus.textContent = lang === 'ja'
+                        ? '❌ セキュリティ上、ひとことにリンクを含めることはできません'
+                        : '❌ For security reasons, links are not allowed in comments.';
+                    commentStatus.classList.add('text-red-500');
+                } else {
+                    commentStatus.textContent = '';
+                    commentStatus.classList.remove('text-red-500');
+                }
+                updatePostButtonState();
+            };
+
+            commentForm.addEventListener('input', updateCommentLinkStatus);
 
             const checkTermsAgreement = () => {
                 // localStorageから同意状況を取得
@@ -743,6 +764,7 @@
 
                     // 2. コメント
                     commentForm.value = lastPost.comment || '';
+                    updateCommentLinkStatus();
 
                     // 3. 条件
                     if (document.getElementById('required-ranked-highest-rank')) {
