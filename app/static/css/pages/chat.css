@@ -341,6 +341,23 @@ body.has-top-banner .chat-ad-banner-spacer {
     background-color: #333;
     border: 1px solid #555;
 }
+.message-bubble__link {
+    color: #1a6fb5;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+}
+.dark .message-bubble__link {
+    color: #6cb6eb;
+}
+.message-bubble--self .message-bubble__link {
+    color: #ffffff;
+    text-decoration-color: rgba(255, 255, 255, 0.85);
+}
+.dark .message-bubble--self .message-bubble__link {
+    color: #ffffff;
+    text-decoration-color: rgba(255, 255, 255, 0.85);
+}
 .message-bubble__timestamp {
     font-size: 12px;
     color: var(--color-999);
