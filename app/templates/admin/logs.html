@@ -156,7 +156,7 @@
                         {% set row_class = 'log-level-' + log.level.lower() %}
                         <tr class="{{ row_class }}">
                             <td style="text-align: right;">{{ log.number }}</td>
-                            <td>{{ log.datetime }}</td>
+                            <td>{{ log.datetime_text }}</td>
                             <td><span class="log-server-badge log-server-badge--{{ log.server | lower }}">{{ log.server }}</span></td>
                             <td><span class="log-level-badge">{{ log.level }}</span></td>
                             <td>{{ log.location }}</td>
