@@ -396,8 +396,6 @@
             const LINKIFY_MAX_RELATIVE_LENGTH = 200;
             const LINKIFY_MAX_LINKS_PER_MESSAGE = 10;
             const LINKIFY_DISPLAY_MAX_LENGTH = 70;
-            const MESSAGE_LONG_PRESS_MS = 450;
-            const MESSAGE_LONG_PRESS_MOVE_PX = 10;
             
             // --- 状態管理とJinja2からの変数 ---
             let currentPostState = {{ post.to_dict() | tojson }};
@@ -418,9 +416,6 @@
             let activeMessageId = null;
             const typingUsers = {};
             let typingTimeout;
-            let messageLongPressTimer = null;
-            let messageLongPressTriggered = false;
-            let messageLongPressStart = null;
 
             // リアクションの状態を管理するオブジェクト
             let messageReactions = {};
@@ -620,14 +615,6 @@
                 });
             }
 
-            function clearMessageLongPressTimer() {
-                if (messageLongPressTimer) {
-                    clearTimeout(messageLongPressTimer);
-                    messageLongPressTimer = null;
-                }
-                messageLongPressStart = null;
-            }
-
             async function openMessageLink(href, isExternal) {
                 if (isExternal && window.Capacitor?.isNativePlatform?.()) {
                     try {
@@ -647,10 +634,6 @@
             function handleMessageLinkClick(event, linkEl) {
                 event.preventDefault();
                 event.stopPropagation();
-
-                if (messageLongPressTriggered) {
-                    return;
-                }
 
                 const href = linkEl.href;
                 const isExternal = linkEl.dataset.external === '1';
@@ -1512,52 +1495,11 @@
             // ===============================================
             // イベントリスナーセクション
             // ===============================================
-            // --- メッセージ本文の長押し（メニュー表示） ---
-            if (messagesContainer) {
-                messagesContainer.addEventListener('pointerdown', function(event) {
-                    if (event.pointerType === 'mouse' && event.button !== 0) return;
-                    const messageContent = event.target.closest('.message-bubble__content');
-                    if (!messageContent || !isPermittedToChat) return;
-
-                    messageLongPressTriggered = false;
-                    messageLongPressStart = {
-                        x: event.clientX,
-                        y: event.clientY,
-                        bubble: messageContent.closest('.message-bubble'),
-                    };
-                    clearMessageLongPressTimer();
-                    messageLongPressTimer = setTimeout(() => {
-                        messageLongPressTriggered = true;
-                        const bubble = messageLongPressStart?.bubble;
-                        if (bubble) {
-                            setupAndShowMenu(bubble, bubble.dataset.messageId, bubble.dataset.userId);
-                        }
-                    }, MESSAGE_LONG_PRESS_MS);
-                });
-
-                messagesContainer.addEventListener('pointermove', function(event) {
-                    if (!messageLongPressStart) return;
-                    const dx = Math.abs(event.clientX - messageLongPressStart.x);
-                    const dy = Math.abs(event.clientY - messageLongPressStart.y);
-                    if (dx > MESSAGE_LONG_PRESS_MOVE_PX || dy > MESSAGE_LONG_PRESS_MOVE_PX) {
-                        clearMessageLongPressTimer();
-                    }
-                });
-
-                const endMessageLongPressTracking = function() {
-                    clearMessageLongPressTimer();
-                };
-                messagesContainer.addEventListener('pointerup', endMessageLongPressTracking);
-                messagesContainer.addEventListener('pointercancel', endMessageLongPressTracking);
-            }
-
             // --- メッセージコンテナのクリックイベント ---
             messagesContainer.addEventListener('click', function(event) {
                 const linkEl = event.target.closest('a.message-bubble__link');
                 if (linkEl && event.currentTarget.contains(linkEl)) {
                     handleMessageLinkClick(event, linkEl);
-                    // 長押し直後の click で誤ってメニューを出す/消すのを防ぐ
-                    setTimeout(() => { messageLongPressTriggered = false; }, 0);
                     return;
                 }
 
@@ -1566,10 +1508,6 @@
                 const reactionContainer = event.target.closest('.reactions__container');
                 
                 if (messageContent) {
-                    if (messageLongPressTriggered) {
-                        messageLongPressTriggered = false;
-                        return;
-                    }
                     const messageBubble = messageContent.closest('.message-bubble');
                     if (messageBubble && isPermittedToChat) {
                         setupAndShowMenu(messageBubble, messageBubble.dataset.messageId, messageBubble.dataset.userId);
@@ -1602,8 +1540,6 @@
                 }
             });
             messagesContainer.addEventListener('scroll', () => {
-                clearMessageLongPressTimer();
-                messageLongPressTriggered = false;
                 hideMessageMenu();
                 hideHostMenu();
                 hideReactionMenu();
