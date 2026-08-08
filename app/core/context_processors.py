@@ -43,3 +43,22 @@ def ad_banner_processor(request: Request) -> dict:
         banner = None
 
     return {"ad_banner": banner}
+
+
+def board_notification_processor(request: Request) -> dict:
+    """
+    募集掲示板タブ用の通知バッジ情報をテンプレートコンテキストに渡す。
+    UserToStateMiddleware が request.state.board_notification_context を設定済みであること前提。
+    """
+    context = getattr(request.state, "board_notification_context", None)
+    if not isinstance(context, dict):
+        return {
+            "unread_badge_count": 0,
+            "show_notification_badge": False,
+            "notification_badge_text": "",
+        }
+    return {
+        "unread_badge_count": int(context.get("unread_badge_count", 0) or 0),
+        "show_notification_badge": bool(context.get("show_notification_badge")),
+        "notification_badge_text": context.get("notification_badge_text") or "",
+    }

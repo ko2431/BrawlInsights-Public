@@ -538,14 +538,24 @@ def _build_message_title(
     return f"<b>{actor_name}</b> replied to a {post_label_en} post you messaged in"
 
 
-async def _fetch_notification_rows(
+def empty_board_notification_context() -> dict[str, Any]:
+    return {
+        "unread_badge_count": 0,
+        "show_notification_badge": False,
+        "notification_badge_text": "",
+    }
+
+
+async def _build_notification_where(
     db: asyncpg.Connection,
     user_id: int,
     *,
     notification_filter: str,
     unread_only: bool,
     last_read_at: datetime.datetime | None,
-) -> list[asyncpg.Record]:
+    settings: dict[str, bool | datetime.datetime | None] | None = None,
+) -> tuple[list[str], list[Any]] | None:
+    """通知取得用の WHERE 句を組み立てる。有効な通知種別がなければ None。"""
     where_clauses = ["recipient_user_id = $1"]
     params: list[Any] = [user_id]
 
@@ -557,13 +567,14 @@ async def _fetch_notification_rows(
         params.append(last_read_at)
         where_clauses.append(f"created_at > ${len(params)}")
 
-    settings = await get_notification_settings(db, user_id)
+    if settings is None:
+        settings = await get_notification_settings(db, user_id)
     enabled_types = [
         ntype for ntype in NOTIFICATION_TYPE_SETTING_KEYS
         if _is_type_enabled(settings, ntype)
     ]
     if not enabled_types:
-        return []
+        return None
 
     params.append(enabled_types)
     where_clauses.append(f"notification_type = ANY(${len(params)}::text[])")
@@ -573,6 +584,28 @@ async def _fetch_notification_rows(
         params.append(blocked_ids["user_ids"])
         where_clauses.append(f"NOT (actor_user_id = ANY(${len(params)}::int[]))")
 
+    return where_clauses, params
+
+
+async def _fetch_notification_rows(
+    db: asyncpg.Connection,
+    user_id: int,
+    *,
+    notification_filter: str,
+    unread_only: bool,
+    last_read_at: datetime.datetime | None,
+) -> list[asyncpg.Record]:
+    built = await _build_notification_where(
+        db,
+        user_id,
+        notification_filter=notification_filter,
+        unread_only=unread_only,
+        last_read_at=last_read_at,
+    )
+    if built is None:
+        return []
+
+    where_clauses, params = built
     query = f"""
         SELECT *
         FROM board_notifications
@@ -757,25 +790,39 @@ async def get_unread_badge_count(db: asyncpg.Connection, user_id: int) -> int:
         return int(cached)
 
     settings = await get_notification_settings(db, user_id)
-    rows = await _fetch_notification_rows(
+    built = await _build_notification_where(
         db,
         user_id,
         notification_filter="all",
         unread_only=True,
         last_read_at=settings.get("notifications_last_read_at"),
+        settings=settings,
     )
+    if built is None:
+        await set_cache(cache_key, 0, ttl=60)
+        return 0
 
-    grouped_keys: set[tuple[str, int | None, int | None]] = set()
-    for row in rows:
-        ntype = row["notification_type"]
-        if ntype == NOTIFICATION_TYPE_POST_LIKE:
-            grouped_keys.add((ntype, row["post_id"], None))
-        elif ntype == NOTIFICATION_TYPE_MESSAGE_REACTION:
-            grouped_keys.add((ntype, None, row["message_id"]))
-        else:
-            grouped_keys.add((ntype, row["id"], None))
+    where_clauses, params = built
+    # post_like / message_reaction は表示時と同じキーで集約して件数化（行を全件取得しない）
+    query = f"""
+        SELECT COUNT(*)::int AS count
+        FROM (
+            SELECT DISTINCT
+                notification_type,
+                CASE
+                    WHEN notification_type = '{NOTIFICATION_TYPE_POST_LIKE}' THEN post_id
+                    WHEN notification_type = '{NOTIFICATION_TYPE_MESSAGE_REACTION}' THEN message_id
+                    ELSE id
+                END AS group_id
+            FROM board_notifications
+            WHERE {' AND '.join(where_clauses)}
+        ) AS grouped
+    """
+    try:
+        count = int(await db.fetchval(query, *params) or 0)
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
 
-    count = len(grouped_keys)
     await set_cache(cache_key, count, ttl=60)
     return count
 
@@ -785,15 +832,14 @@ async def get_board_notification_context(
     user_id: int | None,
 ) -> dict[str, Any]:
     if not user_id:
-        return {
-            "unread_badge_count": 0,
-            "show_notification_badge": False,
-            "notification_badge_text": "",
-        }
+        return empty_board_notification_context()
 
     settings = await get_notification_settings(db, user_id)
+    if not settings.get("notification_badge_enabled"):
+        return empty_board_notification_context()
+
     unread_count = await get_unread_badge_count(db, user_id)
-    show_badge = bool(settings.get("notification_badge_enabled")) and unread_count > 0
+    show_badge = unread_count > 0
     badge_text = f"{unread_count}" if unread_count < 100 else "99+"
     return {
         "unread_badge_count": unread_count,

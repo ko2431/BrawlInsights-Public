@@ -1,5 +1,13 @@
 from fastapi.templating import Jinja2Templates
-from .context_processors import user_processor, settings_processor, platform_processor, version_processor, ip_processor, ad_banner_processor
+from .context_processors import (
+    user_processor,
+    settings_processor,
+    platform_processor,
+    version_processor,
+    ip_processor,
+    ad_banner_processor,
+    board_notification_processor,
+)
 from app.utils.utils import format_display_datetime, format_last_played_time
 import re
 from markupsafe import Markup
@@ -7,7 +15,15 @@ from markupsafe import Markup
 # context_processors をリストで渡す
 templates = Jinja2Templates(
     directory="app/templates",
-    context_processors=[user_processor, settings_processor, platform_processor, version_processor, ip_processor, ad_banner_processor] # type: ignore
+    context_processors=[
+        user_processor,
+        settings_processor,
+        platform_processor,
+        version_processor,
+        ip_processor,
+        ad_banner_processor,
+        board_notification_processor,
+    ],  # type: ignore
 )
 
 # カスタムグローバル関数を登録

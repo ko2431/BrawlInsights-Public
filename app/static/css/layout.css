@@ -88,6 +88,43 @@
     width: auto;
 }
 
+/* タブアイコン上の通知バッジ（募集掲示板） */
+.nav-icon-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.nav-tab-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background-color: #e53935;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-sizing: border-box;
+    z-index: 1;
+}
+.nav-tab-badge--pc {
+    top: -7px;
+    right: -9px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+    line-height: 16px;
+    padding: 0 3px;
+}
+.dark .nav-tab-badge {
+    background-color: #ff6b6b;
+}
+
 .header-pc__nav-text {
     font-size: 18px;
     font-weight: 600;
@@ -291,6 +328,12 @@
     height: 40px; /* タブアイコンの高さ */
     width: auto;
     margin-bottom: 5px; /* アイコンとテキストの隙間 */
+}
+.footer-mobile-nav .nav-icon-wrapper {
+    margin-bottom: 5px; /* バッジ付きアイコンでもテキストとの隙間を維持 */
+}
+.footer-mobile-nav .nav-icon-wrapper .footer-mobile-nav__icon {
+    margin-bottom: 0;
 }
 
 .footer-mobile-nav__text {

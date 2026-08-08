@@ -19,7 +19,12 @@
     </a>
     {# 募集掲示板タブ #}
     <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="footer-mobile-nav__item {% if current_page == 'board' %}footer-mobile-nav__item--active{% endif %}" data-tab-id="board">
-        <img src="{{ url_for('static', path='/images/ui/boards.svg') }}" alt="Board" class="footer-mobile-nav__icon">
+        <span class="nav-icon-wrapper">
+            <img src="{{ url_for('static', path='/images/ui/boards.svg') }}" alt="Board" class="footer-mobile-nav__icon">
+            {% if show_notification_badge %}
+            <span class="nav-tab-badge">{{ notification_badge_text }}</span>
+            {% endif %}
+        </span>
         <span class="footer-mobile-nav__text">{% if lang == "ja" %}募集掲示板{% else %}Boards{% endif %}</span>
     </a>
     {# アカウントタブ #}

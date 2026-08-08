@@ -30,6 +30,7 @@ from app.routers import player, club, auth, account, stats, tools, boards, help,
 from app.core.templating import templates
 from app.services.user_service import User, get_user, get_announcements
 from app.services.brawl_service import get_player_name, get_player_icon_from_db, get_club_name, get_club_badge_id_from_db
+from app.services.notification_service import empty_board_notification_context, get_board_notification_context
 from app.exceptions.custom_exceptions import DataBaseError
 from app.services.meowapi import _api_client as _meow_api_client
 from app.services.bsinfoapi import _api_client as _bsinfo_api_client
@@ -127,7 +128,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="14.5_V29",
+    version="14.5_V30",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -603,8 +604,32 @@ class UserToStateMiddleware(BaseHTTPMiddleware):
         ]
         # 現在のリクエストパスが除外リストのいずれかを含むかチェック
         is_api_call = any(segment in path for segment in API_PATH_SEGMENTS_TO_EXCLUDE)
+        is_fragment_request = "/fragment" in path
+        is_websocket_upgrade = request.headers.get("upgrade", "").lower() == "websocket"
+        should_load_page_extras = (
+            bool(current_user_for_state)
+            and request.method == "GET"
+            and not is_api_call
+            and not is_fragment_request
+            and not is_websocket_upgrade
+        )
 
-        if current_user_for_state and request.method == "GET" and not is_api_call:
+        # 募集掲示板タブの通知バッジ（HTMLページのみ。キャッシュヒット時はほぼ Redis のみ）
+        request.state.board_notification_context = empty_board_notification_context()
+        if should_load_page_extras:
+            try:
+                async with get_db_connection_for_bg_task() as db_conn:
+                    request.state.board_notification_context = await get_board_notification_context(
+                        db_conn,
+                        current_user_for_state.id,
+                    )
+            except Exception as e:
+                logger.error(
+                    f"ミドルウェアでの通知バッジ取得中にエラー (User: {current_user_for_state.name}): {e}",
+                    exc_info=True,
+                )
+
+        if should_load_page_extras:
             # デイリー初回アクセスのトークン付与処理 ---
             try:
                 # Redisを使い、本日すでにトークン付与チェックを行ったかを確認

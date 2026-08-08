@@ -19,6 +19,7 @@ from app.services.notification_service import (
     NOTIFICATION_LIST_LIMIT,
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
     create_message_notifications,
+    empty_board_notification_context,
     get_board_notification_context,
     get_notifications_for_display,
     handle_message_reaction_notification,
@@ -45,7 +46,18 @@ async def _append_board_notification_context(
     db: asyncpg.Connection,
     user: User | None,
 ) -> None:
-    context.update(await get_board_notification_context(db, user.id if user else None))
+    # ミドルウェアで注入済みなら再取得しない（全ページ共通のナビバッジ用）
+    request = context.get("request")
+    if request is not None:
+        existing = getattr(request.state, "board_notification_context", None)
+        if isinstance(existing, dict):
+            context.update(existing)
+            return
+
+    if not user:
+        context.update(empty_board_notification_context())
+        return
+    context.update(await get_board_notification_context(db, user.id))
 
 
 def get_ip(request: Request) -> str:
@@ -1162,6 +1174,8 @@ async def notifications(
 
     try:
         await mark_all_notifications_as_read(db, user.id)
+        # 既読処理後はナビ／inbox バッジを即時非表示にする（ミドルウェア取得分を上書き）
+        request.state.board_notification_context = empty_board_notification_context()
         notification_items = await get_notifications_for_display(
             db,
             user.id,
