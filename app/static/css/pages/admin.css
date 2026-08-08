@@ -47,6 +47,28 @@
     margin: -2px 0 2px;
 }
 
+/* ダークモード: 枠を暗くし、ラベル・ボタンが見えるようにする（ライトは変更しない） */
+.dark .admin-filters__container {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+.dark .admin-filters__label-text {
+    color: #eee;
+}
+.dark .admin-filters__submit-button:disabled {
+    /* 共通 .dark .button:disabled の薄字＋opacity だとほぼ消えるため、枠内で読める色に上書き */
+    opacity: 1;
+    background-color: #4a4a4a;
+    border-color: #4a4a4a;
+    color: #bdbdbd;
+}
+.dark .admin-filters__submit-button:not(:disabled) {
+    /* 暗い枠の上で白ボタンがはっきり見えるよう、既存 primary を維持しつつ縁を強める */
+    background-color: #fff;
+    color: #222;
+    border-color: #fff;
+}
+
 @media (max-width: 539px) {
     .admin-filters__container {
         width: 105%;
