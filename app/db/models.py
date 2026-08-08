@@ -70,6 +70,7 @@ class User(Base):
     notification_post_like_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_own_post_message_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_participated_thread_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_message_reply_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_message_reaction_enabled = Column(Boolean, nullable=False, server_default='True')
     notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -832,14 +833,18 @@ class Message(Base):
     message_type = Column(Text, nullable=False, server_default='message')
     message = Column(Text, nullable=False)
     is_deleted = Column(Boolean, nullable=False, server_default='False')
+    reply_to_message_id = Column(Integer, ForeignKey('messages.id', ondelete='SET NULL'), nullable=True)
 
     # リレーションシップ
     post = relationship("Post", back_populates="messages")
+    user = relationship("User", back_populates="messages")
     reactions = relationship("Reaction", back_populates="message", cascade="all, delete-orphan")
+    reply_to_message = relationship("Message", remote_side=[id], foreign_keys=[reply_to_message_id])
     
     __table_args__ = (
         # CREATE INDEX ON messages (thread_id, created_at ASC); を正しく定義
         Index('idx_messages_thread_id_created_at_asc', 'thread_id', 'created_at'),
+        Index('idx_messages_reply_to_message_id', 'reply_to_message_id'),
     )
 
 

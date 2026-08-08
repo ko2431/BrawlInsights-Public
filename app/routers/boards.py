@@ -14,7 +14,7 @@ from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
-from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote
+from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews
 from app.services.notification_service import (
     NOTIFICATION_LIST_LIMIT,
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
@@ -70,9 +70,14 @@ async def _fetch_chat_messages_payload(
     thread_id: int,
     blocked_user_ids: list[int],
     before_message_id: int | None = None,
+    after_message_id: int | None = None,
     per_page: int = CHAT_MESSAGES_OLDER_LOAD,
-) -> tuple[list[dict], bool]:
-    """チャット表示用のメッセージとリアクションを取得する。"""
+) -> tuple[list[dict], bool, bool]:
+    """チャット表示用のメッセージとリアクションを取得する。
+
+    Returns:
+        payload, has_more_older, has_more_newer
+    """
     fetch_kwargs: dict = {
         "db": db,
         "per_page": per_page,
@@ -80,30 +85,129 @@ async def _fetch_chat_messages_payload(
     }
     if before_message_id is not None:
         fetch_kwargs["before_message_id"] = before_message_id
+    if after_message_id is not None:
+        fetch_kwargs["after_message_id"] = after_message_id
 
     messages_data, _ = await get_messages(**fetch_kwargs)
+    # get_messages は常に新しい順で返すため、表示用に古い→新しいへ反転
     messages_data.reverse()
+
+    await attach_reply_to_previews(db, messages_data)
 
     payload: list[dict] = []
     for message in messages_data:
         if message.is_deleted or message.user_id in blocked_user_ids:
             continue
         reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
-        message_dict = message.to_dict()
-        message_dict["message"] = censor_filter(message_dict["message"])
+        message_dict = _censor_message_dict(message.to_dict())
         payload.append({"data": message_dict, "reactions": reactions})
 
-    has_more = False
+    has_more_older = False
+    has_more_newer = False
     if messages_data:
         oldest_id = messages_data[0].id
+        newest_id = messages_data[-1].id
         older_exists = await db.fetchrow(
             "SELECT 1 FROM messages WHERE thread_id = $1 AND is_deleted = FALSE AND id < $2 LIMIT 1",
             thread_id,
             oldest_id,
         )
-        has_more = older_exists is not None
+        newer_exists = await db.fetchrow(
+            "SELECT 1 FROM messages WHERE thread_id = $1 AND is_deleted = FALSE AND id > $2 LIMIT 1",
+            thread_id,
+            newest_id,
+        )
+        has_more_older = older_exists is not None
+        has_more_newer = newer_exists is not None
 
-    return payload, has_more
+    return payload, has_more_older, has_more_newer
+
+
+def _censor_message_dict(message_dict: dict) -> dict:
+    message_dict["message"] = censor_filter(message_dict.get("message") or "")
+    reply_to = message_dict.get("reply_to")
+    if reply_to and not reply_to.get("is_deleted") and reply_to.get("message") is not None:
+        reply_to = dict(reply_to)
+        reply_to["message"] = censor_filter(reply_to["message"])
+        message_dict["reply_to"] = reply_to
+    return message_dict
+
+
+async def _fetch_chat_messages_around(
+    db: asyncpg.Connection,
+    *,
+    thread_id: int,
+    blocked_user_ids: list[int],
+    around_message_id: int,
+    per_page: int = CHAT_MESSAGES_INITIAL_LOAD,
+) -> tuple[list[dict], bool, bool]:
+    """指定メッセージを中心にしたウィンドウを取得する。"""
+    half = max(per_page // 2, 1)
+
+    older_desc, _ = await get_messages(
+        db,
+        per_page=half,
+        thread_id=thread_id,
+        before_message_id=around_message_id,
+    )
+    older_asc = list(reversed(older_desc))
+
+    focus = await get_message(db, around_message_id, include_deleted_message=True)
+    focus_list = []
+    if focus and focus.thread_id == thread_id and not focus.is_deleted and focus.user_id not in blocked_user_ids:
+        focus_list = [focus]
+    elif focus and focus.thread_id == thread_id and not focus.is_deleted:
+        # ブロックユーザーのメッセージでも、周辺ウィンドウ自体は返す（フォーカス対象はスキップされうる）
+        focus_list = [focus]
+
+    newer_desc, _ = await get_messages(
+        db,
+        per_page=max(per_page - len(older_asc) - 1, 1),
+        thread_id=thread_id,
+        after_message_id=around_message_id,
+    )
+    newer_asc = list(reversed(newer_desc))
+
+    messages_data = older_asc + focus_list + newer_asc
+    # 重複除去（念のため）
+    seen: set[int] = set()
+    unique_messages = []
+    for message in messages_data:
+        if message.id in seen:
+            continue
+        seen.add(message.id)
+        unique_messages.append(message)
+    messages_data = unique_messages
+
+    await attach_reply_to_previews(db, messages_data)
+
+    payload: list[dict] = []
+    for message in messages_data:
+        if message.is_deleted or message.user_id in blocked_user_ids:
+            continue
+        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+        message_dict = _censor_message_dict(message.to_dict())
+        payload.append({"data": message_dict, "reactions": reactions})
+
+    has_more_older = False
+    has_more_newer = False
+    if messages_data:
+        oldest_id = messages_data[0].id
+        newest_id = messages_data[-1].id
+        older_exists = await db.fetchrow(
+            "SELECT 1 FROM messages WHERE thread_id = $1 AND is_deleted = FALSE AND id < $2 LIMIT 1",
+            thread_id,
+            oldest_id,
+        )
+        newer_exists = await db.fetchrow(
+            "SELECT 1 FROM messages WHERE thread_id = $1 AND is_deleted = FALSE AND id > $2 LIMIT 1",
+            thread_id,
+            newest_id,
+        )
+        has_more_older = older_exists is not None
+        has_more_newer = newer_exists is not None
+
+    return payload, has_more_older, has_more_newer
 
 
 BOARD_POST_LIMIT_QUERY = Query(60, ge=1, le=100, description="1回あたりの投稿表示数")
@@ -251,6 +355,7 @@ class ReportCreateRequest(BaseModel):
 
 class MessageCreateRequest(BaseModel):
     message: str
+    reply_to_message_id: int | None = None
 
 class ReactionCreateRequest(BaseModel):
     emoji: str
@@ -1011,6 +1116,7 @@ async def chat_thread(
     request: Request,
     lang: str,
     thread_id: int,
+    message_id: int | None = Query(None, ge=1, description="フォーカスするメッセージID"),
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     # 投稿情報を取得
@@ -1041,32 +1147,73 @@ async def chat_thread(
         # どちらのIDも存在しない場合は、空の辞書を生成
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
     
-    # メッセージ一覧を新しい順に取得
+    blocked_user_ids = blocked_ids["user_ids"]
+    focus_message_id: int | None = None
+    has_more_older_messages = False
+    has_more_newer_messages = False
+    total_messages = 0
+    messages: dict[int, dict] = {}
+
+    # フォーカス対象が有効か確認
+    if message_id is not None:
+        focus_candidate = await get_message(db, message_id, include_deleted_message=True)
+        if (
+            focus_candidate
+            and focus_candidate.thread_id == thread_id
+            and not focus_candidate.is_deleted
+        ):
+            focus_message_id = message_id
+
     try:
-        messages_data, total_messages = await get_messages(db, per_page=CHAT_MESSAGES_INITIAL_LOAD, thread_id=thread_id)
+        if focus_message_id is not None:
+            # 最新ウィンドウに含まれるか確認
+            latest_messages, total_messages = await get_messages(
+                db, per_page=CHAT_MESSAGES_INITIAL_LOAD, thread_id=thread_id
+            )
+            latest_ids = {m.id for m in latest_messages}
+            if focus_message_id in latest_ids:
+                messages_data = list(reversed(latest_messages))
+                await attach_reply_to_previews(db, messages_data)
+                for message in messages_data:
+                    if message.is_deleted or message.user_id in blocked_user_ids:
+                        continue
+                    reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+                    messages[message.id] = {
+                        "data": _censor_message_dict(message.to_dict()),
+                        "reactions": reactions,
+                    }
+                has_more_older_messages = total_messages > len(messages_data)
+                has_more_newer_messages = False
+            else:
+                payload, has_more_older_messages, has_more_newer_messages = await _fetch_chat_messages_around(
+                    db,
+                    thread_id=thread_id,
+                    blocked_user_ids=blocked_user_ids,
+                    around_message_id=focus_message_id,
+                    per_page=CHAT_MESSAGES_INITIAL_LOAD,
+                )
+                for item in payload:
+                    messages[item["data"]["id"]] = item
+                total_messages = len(payload)
+        else:
+            messages_data, total_messages = await get_messages(
+                db, per_page=CHAT_MESSAGES_INITIAL_LOAD, thread_id=thread_id
+            )
+            messages_data.reverse()
+            await attach_reply_to_previews(db, messages_data)
+            for message in messages_data:
+                if message.is_deleted or message.user_id in blocked_user_ids:
+                    continue
+                reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+                messages[message.id] = {
+                    "data": _censor_message_dict(message.to_dict()),
+                    "reactions": reactions,
+                }
+            has_more_older_messages = total_messages > len(messages_data)
+            has_more_newer_messages = False
     except DataBaseError as e:
         logger.error(f"メッセージ取得中にデータベースエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
-    
-    # 取得したもの内を古い順に並び替え
-    messages_data.reverse()
-    
-    blocked_user_ids = blocked_ids["user_ids"]
-
-    # リアクション一覧も取得
-    messages: dict[int, dict] = {}
-    for message in messages_data:
-        if message.is_deleted or message.user_id in blocked_user_ids:
-            continue
-        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
-        message_dict = message.to_dict()
-        message_dict["message"] = censor_filter(message_dict["message"])
-        messages[message.id] = {
-            "data": message_dict,
-            "reactions": reactions,
-        }
-
-    has_more_older_messages = total_messages > len(messages_data)
     
     # テンプレートに渡すコンテキスト
     # brawler_guide型の場合はキャラクター情報を取得し、current_pageをtoolsに変更する
@@ -1089,6 +1236,8 @@ async def chat_thread(
         "messages": messages,
         "total_messages": total_messages,
         "has_more_older_messages": has_more_older_messages,
+        "has_more_newer_messages": has_more_newer_messages,
+        "focus_message_id": focus_message_id,
         "is_permitted_to_chat": is_permitted_to_chat,
         "blocked_ids": blocked_ids,
         "current_page": chat_current_page,
@@ -1110,18 +1259,30 @@ async def get_chat_messages(
     request: Request,
     lang: str,
     thread_id: int,
-    before_message_id: int = Query(..., ge=1, description="このIDより古いメッセージを取得する"),
+    before_message_id: int | None = Query(None, ge=1, description="このIDより古いメッセージを取得する"),
+    after_message_id: int | None = Query(None, ge=1, description="このIDより新しいメッセージを取得する"),
+    around_message_id: int | None = Query(None, ge=1, description="このID周辺のメッセージを取得する"),
     per_page: int = Query(CHAT_MESSAGES_OLDER_LOAD, ge=1, le=CHAT_MESSAGES_OLDER_LOAD),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
-    """チャットスレッドの過去メッセージを追加取得する。"""
+    """チャットスレッドのメッセージを追加取得する（過去 / 未来 / 周辺）。"""
     post = await get_post(db, id=thread_id, include_deleted_post=True)
     if not post:
         raise HTTPException(status_code=404, detail="Chat thread not found")
 
-    anchor_message = await get_message(db, before_message_id)
+    mode_count = sum(
+        1 for value in (before_message_id, after_message_id, around_message_id) if value is not None
+    )
+    if mode_count != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Specify exactly one of before_message_id, after_message_id, around_message_id",
+        )
+
+    anchor_id = before_message_id or after_message_id or around_message_id
+    anchor_message = await get_message(db, anchor_id, include_deleted_message=True)
     if not anchor_message or anchor_message.thread_id != thread_id:
-        raise HTTPException(status_code=400, detail="Invalid before_message_id")
+        raise HTTPException(status_code=400, detail="Invalid message anchor")
 
     user: User | None = getattr(request.state, "current_user", None)
     blocker_user_id = user.id if user else None
@@ -1137,20 +1298,41 @@ async def get_chat_messages(
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
 
     try:
-        messages_payload, has_more = await _fetch_chat_messages_payload(
-            db,
-            thread_id=thread_id,
-            blocked_user_ids=blocked_ids["user_ids"],
-            before_message_id=before_message_id,
-            per_page=per_page,
-        )
+        if around_message_id is not None:
+            if anchor_message.is_deleted:
+                raise HTTPException(status_code=400, detail="Invalid around_message_id")
+            messages_payload, has_more_older, has_more_newer = await _fetch_chat_messages_around(
+                db,
+                thread_id=thread_id,
+                blocked_user_ids=blocked_ids["user_ids"],
+                around_message_id=around_message_id,
+                per_page=min(per_page, CHAT_MESSAGES_INITIAL_LOAD),
+            )
+        elif before_message_id is not None:
+            messages_payload, has_more_older, has_more_newer = await _fetch_chat_messages_payload(
+                db,
+                thread_id=thread_id,
+                blocked_user_ids=blocked_ids["user_ids"],
+                before_message_id=before_message_id,
+                per_page=per_page,
+            )
+        else:
+            messages_payload, has_more_older, has_more_newer = await _fetch_chat_messages_payload(
+                db,
+                thread_id=thread_id,
+                blocked_user_ids=blocked_ids["user_ids"],
+                after_message_id=after_message_id,
+                per_page=per_page,
+            )
     except DataBaseError as e:
-        logger.error(f"過去メッセージ取得中にデータベースエラー (thread: {thread_id}): {e}", exc_info=True)
+        logger.error(f"メッセージ取得中にデータベースエラー (thread: {thread_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
 
     return {
         "messages": messages_payload,
-        "has_more": has_more,
+        "has_more": has_more_older,
+        "has_more_older": has_more_older,
+        "has_more_newer": has_more_newer,
     }
 
 
@@ -1532,7 +1714,8 @@ async def create_chat_message(
             thread_id=thread_id,
             ip=get_ip(request),
             message=message_data.message,
-            user_id=user.id if user else None
+            user_id=user.id if user else None,
+            reply_to_message_id=message_data.reply_to_message_id,
         )
         
         # トークンとアドバンスミッション
@@ -1545,11 +1728,9 @@ async def create_chat_message(
         # WebSocketで新しいメッセージをブロードキャスト
         new_message = await get_message(db, message_id)
         if new_message:
+            await attach_reply_to_previews(db, [new_message])
             # まず、ブロードキャスト用のデータを辞書として準備
-            broadcast_message_data = new_message.to_dict()
-            
-            # メッセージ本文にのみ、フィルタリングを適用
-            broadcast_message_data['message'] = censor_filter(broadcast_message_data['message'])
+            broadcast_message_data = _censor_message_dict(new_message.to_dict())
 
             # フィルタリング済みのデータをブロードキャストする
             await manager.broadcast(
@@ -1576,6 +1757,7 @@ async def create_chat_message(
                 thread_id=thread_id,
                 message_id=message_id,
                 sender_user_id=user.id,
+                reply_to_message_id=message_data.reply_to_message_id,
             )
         
         return {"success": True, "message_id": message_id}

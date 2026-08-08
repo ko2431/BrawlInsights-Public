@@ -262,7 +262,15 @@
                                 <span class="message-bubble__user-name">{{ display_name }}{{ admin_badge }}</span>
                             {% endif %}
                         {% endif %}
-                        <div class="message-bubble__content">{{ message.message|censor }}</div>
+                        <div class="message-bubble__content">{%- if message.reply_to -%}
+                            {%- if message.reply_to.is_deleted -%}
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-deleted="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}削除されたメッセージ{% else %}Deleted message{% endif %}</span></div>
+                            {%- elif message.reply_to.user_id and message.reply_to.user_id in blocked_ids.user_ids -%}
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-blocked="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}ブロックしたユーザーのメッセージ{% else %}Message from a blocked user{% endif %}</span></div>
+                            {%- else -%}
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header">{%- if message.reply_to.user_icon_path -%}<img src="{{ message.reply_to.user_icon_path }}" alt="" class="message-reply-preview__icon">{%- endif -%}<div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
+                            {%- endif -%}
+                            {%- endif -%}<div class="message-bubble__text">{{ message.message|censor }}</div></div>
                         {# リアクション表示エリア (JSで実装) #}
                         <div class="reactions__container" id="reactions-for-{{ message.id }}"></div>
                         <span class="message-bubble__timestamp">{{ message.created_at_text_ja if lang == "ja" else message.created_at_text_en }}{% if loop.last %}<span class="reaction-prompt"> - {% if lang == 'ja' %}メッセージをタップしてリアクション{% else %}Tap message to react{% endif %}</span>{% endif %}</span>
@@ -271,6 +279,20 @@
             {% endif %}
         {% endfor %}
     </main>
+
+    <div id="reply-bar" class="chat-reply-bar" hidden aria-hidden="true">
+        <div class="chat-reply-bar__text">
+            <span id="reply-bar-label" class="chat-reply-bar__label"></span>
+        </div>
+        <div class="chat-reply-bar__right">
+            <span class="chat-reply-bar__separator" aria-hidden="true"></span>
+            <button type="button" id="reply-bar-cancel" class="chat-reply-bar__cancel" aria-label="{% if lang == 'ja' %}リプライをやめる{% else %}Cancel reply{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
     
     {# フッター (メッセージ入力など) #}
     <footer class="chat-footer">
@@ -396,7 +418,9 @@
             const olderMessagesLoader = document.getElementById('older-messages-loader');
             const NEAR_BOTTOM_THRESHOLD_PX = 100;
             const LOAD_OLDER_THRESHOLD_PX = 200;
+            const LOAD_NEWER_THRESHOLD_PX = 200;
             const CHAT_MESSAGES_BATCH_SIZE = 200;
+            const CHAT_MESSAGES_INITIAL_FOCUS_SIZE = 100;
             const LINKIFY_MAX_URL_LENGTH = 2048;
             const LINKIFY_MAX_RELATIVE_LENGTH = 200;
             const LINKIFY_MAX_LINKS_PER_MESSAGE = 10;
@@ -415,7 +439,17 @@
             // ブロック済みユーザーID（WebSocket新着のクライアント側フィルタ用。ページ再読込で最新化）
             const blockedUserIds = new Set({{ blocked_ids.user_ids | tojson }});
             let hasMoreOlderMessages = {{ 'true' if has_more_older_messages else 'false' }};
+            let hasMoreNewerMessages = {{ 'true' if has_more_newer_messages else 'false' }};
             let isLoadingOlderMessages = false;
+            let isLoadingNewerMessages = false;
+            let isAtLiveTip = {{ 'false' if has_more_newer_messages else 'true' }};
+            const initialFocusMessageId = {{ focus_message_id if focus_message_id else 'null' }};
+            let replyToMessageId = null;
+            let replyToUserName = '';
+
+            const replyBar = document.getElementById('reply-bar');
+            const replyBarLabel = document.getElementById('reply-bar-label');
+            const replyBarCancel = document.getElementById('reply-bar-cancel');
 
             const EMOJIS = ["❤️", "👀", "😄", "😲", "🥲", "😭", "😡"];
             let activeMessageId = null;
@@ -431,7 +465,9 @@
             // --- 初期化処理 ---
             linkifyExistingMessages();
             setTimeout(() => {
-                if (messagesContainer) {
+                if (initialFocusMessageId) {
+                    jumpToMessage(initialFocusMessageId, { smooth: false });
+                } else if (messagesContainer) {
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
             }, 0); // 0msの遅延で、他の描画処理の後に実行させる
@@ -615,7 +651,7 @@
 
             function linkifyExistingMessages() {
                 if (!messagesContainer) return;
-                messagesContainer.querySelectorAll('.message-bubble__content').forEach((el) => {
+                messagesContainer.querySelectorAll('.message-bubble__text').forEach((el) => {
                     el.innerHTML = formatMessageHtml(el.textContent);
                 });
             }
@@ -725,6 +761,10 @@
 
                         case 'delete_message':
                             const messageIdToDelete = data.data.message_id;
+                            markReplyPreviewsAsDeleted(messageIdToDelete);
+                            if (replyToMessageId === messageIdToDelete) {
+                                clearReplyTarget();
+                            }
                             const messageElement = document.getElementById(`message-${messageIdToDelete}`);
                             if (messageElement) {
                                 // 1. アニメーション用のCSSクラスを追加
@@ -919,10 +959,171 @@
                 return Number.isFinite(messageId) ? messageId : null;
             }
 
+            function getNewestLoadedMessageId() {
+                const bubbles = messagesContainer?.querySelectorAll('.message-bubble:not(.message-bubble--deleting)');
+                if (!bubbles || !bubbles.length) return null;
+                const lastBubble = bubbles[bubbles.length - 1];
+                const messageId = Number(lastBubble.dataset.messageId);
+                return Number.isFinite(messageId) ? messageId : null;
+            }
+
             function setOlderMessagesLoaderVisible(visible) {
                 if (!olderMessagesLoader) return;
                 olderMessagesLoader.hidden = !visible;
                 olderMessagesLoader.setAttribute('aria-hidden', visible ? 'false' : 'true');
+            }
+
+            function truncateReplyPreviewText(text) {
+                const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+                if (normalized.length <= 80) return normalized;
+                return `${normalized.slice(0, 80)}...`;
+            }
+
+            function buildReplyPreviewHtml(replyTo) {
+                if (!replyTo) return '';
+                if (replyTo.is_deleted) {
+                    return `
+                        <div class="message-reply-preview" data-reply-to-id="${replyTo.id || ''}" data-reply-deleted="1">
+                            <span class="message-reply-preview__deleted">${lang === 'ja' ? '削除されたメッセージ' : 'Deleted message'}</span>
+                        </div>
+                    `;
+                }
+                if (replyTo.user_id != null && blockedUserIds.has(replyTo.user_id)) {
+                    return `
+                        <div class="message-reply-preview" data-reply-to-id="${replyTo.id || ''}" data-reply-blocked="1">
+                            <span class="message-reply-preview__deleted">${lang === 'ja' ? 'ブロックしたユーザーのメッセージ' : 'Message from a blocked user'}</span>
+                        </div>
+                    `;
+                }
+                const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
+                const userName = escapeHtml(replyTo.user_name || guestName);
+                const adminBadge = replyTo.user_is_admin
+                    ? `<span class="message-reply-preview__admin-badge">${lang === 'ja' ? '管理者' : 'Admin'}</span>`
+                    : '';
+                const iconHtml = replyTo.user_icon_path
+                    ? `<img src="${escapeHtml(replyTo.user_icon_path)}" alt="" class="message-reply-preview__icon">`
+                    : '';
+                const previewText = escapeHtml(truncateReplyPreviewText(replyTo.message || ''));
+                return `
+                    <div class="message-reply-preview" data-reply-to-id="${replyTo.id}">
+                        <div class="message-reply-preview__header">
+                            ${iconHtml}
+                            <div class="message-reply-preview__meta">
+                                <span class="message-reply-preview__name">${userName}${adminBadge}</span>
+                                <span class="message-reply-preview__text">${previewText}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function markReplyPreviewsAsDeleted(messageId) {
+                if (!messagesContainer) return;
+                const deletedLabel = lang === 'ja' ? '削除されたメッセージ' : 'Deleted message';
+                messagesContainer.querySelectorAll(`.message-reply-preview[data-reply-to-id="${messageId}"]`).forEach((preview) => {
+                    preview.dataset.replyDeleted = '1';
+                    delete preview.dataset.replyBlocked;
+                    preview.innerHTML = `<span class="message-reply-preview__deleted">${deletedLabel}</span>`;
+                });
+            }
+
+            function updateReplyBar() {
+                if (!replyBar || !replyBarLabel) return;
+                if (!replyToMessageId) {
+                    if (replyBar.contains(document.activeElement)) {
+                        document.activeElement.blur();
+                    }
+                    replyBar.hidden = true;
+                    replyBar.setAttribute('aria-hidden', 'true');
+                    replyBarLabel.textContent = '';
+                    return;
+                }
+                const name = replyToUserName || (lang === 'ja' ? 'ゲスト' : 'Guest');
+                replyBarLabel.innerHTML = lang === 'ja'
+                    ? `<b>${escapeHtml(name)}</b>にリプライ中`
+                    : `Replying to <b>${escapeHtml(name)}</b>`;
+                replyBar.hidden = false;
+                replyBar.setAttribute('aria-hidden', 'false');
+            }
+
+            function clearReplyTarget() {
+                replyToMessageId = null;
+                replyToUserName = '';
+                updateReplyBar();
+            }
+
+            function startReplyToMessage(messageId) {
+                const bubble = document.getElementById(`message-${messageId}`);
+                if (!bubble) return;
+                const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
+                replyToMessageId = Number(messageId);
+                replyToUserName = bubble.dataset.userName || guestName;
+                updateReplyBar();
+                hideMessageMenu();
+                if (textarea) {
+                    textarea.focus();
+                }
+            }
+
+            function highlightMessageBubble(messageId) {
+                const el = document.getElementById(`message-${messageId}`);
+                if (!el) return;
+                el.classList.remove('message-bubble--highlight');
+                // 再適用でアニメーションを確実に開始
+                void el.offsetWidth;
+                el.classList.add('message-bubble--highlight');
+                setTimeout(() => el.classList.remove('message-bubble--highlight'), 1600);
+            }
+
+            function clearMessageBubbles() {
+                if (!messagesContainer) return;
+                messagesContainer.querySelectorAll('.message-bubble').forEach((el) => el.remove());
+            }
+
+            function replaceMessagesView(messagesPayload) {
+                if (!messagesContainer) return;
+                clearMessageBubbles();
+                const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
+                messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
+                messageReactions = {};
+                messagesPayload.forEach(item => {
+                    messageReactions[item.data.id] = item.reactions || [];
+                    renderReactionSummary(item.data.id);
+                });
+                updateMessageGrouping();
+            }
+
+            async function jumpToMessage(messageId, { smooth = true } = {}) {
+                const targetId = Number(messageId);
+                if (!Number.isFinite(targetId)) return;
+
+                let el = document.getElementById(`message-${targetId}`);
+                if (!el) {
+                    try {
+                        const params = new URLSearchParams({
+                            around_message_id: String(targetId),
+                            per_page: String(CHAT_MESSAGES_INITIAL_FOCUS_SIZE),
+                        });
+                        const response = await fetch(`/${lang}/boards/chat/${threadId}/messages?${params.toString()}`);
+                        if (!response.ok) {
+                            // 削除済み・権限なし等は周辺取得できないため静かに終了
+                            return;
+                        }
+                        const data = await response.json();
+                        replaceMessagesView(data.messages || []);
+                        hasMoreOlderMessages = Boolean(data.has_more_older ?? data.has_more);
+                        hasMoreNewerMessages = Boolean(data.has_more_newer);
+                        isAtLiveTip = !hasMoreNewerMessages;
+                        el = document.getElementById(`message-${targetId}`);
+                    } catch (error) {
+                        console.debug('Failed to jump to message:', error);
+                        return;
+                    }
+                }
+
+                if (!el) return;
+                el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
+                highlightMessageBubble(targetId);
             }
 
             function buildMessageBubbleHtml(message, { includeReactionPrompt = false } = {}) {
@@ -944,7 +1145,7 @@
                 const isHost = message.user_id && message.user_id === postHostId;
                 let userNameHtml = '';
                 if (!isSelf) {
-                    const userName = message.user_name || guestName;
+                    const userName = escapeHtml(message.user_name || guestName);
                     const adminBadgeHtml = message.user_is_admin
                         ? `<span class="message-bubble__admin-badge">${lang === 'ja' ? 'Brawl Insights 管理者' : 'Brawl Insights Admin'}</span>`
                         : '';
@@ -965,20 +1166,24 @@
                         ${reactionPromptHtml}
                     </span>
                 `;
+                const replyPreviewHtml = buildReplyPreviewHtml(message.reply_to);
 
                 return `
                     <div class="${bubbleClass}"
                         id="message-${message.id}"
                         data-message-id="${message.id}"
                         data-user-id="${message.user_id != null ? message.user_id : ''}"
-                        data-user-name="${message.user_name || ''}"
+                        data-user-name="${escapeHtml(message.user_name || '')}"
                         data-main-account-tag="${message.user_main_account_tag || ''}"
-                        data-main-account-name="${message.user_main_account_name || ''}"
+                        data-main-account-name="${escapeHtml(message.user_main_account_name || '')}"
                         data-created-at="${message.created_at || ''}">
                         ${authorIconHtml}
                         <div class="message-bubble__content-wrapper">
                             ${userNameHtml}
-                            <div class="message-bubble__content">${formatMessageHtml(message.message)}</div>
+                            <div class="message-bubble__content">
+                                ${replyPreviewHtml}
+                                <div class="message-bubble__text">${formatMessageHtml(message.message)}</div>
+                            </div>
                             <div class="reactions__container" id="reactions-for-${message.id}"></div>
                             ${timestampHtml}
                         </div>
@@ -1008,6 +1213,17 @@
                 messagesContainer.scrollTop += messagesContainer.scrollHeight - previousScrollHeight;
             }
 
+            function appendNewerMessages(messagesPayload) {
+                if (!messagesContainer || !messagesPayload.length) return;
+                const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
+                messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
+                messagesPayload.forEach(item => {
+                    messageReactions[item.data.id] = item.reactions || [];
+                    renderReactionSummary(item.data.id);
+                });
+                updateMessageGrouping();
+            }
+
             async function loadOlderMessages() {
                 if (!hasMoreOlderMessages || isLoadingOlderMessages) return;
 
@@ -1029,12 +1245,43 @@
 
                     const data = await response.json();
                     prependOlderMessages(data.messages || []);
-                    hasMoreOlderMessages = Boolean(data.has_more);
+                    hasMoreOlderMessages = Boolean(data.has_more_older ?? data.has_more);
                 } catch (error) {
                     console.error('Error loading older messages:', error);
                 } finally {
                     isLoadingOlderMessages = false;
                     setOlderMessagesLoaderVisible(false);
+                }
+            }
+
+            async function loadNewerMessages() {
+                if (!hasMoreNewerMessages || isLoadingNewerMessages) return;
+
+                const afterMessageId = getNewestLoadedMessageId();
+                if (!afterMessageId) return;
+
+                isLoadingNewerMessages = true;
+                try {
+                    const params = new URLSearchParams({
+                        after_message_id: String(afterMessageId),
+                        per_page: String(CHAT_MESSAGES_BATCH_SIZE),
+                    });
+                    const response = await fetch(`/${lang}/boards/chat/${threadId}/messages?${params.toString()}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to load newer messages');
+                    }
+
+                    const data = await response.json();
+                    appendNewerMessages(data.messages || []);
+                    hasMoreNewerMessages = Boolean(data.has_more_newer);
+                    isAtLiveTip = !hasMoreNewerMessages;
+                    if (isAtLiveTip) {
+                        hideNewMessagesIndicator();
+                    }
+                } catch (error) {
+                    console.error('Error loading newer messages:', error);
+                } finally {
+                    isLoadingNewerMessages = false;
                 }
             }
 
@@ -1045,10 +1292,29 @@
                 }
             }
 
+            function maybeLoadNewerMessages() {
+                if (!messagesContainer || !hasMoreNewerMessages || isLoadingNewerMessages) return;
+                const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+                if (distanceFromBottom <= LOAD_NEWER_THRESHOLD_PX) {
+                    loadNewerMessages();
+                }
+            }
+
             // --- 新しいメッセージを画面に追加 ---
             function appendNewMessage(message) {
                 // 自分のメッセージかどうかを判定
                 const isSelf = message.user_id === currentUserId;
+
+                if (!isAtLiveTip) {
+                    // 最新端未到達時は DOM にギャップを作らない
+                    if (isSelf) {
+                        window.location.href = `/${lang}/boards/chat/${threadId}`;
+                    } else {
+                        showNewMessagesIndicator();
+                    }
+                    return;
+                }
+
                 // 追加前に判定（追加後は scrollHeight が増えて誤判定になる）
                 const stickToBottom = isSelf || isNearBottom();
 
@@ -1235,6 +1501,12 @@
                     messageMenuEmojis.appendChild(button);
                 });
                 const isOwnMessage = currentUserId === parseInt(messageUserId, 10);
+                const replyButton = document.createElement('button');
+                replyButton.className = 'chat-menu__action-btn chat-menu__action-btn--reply';
+                replyButton.textContent = lang === 'ja' ? 'メッセージにリプライ' : 'Reply to Message';
+                replyButton.onclick = () => startReplyToMessage(messageId);
+                messageMenuActions.appendChild(replyButton);
+
                 if (isAdmin || isOwnMessage) {
                     const deleteButton = document.createElement('button');
                     deleteButton.className = 'chat-menu__action-btn';
@@ -1508,12 +1780,26 @@
                     return;
                 }
 
-                const messageContent = event.target.closest('.message-bubble__content');
+                const replyPreview = event.target.closest('.message-reply-preview');
+                if (replyPreview && event.currentTarget.contains(replyPreview)) {
+                    const replyToId = Number(replyPreview.dataset.replyToId);
+                    if (
+                        replyPreview.dataset.replyDeleted === '1'
+                        || replyPreview.dataset.replyBlocked === '1'
+                        || !Number.isFinite(replyToId)
+                    ) {
+                        return;
+                    }
+                    jumpToMessage(replyToId);
+                    return;
+                }
+
+                const messageText = event.target.closest('.message-bubble__text');
                 const iconWrapper = event.target.closest('.message-bubble__icon-wrapper');
                 const reactionContainer = event.target.closest('.reactions__container');
                 
-                if (messageContent) {
-                    const messageBubble = messageContent.closest('.message-bubble');
+                if (messageText) {
+                    const messageBubble = messageText.closest('.message-bubble');
                     if (messageBubble && isPermittedToChat) {
                         setupAndShowMenu(messageBubble, messageBubble.dataset.messageId, messageBubble.dataset.userId);
                     }
@@ -1549,6 +1835,7 @@
                 hideHostMenu();
                 hideReactionMenu();
                 maybeLoadOlderMessages();
+                maybeLoadNewerMessages();
                 if (isNearBottom()) {
                     hideNewMessagesIndicator();
                 }
@@ -1557,6 +1844,10 @@
             if (newMessagesIndicator) {
                 newMessagesIndicator.addEventListener('click', () => {
                     hideNewMessagesIndicator();
+                    if (!isAtLiveTip) {
+                        window.location.href = `/${lang}/boards/chat/${threadId}`;
+                        return;
+                    }
                     scrollMessagesToBottom();
                 });
             }
@@ -1618,6 +1909,12 @@
                 });
             }
 
+            if (replyBarCancel) {
+                replyBarCancel.addEventListener('click', () => {
+                    clearReplyTarget();
+                });
+            }
+
             if (form) {
                 form.addEventListener('submit', async function(event) {
                     event.preventDefault(); // フォームのデフォルト送信をキャンセル
@@ -1637,12 +1934,16 @@
                     }, 1000);
 
                     try {
+                        const payload = { message: messageText };
+                        if (replyToMessageId) {
+                            payload.reply_to_message_id = replyToMessageId;
+                        }
                         const response = await fetch(`/${lang}/boards/chat/${threadId}/messages`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
-                            body: JSON.stringify({ message: messageText }),
+                            body: JSON.stringify(payload),
                         });
 
                         if (!response.ok) {
@@ -1653,6 +1954,7 @@
                         // 送信成功後、textareaをクリアして高さをリセット
                         textarea.value = '';
                         textarea.style.height = 'auto';
+                        clearReplyTarget();
 
                     } catch (error) {
                         console.error('Failed to send message:', error);

@@ -4,6 +4,7 @@ from typing import Any
 
 from app.core.cache import delete_cache, get_cache, set_cache
 from app.core.logger import logger
+from app.core.templating import censor_filter
 from app.exceptions.custom_exceptions import DataBaseError
 from app.services.board_service import EMOJIS, get_message, get_post, get_player_icon_from_db
 from app.services.user_service import get_blocked_ids, get_user
@@ -15,6 +16,7 @@ BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT = 3
 NOTIFICATION_TYPE_POST_LIKE = "post_like"
 NOTIFICATION_TYPE_OWN_POST_MESSAGE = "own_post_message"
 NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE = "participated_thread_message"
+NOTIFICATION_TYPE_MESSAGE_REPLY = "message_reply"
 NOTIFICATION_TYPE_MESSAGE_REACTION = "message_reaction"
 
 AGGREGATED_NOTIFICATION_TYPES = {
@@ -26,8 +28,15 @@ NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_POST_LIKE: "notification_post_like_enabled",
     NOTIFICATION_TYPE_OWN_POST_MESSAGE: "notification_own_post_message_enabled",
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE: "notification_participated_thread_message_enabled",
+    NOTIFICATION_TYPE_MESSAGE_REPLY: "notification_message_reply_enabled",
     NOTIFICATION_TYPE_MESSAGE_REACTION: "notification_message_reaction_enabled",
 }
+
+MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
+    NOTIFICATION_TYPE_MESSAGE_REPLY,
+    NOTIFICATION_TYPE_OWN_POST_MESSAGE,
+    NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+)
 
 POST_TYPE_LABELS_JA = {
     "team": "チーム募集",
@@ -72,6 +81,7 @@ async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dic
                    notification_post_like_enabled,
                    notification_own_post_message_enabled,
                    notification_participated_thread_message_enabled,
+                   notification_message_reply_enabled,
                    notification_message_reaction_enabled,
                    notifications_last_read_at
             FROM users
@@ -90,6 +100,7 @@ async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dic
         "notification_post_like_enabled": bool(row["notification_post_like_enabled"]),
         "notification_own_post_message_enabled": bool(row["notification_own_post_message_enabled"]),
         "notification_participated_thread_message_enabled": bool(row["notification_participated_thread_message_enabled"]),
+        "notification_message_reply_enabled": bool(row["notification_message_reply_enabled"]),
         "notification_message_reaction_enabled": bool(row["notification_message_reaction_enabled"]),
         "notifications_last_read_at": row["notifications_last_read_at"],
     }
@@ -111,6 +122,7 @@ async def update_notification_setting(
         "notification_post_like_enabled",
         "notification_own_post_message_enabled",
         "notification_participated_thread_message_enabled",
+        "notification_message_reply_enabled",
         "notification_message_reaction_enabled",
     }
     if setting_key not in allowed_keys:
@@ -260,15 +272,14 @@ async def handle_post_like_notification(
         await invalidate_notification_cache(row["recipient_user_id"])
 
 
-async def _create_brawler_guide_participated_notifications(
+async def _create_brawler_guide_participated_recipient_ids(
     db: asyncpg.Connection,
     *,
     thread_id: int,
     message_id: int,
     sender_user_id: int,
-    post_id: int,
-) -> None:
-    """キャラクター図鑑スレッドで、参加ユーザーへ直近N件の他者メッセージのみ通知する。"""
+) -> list[int]:
+    """キャラクター図鑑スレッドで、参加通知対象のユーザーID一覧を返す。"""
     try:
         recipient_rows = await db.fetch(
             """
@@ -303,15 +314,34 @@ async def _create_brawler_guide_participated_notifications(
     except asyncpg.PostgresError as e:
         raise DataBaseError(e) from e
 
-    for row in recipient_rows:
+    return [row["user_id"] for row in recipient_rows]
+
+
+async def _create_notification_with_message_priority(
+    db: asyncpg.Connection,
+    *,
+    recipient_user_id: int,
+    candidate_types: set[str],
+    actor_user_id: int,
+    post_id: int,
+    message_id: int,
+) -> None:
+    """候補種別のうち、優先度が高く設定がオンのもの1件だけ通知する。"""
+    settings = await get_notification_settings(db, recipient_user_id)
+    for notification_type in MESSAGE_NOTIFICATION_TYPE_PRIORITY:
+        if notification_type not in candidate_types:
+            continue
+        if not _is_type_enabled(settings, notification_type):
+            continue
         await _create_notification(
             db,
-            recipient_user_id=row["user_id"],
-            notification_type=NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
-            actor_user_id=sender_user_id,
+            recipient_user_id=recipient_user_id,
+            notification_type=notification_type,
+            actor_user_id=actor_user_id,
             post_id=post_id,
             message_id=message_id,
         )
+        return
 
 
 async def create_message_notifications(
@@ -320,6 +350,7 @@ async def create_message_notifications(
     thread_id: int,
     message_id: int,
     sender_user_id: int,
+    reply_to_message_id: int | None = None,
 ) -> None:
     if not sender_user_id:
         return
@@ -328,53 +359,61 @@ async def create_message_notifications(
     if not post or post.is_deleted:
         return
 
+    candidates: dict[int, set[str]] = {}
+
+    def add_candidate(user_id: int | None, notification_type: str) -> None:
+        if not user_id or user_id == sender_user_id:
+            return
+        candidates.setdefault(user_id, set()).add(notification_type)
+
+    if reply_to_message_id is not None:
+        reply_target = await get_message(db, reply_to_message_id, include_deleted_message=True)
+        if (
+            reply_target
+            and reply_target.thread_id == thread_id
+            and reply_target.user_id
+            and reply_target.user_id != sender_user_id
+        ):
+            add_candidate(reply_target.user_id, NOTIFICATION_TYPE_MESSAGE_REPLY)
+
     if post.type == "brawler_guide":
-        await _create_brawler_guide_participated_notifications(
+        for participant_id in await _create_brawler_guide_participated_recipient_ids(
             db,
             thread_id=thread_id,
             message_id=message_id,
             sender_user_id=sender_user_id,
-            post_id=post.id,
-        )
-        return
+        ):
+            add_candidate(participant_id, NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE)
+    else:
+        if post.host_id:
+            add_candidate(post.host_id, NOTIFICATION_TYPE_OWN_POST_MESSAGE)
 
-    if post.host_id and post.host_id != sender_user_id:
-        await _create_notification(
+        try:
+            participant_rows = await db.fetch(
+                """
+                SELECT DISTINCT user_id
+                FROM messages
+                WHERE thread_id = $1
+                  AND user_id IS NOT NULL
+                  AND user_id != $2
+                  AND is_deleted = FALSE
+                  AND id < $3
+                """,
+                thread_id,
+                sender_user_id,
+                message_id,
+            )
+        except asyncpg.PostgresError as e:
+            raise DataBaseError(e) from e
+
+        for row in participant_rows:
+            add_candidate(row["user_id"], NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE)
+
+    for recipient_user_id, candidate_types in candidates.items():
+        await _create_notification_with_message_priority(
             db,
-            recipient_user_id=post.host_id,
-            notification_type=NOTIFICATION_TYPE_OWN_POST_MESSAGE,
-            actor_user_id=sender_user_id,
-            post_id=post.id,
-            message_id=message_id,
-        )
-
-    exclude_ids = [sender_user_id]
-    if post.host_id:
-        exclude_ids.append(post.host_id)
-
-    try:
-        participant_rows = await db.fetch(
-            """
-            SELECT DISTINCT user_id
-            FROM messages
-            WHERE thread_id = $1
-              AND user_id IS NOT NULL
-              AND NOT (user_id = ANY($2::int[]))
-              AND is_deleted = FALSE
-              AND id < $3
-            """,
-            thread_id,
-            exclude_ids,
-            message_id,
-        )
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e
-
-    for row in participant_rows:
-        await _create_notification(
-            db,
-            recipient_user_id=row["user_id"],
-            notification_type=NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+            recipient_user_id=recipient_user_id,
+            candidate_types=candidate_types,
             actor_user_id=sender_user_id,
             post_id=post.id,
             message_id=message_id,
@@ -515,6 +554,12 @@ def _build_reaction_title(actors: list[dict[str, Any]], lang: str) -> str:
     if lang == "ja":
         return f"<b>{names[0]}</b>さんと他{others}人があなたのメッセージにリアクションしました"
     return f"<b>{names[0]}</b> and {others} others reacted to your message"
+
+
+def _build_reply_title(actor_name: str, lang: str) -> str:
+    if lang == "ja":
+        return f"<b>{actor_name}</b>さんがあなたのメッセージにリプライしました"
+    return f"<b>{actor_name}</b> replied to your message"
 
 
 def _build_message_title(
@@ -676,7 +721,7 @@ async def _aggregate_notification_rows(
         )
         for message_row in message_rows:
             if not message_row["is_deleted"] and not message_row["post_deleted"]:
-                message_texts[message_row["id"]] = message_row["message"]
+                message_texts[message_row["id"]] = censor_filter(message_row["message"] or "")
                 post_types[message_row["id"]] = message_row["post_type"]
 
     reaction_summaries: dict[int, str] = {}
@@ -723,6 +768,7 @@ async def _aggregate_notification_rows(
             "target_text": "",
             "target_kind": "",
             "thread_id": None,
+            "message_id": None,
             "reaction_summary": "",
         }
 
@@ -733,21 +779,29 @@ async def _aggregate_notification_rows(
             item["title_html"] = _build_like_title(actors, lang)
             item["target_text"] = post_comments[post_id] or ""
             item["target_kind"] = "general_own_posts"
-        elif ntype in (NOTIFICATION_TYPE_OWN_POST_MESSAGE, NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE):
+        elif ntype in (
+            NOTIFICATION_TYPE_OWN_POST_MESSAGE,
+            NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+            NOTIFICATION_TYPE_MESSAGE_REPLY,
+        ):
             message_id = latest_row["message_id"]
             if not message_id or message_id not in message_texts:
                 continue
             actor = actors[0]
             post_type = post_types.get(message_id, "team")
-            item["title_html"] = _build_message_title(
-                actor["user_name"],
-                post_type,
-                ntype,
-                lang,
-            )
+            if ntype == NOTIFICATION_TYPE_MESSAGE_REPLY:
+                item["title_html"] = _build_reply_title(actor["user_name"], lang)
+            else:
+                item["title_html"] = _build_message_title(
+                    actor["user_name"],
+                    post_type,
+                    ntype,
+                    lang,
+                )
             item["target_text"] = message_texts[message_id] or ""
             item["target_kind"] = "chat"
             item["thread_id"] = latest_row["post_id"]
+            item["message_id"] = message_id
         elif ntype == NOTIFICATION_TYPE_MESSAGE_REACTION:
             message_id = latest_row["message_id"]
             if not message_id or message_id not in message_texts:
@@ -756,6 +810,7 @@ async def _aggregate_notification_rows(
             item["target_text"] = message_texts[message_id] or ""
             item["target_kind"] = "chat"
             item["thread_id"] = latest_row["post_id"]
+            item["message_id"] = message_id
             item["reaction_summary"] = reaction_summaries.get(message_id, "")
         else:
             continue
