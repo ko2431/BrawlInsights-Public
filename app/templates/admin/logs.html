@@ -11,36 +11,40 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, selected_date) %}
-    {% if pagination.total_pages > 1 or pagination.current_page > 1 %}
+{% macro filter_query_string(filter_query) %}
+    {%- set parts = [] -%}
+    {%- for key, value in filter_query.items() -%}
+        {%- set _ = parts.append(key + "=" + (value | urlencode)) -%}
+    {%- endfor -%}
+    {{- parts | join("&") -}}
+{% endmacro %}
+
+{% macro render_pagination(pagination, filter_query) %}
+    {% if pagination.total_pages > 1 or pagination.current_page > 1 or pagination.has_next %}
         <nav class="pagination" aria-label="ログページネーション">
             <ul class="pagination-list">
-                {# 最新に戻るリンク #}
+                {% set base_query = filter_query_string(filter_query) %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
                 {% if pagination.current_page > 1 %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_logs', lang=lang) }}{% if selected_date %}?date={{ selected_date }}{% endif %}">⇤ 最新</a>
+                        <a class="page-link" href="{{ url_for('admin_logs', lang=lang) }}{% if base_query %}?{{ base_query }}{% endif %}">⇤ 最新</a>
                     </li>
                 {% endif %}
 
-                {# 前のページ（ブラウザ履歴の戻る） #}
                 {% if pagination.has_prev %}
                     <li class="page-item">
                         <a class="page-link page-arrow" href="javascript:history.back()">&lt; 前へ</a>
                     </li>
                 {% endif %}
 
-                {# 現在ページ / 概算総ページ #}
                 <li class="page-item active">
                     <span class="page-link current">{{ pagination.current_page }} / {{ pagination.total_pages }}</span>
                 </li>
 
-                {# 次のページ（カーソルリンク） #}
                 {% if pagination.has_next and pagination.next_cursor %}
-                    {% set query_parts = [] %}
-                    {% if selected_date %}{% set _ = query_parts.append("date=" + selected_date) %}{% endif %}
-                    {% set _ = query_parts.append("c=" + pagination.next_cursor) %}
                     <li class="page-item">
-                        <a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}?{{ query_parts | join('&') }}">次へ &gt;</a>
+                        <a class="page-link page-arrow" href="{{ url_for('admin_logs', lang=lang) }}{{ query_prefix }}c={{ pagination.next_cursor }}">次へ &gt;</a>
                     </li>
                 {% endif %}
             </ul>
@@ -49,7 +53,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container">
+<div class="admin-page__container" x-data="logAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -60,24 +64,80 @@
     {% endif %}
     <h1 class="page-title--main">ログ確認</h1>
 
-    <div class="filter-form" style="margin-top: 20px; margin-bottom: 20px;">
-        <form method="get" class="search-form" style="max-width: 500px;">
-            <input type="date" name="date" class="form-input" value="{{ selected_date if selected_date else '' }}" style="margin-bottom: 10px;">
-            <button type="submit" class="button button--primary search-form__button">確定</button>
-            <a href="{{ url_for('admin_logs', lang=lang) }}" class="button button--secondary search-form__button" style="margin-left: 5px;">リセット</a>
-        </form>
-    </div>
+    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">日付</span>
+            <input type="date" class="form-input admin-filters__input" x-model="draft.date">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">サーバー</span>
+            <select class="form-input admin-filters__select" x-model="draft.server">
+                <option value="all">すべて</option>
+                {% for server_name in server_options %}
+                <option value="{{ server_name }}">{{ server_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">種類</span>
+            <select class="form-input admin-filters__select" x-model="draft.level">
+                <option value="all">すべて</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="INFO+">INFO以上</option>
+                <option value="WARNING+">WARNING以上</option>
+                <option value="ERROR+">ERROR以上</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">場所</span>
+            <input class="form-input admin-filters__input" x-model="draft.location" maxlength="200" placeholder="main.py または main.py:123">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">内容</span>
+            <input class="form-input admin-filters__input" x-model="draft.content" maxlength="200" :disabled="!!draft.content_regex.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">内容（正規表現）</span>
+            <input class="form-input admin-filters__input" x-model="draft.content_regex" maxlength="200" :disabled="!!draft.content.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeUserId()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この時刻以降</span>
+            <input type="time" step="1" class="form-input admin-filters__input" x-model="draft.time_after">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この時刻以前</span>
+            <input type="time" step="1" class="form-input admin-filters__input" x-model="draft.time_before">
+        </label>
+        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    </form>
 
     {% if log_file_exists and logs %}
         <p class="admin-page__description">
             ファイル: <b>{{ log_file_name }}</b><br>
-            ログ総数: <b>{{ '{:,}'.format(total_logs) }}</b>件
-            {% if pagination.total_pages > 1 %}
-            <br>ページ: <b>{{ pagination.current_page }} / {{ pagination.total_pages }}</b> (新しい順)
+            ログ総数: <b>{{ '{:,}'.format(total_logs) }}</b>件（最大10,000件／ページ）
+            {% if filters_active %}
+            <br>このページのマッチ件数: <b>{{ '{:,}'.format(page_match_count) }}</b>件
+            {% endif %}
+            {% if pagination.total_pages > 1 or pagination.current_page > 1 %}
+            <br>ページ: <b>{{ pagination.current_page }} / {{ pagination.total_pages }}</b>（新しい順）
             {% endif %}
         </p>
 
-        {{ render_pagination(pagination, selected_date) }}
+        {% if scan_truncated %}
+        <div class="admin-log-scan-warning">
+            走査上限（200,000行／サーバー）に達したため、さらに一致するログがある可能性があります。条件を絞り込んで再検索してください。
+        </div>
+        {% endif %}
+
+        {{ render_pagination(pagination, filter_query) }}
 
         <div class="table-wrapper" style="margin-top: 15px;">
             <table class="data-table log-table">
@@ -93,7 +153,6 @@
                 </thead>
                 <tbody>
                     {% for log in logs %}
-                        {# ログレベルに応じて行のクラスを設定 #}
                         {% set row_class = 'log-level-' + log.level.lower() %}
                         <tr class="{{ row_class }}">
                             <td style="text-align: right;">{{ log.number }}</td>
@@ -108,19 +167,34 @@
             </table>
         </div>
 
-        {{ render_pagination(pagination, selected_date) }}
+        {{ render_pagination(pagination, filter_query) }}
     {% elif log_file_exists and not logs %}
-        {# ログファイルは存在するが、ログが0件の場合 #}
         <p class="admin-page__description">
-            ファイル: <b>{{ log_file_name }}</b>
+            ファイル: <b>{{ log_file_name }}</b><br>
+            ログ総数: <b>{{ '{:,}'.format(total_logs) }}</b>件（最大10,000件／ページ）
+            {% if filters_active %}
+            <br>このページのマッチ件数: <b>0</b>件
+            {% endif %}
         </p>
-        <div class="info-block" style="background-color: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; border-radius: 8px;">
+        {% if scan_truncated %}
+        <div class="admin-log-scan-warning">
+            走査上限（200,000行／サーバー）に達したため、さらに一致するログがある可能性があります。条件を絞り込んで再検索してください。
+        </div>
+        {% endif %}
+        <div class="info-block" style="background-color: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; border-radius: 8px; margin-top: 10px;">
             <p class="info-block__text">
+                {% if filters_active %}
+                条件に一致するログはありませんでした。
+                {% else %}
                 ログはまだ記録されていません。
+                {% endif %}
             </p>
         </div>
     {% else %}
-        <div class="info-block" style="background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 8px;">
+        <p class="admin-page__description">
+            ファイル: <b>{{ log_file_name }}</b>
+        </p>
+        <div class="info-block" style="background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 8px; margin-top: 10px;">
             <p class="info-block__text">
                 ログファイル <b>{{ log_file_name }}</b> は見つかりませんでした。
             </p>
@@ -139,4 +213,135 @@
 
 {% block scripts %}
     {{ super() }}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('logAdmin', () => ({
+                applied: {},
+                draft: {
+                    date: '',
+                    server: 'all',
+                    level: 'all',
+                    location: '',
+                    content: '',
+                    content_regex: '',
+                    user_id: '',
+                    time_after: '',
+                    time_before: '',
+                },
+                filterDefaults: {
+                    date: '',
+                    server: 'all',
+                    level: 'all',
+                    location: '',
+                    content: '',
+                    content_regex: '',
+                    user_id: '',
+                    time_after: '',
+                    time_before: '',
+                },
+
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) {
+                        return false;
+                    }
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeTimeValue(value) {
+                    const trimmed = (value || '').trim();
+                    if (!trimmed) {
+                        return '';
+                    }
+                    if (/^\d{2}:\d{2}$/.test(trimmed)) {
+                        return `${trimmed}:00`;
+                    }
+                    return trimmed;
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        date: (filters.date || '').trim(),
+                        server: filters.server || 'all',
+                        level: filters.level || 'all',
+                        location: (filters.location || '').trim(),
+                        content: (filters.content || '').trim(),
+                        content_regex: (filters.content_regex || '').trim(),
+                        user_id: (filters.user_id || '').trim(),
+                        time_after: this.normalizeTimeValue(filters.time_after),
+                        time_before: this.normalizeTimeValue(filters.time_before),
+                    };
+                },
+
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    if (draft.content && draft.content_regex) {
+                        return false;
+                    }
+                    if (draft.user_id && !/^\d+$/.test(draft.user_id)) {
+                        return false;
+                    }
+                    if (draft.content_regex && !this.isValidRegex(draft.content_regex)) {
+                        return false;
+                    }
+                    if (draft.date && !/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) {
+                        return false;
+                    }
+                    if (draft.time_after && !/^\d{2}:\d{2}:\d{2}$/.test(draft.time_after)) {
+                        return false;
+                    }
+                    if (draft.time_before && !/^\d{2}:\d{2}:\d{2}$/.test(draft.time_before)) {
+                        return false;
+                    }
+                    if (draft.time_after && draft.time_before && draft.time_after > draft.time_before) {
+                        return false;
+                    }
+                    return true;
+                },
+
+                isValidRegex(pattern) {
+                    try {
+                        new RegExp(pattern);
+                        return true;
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                sanitizeUserId() {
+                    this.draft.user_id = (this.draft.user_id || '').replace(/\D/g, '');
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) {
+                        return;
+                    }
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('c');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    window.location.href = url.toString();
+                },
+            }));
+        });
+    </script>
 {% endblock %}
