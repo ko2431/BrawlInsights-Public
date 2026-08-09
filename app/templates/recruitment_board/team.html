@@ -87,7 +87,7 @@
                 <input type="hidden" name="region" value="{{ region }}">
                 <input type="hidden" name="eliminate_duplicates" value="{{ eliminate_duplicates }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
-                <select name="filter" id="filterSelect" class="filter-form__select">
+                <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
                     <option value="all" {% if filter != "only_can_participate" and filter != "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
                     <option value="only_can_participate" {% if filter == "only_can_participate" %}selected{% endif %}>{% if lang == "ja" %}申請可能な募集のみ表示{% else %}Only Show Joinable{% endif %}</option>
                     <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>

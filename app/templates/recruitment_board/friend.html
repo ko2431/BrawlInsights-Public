@@ -51,7 +51,7 @@
                 <input type="hidden" name="region" value="{{ region }}">
                 <input type="hidden" id="eliminateDuplicatesInput" name="eliminate_duplicates" value="{{ 'true' if eliminate_duplicates else 'false' }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
-                <select name="filter" id="filterSelect" class="filter-form__select">
+                <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
                     <option value="all" {% if not eliminate_duplicates and filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
                     <option value="eliminate_duplicates" {% if eliminate_duplicates or filter == "eliminate_duplicates" %}selected{% endif %}>{% if lang == "ja" %}連投を排除して表示{% else %}Exclude Duplicates{% endif %}</option>
                     <option value="only_can_participate" {% if filter == "only_can_participate" %}selected{% endif %}>{% if lang == "ja" %}申請可能な募集のみ表示{% else %}Only Show Joinable{% endif %}</option>

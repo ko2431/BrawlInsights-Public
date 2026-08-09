@@ -86,12 +86,14 @@
             {% endif %}
             <div class="post-card-wrapper">
                 <div class="card post-card post-card--team" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
-                    {# プレイヤー名とn分前テキスト #}
+                    {# ゲームモード・募集タイプバッジ・n分前テキスト #}
                     <div class="post-card__header">
                         <img src="{{ url_for('static', path=image_path) }}" alt="モードアイコン" class="post-card__player-icon">
                         <p class="post-card__title">{{ title }}</p>
-                        <div style="display: flex; flex: 1;"></div>
-                        <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}" style="color: #555;">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                        <div class="post-card__header-meta">
+                            <span class="post-card__recruit-type-badge post-card__recruit-type-badge--instant">{% if lang == "ja" %}今すぐ募集{% else %}Instant{% endif %}</span>
+                            <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}" style="color: #555;">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                        </div>
                     </div>
                     {# ガチバトルランクの翻訳表 (ダイヤモンドはダイヤに省略) #}
                     {% set rank_map_ja = {

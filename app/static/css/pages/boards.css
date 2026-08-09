@@ -532,6 +532,7 @@ body.modal-open {
 .post-card__player-icon {
     height: 16px;
     width: auto;
+    flex-shrink: 0;
 }
 .post-card__title {
     font-weight: bold;
@@ -543,6 +544,34 @@ body.modal-open {
 }
 .team-board .post-card__title {
     color: #000;
+    flex: 1;                  /* 余白をタイトル側が吸収し、狭い幅ではモード名のみ省略する */
+}
+.post-card__header-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;           /* バッジと「n分前」は可能な限り省略しない */
+    margin-left: auto;
+}
+.post-card__recruit-type-badge {
+    display: inline-block;
+    margin-bottom: 0.5px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+.post-card__recruit-type-badge--instant {
+    background-color: #e53935;
+    color: #fff;
+}
+.dark .post-card__recruit-type-badge--instant {
+    background-color: #ff5252;
+    color: #fff;
 }
 .post-card__ago-text {
     font-size: 14px;
