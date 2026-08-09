@@ -428,6 +428,37 @@ body.modal-open {
 .agree-to-terms-text a {
     text-decoration: underline;
 }
+.later-recruitment-option {
+    margin: 5px 0 8px;
+}
+.later-recruitment-option__label {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.25;
+    color: var(--color-333, #333);
+}
+.later-recruitment-option__text {
+    flex: 1;
+}
+.later-recruitment-option--disabled,
+.later-recruitment-option--disabled .later-recruitment-option__label {
+    cursor: not-allowed;
+    opacity: 0.55;
+    color: #777;
+}
+.later-recruitment-option--disabled .form-checkbox {
+    pointer-events: none;
+}
+.dark .later-recruitment-option__label {
+    color: var(--color-ddd, #ddd);
+}
+.dark .later-recruitment-option--disabled,
+.dark .later-recruitment-option--disabled .later-recruitment-option__label {
+    color: #999;
+}
 .post-modal-section {
     margin-bottom: 10px;
 }
@@ -587,6 +618,14 @@ body.modal-open {
     background-color: #ff5252;
     color: #fff;
 }
+.post-card__recruit-type-badge--later {
+    background-color: #1e88e5;
+    color: #fff;
+}
+.dark .post-card__recruit-type-badge--later {
+    background-color: #42a5f5;
+    color: #fff;
+}
 .post-card__ago-text {
     font-size: 14px;
     color: var(--color-555);
@@ -739,6 +778,8 @@ body.modal-open {
 .post-card__chat-button,
 .post-card__good-button,
 .post-card__delete-button,
+.post-card__close-button,
+.post-card__reopen-button,
 .post-card__report-button,
 .post-card__block-button,
 .post-card__unblock-button,
@@ -811,6 +852,31 @@ body.modal-open {
 .post-card__delete-button:hover {
     background-color: #ffdddd;
     border-color: #ff3b3b;
+}
+.post-card__close-button {
+    font-size: 14px;
+    background-color: #ffebeb;
+    border: 1px solid #ff5252;
+}
+.post-card__close-button:hover {
+    background-color: #ffdddd;
+    border-color: #ff3b3b;
+}
+.post-card__close-button.disabled,
+.post-card__close-button.disabled:hover {
+    background-color: #ccc;
+    border-color: #bbb;
+    cursor: not-allowed;
+    color: #666;
+}
+.post-card__reopen-button {
+    font-size: 14px;
+    background-color: #e3ffc7;
+    border: 1px solid #68c347;
+}
+.post-card__reopen-button:hover {
+    background-color: #d6f7ba;
+    border-color: #56b53b;
 }
 .post-card__report-button {
     font-size: 14px;

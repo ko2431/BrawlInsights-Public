@@ -192,6 +192,10 @@ th {
     background: #fef3c7;
     color: #92400e;
 }
+.admin-badge--orange {
+    background: #ffedd5;
+    color: #9a3412;
+}
 .admin-badge--purple {
     background: #ede9fe;
     color: #5b21b6;
@@ -219,6 +223,10 @@ th {
 .dark .admin-badge--yellow {
     background: #78350f;
     color: #fde68a;
+}
+.dark .admin-badge--orange {
+    background: #7c2d12;
+    color: #fed7aa;
 }
 .dark .admin-badge--purple {
     background: #4c1d95;

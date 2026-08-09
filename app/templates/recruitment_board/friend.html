@@ -350,7 +350,7 @@
 
             document.addEventListener('friend-board:open-post-modal', openModal);
             document.addEventListener('friend-board:post-restricted', () => {
-                alert('{% if lang == "ja" %}現在投稿機能が制限されています。システムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。{% else %}Posting is currently restricted. Posting may be restricted due to system maintenance or violations of the terms of use.{% endif %}');
+                alert('{% if lang == "ja" %}現在投稿機能が制限されています。一時的なシステムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。{% else %}Posting is currently restricted. Posting may be restricted due to system maintenance or violations of the terms of use.{% endif %}');
             });
             
             // --- 投稿ボタンの状態を更新 ---

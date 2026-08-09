@@ -768,6 +768,9 @@ class Post(Base):
     conditions_application_type = Column(Text, nullable=False, server_default='and') # "and" または "or"
     chat_permission_level = Column(Integer, nullable=False, server_default='30')
     is_deleted = Column(Boolean, nullable=False, server_default='False', index=True)
+    is_closed = Column(Boolean, nullable=False, server_default='False', index=True)
+    auto_close_exempt = Column(Boolean, nullable=False, server_default='False')
+    is_later_recruitment = Column(Boolean, nullable=False, server_default='False', index=True)
     category = Column(Text, nullable=True)
     mode = Column(Text, nullable=True)
     hashtags = Column(JSONB, nullable=False, server_default='[]')

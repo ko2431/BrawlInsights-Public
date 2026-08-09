@@ -3,7 +3,15 @@
     {% if posts %}
     {# フィルター下の説明文 #}
     <div class="info-block" style="padding: 0;">
-        <p class="info-block__text">{% if lang == "ja" %}<b>条件指定</b>&<b>チャット機能</b>付きの募集掲示板です。{% if not current_user %}条件の設定されている募集に参加するには、アカウントタブより<b>ログイン</b>してください。ログインしていない場合は、条件の設定されていない募集にのみ参加できます。{% endif %}{% else %}This is a recruitment board with condition specification and chat function.{% if not current_user %} To apply for posts with conditions, please <b>log in</b> from the Account tab. If you are not logged in, you can only apply for posts without conditions.{% endif %}{% endif %}</p>
+        <p class="info-block__text">
+        {% if lang == "ja" %}
+            <b>条件指定</b>&<b>チャット機能</b>付きの募集掲示板です。{% if not current_user %}条件の設定されている募集に参加するには、アカウントタブより<b>ログイン</b>してください。ログインしていない場合は、条件の設定されていない募集にのみ参加できます。{% endif %}
+            <br><span style="color: var(--c-blue);"><b>【New】</b>「後から募集」機能が新登場！招待リンクはすぐに貼らずに、チャット経由で後でやる人を募集できます。</span>
+        {% else %}
+            This is a recruitment board with condition specification and chat function.{% if not current_user %} To apply for posts with conditions, please <b>log in</b> from the Account tab. If you are not logged in, you can only apply for posts without conditions.{% endif %}
+            <br><span style="color: var(--c-blue);"><b>【New】</b>"Later Recruitment" function has been released! You can invite people to join later via chat without posting the invite link immediately.</span>
+        {% endif %}
+        </p>
     </div>
 
     {# 投稿を表示 #}

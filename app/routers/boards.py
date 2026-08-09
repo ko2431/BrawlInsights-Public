@@ -14,7 +14,7 @@ from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
-from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews
+from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS
 from app.services.notification_service import (
     NOTIFICATION_LIST_LIMIT,
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
@@ -348,6 +348,7 @@ class PostCreateRequest(BaseModel):
     required_max_power_brawlers: int | None = None
     required_prestige: int | None = None
     other_conditions: dict = Field(default_factory=dict)
+    is_later_recruitment: bool = False
     
 class ReportCreateRequest(BaseModel):
     category: str
@@ -519,6 +520,7 @@ async def team_recruitment_board_fragment(
         "main_account": main_account,
         "posts": posts,
         "blocked_ids": blocked_ids,
+        "team_post_close_cooldown_seconds": TEAM_POST_CLOSE_COOLDOWN_SECONDS,
         **_board_pagination_context(page, limit, fetched_count, total_posts),
     }
 
@@ -1562,7 +1564,8 @@ async def create_new_post(
             required_solo_pl_rank=post_data.required_solo_pl_rank,
             required_max_power_brawlers=post_data.required_max_power_brawlers,
             required_prestige=post_data.required_prestige,
-            other_conditions=post_data.other_conditions
+            other_conditions=post_data.other_conditions,
+            is_later_recruitment=post_data.is_later_recruitment,
         )
         return {"success": True, "post_id": post_id}
     except ValueError as e:
@@ -1601,6 +1604,73 @@ async def delete_post(
         return {"success": True, "message": "Post deleted successfully"}
     except DataBaseError as e:
         logger.error(f"投稿(ID:{post_id})の削除中にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
+@router.post("/posts/{post_id}/close", name="close_post")
+async def close_post(
+    request: Request,
+    post_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """チーム募集投稿をクローズする（ホストのみ。投稿直後は不可）。"""
+    user: User | None = getattr(request.state, "current_user", None)
+
+    post = await get_post(db, id=post_id, include_deleted_post=True)
+    if not post or post.is_deleted:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.type != "team":
+        raise HTTPException(status_code=400, detail="Only team posts can be closed")
+
+    is_host = (user and post.host_id == user.id) or (post.host_ip == get_ip(request))
+    if not is_host:
+        raise HTTPException(status_code=403, detail="You do not have permission to close this post")
+
+    remaining = post.seconds_until_close_allowed()
+    if remaining > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="You can't close a post right after posting. Please wait.",
+        )
+
+    if post.is_effectively_closed:
+        return {"success": True, "message": "Post already closed"}
+
+    try:
+        await post.close(db)
+        return {"success": True, "message": "Post closed successfully"}
+    except DataBaseError as e:
+        logger.error(f"投稿(ID:{post_id})のクローズ中にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
+@router.post("/posts/{post_id}/reopen", name="reopen_post")
+async def reopen_post(
+    request: Request,
+    post_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """チーム募集投稿を再開する（ホストのみ）。"""
+    user: User | None = getattr(request.state, "current_user", None)
+
+    post = await get_post(db, id=post_id, include_deleted_post=True)
+    if not post or post.is_deleted:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.type != "team":
+        raise HTTPException(status_code=400, detail="Only team posts can be reopened")
+
+    is_host = (user and post.host_id == user.id) or (post.host_ip == get_ip(request))
+    if not is_host:
+        raise HTTPException(status_code=403, detail="You do not have permission to reopen this post")
+
+    if not post.is_effectively_closed:
+        return {"success": True, "message": "Post already open"}
+
+    try:
+        await post.reopen(db)
+        return {"success": True, "message": "Post reopened successfully"}
+    except DataBaseError as e:
+        logger.error(f"投稿(ID:{post_id})の再開中にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
 
 @router.post("/posts/{post_id}/report", name="report_post")

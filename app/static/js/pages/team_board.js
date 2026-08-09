@@ -10,7 +10,13 @@
     const STORAGE_KEY_FILTER = 'teamBoardFilter';
     const STORAGE_KEY_ONLY_JOINABLE = 'teamBoardOnlyJoinable';
     const VALID_CATEGORIES = new Set(['all', 'trophy', 'ranked', 'friendly', 'event']);
-    const VALID_FILTERS = new Set(['all', 'only_participated_threads', 'only_own_posts']);
+    const VALID_FILTERS = new Set([
+        'all',
+        'only_instant_recruitment',
+        'only_later_recruitment',
+        'only_participated_threads',
+        'only_own_posts',
+    ]);
 
     let fabCooldownTimer = null;
     let postDelegationBound = false;
@@ -97,6 +103,51 @@
         });
     }
 
+    function parseCreatedAtMs(createdAt) {
+        if (!createdAt) return null;
+        // '2025-01-01 23:59:00Z' → Date.parse 可能な ISO 形式へ
+        const normalized = createdAt.includes('T')
+            ? createdAt
+            : createdAt.replace(' ', 'T');
+        const ms = Date.parse(normalized);
+        return Number.isNaN(ms) ? null : ms;
+    }
+
+    function getCloseCooldownRemainingSeconds(btn) {
+        const createdMs = parseCreatedAtMs(btn.dataset.createdAt);
+        if (createdMs == null) return 0;
+        const cooldownSeconds = parseInt(btn.dataset.closeCooldownSeconds || '120', 10);
+        const elapsed = (Date.now() - createdMs) / 1000;
+        return Math.max(0, Math.ceil(cooldownSeconds - elapsed));
+    }
+
+    function syncCloseButtonCooldownState(btn) {
+        if (!btn || !btn.classList.contains('post-card__close-button')) return;
+        const remaining = getCloseCooldownRemainingSeconds(btn);
+        if (remaining > 0) {
+            btn.classList.add('disabled');
+            if (!btn._closeCooldownTimer) {
+                btn._closeCooldownTimer = setTimeout(() => {
+                    btn._closeCooldownTimer = null;
+                    syncCloseButtonCooldownState(btn);
+                }, remaining * 1000);
+            }
+        } else {
+            btn.classList.remove('disabled');
+            if (btn._closeCooldownTimer) {
+                clearTimeout(btn._closeCooldownTimer);
+                btn._closeCooldownTimer = null;
+            }
+        }
+    }
+
+    function scheduleCloseButtonCooldowns(root) {
+        if (!root) return;
+        root.querySelectorAll('.post-card__close-button[data-created-at]').forEach((btn) => {
+            syncCloseButtonCooldownState(btn);
+        });
+    }
+
     function scheduleFabCooldownRelease(fab, seconds) {
         if (!fab || seconds <= 0) return;
         fab.classList.add('disabled');
@@ -168,6 +219,7 @@
         const startAgoUpdater = (container) => {
             stopAgoUpdater();
             updatePostAgoTexts(container, lang);
+            scheduleCloseButtonCooldowns(container);
             agoIntervalId = setInterval(() => updatePostAgoTexts(container, lang), AGO_UPDATE_INTERVAL_MS);
         };
 
@@ -357,7 +409,10 @@
             return window.BoardFragmentPagination.enhanceBoardFragmentLoader(loader, {
                 fragmentBaseUrl,
                 lang,
-                updatePostAgoTexts,
+                updatePostAgoTexts: (root, langArg) => {
+                    updatePostAgoTexts(root, langArg);
+                    scheduleCloseButtonCooldowns(root);
+                },
                 getContentRoot: () => document.querySelector('#team-board-posts-root [x-ref="content"]'),
             });
         }
@@ -391,6 +446,57 @@
                     }
                 } catch {
                     alert(lang === 'ja' ? '削除中にエラーが発生しました。' : 'An error occurred while deleting.');
+                }
+                return;
+            }
+
+            const closeBtn = event.target.closest('.post-card__close-button');
+            if (closeBtn) {
+                const remaining = getCloseCooldownRemainingSeconds(closeBtn);
+                if (remaining > 0) {
+                    alert(lang === 'ja'
+                        ? '投稿直後は募集を終了できません。しばらくお待ちください。'
+                        : "You can't close a post right after posting. Please wait.");
+                    return;
+                }
+                const postId = closeBtn.dataset.postId;
+                const msg = lang === 'ja'
+                    ? 'この募集を終了しますか？'
+                    : 'End this recruitment?';
+                if (!confirm(msg)) return;
+                try {
+                    const response = await fetch(`/${lang}/boards/posts/${postId}/close`, { method: 'POST' });
+                    if (response.ok) await reloadPostsFromFragment();
+                    else {
+                        const errorData = await response.json().catch(() => ({}));
+                        alert(lang === 'ja'
+                            ? `募集終了に失敗しました: ${errorData.detail || ''}`
+                            : `Failed to close: ${errorData.detail || ''}`);
+                    }
+                } catch {
+                    alert(lang === 'ja' ? '募集終了中にエラーが発生しました。' : 'An error occurred while closing.');
+                }
+                return;
+            }
+
+            const reopenBtn = event.target.closest('.post-card__reopen-button');
+            if (reopenBtn) {
+                const postId = reopenBtn.dataset.postId;
+                const msg = lang === 'ja'
+                    ? 'この募集を再開しますか？'
+                    : 'Reopen this recruitment?';
+                if (!confirm(msg)) return;
+                try {
+                    const response = await fetch(`/${lang}/boards/posts/${postId}/reopen`, { method: 'POST' });
+                    if (response.ok) await reloadPostsFromFragment();
+                    else {
+                        const errorData = await response.json().catch(() => ({}));
+                        alert(lang === 'ja'
+                            ? `募集再開に失敗しました: ${errorData.detail || ''}`
+                            : `Failed to reopen: ${errorData.detail || ''}`);
+                    }
+                } catch {
+                    alert(lang === 'ja' ? '募集再開中にエラーが発生しました。' : 'An error occurred while reopening.');
                 }
                 return;
             }

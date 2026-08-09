@@ -89,7 +89,9 @@
                 <input type="hidden" name="only_joinable" id="onlyJoinableInput" value="{{ 'true' if only_joinable else 'false' }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
                 <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
-                    <option value="all" {% if filter != "only_participated_threads" and filter != "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                    <option value="all" {% if filter == "all" or filter not in ["only_instant_recruitment", "only_later_recruitment", "only_participated_threads", "only_own_posts"] %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                    <option value="only_instant_recruitment" {% if filter == "only_instant_recruitment" %}selected{% endif %}>{% if lang == "ja" %}「今すぐ募集」のみ表示{% else %}Only Instant Recruits{% endif %}</option>
+                    <option value="only_later_recruitment" {% if filter == "only_later_recruitment" %}selected{% endif %}>{% if lang == "ja" %}「後から募集」のみ表示{% else %}Only Later Recruits{% endif %}</option>
                     <option value="only_participated_threads" {% if filter == "only_participated_threads" %}selected{% endif %}>{% if lang == "ja" %}チャットに参加した投稿のみ表示{% else %}Only Show Joined Chats{% endif %}</option>
                     <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>
                 </select>
@@ -212,8 +214,16 @@
             <div class="post-modal-section">
                 <p class="post-modal-section-title">{% if show_host_section %}2{% else %}1{% endif %}. {% if lang == "ja" %}チーム招待リンクを貼り付け{% else %}Paste Team Link{% endif %}</p>
                 <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}ブロスタを開き、<b>チームアップ</b>→<b>シェア</b>からリンクをコピーして、そのまま貼り付けてください。{% else %}Open Brawl Stars, go to <b>Team Up</b> → <b>Share Invite</b>, copy the link, and paste it here.{% endif %}</p>
-                <textarea id="invite-link-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}このリンクをタップして、●●と一緒にブロスタのチームに参加しましょう！{% else %}Click this link to join a team with ●● in Brawl Stars!{% endif %} https://link.brawlstars.com/invite/gameroom/xx?tag=XXXXXXXX"></textarea>
-                <div id="link-status" class="form-field-status" style="font-size: 0.8em;"></div>
+                <div id="later-recruitment-option" class="later-recruitment-option {% if not current_user %}later-recruitment-option--disabled{% endif %}">
+                    <label class="later-recruitment-option__label" for="later-recruitment-checkbox">
+                        <input type="checkbox" id="later-recruitment-checkbox" class="form-checkbox" {% if not current_user %}disabled{% endif %}>
+                        <span class="later-recruitment-option__text">{% if lang == "ja" %}<b>後から募集</b>に設定（リンクの入力をスキップできます）{% else %}Set as <b>Later Recruitment</b> (skip pasting a link){% endif %}</span>
+                    </label>
+                </div>
+                <div id="invite-link-fields">
+                    <textarea id="invite-link-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}このリンクをタップして、●●と一緒にブロスタのチームに参加しましょう！{% else %}Click this link to join a team with ●● in Brawl Stars!{% endif %} https://link.brawlstars.com/invite/gameroom/xx?tag=XXXXXXXX"></textarea>
+                    <div id="link-status" class="form-field-status" style="font-size: 0.8em;"></div>
+                </div>
             </div>
             <div class="post-modal-section">
                 <p class="post-modal-section-title">{% if show_host_section %}3{% else %}2{% endif %}. {% if lang == "ja" %}カテゴリーを選択{% else %}Select Category{% endif %}</p>
@@ -290,7 +300,8 @@
             <div class="post-modal-section">
                 <p class="post-modal-section-title">{% if show_host_section %}5{% else %}4{% endif %}. {% if lang == "ja" %}条件設定{% else %}Set Conditions{% endif %}</p>
                 {% if current_user and main_account %}
-                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}参加できる人の<b>条件</b>を設定できます。<br>1つでも条件を設定すると、ログインしていない人は参加できなくなり、ログインしていて登録済みの<b>メインアカウント</b>の情報が<b>条件</b>を満たしている人のみ、リンクをクリックできるようになります。<br>なお、あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)より高すぎるレベルの条件を設定することはできません。{% else %}You can set <b>conditions</b> for who can join the team.<br>Only logged-in users whose registered <b>main account</b> meets the conditions will be able to click the team link.<br>Note that you cannot set conditions that are too high compared to your main account (<b>"{{ main_account.name }}"</b>).{% endif %}</p>
+                <p id="conditions-desc-instant" class="info-block__text post-modal-section-description">{% if lang == "ja" %}参加できる人の<b>条件</b>を設定できます。<br>1つでも条件を設定すると、ログインしていない人は参加できなくなり、ログインしていて登録済みの<b>メインアカウント</b>の情報が<b>条件</b>を満たしている人のみ、リンクをクリックできるようになります。<br>なお、あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)より高すぎるレベルの条件を設定することはできません。{% else %}You can set <b>conditions</b> for who can join the team.<br>Once any condition is set, guests cannot join, and only logged-in users whose registered <b>main account</b> meets the <b>conditions</b> can click the team link.<br>Note that you cannot set conditions that are too high compared to your main account (<b>"{{ main_account.name }}"</b>).{% endif %}</p>
+                <p id="conditions-desc-later" class="info-block__text post-modal-section-description" style="display: none;">{% if lang == "ja" %}参加できる人の<b>条件</b>を設定できます。<br>1つでも条件を設定すると、ログインしていて登録済みの<b>メインアカウント</b>の情報が<b>条件</b>を満たしている人のみ、チャットに参加できるようになります。<br>なお、あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)より高すぎるレベルの条件を設定することはできません。{% else %}You can set <b>conditions</b> for who can join.<br>Once any condition is set, only logged-in users whose registered <b>main account</b> meets the <b>conditions</b> can join the chat.<br>Note that you cannot set conditions that are too high compared to your main account (<b>"{{ main_account.name }}"</b>).{% endif %}</p>
                 <div class="filters__container post-modal-conditions">
                     {# 条件選択メニュー #}
                     <form method="get" class="filter-form post-modal-conditions-filter-form">
@@ -336,7 +347,8 @@
                 {# 現行のバージョンでは、ログイン済み:chat_permission_level=30、未ログイン:chat_permission_level=0で固定とするため、選択メニューは設けず説明のみ書いておく。 #}
                 <p class="post-modal-section-title">{% if show_host_section %}6{% else %}5{% endif %}. {% if lang == "ja" %}チャットスレッド{% else %}Chat Thread{% endif %}</p>
                 {% if current_user %}
-                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}この募集を投稿すると、<b>チャットスレッド</b>が設置され、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに使うことができます。<br>なお、{% if show_host_section %}5{% else %}4{% endif %}.で設定した<b>条件</b>を満たしていない人でも、チャット画面から個別に許可することで、参加できるようにさせることが可能ですので、ご活用ください。<br>チャット時、あなたのユーザー名である<b>"{{ current_user.name }}"</b>が名前として表示されます。{% if "@" in current_user.name %}メールアドレス等の個人情報をユーザー名に設定している場合は、<b>アカウント</b>タブからユーザー名の変更をお願いします。{% endif %}{% else %}When you post this recruitment, a <b>chat thread</b> will be created. You can use it for confirmation before joining the team or to communicate with players who have muted chat in-game.<br>Even if someone does not meet the <b>conditions</b> set in step {% if show_host_section %}5{% else %}4{% endif %}, you can individually permit them to apply from the chat screen.<br>Your username, <b>"{{ current_user.name }}"</b>, will be displayed in the chat. {% if "@" in current_user.name %}If your username contains personal information such as an email address, please change it from the <b>Account</b> tab.{% endif %}{% endif %}</p>
+                <p id="chat-desc-instant" class="info-block__text post-modal-section-description">{% if lang == "ja" %}この募集を投稿すると、<b>チャットスレッド</b>が設置され、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに使うことができます。<br>なお、{% if show_host_section %}5{% else %}4{% endif %}.で設定した<b>条件</b>を満たしていない人でも、チャット画面から個別に許可することで、参加できるようにさせることが可能ですので、ご活用ください。<br>チャット時、あなたのユーザー名である<b>"{{ current_user.name }}"</b>が名前として表示されます。{% if "@" in current_user.name %}メールアドレス等の個人情報をユーザー名に設定している場合は、<b>アカウント</b>タブからユーザー名の変更をお願いします。{% endif %}{% else %}When you post this recruitment, a <b>chat thread</b> will be created. You can use it for confirmation before joining the team or to communicate with players who have muted chat in-game.<br>Even if someone does not meet the <b>conditions</b> set in step {% if show_host_section %}5{% else %}4{% endif %}, you can individually permit them to apply from the chat screen.<br>Your username, <b>"{{ current_user.name }}"</b>, will be displayed in the chat. {% if "@" in current_user.name %}If your username contains personal information such as an email address, please change it from the <b>Account</b> tab.{% endif %}{% endif %}</p>
+                <p id="chat-desc-later" class="info-block__text post-modal-section-description" style="display: none;">{% if lang == "ja" %}この募集を投稿すると、<b>チャットスレッド</b>が設置され、募集に来た人とのやりとりに使うことができます。<br>チャット時、あなたのユーザー名である<b>"{{ current_user.name }}"</b>が名前として表示されます。{% if "@" in current_user.name %}メールアドレス等の個人情報をユーザー名に設定している場合は、<b>アカウント</b>タブからユーザー名の変更をお願いします。{% endif %}{% else %}When you post this recruitment, a <b>chat thread</b> will be created for talking with people who join the recruit.<br>Your username, <b>"{{ current_user.name }}"</b>, will be displayed in the chat. {% if "@" in current_user.name %}If your username contains personal information such as an email address, please change it from the <b>Account</b> tab.{% endif %}{% endif %}</p>
                 {% else %}
                 <div class="not-logged-in-block not-logged-in-block--board">
                     <div class="not-logged-in-block__text not-logged-in-block__text--board">
@@ -401,6 +413,7 @@
                 isCommentValid: true,
                 isCategoryValid: false,
                 isTermsAgreed: {{ 'true' if current_user or platform == 'web' else 'false' }}, // ログインユーザーは常に同意済みと見なす
+                isLaterRecruitment: false,
                 link: '',
                 region: '',
                 hostPlayerTag: '{{ main_account.tag if current_user and main_account else "" }}',
@@ -410,6 +423,7 @@
 
             // --- DOM要素の取得 ---
             const lang = '{{ lang }}';
+            const isLoggedIn = {{ 'true' if current_user else 'false' }};
             const checkPostPermissionUrl = '{{ url_for('check_post_permission', lang=lang, post_type='team') }}';
 
             initTeamBoardShell({
@@ -433,9 +447,18 @@
             const closeBtn = document.getElementById('modal-close-btn');
             const postBtn = document.getElementById('modal-post-btn');
             const inviteLinkForm = document.getElementById('invite-link-form');
+            const inviteLinkFields = document.getElementById('invite-link-fields');
             const linkStatus = document.getElementById('link-status');
+            const laterRecruitmentCheckbox = document.getElementById('later-recruitment-checkbox');
+            const laterRecruitmentOption = document.getElementById('later-recruitment-option');
             const commentForm = document.getElementById('comment-form');
             const commentStatus = document.getElementById('comment-status');
+            const commentPlaceholderOptional = lang === 'ja' ? 'コメントを追加できます。' : 'You can add a comment.';
+            const commentPlaceholderRequired = lang === 'ja' ? 'コメントを入力してください。' : 'Please enter a comment.';
+            const conditionsDescInstant = document.getElementById('conditions-desc-instant');
+            const conditionsDescLater = document.getElementById('conditions-desc-later');
+            const chatDescInstant = document.getElementById('chat-desc-instant');
+            const chatDescLater = document.getElementById('chat-desc-later');
             const useLastPostBtn = document.getElementById('use-last-post-section');
             const hostPlayerTagForm = document.getElementById('host-player-tag-form');
             const hostPlayerTagStatus = document.getElementById('host-player-tag-status');
@@ -462,6 +485,11 @@
                 if (!{{ 'true' if current_user or platform == 'web' else 'false' }}) {
                     checkTermsAgreement();
                 }
+                // リロードなし再オープン時も、チェック状態に合わせてリンク欄などの表示を同期
+                if (isLoggedIn && laterRecruitmentCheckbox) {
+                    postState.isLaterRecruitment = laterRecruitmentCheckbox.checked;
+                    applyLaterRecruitmentUi();
+                }
                 document.body.classList.add('modal-open');
                 modalOverlay.classList.add('active');
                 checkLastPost(); // モーダルを開くたびに直近の投稿があるかチェック
@@ -479,13 +507,54 @@
 
             document.addEventListener('team-board:open-post-modal', openModal);
             document.addEventListener('team-board:post-restricted', () => {
-                alert('{% if lang == "ja" %}現在投稿機能が制限されています。システムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。{% else %}Posting is currently restricted. Posting may be restricted due to system maintenance or violations of the terms of use.{% endif %}');
+                alert('{% if lang == "ja" %}現在投稿機能が制限されています。一時的なシステムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。{% else %}Posting is currently restricted. Posting may be restricted due to system maintenance or violations of the terms of use.{% endif %}');
             });
             
             // --- 投稿ボタンの状態を更新 ---
             const updatePostButtonState = () => {
-                postBtn.disabled = !(postState.isHostValid && postState.isValidLink && postState.isCommentValid && postState.isCategoryValid && postState.isTermsAgreed);
+                const linkOk = postState.isLaterRecruitment || postState.isValidLink;
+                const commentOk = postState.isCommentValid && (
+                    !postState.isLaterRecruitment || commentForm.value.trim().length > 0
+                );
+                postBtn.disabled = !(postState.isHostValid && linkOk && commentOk && postState.isCategoryValid && postState.isTermsAgreed);
             };
+
+            const applyLaterRecruitmentUi = () => {
+                const isLater = postState.isLaterRecruitment;
+                if (inviteLinkFields) {
+                    inviteLinkFields.style.display = isLater ? 'none' : '';
+                }
+                commentForm.placeholder = isLater ? commentPlaceholderRequired : commentPlaceholderOptional;
+                if (conditionsDescInstant) conditionsDescInstant.style.display = isLater ? 'none' : '';
+                if (conditionsDescLater) conditionsDescLater.style.display = isLater ? '' : 'none';
+                if (chatDescInstant) chatDescInstant.style.display = isLater ? 'none' : '';
+                if (chatDescLater) chatDescLater.style.display = isLater ? '' : 'none';
+                updateCommentLinkStatus();
+            };
+
+            const setLaterRecruitment = (enabled) => {
+                if (!isLoggedIn) return;
+                postState.isLaterRecruitment = !!enabled;
+                if (laterRecruitmentCheckbox) {
+                    laterRecruitmentCheckbox.checked = postState.isLaterRecruitment;
+                }
+                applyLaterRecruitmentUi();
+            };
+
+            if (laterRecruitmentOption && !isLoggedIn) {
+                laterRecruitmentOption.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    alert(lang === 'ja'
+                        ? '「後から募集」機能を利用するにはログインが必要です。アカウントタブよりログインできます。'
+                        : 'You need to log in to use Later Recruitment. You can log in from the Account tab.');
+                });
+            }
+
+            if (laterRecruitmentCheckbox && isLoggedIn) {
+                laterRecruitmentCheckbox.addEventListener('change', () => {
+                    setLaterRecruitment(laterRecruitmentCheckbox.checked);
+                });
+            }
 
             const updateCommentLinkStatus = () => {
                 const hasUrl = window.BrawlInsightsUrlDetect?.containsUrl(commentForm.value);
@@ -671,13 +740,15 @@
             
             // --- 2. 投稿作成処理 ---
             postBtn.addEventListener('click', async () => {
+                const isLater = postState.isLaterRecruitment;
                 const payload = {
                     type: 'team',
-                    link: postState.link,
-                    region: postState.region,
+                    link: isLater ? null : postState.link,
+                    region: isLater ? null : postState.region,
                     host_player_tag: postState.hostPlayerTag,
                     comment: commentForm.value.trim() || null,
-                    chat_permission_level: {% if current_user %}30{% else %}0{% endif %},
+                    chat_permission_level: isLater ? 20 : ({% if current_user %}30{% else %}0{% endif %}),
+                    is_later_recruitment: isLater,
                     category: postState.category,
                     mode: postState.mode,
                     required_ranked_highest_rank: document.getElementById('required-ranked-highest-rank')?.value || null,
@@ -757,10 +828,17 @@
                     }
 
                     // 1. リンク（古いチーム招待リンクは無効なことが多いので、一定時間を超えたら反映しない）
-                    if (lastPost.link && isTeamInviteLinkReusable(lastPost.created_at)) {
+                    // 後から募集フラグも復元（未ログインでは不可）
+                    if (isLoggedIn && laterRecruitmentCheckbox) {
+                        setLaterRecruitment(!!lastPost.is_later_recruitment);
+                    }
+                    if (!postState.isLaterRecruitment && lastPost.link && isTeamInviteLinkReusable(lastPost.created_at)) {
                         inviteLinkForm.value = lastPost.link;
                         // 手動でinputイベントを発火させてリンク解析を実行
                         inviteLinkForm.dispatchEvent(new Event('input', { bubbles: true }));
+                    } else if (lastPost.link && !postState.isLaterRecruitment) {
+                        // 後から募集から戻した場合に備えて値だけ保持（解析は再利用期限外ならスキップ）
+                        inviteLinkForm.value = lastPost.link;
                     }
 
                     // カテゴリーとモードを復元

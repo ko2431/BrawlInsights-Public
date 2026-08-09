@@ -221,7 +221,7 @@
         <div class="chat-description">
             {% if post.type == "brawler_guide" %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
-            {% elif current_user and current_user.id == post.host_id and post.link %}
+            {% elif current_user and current_user.id == post.host_id and post.link and post.chat_permission_level > 20 %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>また、ユーザーのアイコンをタップして<b>リンククリックを個別に許可</b>を選択すると、この募集の条件にかかわらず、その人にリンククリックをできるようにさせることが可能です。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>Additionally, by tapping the user's icon and selecting <b>Individually Allow Link Clicks</b>, you can enable link clicking for that person regardless of the conditions of this recruitment.{% endif %}</p>
             {% else %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
@@ -1642,8 +1642,8 @@
                     hostMenuActions.appendChild(globalBlockButton);
                 }
 
-                // 3. ホスト専用メニュー（招待リンク等がある投稿のみ）
-                if (currentUserId === postHostId && messageData.userId && currentPostState.link) {
+                // 3. ホスト専用メニュー（招待リンク等がある投稿のみ。level 20 以下では個別許可は無意味なので非表示）
+                if (currentUserId === postHostId && messageData.userId && currentPostState.link && (currentPostState.chat_permission_level || 0) > 20) {
                     // リンククリックの個別許可メニュー
                     const targetUserId = parseInt(messageData.userId, 10);
                     const isPermitted = currentPostState.permitted_ids.includes(targetUserId);

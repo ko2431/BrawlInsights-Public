@@ -91,7 +91,11 @@
                         <img src="{{ url_for('static', path=image_path) }}" alt="モードアイコン" class="post-card__player-icon">
                         <p class="post-card__title">{{ title }}</p>
                         <div class="post-card__header-meta">
+                            {% if post.data.is_later_recruitment %}
+                            <span class="post-card__recruit-type-badge post-card__recruit-type-badge--later">{% if lang == "ja" %}後から募集{% else %}Later{% endif %}</span>
+                            {% else %}
                             <span class="post-card__recruit-type-badge post-card__recruit-type-badge--instant">{% if lang == "ja" %}今すぐ募集{% else %}Instant{% endif %}</span>
+                            {% endif %}
                             <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}" style="color: #555;">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
                         </div>
                     </div>
@@ -263,12 +267,26 @@
                             </div>
                         </a>
                         {% endif %}
-                        {% if current_user and current_user.is_admin %}
+                        {% set is_host = (current_user and current_user.id == post.data.host_id) or (ip == post.data.host_ip) %}
+                        {% set is_effectively_closed = post.data.is_effectively_closed %}
+                        {% if current_user and current_user.is_admin and not is_host %}
                             <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
                                 {% if lang == "ja" %}削除{% else %}Delete{% endif %}
                             </div>
-                        {% elif current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
-                            {# チーム募集掲示板においては削除ボタンは管理者のみに表示、一般ユーザーには表示しない #}
+                        {% elif is_host %}
+                            {% if is_effectively_closed %}
+                            <div id="reopen-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__reopen-button">
+                                {% if lang == "ja" %}募集再開{% else %}Reopen{% endif %}
+                            </div>
+                            {% else %}
+                            <div id="close-btn-{{ id }}"
+                                 data-post-id="{{ id }}"
+                                 data-created-at="{{ post.data.created_at }}"
+                                 data-close-cooldown-seconds="{{ team_post_close_cooldown_seconds }}"
+                                 class="button post-card__close-button">
+                                {% if lang == "ja" %}募集終了{% else %}Close{% endif %}
+                            </div>
+                            {% endif %}
                         {% else %}
                             <div id="report-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__report-button">
                                 {% if lang == "ja" %}通報{% else %}Report{% endif %}
@@ -279,10 +297,60 @@
                                 {% if lang == "ja" %}ブロック{% else %}Block{% endif %}
                             </div>
                         {% endif %}
-                        {% if post.is_permitted_to_click_link or (current_user and current_user.id == post.data.host_id or ip == post.data.host_ip) %}
+                        {% if is_effectively_closed %}
+                        <div class="button button--primary post-card__link-button disabled"
+                            onclick='{% if lang == "ja" %}alert("この募集は終了しました。");{% else %}alert("This recruitment has ended.");{% endif %}'>
+                            {% if lang == "ja" %}募集は終了しました{% else %}Ended{% endif %}
+                        </div>
+                        {% elif post.data.is_later_recruitment %}
+                            {% set has_conditions = post.data.required_highest_trophies or post.data.required_ranked_highest_rank or post.data.required_solo_pl_rank or post.data.required_prestige or post.data.required_current_trophies or post.data.required_ranked_current_rank or post.data.required_ranked_highest_score or post.data.required_ranked_current_score or post.data.required_max_power_brawlers %}
+                            {% if post.is_permitted_to_chat or is_host or (current_user and current_user.is_admin) %}
+                            <a href="{{ url_for('chat_thread', lang=lang, thread_id=id) }}" style="display: flex; flex: 1;">
+                                <div class="button button--primary post-card__link-button">
+                                    {% if lang == "ja" %}チャットに参加{% else %}Join Chat{% endif %}
+                                </div>
+                            </a>
+                            {% elif current_user and main_account %}
+                            <div class="button button--primary post-card__link-button disabled"
+                                onclick='
+                                {% if lang == "ja" %}
+                                    alert("あなたのメインアカウント(\"{{ main_account.name }}\")の情報が条件を満たしていないため、参加できません。\nなお、メインアカウントを変更したい場合はアカウントタブから行えます。\nチャットスレッドの閲覧自体は、投稿左下のボタンより可能です。");
+                                {% else %}
+                                    alert("You cannot join because your main account (\"{{ main_account.name }}\") does not meet the conditions.\nIf you want to change your main account, you can do so from the Account tab.\nYou can still view the chat thread from the button at the bottom left of the post.");
+                                {% endif %}
+                                '
+                            >
+                                {% if lang == "ja" %}条件を満たしていません{% else %}Conditions Not Met{% endif %}
+                            </div>
+                            {% elif has_conditions %}
+                            <div class="button button--primary post-card__link-button disabled"
+                                onclick='
+                                {% if lang == "ja" %}
+                                    alert("条件付きの募集に参加するには、条件判定のためアカウントタブよりログインしてください。\nアカウント作成にメールアドレス等は不要です。");
+                                {% else %}
+                                    alert("To apply for posts with conditions, please log in from the Account tab to verify the conditions.\nNo email address is required to create an account.");
+                                {% endif %}
+                                '
+                            >
+                                {% if lang == "ja" %}ログインして条件判定{% else %}Log In to Apply{% endif %}
+                            </div>
+                            {% else %}
+                            <div class="button button--primary post-card__link-button disabled"
+                                onclick='
+                                {% if lang == "ja" %}
+                                    alert("アカウントタブよりログインすると、この募集のチャットに参加できます。\nアカウント作成にメールアドレス等は不要です。");
+                                {% else %}
+                                    alert("Log in from the Account tab to join this recruitment chat.\nNo email address is required to create an account.");
+                                {% endif %}
+                                '
+                            >
+                                {% if lang == "ja" %}ログインして参加{% else %}Log In to Join{% endif %}
+                            </div>
+                            {% endif %}
+                        {% elif post.is_permitted_to_click_link or is_host %}
                         <a href="{{ post.data.link }}" style="display: flex; flex: 1;" {% if platform != 'web' %}target="_blank"{% endif %}>
                             <div class="button button--primary post-card__link-button">
-                                {% if current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
+                                {% if is_host %}
                                     {% if lang == "ja" %}あなたの投稿です{% else %}Your Post{% endif %}
                                 {% else %}
                                     {% if lang == "ja" %}参加{% else %}Join{% endif %}
