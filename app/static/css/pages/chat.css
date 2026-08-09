@@ -379,6 +379,11 @@ body.has-top-banner .chat-ad-banner-spacer {
     text-decoration: underline;
     text-underline-offset: 2px;
     word-break: break-all;
+    /* リンク長押しでOSネイティブメニュー/選択が出ると独自メニューが開けないため抑制（非リンク本文は選択可のまま） */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
 }
 .dark .message-bubble__link {
     color: #6cb6eb;
