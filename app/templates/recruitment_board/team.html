@@ -44,35 +44,35 @@
     </nav>
 
     {# フィルター #}
-    <div class="board-filters__container">
+    <div class="board-filters__container board-filters__container--team">
         <nav class="sub-tab-nav">
             <ul class="sub-tab-nav__list">
                 <li class="sub-tab-nav__item">
-                    <a href="?category=all&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}" data-board-tab="all" class="sub-tab-nav__link {% if category == 'all' %}sub-tab-nav__link--active{% endif %}">
+                    <a href="?category=all&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}&amp;only_joinable={{ only_joinable | string | lower }}" data-board-tab="all" class="sub-tab-nav__link {% if category == 'all' %}sub-tab-nav__link--active{% endif %}">
                         <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="すべて" class="sub-tab-nav__icon sub-tab-nav__icon-big">
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}すべて{% else %}All{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
-                    <a href="?category=trophy&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}" data-board-tab="trophy" class="sub-tab-nav__link {% if category == 'trophy' %}sub-tab-nav__link--active{% endif %}">
+                    <a href="?category=trophy&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}&amp;only_joinable={{ only_joinable | string | lower }}" data-board-tab="trophy" class="sub-tab-nav__link {% if category == 'trophy' %}sub-tab-nav__link--active{% endif %}">
                         <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="sub-tab-nav__icon">
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}トロフィー{% else %}Trophy{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
-                    <a href="?category=ranked&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}" data-board-tab="ranked" class="sub-tab-nav__link {% if category == 'ranked' %}sub-tab-nav__link--active{% endif %}">
+                    <a href="?category=ranked&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}&amp;only_joinable={{ only_joinable | string | lower }}" data-board-tab="ranked" class="sub-tab-nav__link {% if category == 'ranked' %}sub-tab-nav__link--active{% endif %}">
                         <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="ガチバトル" class="sub-tab-nav__icon">
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
-                    <a href="?category=friendly&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}" data-board-tab="friendly" class="sub-tab-nav__link {% if category == 'friendly' %}sub-tab-nav__link--active{% endif %}">
+                    <a href="?category=friendly&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}&amp;only_joinable={{ only_joinable | string | lower }}" data-board-tab="friendly" class="sub-tab-nav__link {% if category == 'friendly' %}sub-tab-nav__link--active{% endif %}">
                         <img src="{{ url_for('static', path='/images/mode_icons/friendly.png') }}" alt="フレンドバトル" class="sub-tab-nav__icon">
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}フレンドバトル{% else %}Friendly{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
-                    <a href="?category=event&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}" data-board-tab="event" class="sub-tab-nav__link {% if category == 'event' %}sub-tab-nav__link--active{% endif %}">
+                    <a href="?category=event&amp;limit={{ limit }}&amp;mode={{ mode }}&amp;region={{ region | urlencode }}&amp;filter={{ filter | urlencode }}&amp;eliminate_duplicates={{ eliminate_duplicates | string | lower }}&amp;only_joinable={{ only_joinable | string | lower }}" data-board-tab="event" class="sub-tab-nav__link {% if category == 'event' %}sub-tab-nav__link--active{% endif %}">
                         <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}" alt="特別イベント" class="sub-tab-nav__icon">
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}特別イベント{% else %}Event{% endif %}</span>
                     </a>
@@ -86,10 +86,11 @@
                 <input type="hidden" name="mode" value="{{ mode }}">
                 <input type="hidden" name="region" value="{{ region }}">
                 <input type="hidden" name="eliminate_duplicates" value="{{ eliminate_duplicates }}">
+                <input type="hidden" name="only_joinable" id="onlyJoinableInput" value="{{ 'true' if only_joinable else 'false' }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
                 <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
-                    <option value="all" {% if filter != "only_can_participate" and filter != "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
-                    <option value="only_can_participate" {% if filter == "only_can_participate" %}selected{% endif %}>{% if lang == "ja" %}申請可能な募集のみ表示{% else %}Only Show Joinable{% endif %}</option>
+                    <option value="all" {% if filter != "only_participated_threads" and filter != "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                    <option value="only_participated_threads" {% if filter == "only_participated_threads" %}selected{% endif %}>{% if lang == "ja" %}チャットに参加した投稿のみ表示{% else %}Only Show Joined Chats{% endif %}</option>
                     <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>
                 </select>
                 <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
@@ -97,6 +98,12 @@
             <div class="reload-button__container">
                 <p>{% if lang == "ja" %}更新{% else %}Reload{% endif %}</p>
             </div>
+        </div>
+        <div class="board-filters__joinable-row">
+            <label for="onlyJoinableCheckbox" class="form-checkbox-group board-filters__joinable-label">
+                <input type="checkbox" id="onlyJoinableCheckbox" class="form-checkbox" {% if only_joinable %}checked{% endif %}>
+                <span class="form-checkbox-label">{% if lang == "ja" %}参加可能な募集のみ表示{% else %}Only show joinable posts{% endif %}</span>
+            </label>
         </div>
     </div>
 
@@ -111,7 +118,8 @@
             filter: '{{ filter }}',
             limit: {{ limit }},
             region: '{{ region }}',
-            eliminateDuplicates: {{ eliminate_duplicates | tojson }}
+            eliminateDuplicates: {{ eliminate_duplicates | tojson }},
+            onlyJoinable: {{ only_joinable | tojson }}
          })"
          x-init="init()">
         <template x-if="isLoading">
@@ -437,6 +445,8 @@
             const agreeToTermsSection = document.getElementById('agree-to-terms-section');
             const termsCheckbox = document.getElementById('terms-checkbox');
             const TERMS_AGREEMENT_KEY = 'brawlInsightsTermsAgreed'; // localStorage用のキー
+            // 直近投稿の再利用時、この経過時間を超えたチーム招待リンクは反映しない（他項目は従来どおり）
+            const TEAM_INVITE_LINK_REUSE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
             // --- 通報モーダルのDOM要素取得 ---
             const reportModalOverlay = document.getElementById('report-modal-overlay');
@@ -722,6 +732,19 @@
                 }
             };
             
+            const parsePostCreatedAt = (str) => {
+                if (!str) return null;
+                const normalized = str.includes('T') ? str : str.replace(' ', 'T');
+                const date = new Date(normalized.endsWith('Z') ? normalized : `${normalized}Z`);
+                return Number.isNaN(date.getTime()) ? null : date;
+            };
+
+            const isTeamInviteLinkReusable = (createdAtStr) => {
+                const createdAt = parsePostCreatedAt(createdAtStr);
+                if (!createdAt) return false;
+                return (Date.now() - createdAt.getTime()) <= TEAM_INVITE_LINK_REUSE_MAX_AGE_MS;
+            };
+
             useLastPostBtn.addEventListener('click', async () => {
                 try {
                     const response = await fetch(`{{ url_for('get_last_post_by_user', lang=lang, post_type='team') }}`);
@@ -733,10 +756,12 @@
                         hostPlayerTagForm.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
-                    // 1. リンク
-                    inviteLinkForm.value = lastPost.link;
-                    // 手動でinputイベントを発火させてリンク解析を実行
-                    inviteLinkForm.dispatchEvent(new Event('input', { bubbles: true }));
+                    // 1. リンク（古いチーム招待リンクは無効なことが多いので、一定時間を超えたら反映しない）
+                    if (lastPost.link && isTeamInviteLinkReusable(lastPost.created_at)) {
+                        inviteLinkForm.value = lastPost.link;
+                        // 手動でinputイベントを発火させてリンク解析を実行
+                        inviteLinkForm.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
 
                     // カテゴリーとモードを復元
                     if (lastPost.category) {

@@ -68,7 +68,8 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
                     region: str | None = None, target_user: User | None = None, target_player: Player | None = None,
                     category: str | None = None, mode: str | None = None, hashtag: str | None = None, include_deleted_post: bool = False,
                     eliminate_duplicates: bool = False, author_user_id: int | None = None, author_ip: str | None = None,
-                    filter: str | None = None, exclude_category: str | None = None) -> tuple[list[Post], int]:
+                    filter: str | None = None, exclude_category: str | None = None,
+                    only_joinable: bool = False, viewer_ip: str | None = None) -> tuple[list[Post], int]:
     """投稿を、条件に合わせて新しい順に取得する。3秒間のキャッシュを使用する。
 
     Args:
@@ -86,8 +87,10 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
         eliminate_duplicates (bool): Trueの場合、募集のプレイヤーまたはクラブが重複する投稿について、最新の1件のみを取得し、残りは排除する。デフォルトはFalse。
         author_user_id (int | None): 指定した場合、そのユーザーIDがホストの投稿のみを取得する。
         author_ip (str | None): 指定した場合、そのIPアドレスがホストの投稿のみを取得する。author_user_idと同時に指定するとOR条件になる。
-        filter (str | None): 絞り込み種別。'only_can_participate'が指定され、かつ未ログインの場合の判定に用いる。
+        filter (str | None): 絞り込み種別。'only_can_participate' / 'only_participated_threads' / 'only_liked_posts' など。
         exclude_category (str | None): 指定した場合、該当カテゴリーの投稿を除外する。デフォルトはNone。
+        only_joinable (bool): Trueの場合、参加可能な投稿のみに絞り込む。filter と同時指定可能。
+        viewer_ip (str | None): 閲覧者IP。参加可否フィルタで自身の投稿（host_ip一致）を残すために用いる。
         
     Raises:
         BrawlStarsAPIError: APIエラー

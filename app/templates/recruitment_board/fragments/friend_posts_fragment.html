@@ -14,6 +14,8 @@
     {% elif filter == "only_own_posts" %}
     {# postsが空リスト="only_own_posts"の場合は自分の投稿がまだない場合にも発生 #}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
+    {% elif filter == "only_participated_threads" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}チャットに参加した投稿がここに表示されます。{% else %}Posts you join in chat will appear here.{% endif %}</p>
     {% else %}
     {# postsが空リスト=filterがその他の場合はブロスタがメンテナンス時に発生 #}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在、ブロスタがメンテナンス中のため、募集掲示板はご利用いただけません。ブロスタのメンテナンスが終了してからご利用ください！{% else %}The recruitment board is currently unavailable due to Brawl Stars maintenance. Please use it after the maintenance is finished!{% endif %}</p>

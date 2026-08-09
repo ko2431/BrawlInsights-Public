@@ -10,8 +10,12 @@
         friend: 'friendBoardFilter',
         club: 'clubBoardFilter',
     };
+    const STORAGE_KEY_ONLY_JOINABLE = {
+        friend: 'friendBoardOnlyJoinable',
+        club: 'clubBoardOnlyJoinable',
+    };
     const VALID_FILTERS = new Set([
-        'all', 'eliminate_duplicates', 'only_can_participate', 'only_own_posts',
+        'all', 'eliminate_duplicates', 'only_participated_threads', 'only_own_posts',
     ]);
 
     const fabCooldownTimers = {};
@@ -27,14 +31,33 @@
         return null;
     }
 
-    function writeStoredFilter(boardType, selectValue) {
+    function readStoredBool(key) {
+        try {
+            const value = localStorage.getItem(key);
+            if (value === 'true') return true;
+            if (value === 'false') return false;
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    function writeStoredPrefs(boardType, selectValue, onlyJoinable) {
         try {
             if (VALID_FILTERS.has(selectValue)) {
                 localStorage.setItem(STORAGE_KEY_FILTER[boardType], selectValue);
             }
+            localStorage.setItem(STORAGE_KEY_ONLY_JOINABLE[boardType], String(Boolean(onlyJoinable)));
         } catch {
             /* ignore */
         }
+    }
+
+    function normalizeRecruitmentFilter(filter, onlyJoinable) {
+        if (filter === 'only_can_participate') {
+            return { filter: 'all', onlyJoinable: true };
+        }
+        return { filter, onlyJoinable: Boolean(onlyJoinable) };
     }
 
     function parseUtcDatetime(str) {
@@ -138,13 +161,24 @@
     }
 
     function parseBoardStateFromParams(params, defaults) {
-        const filter = params.get('filter') || defaults.filter || 'all';
+        const oj = params.get('only_joinable');
+        let onlyJoinable = oj === 'true' || oj === '1';
+        const normalized = normalizeRecruitmentFilter(
+            params.get('filter') || defaults.filter || 'all',
+            onlyJoinable,
+        );
+        let filter = normalized.filter;
+        onlyJoinable = normalized.onlyJoinable;
+
         const eliminateParam = params.get('eliminate_duplicates');
         let eliminateDuplicates = eliminateParam === 'true' || eliminateParam === '1';
         if (filter === 'eliminate_duplicates') {
             eliminateDuplicates = true;
+        } else if (eliminateParam === null && defaults.eliminateDuplicates !== undefined) {
+            // URLに無い場合は現状維持用のデフォルトを使う（applyStateFromUrl）
+            eliminateDuplicates = Boolean(defaults.eliminateDuplicates);
         }
-        return { filter, eliminateDuplicates };
+        return { filter, eliminateDuplicates, onlyJoinable };
     }
 
     window.recruitmentBoardFragmentLoader = function recruitmentBoardFragmentLoader(config) {
@@ -157,7 +191,13 @@
             limit,
             region,
             eliminateDuplicates: initialEliminateDuplicates,
+            onlyJoinable: initialOnlyJoinable,
         } = config;
+
+        const normalizedInitial = normalizeRecruitmentFilter(
+            initialFilter || 'all',
+            Boolean(initialOnlyJoinable),
+        );
 
         let abortController = null;
         let agoIntervalId = null;
@@ -179,10 +219,11 @@
         const loader = {
             isLoading: true,
             hasError: false,
-            filter: initialFilter,
+            filter: normalizedInitial.filter,
             limit,
             region,
             eliminateDuplicates: initialEliminateDuplicates,
+            onlyJoinable: normalizedInitial.onlyJoinable,
 
             getQueryParams() {
                 return {
@@ -190,6 +231,7 @@
                     limit: this.limit,
                     region: this.region,
                     eliminate_duplicates: String(this.eliminateDuplicates).toLowerCase(),
+                    only_joinable: String(this.onlyJoinable).toLowerCase(),
                 };
             },
 
@@ -204,24 +246,34 @@
             syncShellUi() {
                 const filterSelect = document.getElementById('filterSelect');
                 const eliminateInput = document.getElementById('eliminateDuplicatesInput');
+                const onlyJoinableInput = document.getElementById('onlyJoinableInput');
+                const onlyJoinableCheckbox = document.getElementById('onlyJoinableCheckbox');
                 const selectValue = getFilterSelectValue(this.filter, this.eliminateDuplicates);
                 if (filterSelect) filterSelect.value = selectValue;
                 if (eliminateInput) eliminateInput.value = String(this.eliminateDuplicates).toLowerCase();
+                if (onlyJoinableInput) onlyJoinableInput.value = String(this.onlyJoinable);
+                if (onlyJoinableCheckbox) onlyJoinableCheckbox.checked = this.onlyJoinable;
             },
 
             applyStateFromUrl() {
                 const state = parseBoardStateFromParams(
                     new URLSearchParams(window.location.search),
-                    { filter: initialFilter, eliminateDuplicates: initialEliminateDuplicates },
+                    {
+                        filter: initialFilter,
+                        eliminateDuplicates: initialEliminateDuplicates,
+                        onlyJoinable: initialOnlyJoinable,
+                    },
                 );
                 this.filter = state.filter;
                 this.eliminateDuplicates = state.eliminateDuplicates;
+                this.onlyJoinable = state.onlyJoinable;
             },
 
             persistPrefs() {
-                writeStoredFilter(
+                writeStoredPrefs(
                     boardType,
                     getFilterSelectValue(this.filter, this.eliminateDuplicates),
+                    this.onlyJoinable,
                 );
             },
 
@@ -278,8 +330,17 @@
                 if (selectValue === currentValue) return Promise.resolve();
 
                 const next = applyFilterSelectValue(selectValue);
-                this.filter = next.filter;
+                const normalized = normalizeRecruitmentFilter(next.filter, this.onlyJoinable);
+                this.filter = normalized.filter;
                 this.eliminateDuplicates = next.eliminateDuplicates;
+                this.onlyJoinable = normalized.onlyJoinable;
+                return this.load({ updateHistory: true });
+            },
+
+            setOnlyJoinable(enabled) {
+                const next = Boolean(enabled);
+                if (next === this.onlyJoinable) return Promise.resolve();
+                this.onlyJoinable = next;
                 return this.load({ updateHistory: true });
             },
 
@@ -295,12 +356,28 @@
 
                 const params = new URLSearchParams(window.location.search);
                 if (!params.has('filter') && !params.has('eliminate_duplicates')) {
-                    const storedFilter = readStoredPref(STORAGE_KEY_FILTER[boardType], VALID_FILTERS);
-                    if (storedFilter) {
-                        const next = applyFilterSelectValue(storedFilter);
-                        this.filter = next.filter;
-                        this.eliminateDuplicates = next.eliminateDuplicates;
+                    let storedFilter = null;
+                    try {
+                        storedFilter = localStorage.getItem(STORAGE_KEY_FILTER[boardType]);
+                    } catch {
+                        /* ignore */
                     }
+                    if (storedFilter === 'only_can_participate') {
+                        this.filter = 'all';
+                        this.eliminateDuplicates = false;
+                        if (!params.has('only_joinable')) this.onlyJoinable = true;
+                    } else {
+                        const validStored = readStoredPref(STORAGE_KEY_FILTER[boardType], VALID_FILTERS);
+                        if (validStored) {
+                            const next = applyFilterSelectValue(validStored);
+                            this.filter = next.filter;
+                            this.eliminateDuplicates = next.eliminateDuplicates;
+                        }
+                    }
+                }
+                if (!params.has('only_joinable') && params.get('filter') !== 'only_can_participate') {
+                    const storedJoinable = readStoredBool(STORAGE_KEY_ONLY_JOINABLE[boardType]);
+                    if (storedJoinable !== null) this.onlyJoinable = storedJoinable;
                 }
 
                 this.persistPrefs();
@@ -450,6 +527,14 @@
             });
         }
 
+        const onlyJoinableCheckbox = document.getElementById('onlyJoinableCheckbox');
+        if (onlyJoinableCheckbox) {
+            onlyJoinableCheckbox.addEventListener('change', () => {
+                const fragment = getFragment(boardType);
+                if (fragment) fragment.setOnlyJoinable(onlyJoinableCheckbox.checked);
+            });
+        }
+
         const reloadButton = document.querySelector('.reload-button__container');
         if (reloadButton) {
             reloadButton.addEventListener('click', async () => {
@@ -474,9 +559,15 @@
 
             if (event.state?.[stateKey]) {
                 const state = event.state[stateKey];
-                fragment.filter = state.filter || 'all';
+                const normalized = normalizeRecruitmentFilter(
+                    state.filter || 'all',
+                    state.only_joinable === 'true' || state.only_joinable === true,
+                );
+                fragment.filter = normalized.filter;
+                fragment.onlyJoinable = normalized.onlyJoinable;
                 fragment.eliminateDuplicates = state.eliminate_duplicates === 'true'
-                    || state.eliminate_duplicates === true;
+                    || state.eliminate_duplicates === true
+                    || normalized.filter === 'eliminate_duplicates';
             } else {
                 fragment.applyStateFromUrl();
             }

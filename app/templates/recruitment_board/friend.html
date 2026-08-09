@@ -44,17 +44,18 @@
     </nav>
 
     {# フィルター #}
-    <div class="board-filters__container">
+    <div class="board-filters__container board-filters__container--friend">
         <div class="board-filters__filter-row">
             <form method="get" id="filterForm" class="filter-form">
                 <input type="hidden" name="limit" value="{{ limit }}"> {# 現在の値を維持 #}
                 <input type="hidden" name="region" value="{{ region }}">
                 <input type="hidden" id="eliminateDuplicatesInput" name="eliminate_duplicates" value="{{ 'true' if eliminate_duplicates else 'false' }}">
+                <input type="hidden" name="only_joinable" id="onlyJoinableInput" value="{{ 'true' if only_joinable else 'false' }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
                 <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
                     <option value="all" {% if not eliminate_duplicates and filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
                     <option value="eliminate_duplicates" {% if eliminate_duplicates or filter == "eliminate_duplicates" %}selected{% endif %}>{% if lang == "ja" %}連投を排除して表示{% else %}Exclude Duplicates{% endif %}</option>
-                    <option value="only_can_participate" {% if filter == "only_can_participate" %}selected{% endif %}>{% if lang == "ja" %}申請可能な募集のみ表示{% else %}Only Show Joinable{% endif %}</option>
+                    <option value="only_participated_threads" {% if filter == "only_participated_threads" %}selected{% endif %}>{% if lang == "ja" %}チャットに参加した投稿のみ表示{% else %}Only Show Joined Chats{% endif %}</option>
                     <option value="only_own_posts" {% if filter == "only_own_posts" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿のみ表示{% else %}Only Show Your Own Posts{% endif %}</option>
                 </select>
                 <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
@@ -62,6 +63,12 @@
             <div class="reload-button__container">
                 <p>{% if lang == "ja" %}更新{% else %}Reload{% endif %}</p>
             </div>
+        </div>
+        <div class="board-filters__joinable-row">
+            <label for="onlyJoinableCheckbox" class="form-checkbox-group board-filters__joinable-label">
+                <input type="checkbox" id="onlyJoinableCheckbox" class="form-checkbox" {% if only_joinable %}checked{% endif %}>
+                <span class="form-checkbox-label">{% if lang == "ja" %}申請可能な募集のみ表示{% else %}Only show joinable posts{% endif %}</span>
+            </label>
         </div>
     </div>
 
@@ -75,7 +82,8 @@
             filter: '{{ filter }}',
             limit: {{ limit }},
             region: '{{ region }}',
-            eliminateDuplicates: {{ eliminate_duplicates | tojson }}
+            eliminateDuplicates: {{ eliminate_duplicates | tojson }},
+            onlyJoinable: {{ only_joinable | tojson }}
          })"
          x-init="init()">
         <template x-if="isLoading">
@@ -148,8 +156,8 @@
             {% endif %}
             <div class="post-modal-section">
                 <p class="post-modal-section-title">1. {% if lang == "ja" %}フレンドリンクを貼り付け{% else %}Paste Friend Link{% endif %}</p>
-                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}ブロスタを開き、<b>フレンド</b>→<b>招待を送信</b>からリンクをコピーして、そのまま貼り付けてください。{% else %}Open Brawl Stars, go to <b>Friends</b> → <b>Share Invite</b>, copy the link, and paste it here.{% endif %}</p>
-                <textarea id="invite-link-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}このリンクをタップして、●●とブロスタでフレンドになりましょう！{% else %}Click this link to add ●● as a friend in Brawl Stars!{% endif %} https://link.brawlstars.com/invite/friend/xx?tag=XXXXXXX&token=xxxxxxxx"></textarea>
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}ブロスタを開き、<b>フレンド</b>→<b>フレンドを追加</b>→<b>リンクを共有</b>からリンクをコピーして、そのまま貼り付けてください。{% else %}Open Brawl Stars, go to <b>Friends</b> → <b>Add Friend</b> → <b>Share Link</b>, copy the link, and paste it here.{% endif %}</p>
+                <textarea id="invite-link-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}このリンクをタップして、●●とブロスタでフレンドになりましょう！{% else %}Click this link to add ●● as a friend in Brawl Stars!{% endif %} https://link.brawlstars.com/invite/friend/xx/?tag=XXXXXXX"></textarea>
                 <div id="link-status" class="form-field-status" style="font-size: 0.8em;"></div>
             </div>
             <div class="post-modal-section">

@@ -387,6 +387,7 @@ async def _fetch_team_board_posts(
     filter: str,
     region: str,
     eliminate_duplicates: bool,
+    only_joinable: bool = False,
 ) -> tuple[dict, dict, int]:
     """チーム募集掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
@@ -415,6 +416,14 @@ async def _fetch_team_board_posts(
     if category not in TEAM_BOARD_CATEGORIES:
         category = "all"
 
+    # 旧フィルター値の互換: only_can_participate → only_joinable
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
+    needs_target_user = only_joinable or filter in ("only_participated_threads",)
+    needs_target_player = only_joinable
+
     try:
         posts_data, total_posts = await get_posts(
             db,
@@ -422,14 +431,16 @@ async def _fetch_team_board_posts(
             per_page=limit,
             type="team",
             region=None if region.lower() == "all" else region,
-            target_user=user if filter == "only_can_participate" and user else None,
-            target_player=main_account if filter == "only_can_participate" and main_account else None,
+            target_user=user if needs_target_user else None,
+            target_player=main_account if needs_target_player and main_account else None,
             category=None if category.lower() == "all" else category,
             mode=None if mode.lower() == "all" or category != "trophy" else mode,
             eliminate_duplicates=eliminate_duplicates,
             author_user_id=user.id if filter == "only_own_posts" and user else None,
             author_ip=get_ip(request) if filter == "only_own_posts" else None,
             filter=filter,
+            only_joinable=only_joinable,
+            viewer_ip=get_ip(request) if only_joinable else None,
         )
     except BrawlStarsAPIError:
         posts_data = []
@@ -461,6 +472,7 @@ async def team_recruitment_board_fragment(
     region: str = Query("all", description="表示する地域"),
     filter: str = Query("all", description="フィルター"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    only_joinable: bool = Query(False, description="参加可能な募集のみ表示するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -474,6 +486,11 @@ async def team_recruitment_board_fragment(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
+    # 旧フィルター値の互換
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
     posts, blocked_ids, total_posts = await _fetch_team_board_posts(
         db,
         request,
@@ -484,6 +501,7 @@ async def team_recruitment_board_fragment(
         filter=filter,
         region=region,
         eliminate_duplicates=eliminate_duplicates,
+        only_joinable=only_joinable,
     )
 
     fetched_count = len(posts)
@@ -497,6 +515,7 @@ async def team_recruitment_board_fragment(
         "mode": mode,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        "only_joinable": only_joinable,
         "main_account": main_account,
         "posts": posts,
         "blocked_ids": blocked_ids,
@@ -524,8 +543,9 @@ async def team_recruitment_board(
     category: str = Query("all", description="表示するカテゴリー"),
     mode: str = Query("all", description="表示するモード"),
     region: str = Query("all", description="表示する地域"),
-    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    filter: str = Query("all", description="only_participated_threads / only_own_posts"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    only_joinable: bool = Query(False, description="参加可能な募集のみ表示するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -544,6 +564,11 @@ async def team_recruitment_board(
     if category not in TEAM_BOARD_CATEGORIES:
         category = "all"
 
+    # 旧フィルター値の互換
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
     context = {
         "request": request,
         "lang": lang,
@@ -554,6 +579,7 @@ async def team_recruitment_board(
         "mode": mode,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        "only_joinable": only_joinable,
         "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
@@ -583,6 +609,7 @@ async def _fetch_recruitment_board_posts(
     filter: str,
     region: str,
     eliminate_duplicates: bool,
+    only_joinable: bool = False,
 ) -> tuple[dict, dict, int]:
     """フレンド/クラブ募集掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
@@ -608,6 +635,14 @@ async def _fetch_recruitment_board_posts(
     else:
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
 
+    # 旧フィルター値の互換: only_can_participate → only_joinable
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
+    needs_target_user = only_joinable or filter in ("only_participated_threads",)
+    needs_target_player = only_joinable
+
     try:
         posts_data, total_posts = await get_posts(
             db,
@@ -615,12 +650,14 @@ async def _fetch_recruitment_board_posts(
             per_page=limit,
             type=post_type,
             region=None if region.lower() == "all" else region,
-            target_user=user if filter == "only_can_participate" and user else None,
-            target_player=main_account if filter == "only_can_participate" and main_account else None,
+            target_user=user if needs_target_user else None,
+            target_player=main_account if needs_target_player and main_account else None,
             eliminate_duplicates=eliminate_duplicates,
             author_user_id=user.id if filter == "only_own_posts" and user else None,
             author_ip=get_ip(request) if filter == "only_own_posts" else None,
             filter=filter,
+            only_joinable=only_joinable,
+            viewer_ip=get_ip(request) if only_joinable else None,
         )
     except BrawlStarsAPIError:
         posts_data = []
@@ -650,6 +687,7 @@ async def friend_recruitment_board_fragment(
     region: str = Query("all", description="表示する地域"),
     filter: str = Query("all", description="フィルター"),
     eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    only_joinable: bool = Query(False, description="申請可能な募集のみ表示するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -663,6 +701,11 @@ async def friend_recruitment_board_fragment(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
+    # 旧フィルター値の互換
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
     posts, blocked_ids, total_posts = await _fetch_recruitment_board_posts(
         db,
         request,
@@ -672,6 +715,7 @@ async def friend_recruitment_board_fragment(
         filter=filter,
         region=region,
         eliminate_duplicates=eliminate_duplicates,
+        only_joinable=only_joinable,
     )
 
     fetched_count = len(posts)
@@ -683,6 +727,7 @@ async def friend_recruitment_board_fragment(
         "region": region,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        "only_joinable": only_joinable,
         "main_account": main_account,
         "posts": posts,
         "blocked_ids": blocked_ids,
@@ -708,8 +753,9 @@ async def friend_recruitment_board(
     lang: str,
     limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
     region: str = Query("all", description="表示する地域"),
-    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    filter: str = Query("all", description="only_participated_threads / only_own_posts"),
     eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    only_joinable: bool = Query(False, description="申請可能な募集のみ表示するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -723,6 +769,11 @@ async def friend_recruitment_board(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
+    # 旧フィルター値の互換
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
     is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "friend", ip=get_ip(request), user_id=user.id if user else None)
 
     context = {
@@ -733,6 +784,7 @@ async def friend_recruitment_board(
         "region": region,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        "only_joinable": only_joinable,
         "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
@@ -756,6 +808,7 @@ async def club_recruitment_board_fragment(
     region: str = Query("all", description="表示する地域"),
     filter: str = Query("all", description="フィルター"),
     eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    only_joinable: bool = Query(False, description="参加可能な募集のみ表示するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -769,6 +822,11 @@ async def club_recruitment_board_fragment(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
+    # 旧フィルター値の互換
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
     posts, blocked_ids, total_posts = await _fetch_recruitment_board_posts(
         db,
         request,
@@ -778,6 +836,7 @@ async def club_recruitment_board_fragment(
         filter=filter,
         region=region,
         eliminate_duplicates=eliminate_duplicates,
+        only_joinable=only_joinable,
     )
 
     fetched_count = len(posts)
@@ -789,6 +848,7 @@ async def club_recruitment_board_fragment(
         "region": region,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        "only_joinable": only_joinable,
         "main_account": main_account,
         "posts": posts,
         "blocked_ids": blocked_ids,
@@ -814,8 +874,9 @@ async def club_recruitment_board(
     lang: str,
     limit: int = Query(60, ge=1, le=100, description="1回あたりの投稿表示数"),
     region: str = Query("all", description="表示する地域"),
-    filter: str = Query("all", description="ユーザーが参加可能な募集のみ表示する(only_can_participate)、自分の投稿のみ表示する(only_own_posts)"),
+    filter: str = Query("all", description="only_participated_threads / only_own_posts"),
     eliminate_duplicates: bool = Query(True, description="重複を排除するかどうか"),
+    only_joinable: bool = Query(False, description="参加可能な募集のみ表示するかどうか"),
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -829,6 +890,11 @@ async def club_recruitment_board(
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
+    # 旧フィルター値の互換
+    if filter == "only_can_participate":
+        only_joinable = True
+        filter = "all"
+
     is_permitted_to_post, cooldown_seconds = await check_post_permitted(db, "club", ip=get_ip(request), user_id=user.id if user else None)
 
     context = {
@@ -839,6 +905,7 @@ async def club_recruitment_board(
         "region": region,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        "only_joinable": only_joinable,
         "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),

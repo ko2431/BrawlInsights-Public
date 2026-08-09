@@ -8,8 +8,9 @@
     const AGO_UPDATE_INTERVAL_MS = 60000;
     const STORAGE_KEY_CATEGORY = 'teamBoardCategory';
     const STORAGE_KEY_FILTER = 'teamBoardFilter';
+    const STORAGE_KEY_ONLY_JOINABLE = 'teamBoardOnlyJoinable';
     const VALID_CATEGORIES = new Set(['all', 'trophy', 'ranked', 'friendly', 'event']);
-    const VALID_FILTERS = new Set(['all', 'only_can_participate', 'only_own_posts']);
+    const VALID_FILTERS = new Set(['all', 'only_participated_threads', 'only_own_posts']);
 
     let fabCooldownTimer = null;
     let postDelegationBound = false;
@@ -24,13 +25,35 @@
         return null;
     }
 
-    function writeStoredPrefs(category, filter) {
+    function readStoredBool(key) {
         try {
-            if (VALID_CATEGORIES.has(category)) localStorage.setItem(STORAGE_KEY_CATEGORY, category);
-            if (VALID_FILTERS.has(filter)) localStorage.setItem(STORAGE_KEY_FILTER, filter);
+            const value = localStorage.getItem(key);
+            if (value === 'true') return true;
+            if (value === 'false') return false;
         } catch {
             /* ignore */
         }
+        return null;
+    }
+
+    function writeStoredPrefs(category, filter, onlyJoinable) {
+        try {
+            if (VALID_CATEGORIES.has(category)) localStorage.setItem(STORAGE_KEY_CATEGORY, category);
+            if (VALID_FILTERS.has(filter)) localStorage.setItem(STORAGE_KEY_FILTER, filter);
+            localStorage.setItem(STORAGE_KEY_ONLY_JOINABLE, String(Boolean(onlyJoinable)));
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function normalizeTeamFilter(filter, onlyJoinable) {
+        if (filter === 'only_can_participate') {
+            return { filter: 'all', onlyJoinable: true };
+        }
+        if (!VALID_FILTERS.has(filter)) {
+            return { filter: 'all', onlyJoinable };
+        }
+        return { filter, onlyJoinable };
     }
 
     function parseUtcDatetime(str) {
@@ -126,7 +149,10 @@
             limit,
             region,
             eliminateDuplicates,
+            onlyJoinable: initialOnlyJoinable,
         } = config;
+
+        const normalizedInitial = normalizeTeamFilter(initialFilter || 'all', Boolean(initialOnlyJoinable));
 
         let abortController = null;
         let agoIntervalId = null;
@@ -150,10 +176,11 @@
             hasError: false,
             category: initialCategory,
             mode: initialMode,
-            filter: initialFilter,
+            filter: normalizedInitial.filter,
             limit,
             region,
             eliminateDuplicates,
+            onlyJoinable: normalizedInitial.onlyJoinable,
 
             getQueryParams() {
                 return {
@@ -163,6 +190,7 @@
                     limit: this.limit,
                     region: this.region,
                     eliminate_duplicates: String(this.eliminateDuplicates).toLowerCase(),
+                    only_joinable: String(this.onlyJoinable).toLowerCase(),
                 };
             },
 
@@ -182,16 +210,24 @@
                 const filterSelect = document.getElementById('filterSelect');
                 const categoryInput = document.querySelector('#filterForm input[name="category"]');
                 const modeInput = document.querySelector('#filterForm input[name="mode"]');
+                const onlyJoinableInput = document.getElementById('onlyJoinableInput');
+                const onlyJoinableCheckbox = document.getElementById('onlyJoinableCheckbox');
                 if (filterSelect) filterSelect.value = this.filter;
                 if (categoryInput) categoryInput.value = this.category;
                 if (modeInput) modeInput.value = this.mode;
+                if (onlyJoinableInput) onlyJoinableInput.value = String(this.onlyJoinable);
+                if (onlyJoinableCheckbox) onlyJoinableCheckbox.checked = this.onlyJoinable;
             },
 
             applyStateFromUrl() {
                 const params = new URLSearchParams(window.location.search);
                 this.category = params.get('category') || initialCategory || 'all';
                 this.mode = params.get('mode') || initialMode || 'all';
-                this.filter = params.get('filter') || initialFilter || 'all';
+                const oj = params.get('only_joinable');
+                let onlyJoinable = oj === 'true' || oj === '1';
+                const normalized = normalizeTeamFilter(params.get('filter') || initialFilter || 'all', onlyJoinable);
+                this.filter = normalized.filter;
+                this.onlyJoinable = normalized.onlyJoinable;
                 const ed = params.get('eliminate_duplicates');
                 if (ed !== null) {
                     this.eliminateDuplicates = ed === 'true' || ed === '1';
@@ -199,7 +235,7 @@
             },
 
             persistPrefs() {
-                writeStoredPrefs(this.category, this.filter);
+                writeStoredPrefs(this.category, this.filter, this.onlyJoinable);
             },
 
             async load({ updateHistory = false } = {}) {
@@ -259,8 +295,19 @@
             },
 
             setFilter(newFilter) {
-                if (newFilter === this.filter) return Promise.resolve();
-                this.filter = newFilter;
+                const normalized = normalizeTeamFilter(newFilter, this.onlyJoinable);
+                if (normalized.filter === this.filter && normalized.onlyJoinable === this.onlyJoinable) {
+                    return Promise.resolve();
+                }
+                this.filter = normalized.filter;
+                this.onlyJoinable = normalized.onlyJoinable;
+                return this.load({ updateHistory: true });
+            },
+
+            setOnlyJoinable(enabled) {
+                const next = Boolean(enabled);
+                if (next === this.onlyJoinable) return Promise.resolve();
+                this.onlyJoinable = next;
                 return this.load({ updateHistory: true });
             },
 
@@ -280,8 +327,23 @@
                     if (storedCategory) this.category = storedCategory;
                 }
                 if (!params.has('filter')) {
-                    const storedFilter = readStoredPref(STORAGE_KEY_FILTER, VALID_FILTERS);
-                    if (storedFilter) this.filter = storedFilter;
+                    let storedFilter = null;
+                    try {
+                        storedFilter = localStorage.getItem(STORAGE_KEY_FILTER);
+                    } catch {
+                        /* ignore */
+                    }
+                    if (storedFilter === 'only_can_participate') {
+                        this.filter = 'all';
+                        if (!params.has('only_joinable')) this.onlyJoinable = true;
+                    } else {
+                        const validStored = readStoredPref(STORAGE_KEY_FILTER, VALID_FILTERS);
+                        if (validStored) this.filter = validStored;
+                    }
+                }
+                if (!params.has('only_joinable') && params.get('filter') !== 'only_can_participate') {
+                    const storedJoinable = readStoredBool(STORAGE_KEY_ONLY_JOINABLE);
+                    if (storedJoinable !== null) this.onlyJoinable = storedJoinable;
                 }
 
                 this.persistPrefs();
@@ -434,6 +496,15 @@
             });
         }
 
+        const onlyJoinableCheckbox = document.getElementById('onlyJoinableCheckbox');
+        if (onlyJoinableCheckbox) {
+            onlyJoinableCheckbox.addEventListener('change', () => {
+                if (window.teamBoardFragment) {
+                    window.teamBoardFragment.setOnlyJoinable(onlyJoinableCheckbox.checked);
+                }
+            });
+        }
+
         const reloadButton = document.querySelector('.reload-button__container');
         if (reloadButton) {
             reloadButton.addEventListener('click', async () => {
@@ -457,7 +528,12 @@
                 const state = event.state.teamBoard;
                 window.teamBoardFragment.category = state.category || 'all';
                 window.teamBoardFragment.mode = state.mode || 'all';
-                window.teamBoardFragment.filter = state.filter || 'all';
+                const normalized = normalizeTeamFilter(
+                    state.filter || 'all',
+                    state.only_joinable === 'true' || state.only_joinable === true,
+                );
+                window.teamBoardFragment.filter = normalized.filter;
+                window.teamBoardFragment.onlyJoinable = normalized.onlyJoinable;
                 window.teamBoardFragment.eliminateDuplicates = state.eliminate_duplicates === 'true'
                     || state.eliminate_duplicates === true;
             } else {

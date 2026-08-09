@@ -14,6 +14,8 @@
     {% elif filter == "only_own_posts" %}
     {# postsが空リスト="only_own_posts"の場合は自分の投稿がまだない場合に発生 #}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
+    {% elif filter == "only_participated_threads" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}チャットに参加した投稿がここに表示されます。{% else %}Posts you join in chat will appear here.{% endif %}</p>
     {% else %}
     {# postsが空リストの場合 #}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}まだ投稿はありません。投稿ボタンより、募集を投稿できます。{% else %}There are no posts yet. You can post using the Post button.{% endif %}</p>
