@@ -197,26 +197,26 @@
                 <p class="general-board-warning-note">{% if lang == "ja" %}プレゼント企画への応募がすべて無効となったり、アプリの利用制限の対象となる可能性があります。{% else %}All entries for the giveaway may be invalidated, or you may be subject to restrictions on the use of the app.{% endif %}</p>
             </div>
 
+            {# ログイン＋メインアカウントありの場合はホスト情報セクションを出さず、以降の番号を1つ繰り上げる #}
+            {% set show_host_section = not (current_user and main_account) %}
+            {% if show_host_section %}
             <div class="post-modal-section">
                 <p class="post-modal-section-title">1. {% if lang == "ja" %}ホスト情報を設定{% else %}Set Host Information{% endif %}</p>
-                {% if current_user and main_account %}
-                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)の情報がホスト情報として表示されます。メインアカウントを変更したい場合はアカウントタブから行ってください。{% else %}Your main account (<b>"{{ main_account.name }}"</b>) information will be displayed as host information. If you want to change your main account, please do so from the Account tab.{% endif %}</p>
-                {% else %}
                 <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}使用するブロスタのアカウントのプレイヤータグを入力してください。プレイヤータグは、ゲーム内でプロフィールを開くとアイコンの下に小さく書いてある、「#」で始まるものです。なお、<b>ログイン</b>すると、プレイヤータグの入力を完全にスキップできるようになります。{% else %}Please enter the player tag of the Brawl Stars account you will use as the host.{% endif %}</p>
                 <div class="form-group" style="margin-top: 5px;">
                     <input type="text" id="host-player-tag-form" class="form-input" placeholder="#XXXXXXX" required>
                     <div id="host-player-tag-status" class="form-field-status" style="font-size: 0.8em;"></div>
                 </div>
-                {% endif %}
             </div>
+            {% endif %}
             <div class="post-modal-section">
-                <p class="post-modal-section-title">2. {% if lang == "ja" %}チーム招待リンクを貼り付け{% else %}Paste Team Link{% endif %}</p>
+                <p class="post-modal-section-title">{% if show_host_section %}2{% else %}1{% endif %}. {% if lang == "ja" %}チーム招待リンクを貼り付け{% else %}Paste Team Link{% endif %}</p>
                 <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}ブロスタを開き、<b>チームアップ</b>→<b>SNSで招待をシェア</b>からリンクをコピーして、そのまま貼り付けてください。{% else %}Open Brawl Stars, go to <b>Team Up</b> → <b>Share Invite in Socials</b>, copy the link, and paste it here.{% endif %}</p>
                 <textarea id="invite-link-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}このリンクをタップして、●●と一緒にブロスタのチームに参加しましょう！{% else %}Click this link to join a team with ●● in Brawl Stars!{% endif %} https://link.brawlstars.com/invite/gameroom/xx?tag=XXXXXXXX"></textarea>
                 <div id="link-status" class="form-field-status" style="font-size: 0.8em;"></div>
             </div>
             <div class="post-modal-section">
-                <p class="post-modal-section-title">3. {% if lang == "ja" %}カテゴリーを選択{% else %}Select Category{% endif %}</p>
+                <p class="post-modal-section-title">{% if show_host_section %}3{% else %}2{% endif %}. {% if lang == "ja" %}カテゴリーを選択{% else %}Select Category{% endif %}</p>
                 <div class="filters__container post-modal-conditions" style="padding: 5px; gap: 5px;">
                     <div class="post-modal-category-select__container">
                         <div class="post-modal-category-select" data-category-value="trophy">
@@ -280,7 +280,7 @@
                 </div>
             </div>
             <div class="post-modal-section">
-                <p class="post-modal-section-title">4. {% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
+                <p class="post-modal-section-title">{% if show_host_section %}4{% else %}3{% endif %}. {% if lang == "ja" %}ひとこと{% else %}Comment{% endif %}</p>
                 {% if current_user and main_account %}
                 <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}コメントを自由に追加できます。サブアカウントでチーム募集をする場合は、その旨をこちらにご記入ください。{% else %}You can add a comment. If you are recruiting for a team with a sub-account, please indicate that here.{% endif %}</p>
                 {% endif %}
@@ -288,7 +288,7 @@
                 <div id="comment-status" class="form-field-status" style="font-size: 0.8em;"></div>
             </div>
             <div class="post-modal-section">
-                <p class="post-modal-section-title">5. {% if lang == "ja" %}条件設定{% else %}Set Conditions{% endif %}</p>
+                <p class="post-modal-section-title">{% if show_host_section %}5{% else %}4{% endif %}. {% if lang == "ja" %}条件設定{% else %}Set Conditions{% endif %}</p>
                 {% if current_user and main_account %}
                 <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}参加できる人の<b>条件</b>を設定できます。<br>1つでも条件を設定すると、ログインしていない人は参加できなくなり、ログインしていて登録済みの<b>メインアカウント</b>の情報が<b>条件</b>を満たしている人のみ、リンクをクリックできるようになります。<br>なお、あなたのメインアカウント(<b>"{{ main_account.name }}"</b>)より高すぎるレベルの条件を設定することはできません。{% else %}You can set <b>conditions</b> for who can join the team.<br>Only logged-in users whose registered <b>main account</b> meets the conditions will be able to click the team link.<br>Note that you cannot set conditions that are too high compared to your main account (<b>"{{ main_account.name }}"</b>).{% endif %}</p>
                 <div class="filters__container post-modal-conditions">
@@ -334,9 +334,9 @@
             </div>
             <div class="post-modal-section">
                 {# 現行のバージョンでは、ログイン済み:chat_permission_level=30、未ログイン:chat_permission_level=0で固定とするため、選択メニューは設けず説明のみ書いておく。 #}
-                <p class="post-modal-section-title">6. {% if lang == "ja" %}チャットスレッド{% else %}Chat Thread{% endif %}</p>
+                <p class="post-modal-section-title">{% if show_host_section %}6{% else %}5{% endif %}. {% if lang == "ja" %}チャットスレッド{% else %}Chat Thread{% endif %}</p>
                 {% if current_user %}
-                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}この募集を投稿すると、<b>チャットスレッド</b>が設置され、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに使うことができます。<br>なお、5.で設定した<b>条件</b>を満たしていない人でも、チャット画面から個別に許可することで、参加できるようにさせることが可能ですので、ご活用ください。<br>チャット時、あなたのユーザー名である<b>"{{ current_user.name }}"</b>が名前として表示されます。{% if "@" in current_user.name %}メールアドレス等の個人情報をユーザー名に設定している場合は、<b>アカウント</b>タブからユーザー名の変更をお願いします。{% endif %}{% else %}When you post this recruitment, a <b>chat thread</b> will be created. You can use it for confirmation before joining the team or to communicate with players who have muted chat in-game.<br>Even if someone does not meet the <b>conditions</b> set in step 5, you can individually permit them to apply from the chat screen.<br>Your username, <b>"{{ current_user.name }}"</b>, will be displayed in the chat. {% if "@" in current_user.name %}If your username contains personal information such as an email address, please change it from the <b>Account</b> tab.{% endif %}{% endif %}</p>
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}この募集を投稿すると、<b>チャットスレッド</b>が設置され、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに使うことができます。<br>なお、{% if show_host_section %}5{% else %}4{% endif %}.で設定した<b>条件</b>を満たしていない人でも、チャット画面から個別に許可することで、参加できるようにさせることが可能ですので、ご活用ください。<br>チャット時、あなたのユーザー名である<b>"{{ current_user.name }}"</b>が名前として表示されます。{% if "@" in current_user.name %}メールアドレス等の個人情報をユーザー名に設定している場合は、<b>アカウント</b>タブからユーザー名の変更をお願いします。{% endif %}{% else %}When you post this recruitment, a <b>chat thread</b> will be created. You can use it for confirmation before joining the team or to communicate with players who have muted chat in-game.<br>Even if someone does not meet the <b>conditions</b> set in step {% if show_host_section %}5{% else %}4{% endif %}, you can individually permit them to apply from the chat screen.<br>Your username, <b>"{{ current_user.name }}"</b>, will be displayed in the chat. {% if "@" in current_user.name %}If your username contains personal information such as an email address, please change it from the <b>Account</b> tab.{% endif %}{% endif %}</p>
                 {% else %}
                 <div class="not-logged-in-block not-logged-in-block--board">
                     <div class="not-logged-in-block__text not-logged-in-block__text--board">
