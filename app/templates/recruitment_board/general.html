@@ -623,7 +623,7 @@
             {value: 13, ja: "エリート Ⅰ以上", en: "Mythic Ⅰ+"}
         ];
         const currentRankedRank = Math.max(mainAccount.acc_ranked_highest_rank || 0, mainAccount.ranked_highest_rank || 0);
-        const maxRankedRank = Math.max(currentRankedRank + 1, 13);
+        const maxRankedRank = Math.max(currentRankedRank, 13);
         const rankedSelect = document.getElementById('required-ranked-highest-rank');
         rankedOptions.filter(opt => opt.value <= maxRankedRank).forEach(opt => {
             rankedSelect.add(new Option(`${lang === 'ja' ? opt.ja : opt.en}`, opt.value));
@@ -636,7 +636,7 @@
             {value: 10, ja: "ダイヤモンド Ⅰ以上", en: "Diamond Ⅰ+"}
         ];
         const plRankEq = Math.max(mainAccount.solo_pl_rank || 0, (currentRankedRank || 0) - 4);
-        const maxPlRank = Math.max(plRankEq + 1, 10);
+        const maxPlRank = Math.max(plRankEq, 10);
         const plSelect = document.getElementById('required-solo-pl-rank');
         plOptions.filter(opt => opt.value <= maxPlRank).forEach(opt => {
             plSelect.add(new Option(`${lang === 'ja' ? opt.ja : opt.en}`, opt.value));

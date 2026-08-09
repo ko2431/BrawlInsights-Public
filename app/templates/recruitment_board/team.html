@@ -656,7 +656,7 @@
 
             // --- 1. チーム招待リンクのリアルタイム解析 ---
             let debounceTimer;
-            inviteLinkForm.addEventListener('input', () => {
+            const validateInviteLink = () => {
                 clearTimeout(debounceTimer);
                 const text = inviteLinkForm.value.trim();
                 linkStatus.textContent = '...';
@@ -694,7 +694,8 @@
                     }
                     updatePostButtonState();
                 }, 500); // 500msのデバウンス
-            });
+            };
+            inviteLinkForm.addEventListener('input', validateInviteLink);
 
             // カテゴリー/モード選択のイベントリスナー
             categoryButtons.forEach(button => {
@@ -834,11 +835,8 @@
                     }
                     if (!postState.isLaterRecruitment && lastPost.link && isTeamInviteLinkReusable(lastPost.created_at)) {
                         inviteLinkForm.value = lastPost.link;
-                        // 手動でinputイベントを発火させてリンク解析を実行
-                        inviteLinkForm.dispatchEvent(new Event('input', { bubbles: true }));
-                    } else if (lastPost.link && !postState.isLaterRecruitment) {
-                        // 後から募集から戻した場合に備えて値だけ保持（解析は再利用期限外ならスキップ）
-                        inviteLinkForm.value = lastPost.link;
+                        // 値の代入だけでは input が発火しないため、解析を明示的に実行
+                        validateInviteLink();
                     }
 
                     // カテゴリーとモードを復元
@@ -886,7 +884,7 @@
                 {value: 13, ja: "エリート Ⅰ以上", en: "Mythic Ⅰ+"}
             ];
             const currentRankedRank = Math.max(mainAccount.acc_ranked_highest_rank || 0, mainAccount.ranked_highest_rank || 0);
-            const maxRankedRank = Math.max(currentRankedRank + 1, 13);
+            const maxRankedRank = Math.max(currentRankedRank, 13);
             const rankedSelect = document.getElementById('required-ranked-highest-rank');
             rankedOptions.filter(opt => opt.value <= maxRankedRank).forEach(opt => {
                 rankedSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
@@ -900,7 +898,7 @@
                 {value: 10, ja: "ダイヤモンド Ⅰ以上", en: "Diamond Ⅰ+"}
             ];
             const plRankEquivalent = Math.max(mainAccount.solo_pl_rank || 0, (currentRankedRank || 0) - 4);
-            const maxPlRank = Math.max(plRankEquivalent + 1, 10);
+            const maxPlRank = Math.max(plRankEquivalent, 10);
             const plSelect = document.getElementById('required-solo-pl-rank');
             plOptions.filter(opt => opt.value <= maxPlRank).forEach(opt => {
                 plSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
