@@ -2020,8 +2020,12 @@ async def add_message_reaction(
         return {"success": True, "reaction_id": reaction_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except asyncpg.UniqueViolationError: # 同じユーザーが同じ絵文字でリアクションした場合
-        raise HTTPException(status_code=409, detail="You have already reacted with this emoji")
+    except asyncpg.UniqueViolationError:
+        # 連打・競合による想定内の重複。ERRORログも例外ハンドラも経由させない
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "You have already reacted with this emoji"},
+        )
     except DataBaseError as e:
         logger.error(f"リアクション追加中(メッセージ:{message_id})にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
