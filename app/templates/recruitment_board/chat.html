@@ -1702,6 +1702,8 @@
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ emoji: emoji })
                     });
+                    // 409: 既に同じ絵文字でリアクション済み（連打・競合）。UI上は既に反映済みなので成功扱い
+                    if (response.status === 409) return;
                     if (!response.ok) throw new Error('Failed to add reaction');
                     // 成功時はWebSocket経由で更新されるので何もしない
                 } catch (error) {
