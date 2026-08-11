@@ -20,9 +20,14 @@
     border-color: #444;
 }
 @media (max-width: 839px) {
+    /* ステータスバー領域をチャットヘッダーのグラデーションで染めるため、
+       body 上余白を外し、セーフエリア分は .chat-header の padding に移す */
+    body:has(.chat-page__container) {
+        padding-top: 0;
+    }
     .chat-page__container {
-        /* モバイルヘッダーの高さを引く */
-        height: calc(100dvh - 85px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        /* モバイル下部ナビ高さを引く（safe-area-top はヘッダー内に含む） */
+        height: calc(100dvh - 85px - env(safe-area-inset-bottom));
         width: 100%;
         margin-top: 0; /* ヘッダー分のマージン */
         border: none;
@@ -30,8 +35,8 @@
 }
 @media (max-width: 539px) {
     .chat-page__container {
-        /* スマホヘッダーの高さを引く */
-        height: calc(100dvh - 73px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        /* スマホ下部ナビ高さを引く */
+        height: calc(100dvh - 73px - env(safe-area-inset-bottom));
         margin-top: 0; /* ヘッダー分のマージン */
     }
 }
@@ -71,6 +76,11 @@
         top: 0;
         border-left: none;
         border-right: none;
+        /* 中身の位置は維持しつつ、背景グラデーションだけステータスバー裏まで伸ばす */
+        padding-top: calc(10px + env(safe-area-inset-top));
+    }
+    .chat-header--app {
+        padding-top: calc(6px + env(safe-area-inset-top));
     }
 }
 .chat-header__content {
