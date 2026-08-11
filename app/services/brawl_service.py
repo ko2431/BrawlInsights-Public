@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import asyncpg
 import brawlstats
 import BrawlPlex
+from BrawlPlex.errors import NetworkError
 from cachetools import TTLCache
 import itertools
 import re
