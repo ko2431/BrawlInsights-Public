@@ -90,6 +90,33 @@
                 return;
             }
 
+            if (payload.interaction === 'flip_all_bingo') {
+                this.resetScratchCells();
+                this.bingoBoardGold = false;
+                this.bingoHighlightedLines = [];
+                this.cards = Array.from({ length: 9 }, (_, index) => {
+                    const payloadCard = payload.cards?.[index] || {};
+                    return {
+                        back: payloadCard.back || '{{ url_for("static", path="/images/mastery/empty.png") }}',
+                        face: payloadCard.face || '',
+                        gold: false,
+                        flipped: false,
+                        index,
+                    };
+                });
+                this.actionHint = this.lang === 'ja'
+                    ? 'マスを全てめくってください'
+                    : 'Flip all tiles';
+                if (payload.effects?.confirm_board || payload.effects?.confirm) {
+                    window.setTimeout(() => {
+                        this.bingoBoardGold = true;
+                        // Alpine の配列要素の in-place 更新を確実に拾わせる
+                        this.cards = this.cards.map((card) => ({ ...card, gold: true }));
+                    }, 350);
+                }
+                return;
+            }
+
             this.resetScratchCells();
             const goldIndices = payload.effects?.confirm_card_indices || [];
             this.cards = Array.from({ length: 3 }, (_, index) => {
@@ -111,6 +138,40 @@
                         if (this.cards[index]) this.cards[index].gold = true;
                     });
                 }, 350);
+            }
+        },
+        isBingoCellHighlighted(index) {
+            return this.bingoHighlightedLines.some((lineIndex) => {
+                const line = this.bingoLines[lineIndex];
+                return Array.isArray(line) && line.includes(index);
+            });
+        },
+        updateBingoHighlights() {
+            const highlighted = [];
+            this.bingoLines.forEach((line, lineIndex) => {
+                if (!Array.isArray(line) || line.length !== 3) return;
+                const [a, b, c] = line;
+                const ca = this.cards[a];
+                const cb = this.cards[b];
+                const cc = this.cards[c];
+                if (!ca?.flipped || !cb?.flipped || !cc?.flipped) return;
+                if (ca.face && ca.face === cb.face && cb.face === cc.face) {
+                    highlighted.push(lineIndex);
+                }
+            });
+            this.bingoHighlightedLines = highlighted;
+        },
+        flipBingoCell(index) {
+            if (this.state === 'idle') {
+                alert(this.lang === 'ja' ? '上部のプレイボタンからゲームを開始できます。' : 'You can start the game using the play button at the top.');
+                return;
+            }
+            if (this.state !== 'revealing' || !this.cards[index] || this.cards[index].flipped) return;
+            this.cards[index].flipped = true;
+            // フリップ完了（0.5s）後にラインハイライトを更新
+            window.setTimeout(() => this.updateBingoHighlights(), 500);
+            if (this.cards.every((card) => card.flipped)) {
+                window.setTimeout(() => this.completePlay(), 550);
             }
         },
         flipCard(index) {
@@ -146,7 +207,7 @@
             } catch (error) {
                 console.error('Minigame complete error:', error);
                 this.state = 'revealing';
-                this.actionHint = this.isScratchGame
+                this.actionHint = this.isScratchGame || this.isBingoGame
                     ? (this.lang === 'ja' ? '完了処理に失敗しました。もう一度マスをタップしてください。' : 'Could not complete. Tap a tile again.')
                     : (this.lang === 'ja' ? '完了処理に失敗しました。もう一度カードをタップしてください。' : 'Could not complete. Tap a card again.');
             }

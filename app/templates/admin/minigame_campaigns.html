@@ -23,7 +23,7 @@
             <label>企画名（英語）<input class="form-input" required x-model.trim="form.name_en"></label>
             <label>ゲーム種別
                 <select class="form-input" x-model="form.game_type" :disabled="started">
-                    <option value="card_flip_single">カード1枚</option><option value="card_flip_multi1">カード3枚（最高ランク）</option><option value="card_flip_multi2">カード3枚（組み合わせ）</option><option value="scratch1">スクラッチ1（組み合わせ）</option>
+                    <option value="card_flip_single">カード1枚</option><option value="card_flip_multi1">カード3枚（最高ランク）</option><option value="card_flip_multi2">カード3枚（組み合わせ）</option><option value="scratch1">スクラッチ（組み合わせ）</option><option value="bingo1">ビンゴ（ライン数）</option>
                 </select>
             </label>
             <label>開始日時（JST）<input class="form-input" type="datetime-local" required x-model="form.starts_at" :disabled="started"></label>
@@ -37,9 +37,9 @@
             <label x-show="form.id"><input type="checkbox" x-model="form.is_invalid"> 無効化する</label>
         </div>
         <section class="save-changes-block" style="display:block" :class="{ 'minigame-admin--locked': started }">
-            <h2 class="block-title">景品設定（2～6等）</h2>
+            <h2 class="block-title">景品設定（2～8等）</h2>
             <p x-show="started">開始済みのため景品設定はロックされています。</p>
-            <label>景品階層数 <select class="form-input" style="width:auto" x-model.number="tierCount" @change="setTierCount()" :disabled="started"><template x-for="n in [2,3,4,5,6]"><option :value="n" x-text="n"></option></template></select></label>
+            <label>景品階層数 <select class="form-input" style="width:auto" x-model.number="tierCount" @change="setTierCount()" :disabled="started"><template x-for="n in [2,3,4,5,6,7,8]"><option :value="n" x-text="n"></option></template></select></label>
             <template x-for="(tier, index) in form.prizes.tiers" :key="index">
                 <fieldset class="admin-filters__container">
                     <legend x-text="`${index + 1}等`"></legend>

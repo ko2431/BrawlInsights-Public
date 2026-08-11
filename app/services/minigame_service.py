@@ -28,12 +28,16 @@ DEFAULT_AD_DAILY_LIMIT = 5
 AD_SKIP_TICKET_COST = 2
 MINIGAME_AD_PLAY_CUTOFF_SECONDS = 60
 USER_HISTORY_LIMIT = 10
-MAX_PRIZE_TIERS = 6
+MAX_PRIZE_TIERS = 8
 MIN_PRIZE_TIERS = 2
 RETENTION_COMPENSATION_TOKENS_PER_MONTH = 50
 MAX_BATTLE_LOG_RETENTION_MONTHS = 120
 DEFAULT_EXPECTED_TOTAL_PLAYS = 500
-GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scratch1")
+GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scratch1", "bingo1")
+# single / multi1 / scratch1 / bingo1 の確定演出発生率（当選が confirm_eligible のとき）
+CONFIRM_EFFECT_RATE = 0.50
+# multi1 で確定演出が出た場合の金カード枚数内訳（従来比 2.5:7.5:20）
+_MULTI1_GOLD_COUNT_WEIGHTS = (0.025, 0.075, 0.20)
 
 ACTIVE_CAMPAIGN_CACHE_TTL = 60
 
@@ -129,7 +133,7 @@ def validate_prizes(prizes: dict) -> list[str]:
     errors: list[str] = []
     tiers = prizes.get("tiers") if isinstance(prizes, dict) else None
     if not isinstance(tiers, list) or not MIN_PRIZE_TIERS <= len(tiers) <= MAX_PRIZE_TIERS:
-        return ["景品階層は2～6件で設定してください。"]
+        return ["景品階層は2～8件で設定してください。"]
     ranks = [tier.get("rank") for tier in tiers if isinstance(tier, dict)]
     if (
         len(ranks) != len(tiers)
@@ -373,6 +377,29 @@ def _card(position: int, face: str, *, gold: bool = False, rank: int | None = No
     return {"position": position, "face": static_url_path(face), "back": static_url_path(BACK_SYMBOL), "gold": gold, "rank": rank}
 
 
+def _combination_pair_faces(pair_face: str, others: list[str], fallback: str) -> list[str]:
+    """指定絵柄のペア＋別絵柄1枚を返す（トリプルにならない）。"""
+    other = _RNG.choice([x for x in others if x and x != pair_face] or [fallback])
+    faces = [pair_face, pair_face, other]
+    _RNG.shuffle(faces)
+    return faces
+
+
+def _combination_mystery_pair_faces(
+    *,
+    reserved_pair_faces: set[str],
+    candidates: list[str],
+    fallback: str,
+) -> list[str]:
+    """専用ペア等級と衝突しない任意ペアを返す。"""
+    pair_opts = [x for x in candidates if x and x not in reserved_pair_faces] or [fallback]
+    face = _RNG.choice(pair_opts)
+    other = _RNG.choice([x for x in candidates if x and x != face] or [fallback])
+    faces = [face, face, other]
+    _RNG.shuffle(faces)
+    return faces
+
+
 def _combination_result_faces(
     *,
     tier_count: int,
@@ -407,11 +434,33 @@ def _combination_result_faces(
     r2 = ranks.get(2)
     r3 = ranks.get(3)
     decoy = decoys[0] if decoys else r1
+    all_faces = [x for x in [r1, r2, r3, *decoys] if x]
 
     def no_decoy_triple(fs: list[str]) -> list[str]:
         if decoys and fs.count(fs[0]) == 3 and fs[0] in decoys:
             fs[2] = r1 if r1 not in decoys else (r2 or r1)
         return fs
+
+    # 等級数ごとの組み合わせ（案A）:
+    # 4: 1/2=専用×3, 3=任意ペア, 4=全部違う
+    # 5: 1-3=専用×3, 4=任意ペア, 5=全部違う
+    # 6: 1-3=専用×3, 4=r1ペア, 5=任意ペア, 6=全部違う
+    # 7: 1-3=専用×3, 4=r1ペア, 5=r2ペア, 6=任意ペア, 7=全部違う
+    # 8: 1-3=専用×3, 4=r1ペア, 5=r2ペア, 6=r3ペア, 7=任意ペア, 8=全部違う
+    specific_pair_rank = {
+        (6, 4): r1,
+        (7, 4): r1,
+        (7, 5): r2,
+        (8, 4): r1,
+        (8, 5): r2,
+        (8, 6): r3,
+    }
+    mystery_pair_rank = {4: 3, 5: 4, 6: 5, 7: 6, 8: 7}.get(tier_count)
+    reserved_for_mystery = {
+        face
+        for (tc, rank), face in specific_pair_rank.items()
+        if tc == tier_count and face
+    }
 
     if result_rank == 1:
         faces = [r1, r1, r1]
@@ -419,21 +468,17 @@ def _combination_result_faces(
         faces = [r2, r2, r2]
     elif result_rank == 3 and tier_count >= 5 and r3:
         faces = [r3, r3, r3]
-    elif (tier_count == 4 and result_rank == 3) or (tier_count == 5 and result_rank == 4) or (
-        tier_count == 6 and result_rank == 5
-    ):
-        face = _RNG.choice([r1, r2, decoy] if r2 else [r1, decoy])
-        if tier_count == 6 and face == r1:
-            face = _RNG.choice([x for x in [r2, r3, decoy] if x] or [decoy])
-        other = _RNG.choice([x for x in [r1, r2, r3, decoy] if x and x != face] or [decoy])
-        faces = [face, face, other]
-        _RNG.shuffle(faces)
-    elif tier_count == 6 and result_rank == 4:
-        other = _RNG.choice([x for x in [r2, r3, decoy] if x] or [decoy])
-        faces = [r1, r1, other]
-        _RNG.shuffle(faces)
+    elif (tier_count, result_rank) in specific_pair_rank and specific_pair_rank[(tier_count, result_rank)]:
+        pair_face = specific_pair_rank[(tier_count, result_rank)]
+        faces = _combination_pair_faces(pair_face, all_faces, decoy)
+    elif result_rank == mystery_pair_rank:
+        faces = _combination_mystery_pair_faces(
+            reserved_pair_faces=reserved_for_mystery,
+            candidates=all_faces,
+            fallback=decoy,
+        )
     else:
-        opts = [x for x in [r1, r2, r3, *decoys] if x]
+        opts = list(all_faces)
         _RNG.shuffle(opts)
         faces = opts[:3]
         while len(faces) < 3:
@@ -441,6 +486,340 @@ def _combination_result_faces(
         if len(set(faces)) < 3:
             faces = [r1, r2 or decoy, decoy if decoy != r1 else (r2 or r1)]
     return no_decoy_triple(faces)
+
+
+# 3×3 ビンゴ: 行3・列3・斜め2
+BINGO_LINES: tuple[tuple[int, int, int], ...] = (
+    (0, 1, 2),
+    (3, 4, 5),
+    (6, 7, 8),
+    (0, 3, 6),
+    (1, 4, 7),
+    (2, 5, 8),
+    (0, 4, 8),
+    (2, 4, 6),
+)
+_BINGO_EDGE_CENTERS = (1, 3, 5, 7)
+_BINGO_CORNERS = (0, 2, 6, 8)
+_TIER8_BINGO_LINES = {1: 8, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2, 7: 1, 8: 0}
+
+
+def count_bingo_lines(board: list[str]) -> int:
+    """同一絵柄3マスで成立するビンゴライン数を返す。"""
+    return sum(1 for a, b, c in BINGO_LINES if board[a] == board[b] == board[c])
+
+
+def bingo_completed_line_indexes(board: list[str]) -> list[int]:
+    """成立しているビンゴラインの index 一覧。"""
+    return [i for i, (a, b, c) in enumerate(BINGO_LINES) if board[a] == board[b] == board[c]]
+
+
+def _bingo_pick_faces(pool: list[str], count: int) -> list[str]:
+    faces = list(dict.fromkeys(x for x in pool if x))
+    if not faces:
+        faces = [_spray_fallback()]
+    while len(faces) < count:
+        faces.append(faces[len(faces) % max(1, len(set(faces)))])
+    _RNG.shuffle(faces)
+    return faces[:count]
+
+
+def _spray_fallback() -> str:
+    return "spray/68000001.webp"
+
+
+def _sample_bingo_line_count_at_or_above(threshold: int) -> int:
+    """1等用: たいていは閾値ちょうど、たまにそれ以上（7は除外）。"""
+    candidates = [n for n in range(threshold, 9) if n != 7]
+    if len(candidates) == 1:
+        return candidates[0]
+    weights: list[float] = []
+    for i, _n in enumerate(candidates):
+        if i == 0:
+            weights.append(70.0)
+        elif i == 1:
+            weights.append(15.0)
+        elif i == 2:
+            weights.append(8.0)
+        elif i == 3:
+            weights.append(4.0)
+        else:
+            weights.append(3.0)
+    return _RNG.choices(candidates, weights=weights, k=1)[0]
+
+
+def bingo_target_line_count(tier_count: int, result_rank: int) -> int:
+    """景品等級に対応する目標ビンゴライン数を返す。"""
+    if tier_count >= 8:
+        return _TIER8_BINGO_LINES[result_rank]
+    if result_rank == 1:
+        return _sample_bingo_line_count_at_or_above(tier_count - 1)
+    return tier_count - result_rank
+
+
+def bingo_legend_line_threshold(tier_count: int, rank: int) -> int | None:
+    """凡例表示用のライン数（最下位は None=ビンゴなし）。"""
+    if tier_count >= 8:
+        value = _TIER8_BINGO_LINES[rank]
+        return None if value == 0 else value
+    if rank == tier_count:
+        return None
+    if rank == 1:
+        return tier_count - 1
+    return tier_count - rank
+
+
+def bingo_condition_text(tier_count: int, rank: int, lang: str) -> str:
+    """凡例左列の条件文言。"""
+    threshold = bingo_legend_line_threshold(tier_count, rank)
+    if threshold is None:
+        return _message(lang, "ビンゴなし", "No bingo")
+    if rank == 1 and tier_count < 8:
+        return _message(lang, f"{threshold}ライン以上", f"{threshold}+ lines")
+    return _message(lang, f"{threshold}ライン", f"{threshold} line" + ("" if threshold == 1 else "s"))
+
+
+def _bingo_fill_near_miss(board: list[str], pool: list[str]) -> None:
+    """非成立ラインに惜しい（2/3一致）配置を少し足す（成立ラインは壊さない）。"""
+    main_pool = [x for x in pool if x] or list(board)
+    for _ in range(3):
+        open_lines = [
+            (a, b, c)
+            for a, b, c in BINGO_LINES
+            if not (board[a] == board[b] == board[c])
+        ]
+        if not open_lines:
+            return
+        a, b, c = _RNG.choice(open_lines)
+        cells = [a, b, c]
+        _RNG.shuffle(cells)
+        face = _RNG.choice(main_pool)
+        trial = list(board)
+        trial[cells[0]] = face
+        trial[cells[1]] = face
+        other_opts = [x for x in main_pool if x != face] or main_pool
+        trial[cells[2]] = _RNG.choice(other_opts)
+        if count_bingo_lines(trial) == count_bingo_lines(board):
+            board[:] = trial
+            return
+
+
+def _build_bingo_board_exact(pool: list[str], line_count: int) -> list[str]:
+    """ちょうど line_count 本のビンゴになる 3×3 を生成する。"""
+    faces = _bingo_pick_faces(pool, min(6, max(2, len(pool))))
+    primary = faces[0]
+    secondary = faces[1] if len(faces) > 1 else faces[0]
+    extras = faces[2:] if len(faces) > 2 else [secondary]
+
+    def mono_with_diff(diff_pos: int, other: str) -> list[str]:
+        board = [primary] * 9
+        board[diff_pos] = other
+        return board
+
+    for _attempt in range(250):
+        board: list[str] | None = None
+        if line_count == 8:
+            board = [primary] * 9
+        elif line_count == 6:
+            board = mono_with_diff(_RNG.choice(_BINGO_EDGE_CENTERS), secondary)
+        elif line_count == 5:
+            board = mono_with_diff(_RNG.choice(_BINGO_CORNERS), secondary)
+        elif line_count == 4:
+            # 中央差し替えが基本。稀に別パターンも試す
+            if _RNG.random() < 0.75:
+                board = mono_with_diff(4, secondary)
+            else:
+                board = _bingo_construct_parallel_rows(faces, uniform_rows=2, scramble_rest=True)
+        elif line_count == 3:
+            if _RNG.random() < 0.55:
+                board = _bingo_construct_parallel_rows(faces, uniform_rows=3, scramble_rest=False)
+            else:
+                board = _bingo_construct_parallel_cols(faces, uniform_cols=3, scramble_rest=False)
+        elif line_count == 2:
+            roll = _RNG.random()
+            if roll < 0.45:
+                board = _bingo_construct_parallel_rows(faces, uniform_rows=2, scramble_rest=True)
+            elif roll < 0.75:
+                board = _bingo_construct_parallel_cols(faces, uniform_cols=2, scramble_rest=True)
+            else:
+                board = _bingo_construct_two_lines_same_face(faces)
+        elif line_count == 1:
+            if _RNG.random() < 0.5:
+                board = _bingo_construct_parallel_rows(faces, uniform_rows=1, scramble_rest=True)
+            else:
+                board = _bingo_construct_parallel_cols(faces, uniform_cols=1, scramble_rest=True)
+        elif line_count == 0:
+            board = _bingo_construct_zero(faces)
+        else:
+            raise ValueError(f"unsupported bingo line_count: {line_count}")
+
+        if board is None:
+            continue
+        if count_bingo_lines(board) != line_count:
+            # 低ラインはリジェクションでランダム埋めも試す
+            if line_count <= 3:
+                board = _bingo_rejection_sample(faces, line_count)
+            else:
+                continue
+        if board is not None and count_bingo_lines(board) == line_count:
+            if line_count <= 3 and _RNG.random() < 0.55:
+                _bingo_fill_near_miss(board, faces)
+                if count_bingo_lines(board) != line_count:
+                    continue
+            return board
+
+    # 最終フォールバック（決定的）
+    if line_count == 8:
+        return [primary] * 9
+    if line_count == 6:
+        return mono_with_diff(1, secondary)
+    if line_count == 5:
+        return mono_with_diff(0, secondary)
+    if line_count == 4:
+        return mono_with_diff(4, secondary)
+    if line_count == 3:
+        a, b, c = faces[0], faces[1 % len(faces)], faces[2 % len(faces)]
+        return [a, a, a, b, b, b, c, c, c]
+    if line_count == 2:
+        a, b = faces[0], faces[1 % len(faces)]
+        rest = extras[0] if extras else b
+        # 2行そろえ + 3行目はバラバラ
+        third = [rest, faces[0], faces[1 % len(faces)]]
+        if third[0] == third[1] == third[2]:
+            third[2] = secondary if secondary != third[0] else primary
+        return [a, a, a, b, b, b, *third]
+    if line_count == 1:
+        a = faces[0]
+        filler = [faces[i % len(faces)] for i in range(1, 6)]
+        # 1行目のみそろえ、残りは列・斜めが揃わないよう循環
+        board = [a, a, a, filler[0], filler[1], filler[2], filler[3], filler[4], filler[0]]
+        # 壊れていたら単純パターン
+        if count_bingo_lines(board) != 1:
+            b, c, d = faces[1 % len(faces)], faces[2 % len(faces)], faces[3 % len(faces)]
+            board = [a, a, a, b, c, d, c, d, b]
+        return board
+    # 0
+    a, b, c = faces[0], faces[1 % len(faces)], faces[2 % len(faces)]
+    return [a, b, c, b, c, a, c, a, b]
+
+
+def _bingo_construct_parallel_rows(
+    faces: list[str], *, uniform_rows: int, scramble_rest: bool
+) -> list[str]:
+    """指定本数の行を各行内同一絵柄でそろえる。"""
+    row_ids = [0, 1, 2]
+    _RNG.shuffle(row_ids)
+    chosen = set(row_ids[:uniform_rows])
+    used: list[str] = []
+    board = [""] * 9
+    for r in range(3):
+        cells = (r * 3, r * 3 + 1, r * 3 + 2)
+        if r in chosen:
+            opts = [f for f in faces if f not in used] or faces
+            face = _RNG.choice(opts)
+            used.append(face)
+            for i in cells:
+                board[i] = face
+        elif scramble_rest:
+            for i in cells:
+                opts = [f for f in faces if f not in used[:1]] or faces
+                board[i] = _RNG.choice(opts)
+            # 行内トリプル禁止
+            if board[cells[0]] == board[cells[1]] == board[cells[2]]:
+                alt = [f for f in faces if f != board[cells[0]]] or faces
+                board[cells[2]] = _RNG.choice(alt)
+        else:
+            face = _RNG.choice([f for f in faces if f not in used] or faces)
+            used.append(face)
+            for i in cells:
+                board[i] = face
+    return board
+
+
+def _bingo_construct_parallel_cols(
+    faces: list[str], *, uniform_cols: int, scramble_rest: bool
+) -> list[str]:
+    """指定本数の列を各列内同一絵柄でそろえる。"""
+    col_ids = [0, 1, 2]
+    _RNG.shuffle(col_ids)
+    chosen = set(col_ids[:uniform_cols])
+    used: list[str] = []
+    board = [""] * 9
+    for c in range(3):
+        cells = (c, c + 3, c + 6)
+        if c in chosen:
+            opts = [f for f in faces if f not in used] or faces
+            face = _RNG.choice(opts)
+            used.append(face)
+            for i in cells:
+                board[i] = face
+        elif scramble_rest:
+            for i in cells:
+                board[i] = _RNG.choice(faces)
+            if board[cells[0]] == board[cells[1]] == board[cells[2]]:
+                alt = [f for f in faces if f != board[cells[0]]] or faces
+                board[cells[2]] = _RNG.choice(alt)
+        else:
+            face = _RNG.choice([f for f in faces if f not in used] or faces)
+            used.append(face)
+            for i in cells:
+                board[i] = face
+    return board
+
+
+def _bingo_construct_two_lines_same_face(faces: list[str]) -> list[str]:
+    """同一絵柄で交差する2ライン（例: 1行+1列）を作り、余剰ラインを潰す。"""
+    primary = faces[0]
+    others = [f for f in faces if f != primary] or faces
+    line_a, line_b = _RNG.sample(list(BINGO_LINES), 2)
+    board = [""] * 9
+    for i in (*line_a, *line_b):
+        board[i] = primary
+    for i in range(9):
+        if not board[i]:
+            board[i] = _RNG.choice(others)
+    # 余剰ビンゴを潰す
+    for _ in range(30):
+        completed = bingo_completed_line_indexes(board)
+        if len(completed) == 2:
+            return board
+        if len(completed) < 2:
+            break
+        # 余剰ライン上の非交差マスを別絵柄に
+        extra = _RNG.choice(completed)
+        a, b, c = BINGO_LINES[extra]
+        shared = set(line_a) & set(line_b)
+        for pos in (a, b, c):
+            if pos not in shared and board[pos] == primary:
+                board[pos] = _RNG.choice(others)
+                break
+    return board
+
+
+def _bingo_construct_zero(faces: list[str]) -> list[str]:
+    """0ライン（ラテン方陣風）を優先生成。"""
+    if len(faces) >= 3:
+        a, b, c = faces[0], faces[1], faces[2]
+        patterns = [
+            [a, b, c, b, c, a, c, a, b],
+            [a, b, c, c, a, b, b, c, a],
+            [a, c, b, b, a, c, c, b, a],
+        ]
+        board = list(_RNG.choice(patterns))
+        if count_bingo_lines(board) == 0:
+            return board
+    return _bingo_rejection_sample(faces, 0) or [faces[i % len(faces)] for i in range(9)]
+
+
+def _bingo_rejection_sample(faces: list[str], line_count: int, tries: int = 80) -> list[str] | None:
+    """ランダム配置からちょうど line_count を探す。"""
+    n_faces = 2 if line_count >= 2 else min(4, len(faces))
+    use = faces[: max(n_faces, min(len(faces), 4))]
+    for _ in range(tries):
+        board = [_RNG.choice(use) for _ in range(9)]
+        if count_bingo_lines(board) == line_count:
+            return board
+    return None
 
 
 def build_animation_payload(
@@ -453,8 +832,12 @@ def build_animation_payload(
     pool: list[str] = list(assets.get("pool", []))
 
     def confirm_eligible() -> bool:
+        # single / multi1 / scratch1 / bingo1 用。multi2（組み合わせ）の金演出は別経路。
+        # 4等以下: 1等のみ / 5〜7等: 2等以上 / 8等: 3等以上
         if tier_count <= 4:
             return result_rank == 1
+        if tier_count >= 8:
+            return result_rank in {1, 2, 3}
         return result_rank in {1, 2}
 
     payload: dict[str, Any] = {
@@ -470,7 +853,7 @@ def build_animation_payload(
 
     if game_type == "card_flip_single":
         alternatives = [face for rank, face in ranks.items() if rank != result_rank] or list(ranks.values())
-        gold = confirm_eligible() and _RNG.random() < 0.20
+        gold = confirm_eligible() and _RNG.random() < CONFIRM_EFFECT_RATE
         indices = [0, 1, 2] if gold else []
         payload["effects"] = {"confirm": gold, "confirm_card_indices": indices, "upgrade": None}
         payload.update({
@@ -482,13 +865,16 @@ def build_animation_payload(
 
     if game_type == "card_flip_multi1":
         gold_count = 0
-        if confirm_eligible():
-            roll = _RNG.random()
-            if roll < 0.025:
+        if confirm_eligible() and _RNG.random() < CONFIRM_EFFECT_RATE:
+            # 金カード枚数の内訳だけ従来比率を維持（合計は CONFIRM_EFFECT_RATE）
+            w3, w2, w1 = _MULTI1_GOLD_COUNT_WEIGHTS
+            total_w = w3 + w2 + w1
+            sub = _RNG.random()
+            if sub < w3 / total_w:
                 gold_count = 3
-            elif roll < 0.025 + 0.075:
+            elif sub < (w3 + w2) / total_w:
                 gold_count = 2
-            elif roll < 0.025 + 0.075 + 0.20:
+            else:
                 gold_count = 1
         gold_indices = set(_RNG.sample(range(3), gold_count)) if gold_count else set()
         faces: list[str] = [""] * 3
@@ -533,6 +919,26 @@ def build_animation_payload(
         payload.update({"interaction": "flip_all_any_order", "cards": cards})
         return payload
 
+    if game_type == "bingo1":
+        line_count = bingo_target_line_count(tier_count, result_rank)
+        board = _build_bingo_board_exact(pool, line_count)
+        board_gold = confirm_eligible() and _RNG.random() < CONFIRM_EFFECT_RATE
+        cards = [_card(i, board[i], gold=board_gold) for i in range(9)]
+        payload["effects"] = {
+            "confirm": board_gold,
+            "confirm_card_indices": list(range(9)) if board_gold else [],
+            "confirm_board": board_gold,
+            "upgrade": None,
+        }
+        payload.update({
+            "interaction": "flip_all_bingo",
+            "cards": cards,
+            "bingo_line_count": line_count,
+            "bingo_line_indexes": bingo_completed_line_indexes(board),
+            "bingo_lines": [list(line) for line in BINGO_LINES],
+        })
+        return payload
+
     # multi2 / scratch1
     faces = _combination_result_faces(
         tier_count=tier_count,
@@ -543,7 +949,7 @@ def build_animation_payload(
     )
 
     if game_type == "scratch1":
-        board_gold = confirm_eligible() and _RNG.random() < 0.25
+        board_gold = confirm_eligible() and _RNG.random() < CONFIRM_EFFECT_RATE
         payload["effects"] = {
             "confirm": board_gold,
             "confirm_card_indices": [],
@@ -1024,6 +1430,13 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
             "3枚中、上記の絵柄のいずれかが少なくとも1つは出現します。最も高いものが景品です！",
             "At least one prize face always appears. The highest one is your prize!",
         )
+    elif game_type == "bingo1":
+        lead = _message(
+            lang,
+            "マスを全て開けて、任意の絵柄がビンゴした<b>ライン数</b>によって景品を獲得！",
+            "Open all tiles and win a prize based on the number of <b>bingo lines</b>!",
+        )
+        note = ""
     elif game_type == "scratch1":
         lead = _message(
             lang,
@@ -1071,7 +1484,13 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
     for tier in sorted(tiers, key=lambda t: t["rank"]):
         rank = tier["rank"]
         label = format_prize_label(tier["items"], lang)
-        if game_type in {"card_flip_single", "card_flip_multi1"}:
+        condition_text = ""
+        if game_type == "bingo1":
+            faces = []
+            empties = 0
+            mysteries = 0
+            condition_text = bingo_condition_text(tier_count, rank, lang)
+        elif game_type in {"card_flip_single", "card_flip_multi1"}:
             faces = [static_url_path(ranks[rank])]
             empties = 0
             mysteries = 0
@@ -1099,6 +1518,7 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
             "mysteries": mysteries,
             "empties": empties,
             "slot_count": len(faces) + mysteries + empties,
+            "condition_text": condition_text,
             "label": label,
             "rank_label": _message(lang, f"{rank}等", f"{rank}"),
             "allocation": allocation,
@@ -1150,12 +1570,34 @@ def _multi2_legend_faces(
         if rank == 4:
             return ([], 2, 1)
         return ([], 0, 3)
-    # 6
+    if tier_count == 6:
+        if rank <= 3:
+            return ([static_url_path(ranks[rank])] * 3, 0, 0)
+        if rank == 4:
+            return ([static_url_path(ranks[1]), static_url_path(ranks[1])], 0, 1)
+        if rank == 5:
+            return ([], 2, 1)
+        return ([], 0, 3)
+    if tier_count == 7:
+        if rank <= 3:
+            return ([static_url_path(ranks[rank])] * 3, 0, 0)
+        if rank == 4:
+            return ([static_url_path(ranks[1]), static_url_path(ranks[1])], 0, 1)
+        if rank == 5:
+            return ([static_url_path(ranks[2]), static_url_path(ranks[2])], 0, 1)
+        if rank == 6:
+            return ([], 2, 1)
+        return ([], 0, 3)
+    # 8
     if rank <= 3:
         return ([static_url_path(ranks[rank])] * 3, 0, 0)
     if rank == 4:
         return ([static_url_path(ranks[1]), static_url_path(ranks[1])], 0, 1)
     if rank == 5:
+        return ([static_url_path(ranks[2]), static_url_path(ranks[2])], 0, 1)
+    if rank == 6:
+        return ([static_url_path(ranks[3]), static_url_path(ranks[3])], 0, 1)
+    if rank == 7:
         return ([], 2, 1)
     return ([], 0, 3)
 
