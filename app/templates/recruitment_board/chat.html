@@ -250,7 +250,7 @@
                     data-main-account-name="{{ message.user_main_account_name }}"
                     data-created-at="{{ message.created_at }}">
                     {% if not (current_user and message.user_id == current_user.id) %}
-                        <div class="message-bubble__icon-wrapper {% if message.user_main_account_tag %}message-bubble__icon-wrapper--clickable{% endif %}"><img src="{{ message.user_icon_path }}" alt="User Icon" class="message-bubble__icon"></div>
+                        <div class="message-bubble__icon-wrapper {% if message.user_main_account_tag %}message-bubble__icon-wrapper--clickable{% endif %}"><img src="{{ message.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="User Icon" class="message-bubble__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"></div>
                     {% endif %}
                     <div class="message-bubble__content-wrapper">
                         {% if not (current_user and message.user_id == current_user.id) %}
@@ -268,7 +268,7 @@
                             {%- elif message.reply_to.user_id and message.reply_to.user_id in blocked_ids.user_ids -%}
                                     <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-blocked="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}ブロックしたユーザーのメッセージ{% else %}Message from a blocked user{% endif %}</span></div>
                             {%- else -%}
-                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header">{%- if message.reply_to.user_icon_path -%}<img src="{{ message.reply_to.user_icon_path }}" alt="" class="message-reply-preview__icon">{%- endif -%}<div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
                             {%- endif -%}
                             {%- endif -%}<div class="message-bubble__text">{{ message.message|censor }}</div></div>
                         {# リアクション表示エリア (JSで実装) #}
@@ -439,6 +439,7 @@
             const platform = "{{ platform }}";
             const isWebPlatform = platform === 'web';
             const threadId = {{ post.id }};
+            const defaultPlayerIconPath = "{{ url_for('static', path='/images/player_icon/0.png') }}";
             // ブロック済みユーザーID（WebSocket新着のクライアント側フィルタ用。ページ再読込で最新化）
             const blockedUserIds = new Set({{ blocked_ids.user_ids | tojson }});
             let hasMoreOlderMessages = {{ 'true' if has_more_older_messages else 'false' }};
@@ -1041,9 +1042,7 @@
                 const adminBadge = replyTo.user_is_admin
                     ? `<span class="message-reply-preview__admin-badge">${lang === 'ja' ? '管理者' : 'Admin'}</span>`
                     : '';
-                const iconHtml = replyTo.user_icon_path
-                    ? `<img src="${escapeHtml(replyTo.user_icon_path)}" alt="" class="message-reply-preview__icon">`
-                    : '';
+                const iconHtml = `<img src="${escapeHtml(replyTo.user_icon_path || defaultPlayerIconPath)}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='${defaultPlayerIconPath}';">`;
                 const previewText = escapeHtml(truncateReplyPreviewText(replyTo.message || ''));
                 return `
                     <div class="message-reply-preview" data-reply-to-id="${replyTo.id}">
@@ -1175,10 +1174,10 @@
                 let authorIconHtml = '';
                 if (!isSelf) {
                     const clickableClass = message.user_main_account_tag ? 'message-bubble__icon-wrapper--clickable' : '';
-                    const iconPath = message.user_icon_path;
+                    const iconPath = message.user_icon_path || defaultPlayerIconPath;
                     authorIconHtml = `
                         <div class="message-bubble__icon-wrapper ${clickableClass}">
-                            <img src="${iconPath}" alt="User Icon" class="message-bubble__icon">
+                            <img src="${iconPath}" alt="User Icon" class="message-bubble__icon" onerror="this.onerror=null;this.src='${defaultPlayerIconPath}';">
                         </div>
                     `;
                 }
@@ -1786,10 +1785,10 @@
                     }
                     const row = document.createElement('div');
                     row.className = 'reaction-list__row';
-                    const iconPath = reaction.user_icon_path;
+                    const iconPath = reaction.user_icon_path || defaultPlayerIconPath;
                     row.innerHTML = `
                         <div class="message-bubble__icon-wrapper message-bubble__icon-wrapper-reaction-menu">
-                            <img src="${iconPath}" alt="User Icon" class="message-bubble__icon">
+                            <img src="${iconPath}" alt="User Icon" class="message-bubble__icon" onerror="this.onerror=null;this.src='${defaultPlayerIconPath}';">
                         </div>
                         <b class="reaction-list__user-name">${reaction.user_name}</b>
                         <span class="reaction-list__emoji">${reaction.emoji}</span>
