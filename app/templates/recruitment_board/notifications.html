@@ -43,14 +43,16 @@
         <div class="board-filters__filter-row">
             <form method="get" id="filterForm" class="filter-form">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
-                <select name="filter" id="filterSelect" class="filter-form__select filter-form__select--notifications">
-                    <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
-                    <option value="post_like" {% if filter == "post_like" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのいいね{% else %}Likes on your posts{% endif %}</option>
-                    <option value="own_post_message" {% if filter == "own_post_message" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのメッセージ{% else %}Messages on your posts{% endif %}</option>
-                    <option value="participated_thread_message" {% if filter == "participated_thread_message" %}selected{% endif %}>{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ{% else %}Messages on threads you messaged{% endif %}</option>
-                    <option value="message_reply" {% if filter == "message_reply" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリプライ{% else %}Replies to your messages{% endif %}</option>
-                    <option value="message_reaction" {% if filter == "message_reaction" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on your messages{% endif %}</option>
-                </select>
+                <div class="filter-form__select-wrap">
+                    <select name="filter" id="filterSelect" class="filter-form__select filter-form__select--notifications">
+                        <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                        <option value="post_like" {% if filter == "post_like" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのいいね{% else %}Likes on your posts{% endif %}</option>
+                        <option value="own_post_message" {% if filter == "own_post_message" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのメッセージ{% else %}Messages on your posts{% endif %}</option>
+                        <option value="participated_thread_message" {% if filter == "participated_thread_message" %}selected{% endif %}>{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ{% else %}Messages on threads you messaged{% endif %}</option>
+                        <option value="message_reply" {% if filter == "message_reply" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリプライ{% else %}Replies to your messages{% endif %}</option>
+                        <option value="message_reaction" {% if filter == "message_reaction" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on your messages{% endif %}</option>
+                    </select>
+                </div>
                 <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
             </form>
             <div class="reload-button__container">

@@ -92,12 +92,27 @@
 .board-filters__filter-row .filter-form {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
     margin-top: 0;
 }
-.filter-form__select--notifications {
+.board-filters__filter-row .filter-form__label {
+    flex-shrink: 0;
+}
+.board-filters__filter-row .reload-button__container {
+    flex-shrink: 0;
+}
+/* iOSアプリのWKWebViewはselectが選択中テキストの固有幅まで広がる。wrapでページ幅押し広げを防ぐ */
+.filter-form__select-wrap {
     flex: 1 1 0;
     min-width: 0;
+    overflow: hidden;
+}
+.filter-form__select.filter-form__select--notifications {
+    display: block;
+    width: 100%;
+    min-width: 0;
     max-width: 100%;
+    box-sizing: border-box;
 }
 .board-filters__joinable-row {
     margin-top: 4px;
@@ -1386,12 +1401,6 @@ body.modal-open {
 }
 @media (max-width: 539px) {
     .notifications__container { width: 105%; max-width: none; margin: 0 -2.5%; }
-    .filter-form__select--notifications {
-        flex: 1 1 0;
-        width: auto;
-        min-width: 0;
-        max-width: 100%;
-    }
     .notification-user-icons__image { width: 30px; height: 30px; }
     .notification-type { min-width: 33px; max-width: 33px; }
     .notification-title__container { font-size: 15px; }
