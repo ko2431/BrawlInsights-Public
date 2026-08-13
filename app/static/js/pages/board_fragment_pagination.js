@@ -26,9 +26,10 @@
         };
     }
 
-    function applyAppendHtml(contentRoot, html, lang, updatePostAgoTexts) {
+    function applyAppendHtml(contentRoot, html, lang, updatePostAgoTexts, itemsContainerSelector) {
         const { chunk, loadMore } = parseAppendResponse(html);
-        const postsContainer = contentRoot.querySelector(POSTS_CONTAINER_SELECTOR);
+        const itemsSelector = itemsContainerSelector || POSTS_CONTAINER_SELECTOR;
+        const postsContainer = contentRoot.querySelector(itemsSelector);
         if (chunk && postsContainer) {
             [...chunk.children].forEach((child) => {
                 postsContainer.appendChild(document.importNode(child, true));
@@ -113,6 +114,9 @@
             lang,
             updatePostAgoTexts,
             getContentRoot,
+            itemsContainerSelector,
+            loadMoreErrorJa,
+            loadMoreErrorEn,
         } = options;
 
         loader.page = 1;
@@ -172,13 +176,13 @@
                 const html = await response.text();
                 if (!html || !html.trim()) throw new Error('Empty response');
 
-                applyAppendHtml(contentRoot, html, lang, updatePostAgoTexts);
+                applyAppendHtml(contentRoot, html, lang, updatePostAgoTexts, itemsContainerSelector);
                 this.page = nextPage;
             } catch (error) {
                 console.error('Board load more error:', error);
                 const msg = lang === 'ja'
-                    ? '投稿の読み込みに失敗しました。時間をおいて再試行してください。'
-                    : 'Failed to load more posts. Please try again later.';
+                    ? (loadMoreErrorJa || '投稿の読み込みに失敗しました。時間をおいて再試行してください。')
+                    : (loadMoreErrorEn || 'Failed to load more posts. Please try again later.');
                 alert(msg);
             } finally {
                 this.isLoadingMore = false;

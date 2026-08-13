@@ -1,0 +1,47 @@
+{% for notification in notifications %}
+<div class="notification">
+    <div class="notification-type">
+        {% if notification.notification_type == "post_like" %}
+        <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="{% if lang == 'ja' %}いいね{% else %}Like{% endif %}" class="notification-type__icon">
+        {% elif notification.notification_type == "message_reaction" %}
+        <img src="{{ url_for('static', path='/images/spray/68000009.webp') }}" alt="{% if lang == 'ja' %}リアクション{% else %}Reaction{% endif %}" class="notification-type__icon">
+        {% else %}
+        <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}メッセージ{% else %}Message{% endif %}" class="notification-type__icon">
+        {% endif %}
+    </div>
+    <div class="notification-content">
+        <div class="notification-user-icons__container">
+            {% for actor in notification.actors %}
+            <img src="{{ actor.icon_path }}"
+                 alt="{% if lang == 'ja' %}ユーザーアイコン{% else %}User icon{% endif %}"
+                 class="notification-user-icons__image notification-user-icons__image--clickable"
+                 data-user-id="{{ actor.user_id }}"
+                 data-main-account-tag="{{ actor.main_account_tag or '' }}"
+                 data-main-account-name="{{ actor.main_account_name or '' }}"
+                 data-user-name="{{ actor.user_name }}">
+            {% endfor %}
+        </div>
+        <div class="notification-title__container">
+            <p class="notification-title__text">
+                {{ notification.title_html|safe }}<span class="notification-title__text--ago" data-created-at="{{ notification.created_at_iso }}">・{{ notification.ago_text }}</span>
+            </p>
+        </div>
+        {% if notification.target_kind == "general_own_posts" %}
+        <a href="{{ url_for('general_board', lang=lang) }}?tab=own" class="notification-target__link">
+        {% elif notification.target_kind == "chat" %}
+        <a href="{{ url_for('chat_thread', lang=lang, thread_id=notification.thread_id) }}{% if notification.message_id %}?message_id={{ notification.message_id }}{% endif %}" class="notification-target__link">
+        {% else %}
+        <a href="#" class="notification-target__link">
+        {% endif %}
+            <div class="notification-target__container">
+                <p class="notification-target__text">{{ notification.target_text }}</p>
+                {% if notification.reaction_summary %}
+                <div class="notification-reactions__container">
+                    <div class="notification-reactions__box">{{ notification.reaction_summary }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </a>
+    </div>
+</div>
+{% endfor %}

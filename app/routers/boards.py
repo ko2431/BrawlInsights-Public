@@ -16,7 +16,8 @@ from app.services.brawl_service import Player, get_player, get_player_from_db, g
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
 from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS
 from app.services.notification_service import (
-    NOTIFICATION_LIST_LIMIT,
+    NOTIFICATION_PAGE_SIZE,
+    VALID_NOTIFICATION_FILTERS,
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
     create_message_notifications,
     empty_board_notification_context,
@@ -1441,12 +1442,17 @@ async def get_chat_messages(
 #* /---*---*---*---*---*---*---*---*/
 #* 通知タブ
 #* /---*---*---*---*---*---*---*---*/
+def _normalize_notification_filter(notification_filter: str) -> str:
+    if notification_filter not in VALID_NOTIFICATION_FILTERS:
+        return "all"
+    return notification_filter
+
+
 @router.get("/notifications", name="notifications")
 async def notifications(
     request: Request,
     lang: str,
     filter: str = Query("all", description="通知フィルター"),
-    limit: int = Query(NOTIFICATION_LIST_LIMIT, ge=1, le=NOTIFICATION_LIST_LIMIT, description="通知表示数の上限"),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -1456,15 +1462,50 @@ async def notifications(
             status_code=status.HTTP_302_FOUND,
         )
 
+    filter = _normalize_notification_filter(filter)
     try:
         await mark_all_notifications_as_read(db, user.id)
         # 既読処理後はナビ／inbox バッジを即時非表示にする（ミドルウェア取得分を上書き）
         request.state.board_notification_context = empty_board_notification_context()
-        notification_items = await get_notifications_for_display(
+    except DataBaseError as e:
+        logger.error(f"通知既読処理中にDBエラー (User ID: {user.id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "current_page": "board",
+        "filter": filter,
+        "brawler_guide_notification_message_limit": BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
+    }
+    await _append_board_notification_context(context, db, user)
+    return templates.TemplateResponse("recruitment_board/notifications.html", context)
+
+
+@router.get("/notifications/fragment", name="notifications_fragment")
+async def notifications_fragment(
+    request: Request,
+    lang: str,
+    filter: str = Query("all", description="通知フィルター"),
+    page: int = BOARD_PAGE_QUERY,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Login required")
+
+    filter = _normalize_notification_filter(filter)
+    try:
+        if page <= 1:
+            await mark_all_notifications_as_read(db, user.id)
+            request.state.board_notification_context = empty_board_notification_context()
+        notification_items, has_more = await get_notifications_for_display(
             db,
             user.id,
             notification_filter=filter,
             lang=lang,
+            page=page,
+            limit=NOTIFICATION_PAGE_SIZE,
         )
     except DataBaseError as e:
         logger.error(f"通知取得中にDBエラー (User ID: {user.id}): {e}", exc_info=True)
@@ -1473,15 +1514,25 @@ async def notifications(
     context = {
         "request": request,
         "lang": lang,
-        "current_page": "board",
         "filter": filter,
-        "limit": limit,
+        "page": page,
+        "has_more": has_more,
         "notifications": notification_items,
         "brawler_guide_notification_message_limit": BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
+        "fragment_show_notification_badge": False,
+        "fragment_notification_badge_text": "",
     }
-    await _append_board_notification_context(context, db, user)
-    return templates.TemplateResponse("recruitment_board/notifications.html", context)
-    
+    template_name = (
+        "recruitment_board/fragments/notifications_append.html"
+        if page > 1
+        else "recruitment_board/fragments/notifications_fragment.html"
+    )
+    try:
+        return templates.TemplateResponse(template_name, context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
+ 
 
 #* /---*---*---*---*---*---*---*---*/
 #* 投稿作成関連のエンドポイント

@@ -11,6 +11,7 @@ from app.services.user_service import get_blocked_ids, get_user
 from app.utils.utils import get_icon_path
 
 NOTIFICATION_LIST_LIMIT = 1000
+NOTIFICATION_PAGE_SIZE = 100
 BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT = 3
 
 NOTIFICATION_TYPE_POST_LIKE = "post_like"
@@ -24,6 +25,14 @@ AGGREGATED_NOTIFICATION_TYPES = {
     NOTIFICATION_TYPE_MESSAGE_REACTION,
 }
 
+NOTIFICATION_GROUP_ID_SQL = f"""
+    CASE
+        WHEN notification_type = '{NOTIFICATION_TYPE_POST_LIKE}' THEN post_id
+        WHEN notification_type = '{NOTIFICATION_TYPE_MESSAGE_REACTION}' THEN message_id
+        ELSE id
+    END
+"""
+
 NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_POST_LIKE: "notification_post_like_enabled",
     NOTIFICATION_TYPE_OWN_POST_MESSAGE: "notification_own_post_message_enabled",
@@ -31,6 +40,8 @@ NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_MESSAGE_REPLY: "notification_message_reply_enabled",
     NOTIFICATION_TYPE_MESSAGE_REACTION: "notification_message_reaction_enabled",
 }
+
+VALID_NOTIFICATION_FILTERS = frozenset({"all", *NOTIFICATION_TYPE_SETTING_KEYS})
 
 MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
     NOTIFICATION_TYPE_MESSAGE_REPLY,
@@ -632,34 +643,107 @@ async def _build_notification_where(
     return where_clauses, params
 
 
-async def _fetch_notification_rows(
+async def _fetch_notification_group_page(
     db: asyncpg.Connection,
     user_id: int,
     *,
     notification_filter: str,
-    unread_only: bool,
-    last_read_at: datetime.datetime | None,
-) -> list[asyncpg.Record]:
+    page: int,
+    page_size: int,
+) -> tuple[list[asyncpg.Record], bool]:
+    """集約後の通知グループをページ単位で取得する。has_more も返す。"""
+    if page < 1 or page_size < 1:
+        return [], False
+
+    offset = (page - 1) * page_size
+    if offset >= NOTIFICATION_LIST_LIMIT:
+        return [], False
+
     built = await _build_notification_where(
         db,
         user_id,
         notification_filter=notification_filter,
-        unread_only=unread_only,
-        last_read_at=last_read_at,
+        unread_only=False,
+        last_read_at=None,
     )
     if built is None:
-        return []
+        return [], False
 
     where_clauses, params = built
+    fetch_limit = min(page_size, NOTIFICATION_LIST_LIMIT - offset)
+    need_plus_one = offset + fetch_limit < NOTIFICATION_LIST_LIMIT
+    params.append(fetch_limit + (1 if need_plus_one else 0))
+    limit_placeholder = f"${len(params)}"
+    params.append(offset)
+    offset_placeholder = f"${len(params)}"
+
     query = f"""
-        SELECT *
-        FROM board_notifications
-        WHERE {' AND '.join(where_clauses)}
-        ORDER BY created_at DESC
-        LIMIT {NOTIFICATION_LIST_LIMIT * 5}
+        SELECT notification_type, group_id, MAX(created_at) AS latest_at
+        FROM (
+            SELECT
+                notification_type,
+                {NOTIFICATION_GROUP_ID_SQL} AS group_id,
+                created_at
+            FROM board_notifications
+            WHERE {' AND '.join(where_clauses)}
+        ) AS grouped_src
+        GROUP BY notification_type, group_id
+        ORDER BY MAX(created_at) DESC
+        LIMIT {limit_placeholder} OFFSET {offset_placeholder}
     """
     try:
-        return await db.fetch(query, *params)
+        group_rows = await db.fetch(query, *params)
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+
+    has_more = need_plus_one and len(group_rows) > fetch_limit
+    return list(group_rows[:fetch_limit]), has_more
+
+
+async def _fetch_notification_rows_for_groups(
+    db: asyncpg.Connection,
+    user_id: int,
+    group_rows: list[asyncpg.Record],
+) -> list[asyncpg.Record]:
+    if not group_rows:
+        return []
+
+    post_like_ids: list[int] = []
+    reaction_ids: list[int] = []
+    other_ids: list[int] = []
+    for row in group_rows:
+        group_id = row["group_id"]
+        if group_id is None:
+            continue
+        ntype = row["notification_type"]
+        if ntype == NOTIFICATION_TYPE_POST_LIKE:
+            post_like_ids.append(group_id)
+        elif ntype == NOTIFICATION_TYPE_MESSAGE_REACTION:
+            reaction_ids.append(group_id)
+        else:
+            other_ids.append(group_id)
+
+    query = """
+        SELECT *
+        FROM board_notifications
+        WHERE recipient_user_id = $1
+          AND (
+            (notification_type = $2 AND post_id = ANY($3::int[]))
+            OR (notification_type = $4 AND message_id = ANY($5::int[]))
+            OR id = ANY($6::int[])
+          )
+        ORDER BY created_at DESC
+    """
+    try:
+        return await db.fetch(
+            query,
+            user_id,
+            NOTIFICATION_TYPE_POST_LIKE,
+            post_like_ids,
+            NOTIFICATION_TYPE_MESSAGE_REACTION,
+            reaction_ids,
+            other_ids,
+        )
     except asyncpg.PostgresError as e:
         raise DataBaseError(e) from e
 
@@ -759,10 +843,15 @@ async def _aggregate_notification_rows(
         if not actors:
             continue
 
+        created_at = latest_row["created_at"]
+        if isinstance(created_at, datetime.datetime) and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=datetime.timezone.utc)
+
         item: dict[str, Any] = {
             "notification_type": ntype,
-            "created_at": latest_row["created_at"],
-            "ago_text": format_notification_ago(latest_row["created_at"], lang),
+            "created_at": created_at,
+            "created_at_iso": created_at.isoformat() if isinstance(created_at, datetime.datetime) else str(created_at),
+            "ago_text": format_notification_ago(created_at, lang),
             "actors": actors[:10],
             "title_html": "",
             "target_text": "",
@@ -818,7 +907,7 @@ async def _aggregate_notification_rows(
         notifications.append(item)
 
     notifications.sort(key=lambda item: item["created_at"], reverse=True)
-    return notifications[:NOTIFICATION_LIST_LIMIT]
+    return notifications
 
 
 async def get_notifications_for_display(
@@ -827,15 +916,18 @@ async def get_notifications_for_display(
     *,
     notification_filter: str = "all",
     lang: str = "ja",
-) -> list[dict[str, Any]]:
-    rows = await _fetch_notification_rows(
+    page: int = 1,
+    limit: int = NOTIFICATION_PAGE_SIZE,
+) -> tuple[list[dict[str, Any]], bool]:
+    group_rows, has_more = await _fetch_notification_group_page(
         db,
         user_id,
         notification_filter=notification_filter,
-        unread_only=False,
-        last_read_at=None,
+        page=page,
+        page_size=limit,
     )
-    return await _aggregate_notification_rows(db, rows, lang)
+    rows = await _fetch_notification_rows_for_groups(db, user_id, group_rows)
+    return await _aggregate_notification_rows(db, rows, lang), has_more
 
 
 async def get_unread_badge_count(db: asyncpg.Connection, user_id: int) -> int:
@@ -864,11 +956,7 @@ async def get_unread_badge_count(db: asyncpg.Connection, user_id: int) -> int:
         FROM (
             SELECT DISTINCT
                 notification_type,
-                CASE
-                    WHEN notification_type = '{NOTIFICATION_TYPE_POST_LIKE}' THEN post_id
-                    WHEN notification_type = '{NOTIFICATION_TYPE_MESSAGE_REACTION}' THEN message_id
-                    ELSE id
-                END AS group_id
+                {NOTIFICATION_GROUP_ID_SQL} AS group_id
             FROM board_notifications
             WHERE {' AND '.join(where_clauses)}
         ) AS grouped

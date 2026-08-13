@@ -1,0 +1,36 @@
+{# /app/templates/recruitment_board/fragments/notifications_fragment.html #}
+<div class="board-fragment__content" data-notification-badge data-show-notification-badge="{{ 'true' if fragment_show_notification_badge else 'false' }}" data-notification-badge-text="{{ fragment_notification_badge_text }}">
+    {% if notifications %}
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">
+        {% if lang == "ja" %}
+            募集掲示板、なんでも掲示板の通知が表示されます。キャラクター図鑑のチャットでは、自身のメッセージへのリプライ・リアクションと直近{{ brawler_guide_notification_message_limit }}件のメッセージのみ通知されます。
+            <br>通知設定はアカウントタブ→オプションより変更できます。
+        {% else %}
+            Notifications for recruitment boards and the general board are shown here. For brawler guide chat threads, only replies/reactions on your messages and the latest {{ brawler_guide_notification_message_limit }} messages are notified.
+            <br>Notification settings can be changed from the account tab → options.
+        {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="notifications__container">{% if notifications %}{% include "recruitment_board/fragments/includes/notification_cards.html" %}{% endif %}</div>
+    {% if not notifications and not has_more %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">
+    {% if filter != "all" %}
+        {% if lang == "ja" %}
+            現在指定した条件に該当する通知はありません。通知があると、ここに表示されます。
+        {% else %}
+            No notifications match the selected filter. When you have matching notifications, they will appear here.
+        {% endif %}
+    {% else %}
+        {% if lang == "ja" %}
+            現在通知はありません。あなたの投稿やメッセージに反応があると、ここに通知が表示されます。
+        {% else %}
+            No notifications yet. You'll see notifications here when people react to your posts or messages.
+        {% endif %}
+    {% endif %}
+    </p>
+    {% endif %}
+    {% include "recruitment_board/fragments/includes/board_load_more.html" %}
+</div>

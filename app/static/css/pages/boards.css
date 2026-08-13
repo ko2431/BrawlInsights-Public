@@ -1279,6 +1279,9 @@ body.modal-open {
     gap: 1px;
     background-color: var(--color-ccc);
 }
+.notifications__container:empty {
+    display: none;
+}
 .notification {
     display: flex;
     gap: 5px;
