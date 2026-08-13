@@ -2,7 +2,7 @@
 {% block title %}管理者向け / ミニゲーム企画管理{% endblock %}
 {% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">{% endblock %}
 {% block content %}
-<div class="admin-page__container" x-data="minigameCampaignAdmin()">
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="minigameCampaignAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"

@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" x-data="statsPage()">
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="statsPage()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"

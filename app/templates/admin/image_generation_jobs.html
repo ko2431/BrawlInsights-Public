@@ -66,7 +66,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container" style="max-width: none;" x-data="imageJobAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" style="max-width: none;" x-data="imageJobAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"

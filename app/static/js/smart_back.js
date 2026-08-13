@@ -9,6 +9,7 @@
         tools: 'tools',
         boards: 'board',
         account: 'account',
+        admin: 'account',
         player: 'home',
         club: 'home',
         help: 'home',

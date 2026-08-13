@@ -51,7 +51,7 @@
 {% endif %}
 {% endmacro %}
 {% block content %}
-<div class="admin-page__container" x-data="minigamePlayAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="minigamePlayAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
  {# 戻るボタン #}
  {% if platform != "web" %}
  <div class="back-button__container"
