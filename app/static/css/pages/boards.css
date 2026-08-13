@@ -92,7 +92,6 @@
 .board-filters__filter-row .filter-form {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
     margin-top: 0;
 }
 .board-filters__filter-row .filter-form__label {
@@ -101,11 +100,14 @@
 .board-filters__filter-row .reload-button__container {
     flex-shrink: 0;
 }
-/* iOSアプリのWKWebViewはselectが選択中テキストの固有幅まで広がる。wrapでページ幅押し広げを防ぐ */
+/* iOSアプリのWKWebViewはselectが選択中テキストの固有幅まで広がる。wrapでページ幅押し広げを防ぐ。
+   overflow でフォーカス輪郭が欠けないよう、輪郭分だけ内側に余白を取る。 */
 .filter-form__select-wrap {
     flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
+    padding: 4px;
+    margin: -4px;
 }
 .filter-form__select.filter-form__select--notifications {
     display: block;
