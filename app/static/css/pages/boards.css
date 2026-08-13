@@ -94,6 +94,11 @@
     min-width: 0;
     margin-top: 0;
 }
+.filter-form__select--notifications {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+}
 .board-filters__joinable-row {
     margin-top: 4px;
 }
@@ -1278,6 +1283,9 @@ body.modal-open {
     flex-direction: column;
     gap: 1px;
     background-color: var(--color-ccc);
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 .notifications__container:empty {
     display: none;
@@ -1287,6 +1295,9 @@ body.modal-open {
     gap: 5px;
     padding: 8px 2%;
     background-color: var(--bg-main);
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 .notification-type {
     display: flex;
@@ -1296,6 +1307,7 @@ body.modal-open {
     align-items: flex-start;
     align-self: flex-start;
     padding: 3px;
+    flex-shrink: 0;
 }
 .notification-type__icon {
     width: 100%;
@@ -1305,9 +1317,12 @@ body.modal-open {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1;
+    min-width: 0; /* 長いタイトル／本文で横に膨らまないようにする */
 }
 .notification-user-icons__container {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     align-items: center;
 }
@@ -1326,10 +1341,20 @@ body.modal-open {
 .notification-title__container {
     font-size: 16px;
     line-height: 1.2;
+    min-width: 0;
+}
+.notification-title__text {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .notification-title__text--ago {
     color: var(--color-777);
     font-weight: 300;
+}
+.notification-target__link {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
 }
 .notification-target__container {
     border: 1px solid var(--color-999);
@@ -1338,9 +1363,13 @@ body.modal-open {
     color: var(--color-555);
     font-size: 16px;
     line-height: 1.3;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 .notification-target__text {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
     word-break: break-word;
 }
 .notification-reactions__container {
@@ -1356,8 +1385,13 @@ body.modal-open {
     font-size: 14px;
 }
 @media (max-width: 539px) {
-    .notifications__container { width: 105%; margin: 0 -2.5%; }
-    .filter-form__select--notifications { max-width: calc(100% - 100px); }
+    .notifications__container { width: 105%; max-width: none; margin: 0 -2.5%; }
+    .filter-form__select--notifications {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        max-width: 100%;
+    }
     .notification-user-icons__image { width: 30px; height: 30px; }
     .notification-type { min-width: 33px; max-width: 33px; }
     .notification-title__container { font-size: 15px; }
