@@ -35,7 +35,7 @@
         {# ボタンの表示は x-show や :class で動的に変更 #}
         {# 未ログイン時 #}
         <template x-if="!isLoggedIn">
-            <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--secondary button--bookmark button--bookmark--mobile">
+            <a href="/{{ lang }}/login?next={{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) | urlencode }}" class="button button--secondary button--bookmark button--bookmark--mobile">
                 {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
             </a>
         </template>
@@ -81,7 +81,7 @@
             {# ボタンの表示は x-show や :class で動的に変更 #}
             {# 未ログイン時 #}
             <template x-if="!isLoggedIn">
-                <a href="/{{ lang }}/login?next={{ request.url.path | urlencode }}" class="button button--secondary button--bookmark button--bookmark--pc">
+                <a href="/{{ lang }}/login?next={{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) | urlencode }}" class="button button--secondary button--bookmark button--bookmark--pc">
                     {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
                 </a>
             </template>
