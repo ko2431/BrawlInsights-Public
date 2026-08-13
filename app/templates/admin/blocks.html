@@ -1,0 +1,329 @@
+{# /app/templates/admin/blocks.html #}
+{% extends "base.html" %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / ブロック確認{% endblock %}
+{% block og_description %}ブロック関係を確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% macro render_people_count(logged_in_users, guest_users) -%}
+    {%- if logged_in_users > 0 and guest_users > 0 -%}
+        <b>{{ '{:,}'.format(logged_in_users) }}</b>＋ゲスト<b>{{ '{:,}'.format(guest_users) }}</b>人
+    {%- elif logged_in_users > 0 -%}
+        <b>{{ '{:,}'.format(logged_in_users) }}</b>人
+    {%- elif guest_users > 0 -%}
+        ゲスト<b>{{ '{:,}'.format(guest_users) }}</b>人
+    {%- else -%}
+        <b>0</b>人
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro render_pagination(pagination, block_id, blocker_type, blocker_user_name, blocker_user_id, blocker_anonymous_id, blocked_type, blocked_user_name, blocked_user_id, blocked_anonymous_id, created_after, created_before) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="ブロックページネーション">
+            <ul class="pagination-list">
+                {% set base_query_parts = [] %}
+                {% if block_id %}{% set _ = base_query_parts.append("block_id=" + block_id) %}{% endif %}
+                {% if blocker_type != 'all' %}{% set _ = base_query_parts.append("blocker_type=" + blocker_type) %}{% endif %}
+                {% if blocker_user_name %}{% set _ = base_query_parts.append("blocker_user_name=" + (blocker_user_name | urlencode)) %}{% endif %}
+                {% if blocker_user_id %}{% set _ = base_query_parts.append("blocker_user_id=" + blocker_user_id) %}{% endif %}
+                {% if blocker_anonymous_id %}{% set _ = base_query_parts.append("blocker_anonymous_id=" + (blocker_anonymous_id | urlencode)) %}{% endif %}
+                {% if blocked_type != 'all' %}{% set _ = base_query_parts.append("blocked_type=" + blocked_type) %}{% endif %}
+                {% if blocked_user_name %}{% set _ = base_query_parts.append("blocked_user_name=" + (blocked_user_name | urlencode)) %}{% endif %}
+                {% if blocked_user_id %}{% set _ = base_query_parts.append("blocked_user_id=" + blocked_user_id) %}{% endif %}
+                {% if blocked_anonymous_id %}{% set _ = base_query_parts.append("blocked_anonymous_id=" + (blocked_anonymous_id | urlencode)) %}{% endif %}
+                {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
+                {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {% set page_numbers = [] %}
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
+                        {% if page_numbers and p > page_numbers[-1] + 1 %}
+                            {% set _ = page_numbers.append('...') %}
+                        {% endif %}
+                        {% set _ = page_numbers.append(p) %}
+                    {% endif %}
+                {% endfor %}
+
+                {% for p in page_numbers %}
+                    {% if p == '...' %}
+                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                    {% elif p == pagination.current_page %}
+                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="admin-page__container" x-data="blockAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">ブロック確認</h1>
+
+    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">ブロックID</span>
+            <input class="form-input admin-filters__input" x-model="draft.block_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('block_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックした側タイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.blocker_type">
+                <option value="all">すべて</option>
+                <option value="logged_in">ログイン済み</option>
+                <option value="guest">未ログイン</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックした側ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.blocker_user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックした側ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.blocker_user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('blocker_user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックした側匿名ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.blocker_anonymous_id" maxlength="36">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックされた側タイプ</span>
+            <select class="form-input admin-filters__select" x-model="draft.blocked_type">
+                <option value="all">すべて</option>
+                <option value="logged_in">ログイン済み</option>
+                <option value="guest">未ログイン</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックされた側ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.blocked_user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックされた側ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.blocked_user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('blocked_user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ブロックされた側匿名ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.blocked_anonymous_id" maxlength="36">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以降</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_after">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以前</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_before">
+        </label>
+        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    </form>
+
+    <p class="admin-page__description">
+        表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／
+        ブロックした側 {{ render_people_count(pagination.blocker_logged_in, pagination.blocker_guests) }}／
+        ブロックされた側 {{ render_people_count(pagination.blocked_logged_in, pagination.blocked_guests) }}
+        （最大1,000件／ページ）
+    </p>
+
+    {{ render_pagination(pagination, block_id, blocker_type, blocker_user_name, blocker_user_id, blocker_anonymous_id, blocked_type, blocked_user_name, blocked_user_id, blocked_anonymous_id, created_after, created_before) }}
+
+    <div class="table-wrapper" style="margin-top: 10px;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>日時 (JST)</th>
+                    <th>ブロックした側</th>
+                    <th>ブロックした側ID</th>
+                    <th>ブロックされた側</th>
+                    <th>ブロックされた側ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for block in blocks %}
+                <tr>
+                    <td>{{ block.id }}</td>
+                    <td>{{ block.created_at_text }}</td>
+                    <td>{{ block.blocker_user_name if block.blocker_user_id else "(ゲスト)" }}</td>
+                    <td>
+                        {% if block.blocker_user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ block.blocker_user_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocker_user_id }}</a>
+                        {% else %}
+                            <a href="{{ url_for('admin_blocks', lang=lang) }}?blocker_anonymous_id={{ block.blocker_anonymous_id | urlencode }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocker_anonymous_id }}</a>
+                        {% endif %}
+                    </td>
+                    <td>{{ block.blocked_user_name if block.blocked_user_id else "(ゲスト)" }}</td>
+                    <td>
+                        {% if block.blocked_user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ block.blocked_user_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocked_user_id }}</a>
+                        {% else %}
+                            <a href="{{ url_for('admin_blocks', lang=lang) }}?blocked_anonymous_id={{ block.blocked_anonymous_id | urlencode }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocked_anonymous_id }}</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #777;">ブロック関係はありません。</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ render_pagination(pagination, block_id, blocker_type, blocker_user_name, blocker_user_id, blocker_anonymous_id, blocked_type, blocked_user_name, blocked_user_id, blocked_anonymous_id, created_after, created_before) }}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('blockAdmin', () => ({
+                applied: {},
+                draft: {
+                    block_id: '',
+                    blocker_type: 'all',
+                    blocker_user_name: '',
+                    blocker_user_id: '',
+                    blocker_anonymous_id: '',
+                    blocked_type: 'all',
+                    blocked_user_name: '',
+                    blocked_user_id: '',
+                    blocked_anonymous_id: '',
+                    created_after: '',
+                    created_before: '',
+                },
+                filterDefaults: {
+                    block_id: '',
+                    blocker_type: 'all',
+                    blocker_user_name: '',
+                    blocker_user_id: '',
+                    blocker_anonymous_id: '',
+                    blocked_type: 'all',
+                    blocked_user_name: '',
+                    blocked_user_id: '',
+                    blocked_anonymous_id: '',
+                    created_after: '',
+                    created_before: '',
+                },
+                numericFields: ['block_id', 'blocker_user_id', 'blocked_user_id'],
+
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) {
+                        return false;
+                    }
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        block_id: (filters.block_id || '').trim(),
+                        blocker_type: filters.blocker_type || 'all',
+                        blocker_user_name: (filters.blocker_user_name || '').trim(),
+                        blocker_user_id: (filters.blocker_user_id || '').trim(),
+                        blocker_anonymous_id: (filters.blocker_anonymous_id || '').trim(),
+                        blocked_type: filters.blocked_type || 'all',
+                        blocked_user_name: (filters.blocked_user_name || '').trim(),
+                        blocked_user_id: (filters.blocked_user_id || '').trim(),
+                        blocked_anonymous_id: (filters.blocked_anonymous_id || '').trim(),
+                        created_after: (filters.created_after || '').trim(),
+                        created_before: (filters.created_before || '').trim(),
+                    };
+                },
+
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    for (const field of this.numericFields) {
+                        if (draft[field] && !/^\d+$/.test(draft[field])) {
+                            return false;
+                        }
+                    }
+                    if (draft.created_after && draft.created_before && draft.created_after > draft.created_before) {
+                        return false;
+                    }
+                    return true;
+                },
+
+                sanitizeNumericField(field) {
+                    this.draft[field] = (this.draft[field] || '').replace(/\D/g, '');
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) {
+                        return;
+                    }
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+            }));
+        });
+    </script>
+{% endblock %}
