@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, reply_to_message_id, message_text, message_regex, created_after, created_before) %}
+{% macro render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, thread_id, reply_to_message_id, message_text, message_regex, created_after, created_before) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="メッセージページネーション">
             <ul class="pagination-list">
@@ -22,6 +22,7 @@
                 {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
                 {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
                 {% if user_ip %}{% set _ = base_query_parts.append("user_ip=" + (user_ip | urlencode)) %}{% endif %}
+                {% if thread_id %}{% set _ = base_query_parts.append("thread_id=" + thread_id) %}{% endif %}
                 {% if reply_to_message_id %}{% set _ = base_query_parts.append("reply_to_message_id=" + reply_to_message_id) %}{% endif %}
                 {% if message_text %}{% set _ = base_query_parts.append("message_text=" + (message_text | urlencode)) %}{% endif %}
                 {% if message_regex %}{% set _ = base_query_parts.append("message_regex=" + (message_regex | urlencode)) %}{% endif %}
@@ -110,6 +111,10 @@
             <input class="form-input admin-filters__input" x-model="draft.user_ip" maxlength="45">
         </label>
         <label>
+            <span class="admin-filters__label-text">スレッドID</span>
+            <input class="form-input admin-filters__input" x-model="draft.thread_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeThreadId()">
+        </label>
+        <label>
             <span class="admin-filters__label-text">リプライ先メッセージID</span>
             <input class="form-input admin-filters__input" x-model="draft.reply_to_message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeReplyToMessageId()">
         </label>
@@ -148,7 +153,7 @@
         （最大1,000件／ページ）
     </p>
 
-    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, thread_id, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
 
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
@@ -220,7 +225,7 @@
         </table>
     </div>
 
-    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, thread_id, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
 
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -264,6 +269,7 @@
                     user_name: '',
                     user_id: '',
                     user_ip: '',
+                    thread_id: '',
                     reply_to_message_id: '',
                     message_text: '',
                     message_regex: '',
@@ -279,6 +285,7 @@
                     user_name: '',
                     user_id: '',
                     user_ip: '',
+                    thread_id: '',
                     reply_to_message_id: '',
                     message_text: '',
                     message_regex: '',
@@ -324,6 +331,7 @@
                         user_name: (filters.user_name || '').trim(),
                         user_id: (filters.user_id || '').trim(),
                         user_ip: (filters.user_ip || '').trim(),
+                        thread_id: (filters.thread_id || '').trim(),
                         reply_to_message_id: (filters.reply_to_message_id || '').trim(),
                         message_text: (filters.message_text || '').trim(),
                         message_regex: (filters.message_regex || '').trim(),
@@ -341,6 +349,9 @@
                         return false;
                     }
                     if (draft.user_id && !/^\d+$/.test(draft.user_id)) {
+                        return false;
+                    }
+                    if (draft.thread_id && !/^\d+$/.test(draft.thread_id)) {
                         return false;
                     }
                     if (draft.reply_to_message_id && !/^\d+$/.test(draft.reply_to_message_id)) {
@@ -370,6 +381,10 @@
 
                 sanitizeMessageId() {
                     this.draft.message_id = (this.draft.message_id || '').replace(/\D/g, '');
+                },
+
+                sanitizeThreadId() {
+                    this.draft.thread_id = (this.draft.thread_id || '').replace(/\D/g, '');
                 },
 
                 sanitizeReplyToMessageId() {
