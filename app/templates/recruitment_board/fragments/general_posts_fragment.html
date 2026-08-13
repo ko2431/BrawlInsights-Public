@@ -1,5 +1,5 @@
 {# /app/templates/recruitment_board/fragments/general_posts_fragment.html #}
-<div class="board-fragment__content">
+<div class="board-fragment__content" data-notification-badge data-show-notification-badge="{{ 'true' if fragment_show_notification_badge else 'false' }}" data-notification-badge-text="{{ fragment_notification_badge_text }}">
     {% if posts %}
     {# フィルター下の説明文 #}
     <div class="info-block" style="padding: 0;">

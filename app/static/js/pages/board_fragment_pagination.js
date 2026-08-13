@@ -67,6 +67,43 @@
         });
     }
 
+    function upsertBadgeElement(wrapper, className, show, text) {
+        if (!wrapper) return;
+        const existing = wrapper.querySelector(`.${className.split(' ')[0]}`);
+        if (!show) {
+            if (existing) existing.remove();
+            return;
+        }
+        const badge = existing || document.createElement('span');
+        if (!existing) {
+            badge.className = className;
+            wrapper.appendChild(badge);
+        }
+        badge.textContent = text;
+    }
+
+    function applyNotificationBadgesFromRoot(root) {
+        if (!root) return;
+        const fragment = root.matches?.('.board-fragment__content')
+            ? root
+            : root.querySelector('.board-fragment__content');
+        if (!fragment || !fragment.hasAttribute('data-notification-badge')) return;
+
+        const show = fragment.dataset.showNotificationBadge === 'true';
+        const text = fragment.dataset.notificationBadgeText || '';
+        const shouldShow = show && Boolean(text);
+
+        document.querySelectorAll('.notifications-icon-wrapper').forEach((wrapper) => {
+            upsertBadgeElement(wrapper, 'notifications-badge', shouldShow, text);
+        });
+        document.querySelectorAll('.footer-mobile-nav__item[data-tab-id="board"] .nav-icon-wrapper').forEach((wrapper) => {
+            upsertBadgeElement(wrapper, 'nav-tab-badge', shouldShow, text);
+        });
+        document.querySelectorAll('.header-pc__nav-link[data-tab-id="board"] .nav-icon-wrapper').forEach((wrapper) => {
+            upsertBadgeElement(wrapper, 'nav-tab-badge nav-tab-badge--pc', shouldShow, text);
+        });
+    }
+
     /**
      * Fragment loader にページネーション機能を付与する。
      */
@@ -98,6 +135,7 @@
             const contentRoot = getContentRoot();
             if (contentRoot) {
                 bindLoadMoreDelegation(contentRoot, loader);
+                applyNotificationBadgesFromRoot(contentRoot);
             }
             return result;
         };
@@ -163,5 +201,6 @@
         applyAppendHtml,
         bindLoadMoreDelegation,
         enhanceBoardFragmentLoader,
+        applyNotificationBadgesFromRoot,
     };
 })();

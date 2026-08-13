@@ -60,6 +60,35 @@ async def _append_board_notification_context(
     context.update(await get_board_notification_context(db, user.id))
 
 
+async def _attach_fragment_notification_badge(
+    context: dict,
+    db: asyncpg.Connection,
+    user: User | None,
+    *,
+    page: int,
+) -> None:
+    """投稿 fragment（page=1）に通知バッジ情報を載せる。
+
+    ミドルウェアは /fragment をバッジ取得から除外しているため、既存の DB 接続を再利用する。
+    コンテキストプロセッサが show_notification_badge を空で上書きするので、別キーを使う。
+    """
+    if page > 1:
+        return
+
+    badge = empty_board_notification_context()
+    if user:
+        try:
+            badge = await get_board_notification_context(db, user.id)
+        except Exception as e:
+            logger.error(
+                f"掲示板 fragment での通知バッジ取得中にエラー (User: {user.name}): {e}",
+                exc_info=True,
+            )
+
+    context["fragment_show_notification_badge"] = bool(badge.get("show_notification_badge"))
+    context["fragment_notification_badge_text"] = badge.get("notification_badge_text") or ""
+
+
 def get_ip(request: Request) -> str:
     return get_remote_ip(request)
 
@@ -523,6 +552,7 @@ async def team_recruitment_board_fragment(
         "team_post_close_cooldown_seconds": TEAM_POST_CLOSE_COOLDOWN_SECONDS,
         **_board_pagination_context(page, limit, fetched_count, total_posts),
     }
+    await _attach_fragment_notification_badge(context, db, user, page=page)
 
     template_name = (
         "recruitment_board/fragments/team_posts_append.html"
@@ -735,6 +765,7 @@ async def friend_recruitment_board_fragment(
         "blocked_ids": blocked_ids,
         **_board_pagination_context(page, limit, fetched_count, total_posts),
     }
+    await _attach_fragment_notification_badge(context, db, user, page=page)
 
     template_name = (
         "recruitment_board/fragments/friend_posts_append.html"
@@ -856,6 +887,7 @@ async def club_recruitment_board_fragment(
         "blocked_ids": blocked_ids,
         **_board_pagination_context(page, limit, fetched_count, total_posts),
     }
+    await _attach_fragment_notification_badge(context, db, user, page=page)
 
     template_name = (
         "recruitment_board/fragments/club_posts_append.html"
@@ -1111,6 +1143,7 @@ async def general_board_fragment(
         "blocked_ids": blocked_ids,
         **_board_pagination_context(page, limit, fetched_count, total_posts),
     }
+    await _attach_fragment_notification_badge(context, db, user, page=page)
 
     template_name = (
         "recruitment_board/fragments/general_posts_append.html"

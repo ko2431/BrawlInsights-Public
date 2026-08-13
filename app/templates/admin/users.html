@@ -227,10 +227,10 @@
                         {% endif %}
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('tokens')}" x-model.number="tokens" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('tokens')}" x-model.number="tokens" step="1">
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('ad_skip_tickets')}" x-model.number="ad_skip_tickets" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('ad_skip_tickets')}" x-model.number="ad_skip_tickets" step="1">
                     </td>
                     <td class="col-list">
                         <div class="col-list-content" x-html="getJoinedTagsHtml('saved_accounts')"></div>
@@ -559,10 +559,10 @@
                     }
                     const tokens = this.tokens === '' || this.tokens === null ? null : Number(this.tokens);
                     const tickets = this.ad_skip_tickets === '' || this.ad_skip_tickets === null ? null : Number(this.ad_skip_tickets);
-                    if (tokens === null || !Number.isInteger(tokens) || tokens < 0) {
+                    if (tokens === null || !Number.isInteger(tokens)) {
                         return false;
                     }
-                    if (tickets === null || !Number.isInteger(tickets) || tickets < 0) {
+                    if (tickets === null || !Number.isInteger(tickets)) {
                         return false;
                     }
                     return true;
