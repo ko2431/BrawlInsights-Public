@@ -297,13 +297,6 @@ function giftCodeHandler() {
             if (gc) {
                 this.giftCodeInput = gc;
                 this.open = true;
-                setTimeout(() => {
-                    const el = document.getElementById('giftcode');
-                    if (el) {
-                        const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
-                        window.scrollTo({top: y, behavior: 'smooth'});
-                    }
-                }, 300);
             }
         },
 
