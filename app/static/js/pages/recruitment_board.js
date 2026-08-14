@@ -399,7 +399,7 @@
     };
 
     function bindPostActionDelegation(config) {
-        const { boardType, postsRootId, lang, blockUserUrl, unblockUserUrl } = config;
+        const { boardType, postsRootId, lang, blockUserUrl } = config;
         if (postDelegationBound[boardType]) return;
 
         const root = document.getElementById(postsRootId);
@@ -478,26 +478,6 @@
                     }
                 } catch {
                     alert(lang === 'ja' ? 'ユーザーのブロックに失敗しました。' : 'Failed to block user.');
-                }
-                return;
-            }
-
-            const showBtn = event.target.closest('.post-card__show-button');
-            if (showBtn) {
-                const wrapper = showBtn.closest('.post-card-wrapper');
-                if (!wrapper) return;
-                try {
-                    const response = await fetch(unblockUserUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            blocked_user_id: wrapper.dataset.blockedUserId || null,
-                            blocked_anonymous_id: wrapper.dataset.blockedAnonymousId || null,
-                        }),
-                    });
-                    if (response.ok) await reloadPostsFromFragment(boardType);
-                } catch {
-                    /* ignore */
                 }
             }
         });

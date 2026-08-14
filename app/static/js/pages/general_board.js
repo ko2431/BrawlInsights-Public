@@ -313,7 +313,7 @@
         const root = document.getElementById('general-board-posts-root');
         if (!root) return;
 
-        const { lang, blockUserUrl, unblockUserUrl } = config;
+        const { lang, blockUserUrl } = config;
         postDelegationBound = true;
 
         root.addEventListener('click', async (event) => {
@@ -367,26 +367,6 @@
                     else alert(lang === 'ja' ? 'ブロックに失敗しました' : 'Failed to block');
                 } catch {
                     alert(lang === 'ja' ? 'エラーが発生しました' : 'An error occurred');
-                }
-                return;
-            }
-
-            const showBtn = event.target.closest('.post-card__show-button');
-            if (showBtn) {
-                const wrapper = showBtn.closest('.post-card-wrapper');
-                if (!wrapper) return;
-                try {
-                    const response = await fetch(unblockUserUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            blocked_user_id: wrapper.dataset.blockedUserId || null,
-                            blocked_anonymous_id: wrapper.dataset.blockedAnonymousId || null,
-                        }),
-                    });
-                    if (response.ok) await reloadPostsFromFragment();
-                } catch {
-                    /* ignore */
                 }
                 return;
             }

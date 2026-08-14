@@ -3,26 +3,9 @@
         {% set author_user_id = post.data.host_id %}
         {% set author_anonymous_id = post.data.host_anonymous_id %}
 
-        {# > 投稿者がブロックリストに含まれているか判定 --- #}
-        {% if (author_user_id and author_user_id in blocked_ids.user_ids) or 
-                (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids) %}
-            
-            {# === ブロック中のユーザーの投稿だった場合の表示 (プレースホルダー) === #}
-            <div class="post-card-wrapper"
-                    data-post-id="{{ id }}"
-                    data-blocked-user-id="{{ author_user_id or '' }}"
-                    data-blocked-anonymous-id="{{ author_anonymous_id or '' }}">
-                <div class="card post-card">
-                    <div class="post-card__blocked-text-container">
-                        <p class="blocked-post__text">{% if lang == "ja" %}ブロック中のユーザーの投稿です。{% else %}This post is from a user you blocked.{% endif %}</p>
-                    </div>
-                    <div class="post-card__link-container">
-                        <button class="button post-card__show-button">{% if lang == "ja" %}表示する{% else %}Show{% endif %}</button>
-                    </div>
-                </div>
-            </div>
-
-        {% else %}
+        {# ブロック済みユーザーの投稿はチャットと同様に表示しない #}
+        {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
+                (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids)) %}
             <div class="post-card-wrapper">
                 <div class="card post-card post-card--friend">
                     {# プレイヤー名とn分前テキスト #}

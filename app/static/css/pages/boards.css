@@ -663,8 +663,7 @@ body.modal-open {
 }
 .post-card__host-info,
 .post-card__conditions-box,
-.post-card__comment-container,
-.post-card__blocked-text-container {
+.post-card__comment-container {
     border: 1px solid #eee;
     border-radius: 7px;
     padding: 2px 5px 5px;
@@ -673,8 +672,7 @@ body.modal-open {
 }
 .dark .post-card__host-info,
 .dark .post-card__conditions-box,
-.dark .post-card__comment-container,
-.dark .post-card__blocked-text-container {
+.dark .post-card__comment-container {
     border-color: #181818;
     background-color: #222;
 }
@@ -692,12 +690,6 @@ body.modal-open {
 .post-card__comment-container {
     margin-top: 5px;
     padding: 4px 5px 3px;
-}
-.post-card__blocked-text-container {
-    padding: 5px;
-    text-align: center;
-    font-size: 14px;
-    color: var(--color-444);
 }
 .post-card__host-info-title,
 .post-card__conditions-box-title,
@@ -805,7 +797,6 @@ body.modal-open {
 .post-card__report-button,
 .post-card__block-button,
 .post-card__unblock-button,
-.post-card__show-button,
 .post-card__link-button {
     padding: 0 6px;
     border-radius: 7px;
@@ -908,17 +899,6 @@ body.modal-open {
 .post-card__report-button:hover {
     background-color: #ffc0e0;
     border-color: #ff45b3;
-}
-.post-card__show-button {
-    flex: 1;
-    color: #fff;
-    font-size: 14px;
-    background-color: #999;
-    border: 1px solid #777;
-}
-.post-card__show-button:hover {
-    background-color: #888;
-    border-color: #666;
 }
 .post-card__link-button {
     flex: 1;
