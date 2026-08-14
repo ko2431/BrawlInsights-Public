@@ -11,8 +11,7 @@
 {% block content %}
 <div class="tools-page__container" 
      x-data="mapRotationApp()"
-     @keydown.right.window.prevent="activeSlot = (activeSlot + 1) % slots.length"
-     @keydown.left.window.prevent="activeSlot = (activeSlot - 1 + slots.length) % slots.length">
+     @keydown.window="handleKeydown($event)">
     
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -363,6 +362,17 @@ function mapRotationApp() {
         ],
 
         // === Methods ===
+
+        handleKeydown(e) {
+            if (e.metaKey || e.ctrlKey) return;
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.activeSlot = (this.activeSlot + 1) % this.slots.length;
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                this.activeSlot = (this.activeSlot - 1 + this.slots.length) % this.slots.length;
+            }
+        },
 
         // 切り替え時間テキストの取得 (17時 / 8AM、または2時間毎)
         getRefreshTimeText() {
