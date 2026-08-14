@@ -393,9 +393,6 @@
 .support-app-button {
     display: flex;
 }
-.bonus-token-button__web {
-    padding: 5px 10px;
-}
 .bonus-token-button.disabled {
     cursor: not-allowed;
     background-color: #ccc;
@@ -445,6 +442,46 @@
 }
 .ticket-item__label {
     color: var(--color-222);
+}
+.ticket-sell-label {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+}
+.ticket-sell-select {
+    display: inline-block;
+    width: auto;
+    min-width: 3.2em;
+    height: 28px;
+    margin-left: 2px;
+    padding: 0 4px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.bonus-token-button.ticket-sell-button {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+.bonus-token-button.ticket-sell-button:hover:not(.disabled):not(:disabled) {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+.bonus-token-button.ticket-sell-button:disabled,
+.bonus-token-button.ticket-sell-button.disabled {
+    cursor: not-allowed;
+    background-color: #e8a0a6;
+    border-color: #e0959c;
+    color: rgba(255, 255, 255, 0.75);
+}
+.dark .bonus-token-button.ticket-sell-button:disabled,
+.dark .bonus-token-button.ticket-sell-button.disabled {
+    background-color: #8a3a42;
+    border-color: #7a333b;
+    color: rgba(255, 255, 255, 0.35);
 }
 
 /* プレゼント企画ボックス */

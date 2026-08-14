@@ -11,7 +11,7 @@ from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker
+from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, TICKET_SELL_TOKEN_RATE
 from app.services import minigame_service
 from app.services.minigame_service import (
     AD_SKIP_TICKET_COST,
@@ -866,6 +866,88 @@ async def purchase_ticket_pack_process(
             "after_tokens": current_user.tokens,
             "before_tickets": before_tickets,
             "after_tickets": current_user.ad_skip_tickets,
+        }
+    )
+
+
+class TicketSellRequest(BaseModel):
+    ticket_count: int
+
+
+@router.post("/sell-tickets", name="account_sell_tickets")
+async def sell_tickets_process(
+    request: Request,
+    payload: TicketSellRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    lang = request.path_params.get("lang", "ja")
+
+    if payload.ticket_count < 1:
+        return JSONResponse(
+            {"success": False, "message": "無効なリクエストです。" if lang == "ja" else "Invalid request."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if current_user.is_delete_ads:
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "すでに広告の削除が有効なため、チケットを売却する必要はありません。" if lang == "ja" else "You do not need to sell tickets because Remove Ads is already active."
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if current_user.ad_skip_tickets < payload.ticket_count:
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "チケットが足りないため、売却できません。" if lang == "ja" else "You do not have enough tickets to sell."
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    before_tokens = current_user.tokens
+
+    try:
+        sold_tickets, converted_tokens = await current_user.convert_tickets_to_tokens(
+            db, payload.ticket_count, TICKET_SELL_TOKEN_RATE
+        )
+    except DataBaseError as e:
+        logger.error(f"チケット売却中にデータベースエラー (User ID: {current_user.id}): {e}")
+        message = "データベースエラーが発生しました。" if lang == "ja" else "A database error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        logger.error(f"チケット売却中に予期せぬエラー (User ID: {current_user.id}): {e}", exc_info=True)
+        message = "予期せぬエラーが発生しました。" if lang == "ja" else "An unexpected error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if sold_tickets < 1:
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "チケットが足りないため、売却できません。" if lang == "ja" else "You do not have enough tickets to sell."
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    logger.info(
+        f"{current_user.name} (ID: {current_user.id}) がチケット{sold_tickets}枚を{converted_tokens}トークンに売却しました。"
+    )
+
+    message = (
+        f"チケット{sold_tickets}枚を{converted_tokens}トークンに売却しました。\n(トークン数: {before_tokens} → {current_user.tokens})"
+        if lang == "ja"
+        else f"Sold {sold_tickets} tickets for {converted_tokens} tokens.\n(Tokens: {before_tokens} -> {current_user.tokens})"
+    )
+    return JSONResponse(
+        {
+            "success": True,
+            "message": message,
+            "before_tokens": before_tokens,
+            "after_tokens": current_user.tokens,
+            "sold_tickets": sold_tickets,
+            "earned_tokens": converted_tokens,
         }
     )
 

@@ -29,4 +29,22 @@ async def _clear_user_caches(user_id: int) -> None:
     await delete_cache(f"user:{user_id}")
     await delete_cache(f"user_include_invalid:{user_id}")
 
+
+TICKET_SELL_TOKEN_RATE = 6
+_TICKET_SELL_PRESETS = (1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30)
+
+
+def get_ticket_sell_options(held: int) -> list[int]:
+    """売却セレクト用の枚数候補を返す。所持0なら空リスト。"""
+    if held < 1:
+        return []
+    options = [n for n in _TICKET_SELL_PRESETS if n <= held]
+    n = 40
+    while n <= held:
+        options.append(n)
+        n += 10
+    if held not in options:
+        options.append(held)
+    return options
+
 # [この部分は公開用リポジトリでは非公開にされています]
