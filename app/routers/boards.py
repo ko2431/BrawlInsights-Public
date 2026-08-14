@@ -962,7 +962,7 @@ GENERAL_BOARD_CATEGORY_FILTERS = frozenset({
     "chat", "question", "offtopic", "brawl_info", "x", "discord", "youtube", "tiktok",
 })
 GENERAL_BOARD_ALL_FILTERS = frozenset({"all", "all_except_offtopic"})
-GENERAL_BOARD_DEFAULT_FILTER = "all_except_offtopic"
+GENERAL_BOARD_DEFAULT_FILTER = "all"
 GENERAL_BOARD_TABS = frozenset({"latest", "trending", "own", "participated", "liked"})
 LEGACY_GENERAL_TAB_FILTERS = {"trending": "trending", "only_own_posts": "own", "only_liked_posts": "liked"}
 
@@ -982,13 +982,11 @@ def _normalize_general_board_query(
     if tab not in GENERAL_BOARD_TABS:
         tab = "latest"
 
-    category_filter = filter if filter in GENERAL_BOARD_CATEGORY_FILTERS else None
-    exclude_category: str | None = None
-    if filter == "all_except_offtopic":
-        exclude_category = "offtopic"
-    elif filter not in GENERAL_BOARD_CATEGORY_FILTERS and filter not in GENERAL_BOARD_ALL_FILTERS:
+    if filter not in GENERAL_BOARD_CATEGORY_FILTERS and filter not in GENERAL_BOARD_ALL_FILTERS:
         filter = GENERAL_BOARD_DEFAULT_FILTER
-        exclude_category = "offtopic"
+
+    category_filter = filter if filter in GENERAL_BOARD_CATEGORY_FILTERS else None
+    exclude_category: str | None = "offtopic" if filter == "all_except_offtopic" else None
 
     return tab, filter, category_filter, exclude_category
 

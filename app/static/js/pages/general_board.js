@@ -6,7 +6,7 @@
 
     const RELOAD_BUTTON_COOLDOWN_MS = 1500;
     const AGO_UPDATE_INTERVAL_MS = 60000;
-    const DEFAULT_FILTER = 'all_except_offtopic';
+    const DEFAULT_FILTER = 'all';
     const FILTER_INCLUDE_ALL = 'all';
     const FILTER_EXCLUDE_OFFTOPIC = 'all_except_offtopic';
     const STORAGE_KEY_TAB = 'generalBoardTab';
@@ -271,10 +271,8 @@
                         this.filter = FILTER_INCLUDE_ALL;
                     }
                 } else if (this.filter !== postedCategory) {
-                    // 個別フィルターと不一致: オフトピック投稿は「含む」、それ以外は「除く」
-                    this.filter = postedCategory === 'offtopic'
-                        ? FILTER_INCLUDE_ALL
-                        : FILTER_EXCLUDE_OFFTOPIC;
+                    // 個別フィルターと不一致: 「オフトピック含む」に切り替え
+                    this.filter = FILTER_INCLUDE_ALL;
                 }
                 return this.load({ updateHistory: true });
             },
