@@ -73,12 +73,12 @@
             <div class="lang-ja">
                 <h2>インターネットに接続できません</h2>
                 <p>Brawl Insightsをご利用いただくには、インターネット接続が必要です。<br>接続を確認して、もう一度お試しください。</p>
-                <button class="retry-button" onclick="window.location.reload()">再試行</button>
+                <button class="retry-button" onclick="retryConnection()">再試行</button>
             </div>
             <div class="lang-en">
                 <h2>You are currently offline</h2>
                 <p>An internet connection is required to use Brawl Insights.<br>Please check your connection and try again.</p>
-                <button class="retry-button" onclick="window.location.reload()">Retry</button>
+                <button class="retry-button" onclick="retryConnection()">Retry</button>
             </div>
         </div>
     </div>
@@ -105,8 +105,18 @@
             }
         });
 
-        window.addEventListener('online', () => {
+        function retryConnection() {
+            try {
+                if (window.BrawlInsightsNative) {
+                    window.BrawlInsightsNative.retry();
+                    return;
+                }
+            } catch (e) {}
             window.location.reload();
+        }
+
+        window.addEventListener('online', () => {
+            retryConnection();
         });
     </script>
 </body>

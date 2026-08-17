@@ -3,7 +3,7 @@ from app.core.logger import logger
 from app.core.config import settings
 from app.services.ad_banner_service import get_random_ad_banner
 
-# [この部分は公開用リポジトリでは非公開にされています]
+IOS_APP_STORE_URL = "https:// [この部分は公開用リポジトリでは非公開にされています]
 
 
 def ip_processor(request: Request) -> dict:
@@ -15,9 +15,16 @@ def ip_processor(request: Request) -> dict:
     client_ip = get_remote_ip(request)
     is_test_ip = (client_ip == settings.HOME_IP) if settings.HOME_IP else False
     # [この部分は公開用リポジトリでは非公開にされています]
+    current_user = getattr(request.state, "current_user", None)
+    platform = getattr(request.state, "platform", "web")
+    use_admob_test_ads = is_test_ip or bool(current_user and current_user.is_admin)
+    #TODO: Play 未公開の間は Android は常にテスト広告にする。公開後にこの固定を外す。
+    if platform == "android":
+        use_admob_test_ads = True
     return {
         "client_ip": client_ip,
-        "is_test_ip": is_test_ip
+        "is_test_ip": is_test_ip,
+        "use_admob_test_ads": use_admob_test_ads,
     }
 
 

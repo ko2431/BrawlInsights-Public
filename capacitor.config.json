@@ -7,6 +7,9 @@
     "url": "https://brawlinsights.com",
     "cleartext": false
   },
+  "android": {
+    "appendUserAgent": "BrawlInsightsApp/14.0"
+  },
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 500,
@@ -17,7 +20,8 @@
     },
     "AdMob": {
       "appId": {
-        "ios": "ca-app-pub-4627806715879063~9218261222"
+        "ios": "ca-app-pub-4627806715879063~9218261222",
+        "android": "ca-app-pub-4627806715879063~8732561161"
       }
     }
   }

@@ -31,6 +31,8 @@
     <p class="terms-page__section">{% if lang == "ja" %}開発者は、本サービスの提供にあたり、以下の情報を収集することがあります。
             <br>1. ユーザーからご提供いただく情報
             <br><span class="indent">• アカウント登録時（任意）にご提供いただく情報：ユーザー名、パスワード（ハッシュ化して保存します）など、開発者が定める情報。
+            <br><span class="indent">• 本サービスの機能の利用に伴いご提供または発生する情報：ゲームに関する公開情報その他のプレイヤーデータ、投稿・送信した内容など。
+            <br><span class="indent">• 有料機能の利用、任意の支援、お問い合わせ、アンケートその他開発者が指定する方法によりご提供いただく情報。
             <br>2. 本サービスのご利用時に自動的に収集する情報
             <br><span class="indent"></span>• Cookie（クッキー）および類似技術: 本サービスでは、利便性の向上、セッション管理（ログイン状態の維持など）、アクセス状況の把握のためにCookieを使用します。
             <br><span class="indent"></span>• 広告識別子: アプリケーション版の本サービスにおいて、広告配信の目的で、ご利用のOSから広告識別子（iOSにおけるIDFA、AndroidにおけるAAID）を取得する場合があります。
@@ -41,9 +43,13 @@
             <br><span class="indent-2"></span>• アクセスされたページやリソースのURL
             <br><span class="indent-2"></span>• リファラー情報
             <br><span class="indent"></span>• デバイス情報: 本サービスの利用状況分析のため、ユーザーが使用するデバイスの種類などの情報を収集する場合があります。
+            <br>3. 外部の事業者から取得する情報
+            <br><span class="indent">• 本サービスの提供に必要な範囲で、外部の事業者から提供を受ける情報。
         {% else %}The Developer may collect the following information in providing the Service:
             <br>1. Information provided by Users
             <br><span class="indent">• Information provided at the time of account registration (optional): Information specified by the Developer, such as username and password (stored hashed).
+            <br><span class="indent">• Information provided or generated in connection with use of the Service's functions: Publicly available game-related information and other player data, content posted or transmitted, and the like.
+            <br><span class="indent">• Information provided through use of paid features, optional support, inquiries, surveys, or other methods designated by the Developer.
             <br>2. Information automatically collected when using the Service
             <br><span class="indent"></span>• Cookies and similar technologies: The Service uses Cookies to improve convenience, manage sessions (such as maintaining login status), and understand access status.
             <br><span class="indent"></span>• Advertising Identifier: In the application version of the Service, we may obtain an advertising identifier (IDFA for iOS, AAID for Android) from your OS for the purpose of ad delivery.
@@ -53,7 +59,9 @@
             <br><span class="indent-2"></span>• Request date and time
             <br><span class="indent-2"></span>• URL of accessed pages or resources
             <br><span class="indent-2"></span>• Referrer information
-            <br><span class="indent"></span>• Device information: For the purpose of analyzing the usage of the Service, information such as the type of device used by the User may be collected.{% endif %}</p>
+            <br><span class="indent"></span>• Device information: For the purpose of analyzing the usage of the Service, information such as the type of device used by the User may be collected.
+            <br>3. Information obtained from external operators
+            <br><span class="indent">• Information received from external operators to the extent necessary to provide the Service.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第2条（情報の利用目的）
         {% else %}Article 2 (Purposes of Use of Information){% endif %}</h2>
@@ -65,7 +73,11 @@
             <br>5. ユーザーにご自身の登録情報の閲覧、変更、削除を行っていただくため
             <br>6. ユーザーの興味や関心に合わせた広告を配信するため
             <br>7. 本サービスに関する重要なお知らせなど、必要に応じた連絡のため
-            <br>8. 上記の利用目的に付随する目的のため
+            <br>8. 投稿・送信機能の提供、表示および運営のため
+            <br>9. アプリ内通貨その他の特典の付与および管理のため
+            <br>10. 有料機能および任意の支援の提供、確認のため
+            <br>11. 本サービスの改善、利用状況の把握、アンケートその他の調査のため
+            <br>12. 上記の利用目的に付随する目的のため
         {% else %}The Developer will use the collected information for the following purposes:
             <br>1. To provide, maintain, protect, and improve the Service (including account authentication, display of game results, provision of information, etc.).
             <br>2. To respond to inquiries from Users (including identity verification).
@@ -74,7 +86,11 @@
             <br>5. To allow Users to view, change, or delete their own registered information.
             <br>6. To deliver advertisements tailored to the user's interests and concerns.
             <br>7. To provide necessary communications, such as important notices regarding the Service.
-            <br>8. For purposes incidental to the above purposes of use.{% endif %}</p>
+            <br>8. To provide, display, and operate posting and transmission functions.
+            <br>9. To grant and manage in-app currency and other benefits.
+            <br>10. To provide and confirm paid features and optional support.
+            <br>11. To improve the Service, understand usage, and conduct surveys and other research.
+            <br>12. For purposes incidental to the above purposes of use.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第3条（情報の第三者提供）
         {% else %}Article 3 (Provision of Information to Third Parties){% endif %}</h2>
@@ -83,46 +99,55 @@
             <br>2. 人の生命、身体または財産の保護のために必要がある場合であって、本人の同意を得ることが困難であるとき
             <br>3. 公衆衛生の向上または児童の健全な育成の推進のために特に必要がある場合であって、本人の同意を得ることが困難であるとき
             <br>4. 国の機関もしくは地方公共団体またはその委託を受けた者が法令の定める事務を遂行することに対して協力する必要がある場合であって、本人の同意を得ることにより当該事務の遂行に支障を及ぼすおそれがあるとき
+            <br>なお、本サービスの提供に必要な範囲で業務を委託する場合、および外国にある事業者へ情報が取り扱われる場合については、次条に定めるとおりとします。
         {% else %}The Developer will not provide personal information (as defined in Article 2, Paragraph 1 of the Act on the Protection of Personal Information; the same shall apply hereinafter) to a third party without the prior consent of the User, except in the following cases. However, this excludes cases permitted by the Act on the Protection of Personal Information and other laws and regulations.
             <br>1. When based on laws and regulations.
             <br>2. When it is necessary for the protection of a person's life, body, or property, and it is difficult to obtain the consent of the individual.
             <br>3. When it is particularly necessary for the improvement of public health or the promotion of the sound upbringing of children, and it is difficult to obtain the consent of the individual.
-            <br>4. When it is necessary to cooperate with a national agency, a local government, or an individual or entity entrusted by either of the foregoing in executing affairs prescribed by laws and regulations, and obtaining the consent of the individual is likely to impede the execution of said affairs.{% endif %}</p>
+            <br>4. When it is necessary to cooperate with a national agency, a local government, or an individual or entity entrusted by either of the foregoing in executing affairs prescribed by laws and regulations, and obtaining the consent of the individual is likely to impede the execution of said affairs.
+            <br>Where the Developer outsources operations to the extent necessary to provide the Service, or where information is handled by an operator located in a foreign country, the handling shall be as set forth in the following Article.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第4条（アクセス解析ツールの利用）
-        {% else %}Article 4 (Use of Access Analysis Tools){% endif %}</h2>
-    <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスでは、サービスの利用状況を把握し、サービス向上を図る目的で、Google Inc.が提供する「Google アナリティクス」を利用しています。
+    <h2 class="section-title">{% if lang == "ja" %}第4条（外部送信等）
+        {% else %}Article 4 (Transmission to External Operators, etc.){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}本サービスは、提供、配信、解析、広告、決済等のため、外国にある事業者を含む外部の事業者へ、必要な範囲で情報を送信し、または取り扱いを委託することがあります。これには、アクセス解析、広告配信、アプリストア等を通じた決済、コンテンツ配信その他のインフラの提供などが含まれます。送信先の例としては、Googleおよびその関連会社、アプリストアの運営者などが挙げられます。送信される情報の例としては、端末やブラウザに関する情報、利用状況、決済の成立に必要な識別子などが含まれますが、これらに限りません。詳細は、各事業者のプライバシーポリシー等をご確認ください。
+        {% else %}The Service may, to the extent necessary, transmit information to, or outsource the handling of information to, external operators, including operators located in foreign countries, for purposes such as providing and delivering the Service, analytics, advertising, and payments. This includes access analytics, advertisement delivery, payments through app stores and the like, content delivery, and other infrastructure. Examples of recipients include Google and its affiliates, and operators of app stores. Examples of information transmitted include, but are not limited to, information about devices and browsers, usage information, and identifiers necessary to complete payments. For further details, please refer to the privacy policies of the respective operators.{% endif %}</p>
+
+    <h2 class="section-title">{% if lang == "ja" %}第5条（アクセス解析ツールの利用）
+        {% else %}Article 5 (Use of Access Analysis Tools){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスでは、サービスの利用状況を把握し、サービス向上を図る目的で、Google LLCが提供する「Google アナリティクス」を利用しています。
             <br>2. Google アナリティクスは、Cookieを利用してユーザーのトラフィックデータを収集します。このトラフィックデータは匿名で収集されており、個人を特定するものではありません。
             <br>3. ユーザーは、ブラウザの設定でCookieを無効にすることで、この情報収集を拒否することができます。ただし、その際に本サービスの一部機能が利用できなくなる場合があります。
             <br>4. Google アナリティクスの規約に関する詳細は<a href="https://marketingplatform.google.com/about/analytics/terms/jp/" target="_blank" rel="noopener noreferrer" class="terms-page__link">こちら</a>、Google社のプライバシーポリシーに関する詳細は<a href="https://policies.google.com/privacy?hl=ja" target="_blank" rel="noopener noreferrer" class="terms-page__link">こちら</a>をご覧ください。
-        {% else %}1. The Service uses "Google Analytics" provided by Google Inc. for the purpose of understanding the usage status of the Service and improving the Service.
+        {% else %}1. The Service uses "Google Analytics" provided by Google LLC for the purpose of understanding the usage status of the Service and improving the Service.
             <br>2. Google Analytics uses Cookies to collect user traffic data. This traffic data is collected anonymously and does not identify individuals.
             <br>3. Users can refuse this information collection by disabling Cookies in their browser settings. However, some functions of the Service may become unavailable in that case.
             <br>4. For more details on the Google Analytics terms of service, please see <a href="https://marketingplatform.google.com/about/analytics/terms/us/" target="_blank" rel="noopener noreferrer" class="terms-page__link">here</a>. For more details on Google's privacy policy, please see <a href="https://policies.google.com/privacy?hl=en" target="_blank" rel="noopener noreferrer" class="terms-page__link">here</a>.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第5条（広告の配信）
-        {% else %}Article 5 (Advertisement Delivery){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第6条（広告の配信）
+        {% else %}Article 6 (Advertisement Delivery){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}1. 本サービスでは、第三者配信の広告サービス（Google AdSense等）を利用しています。
             <br>2. このような広告配信事業者は、ユーザーの興味に応じた商品やサービスの広告を表示するため、本サービスや他のサイトへのアクセスに関する情報（Cookie）を使用することがあります。これには氏名、住所、メールアドレス、電話番号は含まれません。
             <br>3. ユーザーは、<a href="https://adssettings.google.com/authenticated" target="_blank" rel="noopener noreferrer" class="terms-page__link">Google広告設定</a>から、パーソナライズ広告を無効にすることができます。また、<a href="https://optout.aboutads.info/" target="_blank" rel="noopener noreferrer" class="terms-page__link">www.aboutads.info</a>にアクセスすれば、パーソナライズ広告に使われる第三者配信事業者のCookieをまとめて無効にできます。
             <br>4. 広告識別子を利用した広告の無効化（オプトアウト）は、ご利用の端末のOS設定から行うことができます。設定方法については、各OSの公式情報をご確認ください。
+            <br>5. 本サービスは、ウェブサイトおよびアプリケーションにおいて広告を表示することがあります。広告には、開発者以外の第三者による広告および提携先に関する表示が含まれます。
         {% else %}1. The Service uses third-party advertisement distribution services (such as Google AdSense).
             <br>2. Such advertisement distributors may use information about access to the Service and other sites (Cookies) to display advertisements for products and services that match the user's interests. This does not include name, address, email address, or telephone number.
             <br>3. Users can disable personalized ads from the <a href="https://adssettings.google.com/authenticated" target="_blank" rel="noopener noreferrer" class="terms-page__link">Google Ad Settings</a>. You can also visit <a href="https://optout.aboutads.info/" target="_blank" rel="noopener noreferrer" class="terms-page__link">www.aboutads.info</a> to disable cookies from third-party distributors used for personalized advertising.
-            <br>4. Disabling (opting out of) ads that use advertising identifiers can be done from the OS settings of your device. For details on how to configure this, please check the official information for each OS.{% endif %}</p>
+            <br>4. Disabling (opting out of) ads that use advertising identifiers can be done from the OS settings of your device. For details on how to configure this, please check the official information for each OS.
+            <br>5. The Service may display advertisements on the website and in applications. Advertisements may include those from third parties other than the Developer, as well as displays relating to partners.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第6条（情報の共同利用）
-        {% else %}Article 6 (Joint Use of Information){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第7条（情報の共同利用）
+        {% else %}Article 7 (Joint Use of Information){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}開発者は、現時点において、収集した個人情報を特定の者との間で共同利用することはありません。今後、共同利用を行う場合には、あらかじめ共同利用する情報の項目、共同利用者の範囲、利用目的および管理責任者を通知し、または本ポリシー等で公表します。
         {% else %}At present, the Developer does not jointly use collected personal information with specific parties. If joint use is to occur in the future, the Developer will notify Users of the items of information to be jointly used, the scope of joint users, the purposes of use, and the name of the person responsible for management in advance, or will publicly announce such information in this Policy or elsewhere.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第7条（情報の安全管理措置）
-        {% else %}Article 7 (Security Control Measures for Information){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第8条（情報の安全管理措置）
+        {% else %}Article 8 (Security Control Measures for Information){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}開発者は、取り扱う情報の漏えい、滅失またはき損の防止その他の情報の安全管理のために、必要かつ適切な措置を講じます。具体的には、不正アクセス対策、アクセス制御などを実施します。
         {% else %}The Developer will take necessary and appropriate measures to prevent the leakage, loss, or damage of handled information and for other security control of information. Specifically, measures such as unauthorized access countermeasures and access control will be implemented.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第8条（Cookieの管理）
-        {% else %}Article 8 (Management of Cookies){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第9条（Cookieの管理）
+        {% else %}Article 9 (Management of Cookies){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}1. 多くのブラウザは、デフォルトでCookieを受け入れるように設定されています。ユーザーは、ブラウザの設定を変更することにより、Cookieを無効化したり、Cookieが送信される際に警告を表示させたりすることができます。
             <br>2. Cookieを無効化した場合、本サービスの一部機能がご利用いただけなくなることがありますので、あらかじめご了承ください。
             <br>3. Cookieの設定変更方法については、各ブラウザの公式サポートサイトをご参照ください。
@@ -130,24 +155,24 @@
             <br>2. Please note that if Cookies are disabled, some functions of the Service may become unavailable.
             <br>3. For information on how to change Cookie settings, please refer to the official support site of each browser.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第9条（情報の保存期間）
-        {% else %}Article 9 (Retention Period of Information){% endif %}</h2>
-    <p class="terms-page__section">{% if lang == "ja" %}開発者は、収集した情報を、利用目的の達成に必要な範囲内で、かつ関連法令に従って適切な期間保存します。
-        {% else %}The Developer will retain collected information for an appropriate period within the scope necessary to achieve the purposes of use and in accordance with relevant laws and regulations.{% endif %}</p>
+    <h2 class="section-title">{% if lang == "ja" %}第10条（情報の保存期間）
+        {% else %}Article 10 (Retention Period of Information){% endif %}</h2>
+    <p class="terms-page__section">{% if lang == "ja" %}開発者は、収集した情報を、利用目的の達成に必要な期間保存します。保存期間は情報の種類や機能により異なり、法令上の保存が必要な場合を除き、不要となった情報は、開発者が適切と判断する方法により削除または匿名化します。アカウントの利用を終了した場合でも、公開済みの投稿、不正利用の防止その他運営上必要な記録が残ることがあります。
+        {% else %}The Developer will retain collected information for the period necessary to achieve the purposes of use. Retention periods may differ depending on the type of information and the function concerned. Except where retention is required by law, information that is no longer needed will be deleted or anonymized in a manner the Developer deems appropriate. Even after an account is terminated, publicly posted content, records necessary to prevent misuse, and other records necessary for operation of the Service may remain.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第10条（ユーザーの権利：個人情報の開示・訂正・削除・利用停止等）
-        {% else %}Article 10 (User Rights: Disclosure, Correction, Deletion, Suspension of Use, etc. of Personal Information){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第11条（ユーザーの権利：個人情報の開示・訂正・削除・利用停止等）
+        {% else %}Article 11 (User Rights: Disclosure, Correction, Deletion, Suspension of Use, etc. of Personal Information){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}1. ユーザーは、開発者が保有するご自身の個人情報について、個人情報保護法の定めに基づき、開示、訂正、追加、削除、利用停止、消去（以下、「開示等」といいます。）を請求することができます。
-            <br>2. 開示等の請求は、第10条に定めるお問い合わせ窓口までご連絡ください。ご請求がユーザーご本人からであることを確認の上、法令に基づき遅滞なく対応いたします。
-            <br>3. アカウント登録ユーザーは、本サービス内の設定画面からご自身の登録情報を閲覧・訂正することができます。アカウントの削除も同様にサービス内から行うことができます。
+            <br>2. 開示等の請求は、第13条に定めるお問い合わせ窓口までご連絡ください。ご請求がユーザーご本人からであることを確認の上、法令に基づき遅滞なく対応いたします。
+            <br>3. アカウント登録ユーザーは、本サービス内の設定画面からご自身の登録情報を閲覧・訂正することができます。アカウントの削除を希望する場合、本サービス上の所定の手続により申請できます。削除後、当該アカウントによる本サービスの利用はできなくなります。ただし、公開済みの投稿・送信内容や、法令または本サービスの運営上必要な記録は、削除されないことがあります。
             <br>4. 個人情報の開示につきましては、1件あたり最大で1,000円の手数料を申し受ける場合がありますので、あらかじめご了承ください。
         {% else %}1. Users may request the disclosure, correction, addition, deletion, suspension of use, or erasure (hereinafter referred to as "Disclosure, etc.") of their own personal information held by the Developer, based on the provisions of the Act on the Protection of Personal Information.
-            <br>2. Requests for Disclosure, etc. should be made to the contact point specified in Article 10. After confirming that the request is from the User本人 (the user themselves), the Developer will respond without delay in accordance with laws and regulations.
-            <br>3. Users with registered accounts can view and correct their own registered information from the settings screen within the Service. Account deletion can also be performed from within the Service in the same manner.
+            <br>2. Requests for Disclosure, etc. should be made to the contact point specified in Article 13. After confirming that the request is from the User themselves, the Developer will respond without delay in accordance with laws and regulations.
+            <br>3. Users with registered accounts can view and correct their own registered information from the settings screen within the Service. Users who wish to delete their account may apply through the procedures specified on the Service. After deletion, the account may no longer be used to access the Service. However, publicly posted or transmitted content, and records required by law or necessary for operation of the Service, may not be deleted.
             <br>4. Please note that a fee of up to 1,000 yen per case may be charged for the disclosure of personal information.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第11条（プライバシーポリシーの変更）
-        {% else %}Article 11 (Changes to the Privacy Policy){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第12条（プライバシーポリシーの変更）
+        {% else %}Article 12 (Changes to the Privacy Policy){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}1. 開発者は、法令等の改正や事業内容の変更、ユーザーの要望等により、本ポリシーの内容を必要に応じて変更することがあります。
             <br>2. 変更後の本ポリシーは、本サービス上での掲載をもって効力を生じるものとします。ただし、法令上ユーザーの同意が必要となるような内容の変更の場合は、開発者所定の方法でユーザーの同意を得るものとします。
             <br>3. 本ポリシーの重要な変更については、変更内容、効力発生時期等を分かりやすく告知するよう努めます。
@@ -155,17 +180,23 @@
             <br>2. The revised Policy shall become effective upon its posting on the Service. However, if the changes require User consent under laws and regulations, the Developer will obtain User consent in a manner prescribed by the Developer.
             <br>3. The Developer will endeavor to clearly announce significant changes to this Policy, including the content of the changes and the effective date.{% endif %}</p>
 
-    <h2 class="section-title">{% if lang == "ja" %}第12条（お問い合わせ窓口）
-        {% else %}Article 12 (Contact Information){% endif %}</h2>
+    <h2 class="section-title">{% if lang == "ja" %}第13条（お問い合わせ窓口）
+        {% else %}Article 13 (Contact Information){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}本ポリシーに関するご意見、ご質問のお申し出、その他ユーザー情報の取扱いに関するお問い合わせは、以下の窓口までお願いいたします。
+            <br>• 名称: Brawl Insights
             <br>• メールアドレス: <a href="mailto:contact.brawlinsights@gmail.com" class="terms-page__link">contact.brawlinsights@gmail.com</a>
+            <br>個人情報保護法に基づく開示等の請求その他必要な場合、氏名および所在地はご請求に応じて遅滞なく開示します。
+            <br>本サービス上の投稿等に関し、権利侵害その他の申告がある場合も、上記連絡先までご連絡ください。
         {% else %}For opinions, questions, or other inquiries regarding this Policy or the handling of User information, please contact the following:
-            <br>• E-mail: <a href="mailto:contact.brawlinsights@gmail.com" class="terms-page__link">contact.brawlinsights@gmail.com</a>{% endif %}</p>
+            <br>• Name: Brawl Insights
+            <br>• E-mail: <a href="mailto:contact.brawlinsights@gmail.com" class="terms-page__link">contact.brawlinsights@gmail.com</a>
+            <br>Where required, including for requests for Disclosure, etc. under the Act on the Protection of Personal Information, the Developer's name and address will be disclosed without delay upon request.
+            <br>Please also contact the above for reports of rights infringement or other issues concerning posts or other content on the Service.{% endif %}</p>
     
     <p class="terms-page__section">{% if lang == "ja" %}制定日：2025年5月23日
-            <br>最終改定日：2025年8月3日
+            <br>最終改定日：2026年8月18日
         {% else %}Date of Enactment: May 23, 2025
-            <br>Last Updated: August 3, 2025{% endif %}</p>
+            <br>Last Updated: August 18, 2026{% endif %}</p>
     
     {# 戻るボタン #}
     {% if platform != "web" %}

@@ -15,7 +15,7 @@
      x-data="profileImageTool(Object.assign(
          {},
          JSON.parse(document.getElementById('profile-image-tool-config').textContent),
-         { isTestIp: {{ 'true' if is_test_ip or (current_user and current_user.is_admin) else 'false' }} }
+         { isTestIp: {{ 'true' if use_admob_test_ads else 'false' }} }
      ))">
     
     {# 戻るボタン #}
@@ -321,13 +321,14 @@
                     </template>
                     <template x-if="platform === 'web' && isAppOnlySelectedType">
                         <div style="display: contents;">
+                            {# TODO: Android版アプリリリース後、以下のhrefは"{{ app_store_url }}"に置き換える #}
                             <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="profile-image-tool__gen-btn--primary" style="display: flex; justify-content: center; align-items: center; text-decoration: none;">
                                 <span x-text="lang === 'ja' ? 'アプリで生成する' : 'Generate on the App'"></span>
                             </a>
                             <p class="profile-image-tool__gen-ticket-info">
                                 <span x-text="lang === 'ja' 
-                                    ? '現在この画像はiOSアプリ版でのみ生成が可能です。アプリをインストールの上、ぜひご利用ください。' 
-                                    : 'Currently, this image can only be generated on the iOS app version. Please install the app and try it out.'"></span>
+                                    ? '現在この画像はアプリ版でのみ生成が可能です。アプリをインストールの上、ぜひご利用ください。' 
+                                    : 'Currently, this image can only be generated on the app version. Please install the app and try it out.'"></span>
                             </p>
                         </div>
                     </template>
@@ -687,7 +688,8 @@
                                 if (window.Capacitor?.Plugins?.AdMob) {
                                     const isTesting = this.isTestIp;
                                     const testId = 'ca-app-pub-3940256099942544/4411468910';
-                                    const adId = isTesting ? testId : 'ca-app-pub-4627806715879063/4022281347';
+                                    const prodId = '{% if platform == "android" %}ca-app-pub-4627806715879063/9075392270{% else %}ca-app-pub-4627806715879063/4022281347{% endif %}';
+                                    const adId = isTesting ? testId : prodId;
                                     if (typeof window.biShowInterstitialAd === 'function') {
                                         await window.biShowInterstitialAd({ adId, isTesting });
                                     } else {
@@ -851,9 +853,39 @@
                 },
 
                 // ---- 保存 ----
+                shareImageViaNative(imageUrl, filename, dialogTitle) {
+                    return new Promise((resolve, reject) => {
+                        let settled = false;
+                        const finish = (callback) => () => {
+                            if (settled) return;
+                            settled = true;
+                            window.clearTimeout(timer);
+                            window.removeEventListener('bi-native-image-share-ok', onOk);
+                            window.removeEventListener('bi-native-image-share-fail', onFail);
+                            callback();
+                        };
+                        const onOk = finish(() => resolve());
+                        const onFail = finish(() => reject(new Error('native share failed')));
+                        const timer = window.setTimeout(finish(() => reject(new Error('native share timeout'))), 30000);
+                        window.addEventListener('bi-native-image-share-ok', onOk);
+                        window.addEventListener('bi-native-image-share-fail', onFail);
+                        window.BrawlInsightsNative.shareImageFromUrl(imageUrl, filename, dialogTitle);
+                    });
+                },
+
                 async saveImage() {
                     if (!this.job?.result_path) return;
+                    const filename = this.job.result_filename || 'profile-image.png';
+                    const dialogTitle = this.lang === 'ja' ? '画像を保存' : 'Save Image';
                     try {
+                        // Android は Web Share API のファイル共有が使えないため、ネイティブの共有シートで画像ファイルを渡す
+                        if (window.BrawlInsightsNative?.shareImageFromUrl) {
+                            const imageUrl = new URL(this.job.result_path, window.location.origin).href;
+                            await this.shareImageViaNative(imageUrl, filename, dialogTitle);
+                            this.imageSaved = true;
+                            return;
+                        }
+
                         const response = await fetch(this.job.result_path);
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}`);
@@ -862,8 +894,6 @@
 
                         // アプリ版は download 属性による保存で画面遷移が発生しやすいため、共有シートを優先する
                         if (window.Capacitor?.isNativePlatform?.()) {
-                            const filename = this.job.result_filename || 'profile-image.png';
-
                             if (navigator.canShare && navigator.share) {
                                 const file = new File([blob], filename, { type: blob.type || 'image/png' });
                                 if (navigator.canShare({ files: [file] })) {
@@ -885,13 +915,11 @@
 
                             if (window.Capacitor?.Plugins?.Share) {
                                 try {
+                                    const imageUrl = new URL(this.job.result_path, window.location.origin).href;
                                     await window.Capacitor.Plugins.Share.share({
-                                        title: this.lang === 'ja' ? '画像を保存' : 'Save Image',
-                                        text: this.lang === 'ja'
-                                            ? '共有メニューから「画像を保存」を選択してください。'
-                                            : 'Please choose "Save Image" from the share sheet.',
-                                        url: this.job.result_path,
-                                        dialogTitle: this.lang === 'ja' ? '画像を保存' : 'Save Image',
+                                        title: dialogTitle,
+                                        url: imageUrl,
+                                        dialogTitle: dialogTitle,
                                     });
                                     this.imageSaved = true;
                                     return;
@@ -911,7 +939,7 @@
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = this.job.result_filename || 'profile-image.png';
+                        a.download = filename;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);

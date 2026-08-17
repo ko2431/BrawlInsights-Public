@@ -22,7 +22,7 @@ def get_random_ad_banner(lang: str, platform: str) -> dict | None:
     抽選フロー:
         1. sponsor_* フォルダを全て列挙
         2. スポンサー数 < AD_BANNER_MAX_SPONSORS ならば、
-           プラットフォームに応じた self フォルダ（self_web or self_app）も候補に追加
+           プラットフォームに応じた self フォルダ（self_web or self_ios or self_android）も候補に追加
         3. 候補フォルダからランダムに1フォルダを選択（クリエイター間の公平性を担保）
         4. フォルダ内の config.json を読み込み、現在の lang に合致するバナーを抽出
         5. 合致バナーからランダムに1つ選択
@@ -41,7 +41,7 @@ def get_random_ad_banner(lang: str, platform: str) -> dict | None:
     sponsor_count = len(sponsor_folders)
 
     # self フォルダをプラットフォームに応じて選択
-    self_folder_name = "self_web" if platform == "web" else "self_app"
+    self_folder_name = "self_web" if platform == "web" else "self_ios" if platform == "ios" else "self_android"
     self_folder = AD_BANNER_DIR / self_folder_name
 
     # 候補フォルダを決定

@@ -128,7 +128,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="14.6_V11",
+    version="14.6_V13",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -321,12 +321,51 @@ async def sitemap(request: Request, db: asyncpg.Connection = Depends(get_shared_
 #* 言語判定関数
 #* /---*---*---*---*---*---*---*---*/
 def detect_language(request: Request) -> str:
-    accept_language = request.headers.get("accept-language")
-    if accept_language:
-        # 簡単な判定: 'ja' が含まれていれば 'ja'、そうでなければ 'en'
-        if 'ja' in accept_language.lower().split(','):
-            return "ja"
-    return "en" # デフォルトは英語 (または日本語でも可)
+    """Accept-Language の優先度に従い、日本語なら ja、それ以外は en。"""
+    return preferred_ui_language(request.headers.get("accept-language"))
+
+
+def preferred_ui_language(accept_language: str | None) -> str:
+    """q 値が最も高い ja / en を返す。どちらも無ければ en。
+
+    Android / iOS の言語リストは先頭が UI 言語で、以前の言語が後段に残る。
+    どこかに ja があれば日本語、だと English (UK) + 日本語 が日本語になってしまう。
+    """
+    if not accept_language:
+        return "en"
+
+    best_lang: str | None = None
+    best_q = -1.0
+    for token in accept_language.lower().split(","):
+        token = token.strip()
+        if not token:
+            continue
+        parts = [part.strip() for part in token.split(";")]
+        lang_tag = parts[0]
+        if not lang_tag or lang_tag == "*":
+            continue
+        q = 1.0
+        for param in parts[1:]:
+            if param.startswith("q="):
+                try:
+                    q = float(param[2:])
+                except ValueError:
+                    q = 0.0
+                break
+        if q <= 0:
+            continue
+        if lang_tag == "ja" or lang_tag.startswith("ja-"):
+            candidate = "ja"
+        elif lang_tag == "en" or lang_tag.startswith("en-"):
+            candidate = "en"
+        else:
+            continue
+        # 同点ならヘッダー前方（通常は端末の先頭言語）を優先する
+        if q > best_q:
+            best_q = q
+            best_lang = candidate
+
+    return best_lang or "en"
 
 
 #* /---*---*---*---*---*---*---*---*/

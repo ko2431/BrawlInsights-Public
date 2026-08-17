@@ -20,6 +20,7 @@
   "homepage": "https://github.com/ko2431/BrawlInsights#readme",
   "dependencies": {
     "@capacitor-community/admob": "^7.0.3",
+    "@capacitor/android": "^7.4.2",
     "@capacitor/browser": "^7.0.1",
     "@capacitor/cli": "^7.4.2",
     "@capacitor/core": "^7.4.2",
