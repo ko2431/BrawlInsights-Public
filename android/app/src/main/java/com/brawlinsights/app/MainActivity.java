@@ -21,6 +21,7 @@ import android.os.LocaleList;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.View;
 import android.view.Window;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebBackForwardList;
@@ -104,6 +105,7 @@ public class MainActivity extends BridgeActivity {
         applyScreenOrientation();
         applySystemBarAppearance(true);
         isNetworkAvailable = hasInternetCapability();
+        disableWebViewOverscroll();
         installJavascriptInterface();
         registerWebViewForAds();
         installWebViewClient();
@@ -198,6 +200,19 @@ public class MainActivity extends BridgeActivity {
             config.setLocale(appLocale);
         }
         return base.createConfigurationContext(config);
+    }
+
+    private void disableWebViewOverscroll() {
+        WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+        if (webView == null) {
+            return;
+        }
+        // Pixel など Android 12 以降は端でコンテンツ全体が伸びる。
+        // ネイティブの AdMob バナーは動かないため、タブバーとの間に隙間ができる。
+        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        if (webView.getParent() instanceof View parent) {
+            parent.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")

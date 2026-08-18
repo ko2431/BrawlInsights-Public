@@ -149,6 +149,13 @@ body.platform-android {
     -webkit-touch-callout: none;
 }
 
+/* Android WebView の端でのストレッチ（オーバースクロール）を無効化。
+   ネイティブの AdMob バナーは伸びないため、タブバーだけ動くと隙間ができる。 */
+html.platform-android,
+body.platform-android {
+    overscroll-behavior: none;
+}
+
 /* 進捗バーの設定 */
 #nprogress {
   transition: opacity 0.3s ease-in-out !important;
