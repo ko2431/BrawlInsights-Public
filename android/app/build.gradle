@@ -7,8 +7,9 @@ android {
         applicationId "com.brawlinsights.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode 2
         // iOS の MARKETING_VERSION および capacitor.config.json の android.appendUserAgent と揃える
+        // 表示バージョンはクローズドテスト中も 14.0。正式公開で 15.0 にする
         versionName "14.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
