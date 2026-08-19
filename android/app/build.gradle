@@ -8,8 +8,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 2
-        // iOS の MARKETING_VERSION および capacitor.config.json の android.appendUserAgent と揃える
-        // 表示バージョンはクローズドテスト中も 14.0。正式公開で 15.0 にする
+        // iOS の MARKETING_VERSION は 15.0。Android クローズドテスト中は 14.0 のまま。正式公開で 15.0 にする
+        // capacitor.config.json の android.appendUserAgent もクローズドテスト中は 14.0
         versionName "14.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
