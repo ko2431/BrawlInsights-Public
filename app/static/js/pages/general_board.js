@@ -293,7 +293,9 @@
                 this.persistPrefs();
                 this.syncShellUi();
                 history.replaceState({ generalBoard: this.getQueryParams() }, '', this.buildShellUrl());
-                return this.load({ updateHistory: false });
+                return this.load({ updateHistory: false }).then(() => {
+                    return window.BoardFragmentPagination?.restoreAfterChat?.(this);
+                });
             },
         };
 

@@ -184,7 +184,9 @@
                 this.applyStateFromUrl();
                 this.syncShellUi();
                 history.replaceState({ notificationsBoard: this.getQueryParams() }, '', this.buildShellUrl());
-                return this.load({ updateHistory: false });
+                return this.load({ updateHistory: false }).then(() => {
+                    return window.BoardFragmentPagination?.restoreAfterChat?.(this);
+                });
             },
         };
 

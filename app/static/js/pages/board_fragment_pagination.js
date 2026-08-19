@@ -197,6 +197,179 @@
         return loader;
     }
 
+    const RETURN_STATE_KEY = 'bi-board-return-state';
+    const RETURN_STATE_TTL_MS = 30 * 60 * 1000;
+    const MAX_RESTORE_LOAD_MORE = 10;
+    const CHAT_PATH_RE = /\/boards\/chat\/(\d+)/;
+
+    function normalizePathname(pathname) {
+        return (pathname || '/').replace(/\/+$/, '') || '/';
+    }
+
+    function extractThreadIdFromHref(href) {
+        if (!href) return null;
+        try {
+            const url = new URL(href, window.location.origin);
+            const match = url.pathname.match(CHAT_PATH_RE);
+            return match ? match[1] : null;
+        } catch {
+            const match = String(href).match(CHAT_PATH_RE);
+            return match ? match[1] : null;
+        }
+    }
+
+    function getActiveBoardLoader() {
+        const fragments = window.recruitmentBoardFragments || {};
+        return window.teamBoardFragment
+            || fragments.friend
+            || fragments.club
+            || window.generalBoardFragment
+            || window.notificationsFragment
+            || null;
+    }
+
+    function getCurrentLoaderPage() {
+        const page = Number(getActiveBoardLoader()?.page);
+        return Number.isFinite(page) && page >= 1 ? page : 1;
+    }
+
+    function clearReturnState() {
+        try {
+            sessionStorage.removeItem(RETURN_STATE_KEY);
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function readReturnState() {
+        try {
+            const raw = sessionStorage.getItem(RETURN_STATE_KEY);
+            if (!raw) return null;
+            const state = JSON.parse(raw);
+            if (!state || typeof state !== 'object') return null;
+            return state;
+        } catch {
+            return null;
+        }
+    }
+
+    function saveOnChatClick(event) {
+        if (event.defaultPrevented || event.button !== 0) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+        const link = event.target.closest?.('a[href]');
+        if (!link || link.target === '_blank') return;
+
+        const threadId = extractThreadIdFromHref(link.getAttribute('href') || link.href);
+        if (!threadId) return;
+
+        const state = {
+            pathname: normalizePathname(window.location.pathname),
+            page: getCurrentLoaderPage(),
+            threadId,
+            scrollY: window.scrollY || window.pageYOffset || 0,
+            savedAt: Date.now(),
+        };
+        try {
+            sessionStorage.setItem(RETURN_STATE_KEY, JSON.stringify(state));
+        } catch {
+            /* ignore quota / private mode */
+        }
+    }
+
+    function consumeReturnState(currentPathname) {
+        const state = readReturnState();
+        if (!state) return null;
+
+        const age = Date.now() - Number(state.savedAt || 0);
+        if (!Number.isFinite(age) || age < 0 || age > RETURN_STATE_TTL_MS) {
+            clearReturnState();
+            return null;
+        }
+        if (normalizePathname(state.pathname) !== normalizePathname(currentPathname)) {
+            return null;
+        }
+        clearReturnState();
+        return state;
+    }
+
+    function findThreadAnchor(threadId) {
+        if (!threadId) return null;
+        const expected = String(threadId);
+        const links = document.querySelectorAll('a[href]');
+        for (const link of links) {
+            if (extractThreadIdFromHref(link.getAttribute('href') || link.href) === expected) {
+                return link;
+            }
+        }
+        return null;
+    }
+
+    function scrollToThreadAnchor(link) {
+        const target = link.closest('.post-card-wrapper')
+            || link.closest('.notification')
+            || link;
+        target.scrollIntoView({ block: 'center' });
+    }
+
+    function waitAnimationFrames() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
+    }
+
+    async function restoreAfterChat(loader) {
+        if (!loader) return;
+
+        const state = consumeReturnState(window.location.pathname);
+        if (!state) return;
+
+        try {
+            if (history.scrollRestoration) {
+                history.scrollRestoration = 'manual';
+            }
+        } catch {
+            /* ignore */
+        }
+
+        await waitAnimationFrames();
+
+        const threadId = state.threadId ? String(state.threadId) : '';
+        if (threadId) {
+            for (let extra = 0; ; extra++) {
+                const anchor = findThreadAnchor(threadId);
+                if (anchor) {
+                    scrollToThreadAnchor(anchor);
+                    return;
+                }
+                if (extra >= MAX_RESTORE_LOAD_MORE || typeof loader.loadMore !== 'function') break;
+                const pageBefore = loader.page;
+                await loader.loadMore();
+                if (loader.page === pageBefore) break;
+            }
+        } else {
+            const targetPage = Number(state.page) || 1;
+            while (loader.page < targetPage && loader.page < 1 + MAX_RESTORE_LOAD_MORE) {
+                if (typeof loader.loadMore !== 'function') break;
+                const pageBefore = loader.page;
+                await loader.loadMore();
+                if (loader.page === pageBefore) break;
+            }
+        }
+
+        const fallbackY = Number(state.scrollY);
+        window.scrollTo(0, Number.isFinite(fallbackY) ? fallbackY : 0);
+    }
+
+    document.addEventListener('click', saveOnChatClick, true);
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            clearReturnState();
+        }
+    });
+
     window.BoardFragmentPagination = {
         POSTS_CONTAINER_SELECTOR,
         LOAD_MORE_SELECTOR,
@@ -206,5 +379,6 @@
         bindLoadMoreDelegation,
         enhanceBoardFragmentLoader,
         applyNotificationBadgesFromRoot,
+        restoreAfterChat,
     };
 })();
