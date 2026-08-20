@@ -533,6 +533,9 @@ body.modal-open {
     padding: 4px 7px;
     font-size: 14px;
     min-width: 40px;
+    max-width: calc(100% - 170px);
+}
+.post-modal-conditions-filter-form__select--application-type {
     max-width: calc(100% - 120px);
 }
 @media (max-width: 539px) {

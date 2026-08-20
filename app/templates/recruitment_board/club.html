@@ -198,7 +198,7 @@
                     </form>
                     <form method="get" class="filter-form post-modal-conditions-filter-form">
                         <label for="conditions-application-type" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}条件の適用方法:{% else %}Condition Logic:{% endif %}</label>
-                        <select id="conditions-application-type" class="filter-form__select post-modal-conditions-filter-form__select">
+                        <select id="conditions-application-type" class="filter-form__select post-modal-conditions-filter-form__select post-modal-conditions-filter-form__select--application-type">
                             <option value="and">{% if lang == "ja" %}すべて満たせば可{% else %}Meet All{% endif %}</option>
                             <option value="or">{% if lang == "ja" %}いずれか1つを満たせば可{% else %}Meet Any{% endif %}</option>
                         </select>
