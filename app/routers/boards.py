@@ -616,6 +616,7 @@ async def team_recruitment_board(
         "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
+        "hide_navigation_controls": True,
         "current_page": "board",
     }
     await _append_board_notification_context(context, db, user)
@@ -823,6 +824,7 @@ async def friend_recruitment_board(
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
         "current_page": "board",
+        "hide_navigation_controls": True,
     }
     await _append_board_notification_context(context, db, user)
 
@@ -945,6 +947,7 @@ async def club_recruitment_board(
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
         "current_page": "board",
+        "hide_navigation_controls": True,
     }
     await _append_board_notification_context(context, db, user)
 
@@ -1198,7 +1201,8 @@ async def general_board(
         "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),
-        "current_page": "board"
+        "current_page": "board",
+        "hide_navigation_controls": True,
     }
     await _append_board_notification_context(context, db, user)
 
