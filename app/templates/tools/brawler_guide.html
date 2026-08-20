@@ -1063,18 +1063,29 @@
         const BSINFO_ACCESSORY_LEVELS = {{ bsinfo_accessory_levels | default({}) | tojson | safe }};
         const ACCESSORY_DB_FALLBACK = {{ accessory_db_fallback | default({}) | tojson | safe }};
 
+        function decodeHtmlEntities(text) {
+            return String(text)
+                .replace(/&amp;/g, '&')
+                .replace(/&#0*39;/g, "'")
+                .replace(/&#x0*27;/gi, "'")
+                .replace(/&apos;/g, "'")
+                .replace(/&quot;/g, '"')
+                .replace(/&#0*34;/g, '"')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>');
+        }
+
         function escapeHtml(text) {
+            // innerHTML の本文では ' と " はエスケープ不要。&#39; がそのまま表示される原因になる。
             return String(text)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+                .replace(/>/g, '&gt;');
         }
 
         function boldNumbersHtml(text) {
             if (!text) return '';
-            return escapeHtml(text).replace(/(\d+(?:\.\d+)?%?)/g, '<b>$1</b>');
+            return escapeHtml(decodeHtmlEntities(text)).replace(/(\d+(?:\.\d+)?%?)/g, '<b>$1</b>');
         }
 
         function accessoryLevelItem(kind, accessoryId) {
