@@ -143,7 +143,7 @@
         {% set color1 = "#e8e8e8" %} {% set color2 = "#dcdcdc" %}
     {% endif %}
 {% endif %}
-<div class="chat-page__container {% if post.type in ['team', 'general'] %}team-chat{% endif %}">
+<div class="chat-page__container {% if post.type in ['team', 'general'] %}team-chat{% endif %}{% if platform != 'web' and not (current_user and (current_user.is_admin or current_user.is_delete_ads)) %} chat-page__container--reserve-top-banner{% endif %}">
     {# ヘッダー部分 (スレッド情報) #}
     <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
         <div class="chat-header__content">
@@ -468,6 +468,27 @@
 
             // --- 初期化処理 ---
             linkifyExistingMessages();
+            // ゲストの広告削除購入は localStorage のみ。サーバ側で予約した上部余白を外す
+            if (!isWebPlatform && !currentUserId) {
+                try {
+                    if (localStorage.getItem('bi_guest_remove_ads') === 'true') {
+                        document.querySelector('.chat-page__container')?.classList.remove('chat-page__container--reserve-top-banner');
+                    }
+                } catch (_e) {}
+            }
+            // 上部バナー出現などでメッセージ領域の高さが変わっても、見ている位置を保つ
+            if (messagesContainer && typeof ResizeObserver !== 'undefined') {
+                let previousMessagesHeight = messagesContainer.clientHeight;
+                const messagesResizeObserver = new ResizeObserver(() => {
+                    const nextHeight = messagesContainer.clientHeight;
+                    const delta = previousMessagesHeight - nextHeight;
+                    previousMessagesHeight = nextHeight;
+                    if (delta) {
+                        messagesContainer.scrollTop += delta;
+                    }
+                });
+                messagesResizeObserver.observe(messagesContainer);
+            }
             setTimeout(() => {
                 if (initialFocusMessageId) {
                     jumpToMessage(initialFocusMessageId, { smooth: false });

@@ -128,9 +128,18 @@
     overflow: hidden;
     pointer-events: none;
 }
+/* 広告対象ユーザーは初回描画から高さを確保し、後から伸びてスクロールがずれるのを防ぐ */
+.chat-page__container--reserve-top-banner {
+    --banner-ad-height-top: 55px;
+}
+@media (min-width: 600px) {
+    .chat-page__container--reserve-top-banner {
+        --banner-ad-height-top: 90px;
+    }
+}
+.chat-page__container--reserve-top-banner .chat-ad-banner-spacer,
 body.has-top-banner .chat-ad-banner-spacer {
     height: var(--banner-ad-height-top, 55px);
-    transition: height 0.3s ease;
 }
 
 /* Web版: ヘッダー直下の独自スポンサーバナー（角丸なし・横幅上限あり） */
@@ -240,6 +249,7 @@ body.has-top-banner .chat-ad-banner-spacer {
 .messages__container {
     flex-grow: 1; /* 残りのスペースをすべて埋める */
     overflow-y: auto; /* このエリアだけをスクロールさせる */
+    overflow-anchor: none; /* バナー出現時のブラウザ自動アンカーで位置が飛ぶのを防ぐ */
     padding: 15px;
     display: flex;
     flex-direction: column;
