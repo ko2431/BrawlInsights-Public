@@ -449,7 +449,7 @@ body {
     margin-top: 35px;
     background-color: #eee;
     font-size: 15px;
-    padding: 30px 0 calc(20px + var(--banner-ad-height));
+    padding: 30px 0 20px;
     color: #565d64;
 }
 .dark .main-footer {
@@ -537,7 +537,7 @@ body {
 @media (max-width: 539px) {
     .main-footer {
         font-size: 13.5px;
-        padding: 25px 0 calc(15px + var(--banner-ad-height));
+        padding: 25px 0 15px;
         margin-top: 25px;
     }
     .main-footer__nav-list {
@@ -560,19 +560,5 @@ body {
     }
     .main-footer__app-store-banner {
         height: 44px;
-    }
-}
-
-body.platform-ios .main-footer,
-body.platform-android .main-footer {
-    padding-bottom: 120px;
-}
-
-/* 小さいスマホ用の調整 */
-@media (max-width: 539px) {
-    body.platform-ios .main-footer,
-    body.platform-android .main-footer {
-        /* モバイル用の元々のパディング(15px) + バナー広告の高さ = 65px */
-        padding-bottom: 65px;
     }
 }
