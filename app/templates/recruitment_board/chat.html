@@ -2202,9 +2202,8 @@
                         await copyChatShareUrl(chatShareUrl);
                         alert(copiedMessage);
                     } catch (error) {
-                        const canceled =
-                            error?.errorMessage === 'Share canceled' ||
-                            error?.name === 'AbortError';
+                        const shareErrorText = String(error?.errorMessage || error?.message || '').toLowerCase();
+                        const canceled = error?.name === 'AbortError' || shareErrorText.includes('cancel');
                         if (canceled) {
                             return;
                         }
