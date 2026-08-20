@@ -122,8 +122,8 @@
 .board-filters__joinable-label {
     margin-bottom: 0;
 }
-.dark .board-filters__joinable-label .form-checkbox-label {
-    color: var(--color-ccc, #ccc);
+.board-filters__joinable-label .form-checkbox-label {
+    color: var(--color-333);
 }
 
 @media (max-width: 839px) {
@@ -460,7 +460,7 @@ body.modal-open {
     cursor: pointer;
     font-size: 14px;
     line-height: 1.25;
-    color: var(--color-333, #333);
+    color: var(--color-333);
 }
 .later-recruitment-option__text {
     flex: 1;
@@ -469,17 +469,10 @@ body.modal-open {
 .later-recruitment-option--disabled .later-recruitment-option__label {
     cursor: not-allowed;
     opacity: 0.55;
-    color: #777;
+    color: var(--color-777);
 }
 .later-recruitment-option--disabled .form-checkbox {
     pointer-events: none;
-}
-.dark .later-recruitment-option__label {
-    color: var(--color-ddd, #ddd);
-}
-.dark .later-recruitment-option--disabled,
-.dark .later-recruitment-option--disabled .later-recruitment-option__label {
-    color: #999;
 }
 .post-modal-section {
     margin-bottom: 10px;
