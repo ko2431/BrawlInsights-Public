@@ -179,6 +179,12 @@
                         </select>
                     </form>
                     <form method="get" class="filter-form post-modal-conditions-filter-form">
+                        <label for="required-ranked-current-rank" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}ガチバトル現在ランク:{% else %}Ranked Current Rank:{% endif %}</label>
+                        <select id="required-ranked-current-rank" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">{% if lang == "ja" %}設定しない{% else %}Not Set{% endif %}</option>
+                        </select>
+                    </form>
+                    <form method="get" class="filter-form post-modal-conditions-filter-form">
                         <label for="required-solo-pl-rank" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}旧ソロパワーリーグ:{% else %}Old Solo PL:{% endif %}</label>
                         <select id="required-solo-pl-rank" class="filter-form__select post-modal-conditions-filter-form__select">
                             <option value="">{% if lang == "ja" %}設定しない{% else %}Not Set{% endif %}</option>
@@ -456,6 +462,7 @@
                     chat_permission_level: {% if current_user %}30{% else %}0{% endif %},
                     // 条件設定フォームから値を取得
                     required_ranked_highest_rank: document.getElementById('required-ranked-highest-rank')?.value || null,
+                    required_ranked_current_rank: document.getElementById('required-ranked-current-rank')?.value || null,
                     required_solo_pl_rank: document.getElementById('required-solo-pl-rank')?.value || null,
                     required_highest_trophies: document.getElementById('required-highest-trophies')?.value || null,
                     conditions_application_type: document.getElementById('conditions-application-type')?.value || 'and'
@@ -524,6 +531,7 @@
                     // 3. 条件
                     if (document.getElementById('required-ranked-highest-rank')) {
                         document.getElementById('required-ranked-highest-rank').value = lastPost.required_ranked_highest_rank || '';
+                        document.getElementById('required-ranked-current-rank').value = lastPost.required_ranked_current_rank || '';
                         document.getElementById('required-solo-pl-rank').value = lastPost.required_solo_pl_rank || '';
                         document.getElementById('required-highest-trophies').value = lastPost.required_highest_trophies || '';
                         document.getElementById('conditions-application-type').value = lastPost.conditions_application_type || 'and';
@@ -549,6 +557,22 @@
             const rankedSelect = document.getElementById('required-ranked-highest-rank');
             rankedOptions.filter(opt => opt.value <= maxRankedRank).forEach(opt => {
                 rankedSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
+            });
+
+            // ガチバトル現在ランク
+            const rankedCurrentOptions = [
+                {value: 22, ja: "プロ", en: "Pro"}, {value: 21, ja: "マスター Ⅲ以上", en: "Masters Ⅲ+"}, {value: 20, ja: "マスター Ⅱ以上", en: "Masters Ⅱ+"},
+                {value: 19, ja: "マスター Ⅰ以上", en: "Masters Ⅰ+"}, {value: 18, ja: "レジェンド Ⅲ以上", en: "Legendary Ⅲ+"}, {value: 17, ja: "レジェンド Ⅱ以上", en: "Legendary Ⅱ+"},
+                {value: 16, ja: "レジェンド Ⅰ以上", en: "Legendary Ⅰ+"}, {value: 15, ja: "エリート Ⅲ以上", en: "Mythic Ⅲ+"}, {value: 14, ja: "エリート Ⅱ以上", en: "Mythic Ⅱ+"},
+                {value: 13, ja: "エリート Ⅰ以上", en: "Mythic Ⅰ+"}, {value: 12, ja: "ダイヤモンド Ⅲ以上", en: "Diamond Ⅲ+"}, {value: 11, ja: "ダイヤモンド Ⅱ以上", en: "Diamond Ⅱ+"},
+                {value: 10, ja: "ダイヤモンド Ⅰ以上", en: "Diamond Ⅰ+"}
+            ];
+            const rankedCurrentMaxByOwn = {8: 11, 9: 12, 10: 13, 11: 13, 12: 14, 13: 15, 14: 16, 15: 17, 16: 18, 17: 18, 18: 18, 19: 19, 20: 20, 21: 21, 22: 22};
+            const ownCurrentRank = mainAccount.acc_ranked_current_rank || 0;
+            const maxRankedCurrentRank = ownCurrentRank <= 7 ? 10 : (rankedCurrentMaxByOwn[ownCurrentRank] || 10);
+            const rankedCurrentSelect = document.getElementById('required-ranked-current-rank');
+            rankedCurrentOptions.filter(opt => opt.value <= maxRankedCurrentRank).forEach(opt => {
+                rankedCurrentSelect.add(new Option(`{% if lang == "ja" %}${opt.ja}{% else %}${opt.en}{% endif %}`, opt.value));
             });
 
             // 旧ソロPL

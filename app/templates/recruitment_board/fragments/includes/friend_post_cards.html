@@ -110,7 +110,7 @@
                         </div>
                         <div class="post-card__conditions-box" style="min-width: 130px;">
                             <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
-                            {% if not post.data.required_highest_trophies and not post.data.required_ranked_highest_rank and not post.data.required_solo_pl_rank and not post.data.required_prestige %}
+                            {% if not post.data.required_highest_trophies and not post.data.required_ranked_highest_rank and not post.data.required_ranked_current_rank and not post.data.required_solo_pl_rank and not post.data.required_prestige %}
                             <div class="post-card__conditions-list-wrapper">
                                 <p class="post-card__no-conditions-text">({% if lang == "ja" %}条件はありません{% else %}No Conditions{% endif %})</p>
                             </div>
@@ -128,6 +128,13 @@
                                             <img src="{{ url_for('static', path='/images/ranked_icons/' + post.data.required_ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
                                             <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}最高{% else %}Hi. {% endif %}</p>
                                             <p class="post-card__host-info-stat-value">{{ rank_map_ja[post.data.required_ranked_highest_rank] if lang == "ja" else rank_map_en[post.data.required_ranked_highest_rank] }}</p>
+                                        </div>
+                                    {% endif %}
+                                    {% if post.data.required_ranked_current_rank %}
+                                        <div class="post-card__host-info-stat">
+                                            <img src="{{ url_for('static', path='/images/ranked_icons/' + post.data.required_ranked_current_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat post-card__host-info-stat-icon post-card__host-info-stat-icon-ranked">
+                                            <p class="post-card__host-info-stat-text" style="margin-right: 3.5px;">{% if lang == "ja" %}現在{% else %}Cur. {% endif %}</p>
+                                            <p class="post-card__host-info-stat-value">{{ rank_map_ja[post.data.required_ranked_current_rank] if lang == "ja" else rank_map_en[post.data.required_ranked_current_rank] }}</p>
                                         </div>
                                     {% endif %}
                                     {% if post.data.required_solo_pl_rank %}
