@@ -13,7 +13,7 @@ from app.core.logger import logger
 from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
-from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block
+from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block, try_progress_tutorial_board
 from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS
 from app.services.notification_service import (
     NOTIFICATION_PAGE_SIZE,
@@ -620,6 +620,7 @@ async def team_recruitment_board(
         "current_page": "board",
     }
     await _append_board_notification_context(context, db, user)
+    await try_progress_tutorial_board(user, db, "team")
 
     try:
         return templates.TemplateResponse("recruitment_board/team.html", context)
@@ -827,6 +828,7 @@ async def friend_recruitment_board(
         "hide_navigation_controls": True,
     }
     await _append_board_notification_context(context, db, user)
+    await try_progress_tutorial_board(user, db, "friend")
 
     try:
         return templates.TemplateResponse("recruitment_board/friend.html", context)
@@ -950,6 +952,7 @@ async def club_recruitment_board(
         "hide_navigation_controls": True,
     }
     await _append_board_notification_context(context, db, user)
+    await try_progress_tutorial_board(user, db, "club")
 
     try:
         return templates.TemplateResponse("recruitment_board/club.html", context)
@@ -1205,6 +1208,7 @@ async def general_board(
         "hide_navigation_controls": True,
     }
     await _append_board_notification_context(context, db, user)
+    await try_progress_tutorial_board(user, db, "general")
 
     try:
         return templates.TemplateResponse("recruitment_board/general.html", context)

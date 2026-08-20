@@ -11,7 +11,7 @@ from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, TICKET_SELL_TOKEN_RATE
+from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, TICKET_SELL_TOKEN_RATE, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission
 from app.services import minigame_service
 from app.services.minigame_service import (
     AD_SKIP_TICKET_COST,
@@ -852,6 +852,7 @@ async def purchase_ticket_pack_process(
     logger.info(
         f"{current_user.name} (ID: {current_user.id}) が {payload.token_cost}トークンでチケット{payload.ticket_count}枚を購入しました。"
     )
+    await try_claim_tutorial_mission(current_user, db, "spend_tokens")
 
     message = (
         f"チケットを{payload.ticket_count}枚購入しました。\n(チケット数: {before_tickets} → {current_user.ad_skip_tickets})"

@@ -350,6 +350,9 @@
 
                 lang: '{{ lang }}',
 
+                tutorialPickToolPending: {{ 'true' if tutorial_pick_tool_pending else 'false' }},
+                tutorialPickCompleteUrl: '{{ url_for('pick_tool_complete', lang=lang) }}',
+
                 // 入れ替えボタンのクールダウン状態
                 isSwapOnCooldown: false,
 
@@ -631,6 +634,19 @@
                     }
                 },
 
+                async reportTutorialPickComplete() {
+                    if (!this.tutorialPickToolPending || !this.tutorialPickCompleteUrl) {
+                        return;
+                    }
+                    this.tutorialPickToolPending = false;
+                    try {
+                        await fetch(this.tutorialPickCompleteUrl, { method: 'POST' });
+                    } catch (e) {
+                        this.tutorialPickToolPending = true;
+                        console.error(e);
+                    }
+                },
+
                 /**
                  * BANフェーズの処理
                  */
@@ -663,9 +679,13 @@
                     this.turnCount++;
 
                     if (this.turnCount >= 6) {
+                        const alreadyFinished = this.phase === 'finished';
                         this.phase = 'finished';
                         this.brawlers = []; // ピック完了後、リストを空にする
                         this.updateWinRate(); // ピック完了時に最後の勝率を更新
+                        if (!alreadyFinished) {
+                            this.reportTutorialPickComplete();
+                        }
                         return; // APIを呼ばずに終了
                     }
                     this.updateSuggestions();
@@ -784,7 +804,11 @@
 
                     // ピック完了後なら、おすすめ取得はせずに終了
                     if (this.turnCount >= 6) {
+                        const alreadyFinished = this.phase === 'finished';
                         this.phase = 'finished';
+                        if (!alreadyFinished) {
+                            this.reportTutorialPickComplete();
+                        }
                         return;
                     }
 

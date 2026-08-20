@@ -29,7 +29,7 @@ from app.services.image_generation_service import (
     get_image_job_priority,
     get_latest_cached_image_generation_job,
 )
-from app.services.user_service import User
+from app.services.user_service import User, try_claim_tutorial_mission
 from app.services.board_service import get_or_create_brawler_guide_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
@@ -87,6 +87,7 @@ def build_static_url(request: Request, path: str | None) -> str:
         "brawler_thread_id": brawler_thread_id,
         "brawler_preview_messages": brawler_preview_messages,
     }
+    await try_claim_tutorial_mission(user, db, "view_brawler_guide")
 
     try:
         return templates.TemplateResponse("tools/brawler_guide.html", context)
@@ -359,6 +360,9 @@ async def pick_tool(
         "pool_data": pool_data,
         "current_page": "tools",
         "hide_navigation_controls": True,
+        "tutorial_pick_tool_pending": bool(
+            user and not user.has_completed_tutorial_mission("use_pick_tool")
+        ),
     }
 
     try:
@@ -366,6 +370,18 @@ async def pick_tool(
     except Exception as render_err: # テンプレートレンダリングエラーも捕捉
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
+
+@router.post("/api/pick_tool/complete", name="pick_tool_complete")
+async def pick_tool_complete(
+    request: Request,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    current_user: User | None = getattr(request.state, "current_user", None)
+    if not current_user:
+        return JSONResponse({"success": False}, status_code=401)
+    await try_claim_tutorial_mission(current_user, db, "use_pick_tool")
+    return JSONResponse({"success": True})
 
 @router.get("/api/ban_suggestions", name="get_ban_suggestions_api")
 async def get_ban_suggestions_api(

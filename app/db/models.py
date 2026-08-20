@@ -63,6 +63,7 @@ class User(Base):
     ticket_claim_count = Column(Integer, nullable=False, server_default='0')
     last_ticket_claim_date = Column(Date, nullable=True)
     last_advance_mission_date = Column(Date, nullable=True)
+    tutorial_missions = Column(JSONB, nullable=False, server_default='{}')
     minigame_ad_play_count = Column(Integer, nullable=False, server_default='0')
     last_minigame_ad_play_date = Column(Date, nullable=True)
     minigame_use_ad_skip_ticket = Column(Boolean, nullable=False, server_default='True')

@@ -431,6 +431,18 @@
     width: auto;
 }
 
+.tutorial-mission-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.tutorial-mission-title .section-toggle-icon {
+    flex-shrink: 0;
+}
+
 .remove-ads-button {
     font-weight: bold;
 }

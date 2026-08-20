@@ -20,7 +20,7 @@ from app.services.brawl_service import (
     get_player_from_db,
 )
 from app.services.minigame_assets import BACK_SYMBOL, CARD_ASSETS, MYSTERY_IMAGE, static_url_path
-from app.services.user_service import User, _current_token_claim_date
+from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
 
 DEFAULT_PRICE_AD_TOKENS = 7
 DEFAULT_PRICE_TOKEN_TOKENS = 20
@@ -1190,6 +1190,7 @@ async def start_play(
             "pending" if has_gift else None,
         )
     await delete_cache(f"user:{user.id}")
+    await try_claim_tutorial_mission(user, db, "spend_tokens")
     return _record(row)
 
 
