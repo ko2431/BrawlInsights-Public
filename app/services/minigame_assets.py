@@ -29,7 +29,7 @@ CARD_ASSETS: dict[tuple[str, int], dict] = {
     ("card_flip_multi1", 4): {"ranks": {1: _spray(68000715), 2: _spray(68000716), 3: _spray(68000717), 4: _spray(68000710)}, "decoys": [_spray(68000718), _spray(68000712), _spray(68000713)]},
     ("card_flip_multi1", 5): {"ranks": {1: _spray(68000464), 2: _spray(68000465), 3: _spray(68000462), 4: _spray(68000467), 5: _spray(68000463)}, "decoys": [_spray(68000466), _spray(68000457), _spray(68000455)]},
     ("card_flip_multi1", 6): {"ranks": {1: _spray(68000060), 2: _spray(68000059), 3: _spray(68000058), 4: _spray(68000057), 5: _spray(68000056), 6: _spray(68000055)}, "decoys": [_spray(68000054)]},
-    ("card_flip_multi1", 7): {"ranks": {1: _spray(68000497), 2: _spray(68000080), 3: _spray(68000061), 4: _spray(68000079), 5: _spray(68000081), 6: _spray(68000062), 7: _spray(68000004)}, "decoys": [_spray(68000098), _spray(68000076)]},
+    ("card_flip_multi1", 7): {"ranks": {1: _spray(68000390), 2: _spray(68000595), 3: _spray(68000594), 4: _spray(68000496), 5: _spray(68000497), 6: _spray(68000495), 7: _spray(68000494)}, "decoys": [_spray(68000544)]},
     ("card_flip_multi1", 8): {"ranks": {1: _spray(68000566), 2: _spray(68000560), 3: _spray(68000561), 4: _spray(68000569), 5: _spray(68000728), 6: _spray(68000722), 7: _spray(68000723), 8: _spray(68000727)}, "decoys": [_spray(68000726), _spray(68000007)]},
     ("card_flip_multi2", 2): {"pool": [_spray(68000095), _spray(68000096), _spray(68000097)]},
     ("card_flip_multi2", 3): {"pool": [_spray(68000450), _spray(68000452), _spray(68000453), _spray(68000456)]},
