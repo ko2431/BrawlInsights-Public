@@ -11,22 +11,22 @@
         {# ナビゲーションリンク #}
         <nav class="header-pc__nav">
             {# ホーム #}
-            <a href="{{ url_for('home', lang=lang) }}" class="header-pc__nav-link" data-tab-id="home">
+            <a href="{{ url_for('home', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'home' %}header-pc__nav-link--active{% endif %}" data-tab-id="home">
                 <img src="{{ url_for('static', path='/images/ui/home.svg') }}" alt="Home" class="header-pc__nav-icon">
                 <span class="header-pc__nav-text">{% if lang == "ja" %}ホーム{% else %}Home{% endif %}</span>
             </a>
             {# 統計データ #}
-            <a href="{{ url_for('stats', lang=lang) }}" class="header-pc__nav-link" data-tab-id="stats">
+            <a href="{{ url_for('stats', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'stats' %}header-pc__nav-link--active{% endif %}" data-tab-id="stats">
                 <img src="{{ url_for('static', path='/images/ui/statistics.svg') }}" alt="Stats" class="header-pc__nav-icon">
                 <span class="header-pc__nav-text">{% if lang == "ja" %}統計データ{% else %}Stats{% endif %}</span>
             </a>
             {# ツール #}
-            <a href="{{ url_for('tools', lang=lang) }}" class="header-pc__nav-link" data-tab-id="tools">
+            <a href="{{ url_for('tools', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'tools' %}header-pc__nav-link--active{% endif %}" data-tab-id="tools">
                 <img src="{{ url_for('static', path='/images/ui/tools.svg') }}" alt="Tools" class="header-pc__nav-icon">
                 <span class="header-pc__nav-text">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</span>
             </a>
             {# 募集掲示板 #}
-            <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="header-pc__nav-link" data-tab-id="board">
+            <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'board' %}header-pc__nav-link--active{% endif %}" data-tab-id="board">
                 <span class="nav-icon-wrapper">
                     <img src="{{ url_for('static', path='/images/ui/boards.svg') }}" alt="Board" class="header-pc__nav-icon">
                     {% if show_notification_badge %}
@@ -36,7 +36,7 @@
                 <span class="header-pc__nav-text">{% if lang == "ja" %}募集掲示板{% else %}Boards{% endif %}</span>
             </a>
             {# アカウント #}
-            <a href="{{ url_for('account_page', lang=lang) }}" class="header-pc__nav-link" data-tab-id="account">
+            <a href="{{ url_for('account_page', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'account' %}header-pc__nav-link--active{% endif %}" data-tab-id="account">
                 <img src="{{ url_for('static', path='/images/ui/account.svg') }}" alt="Account" class="header-pc__nav-icon">
                 <span class="header-pc__nav-text">{% if lang == "ja" %}アカウント{% else %}Account{% endif %}</span>
             </a>

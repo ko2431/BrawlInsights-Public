@@ -73,14 +73,16 @@
     margin-left: 15px; /* ブランド部分との隙間 */
     display: flex;
     align-items: center;
-    gap: 11px; /* ナビゲーション項目間の隙間 */
+    gap: 4px; /* ナビゲーション項目間の隙間（アクティブ時のパディング分を考慮） */
 }
 
 .header-pc__nav-link {
     /* ナビゲーションの各リンク */
     display: inline-flex;
     align-items: center;
-    padding: 5px 0; /* クリック領域確保 */
+    padding: 3px 8px; /* クリック領域確保 + アクティブ時の角丸四角形用 */
+    border-radius: 9px;
+    transition: background-color 0.2s ease;
 }
 
 .header-pc__nav-icon {
@@ -140,6 +142,26 @@
 }
 .dark .header-pc__nav-link:hover .header-pc__nav-text {
     color: #ddd; /* ホバー時の文字色 */
+}
+
+/* --- アクティブなヘッダーナビ（下部タブバーと同色の角丸四角形） --- */
+.header-pc__nav-link--active {
+    background-color: #333;
+}
+.header-pc__nav-link--active .header-pc__nav-text {
+    color: #fff;
+}
+.dark .header-pc__nav-link--active {
+    background-color: #fcfcfc;
+}
+.dark .header-pc__nav-link--active .header-pc__nav-text {
+    color: #111;
+}
+.header-pc__nav-link--active:hover .header-pc__nav-text {
+    color: #fff;
+}
+.dark .header-pc__nav-link--active:hover .header-pc__nav-text {
+    color: #111;
 }
 
 @media (max-width: 859px) {
