@@ -22,7 +22,15 @@
 
     <h1 class="page-title--main">{% if lang == "ja" %}ガチバトルマップ一覧{% else %}Ranked Map List{% endif %}</h1>
 
-    <p class="tools-page__description">{% if lang == "ja" %}現在のガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。現在のガチバトルでは、以下の<b>26マップ</b>からマップがランダムに出現します。{% else %}The following is a list of maps selected for the current ranked season, with map images. In the current ranked season, maps are randomly selected from the following <b>26 maps</b>.{% endif %}</p>
+    <p class="tools-page__description">
+    {% if lang == "ja" %}
+    現在のガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。現在のガチバトルでは、以下の<b>26マップ</b>からマップがランダムに出現します。<br>
+    <span style="color: var(--c-red); font-weight: bold;">8月20日(木)からの新シーズンで、本来一覧にないマップが出現しているとの情報があり、現在調査中です。申し訳ありませんが、アップデートまでお待ちください。</span>
+    {% else %}
+    The following is a list of maps selected for the current ranked season, with map images. In the current ranked season, maps are randomly selected from the following <b>26 maps</b>.<br>
+    <span style="color: var(--c-red); font-weight: bold;">There is information that new maps that are not in the list will appear in the new season starting August 20th. We are currently investigating this. We apologize for the inconvenience and please wait for the update.</span>
+    {% endif %}
+    </p>
 
     <div class="tools-page__image-box">
         <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202607_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
