@@ -86,7 +86,7 @@
             <div class="ranked-dist-row" :class="row.theme_class">
                 <div class="ranked-dist-row__left">
                     <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
-                    <span class="ranked-dist-row__percent-label">{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent-label" {% if not lang == 'ja' %}style="margin-right: 2px;"{% endif %}>{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
                     <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
                 </div>
                 <div class="ranked-dist-row__right">
@@ -130,7 +130,7 @@
                 </div>
                 <div class="ranked-dist-row__right ranked-dist-row__right--rank">
                     <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
-                    <span class="ranked-dist-row__percent-label">{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent-label" {% if not lang == 'ja' %}style="margin-right: 2px;"{% endif %}>{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
                     <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
                 </div>
             </div>
@@ -366,10 +366,16 @@
                     ? (data && data.rank_value_format) || 'int'
                     : (data && data.value_format) || 'int';
                 const number = Number(row.value);
+                let formatted;
                 if (fmt === 'float2') {
-                    return number.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    formatted = number.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } else {
+                    formatted = Math.round(number).toLocaleString();
                 }
-                return Math.round(number).toLocaleString();
+                if (this.metric === 'estimated_play_time') {
+                    formatted = (this.isJa ? '推定' : 'Est.') + ' ' + formatted + (this.isJa ? '時間' : 'h');
+                }
+                return formatted;
             }
         };
     }
