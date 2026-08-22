@@ -211,6 +211,12 @@ th {
 .report-table th {
     cursor: default;
 }
+.post-table th.sortable-header {
+    cursor: pointer;
+}
+.post-table th.sortable-header:hover {
+    background-color: #f0f0f0;
+}
 
 .message-table .col-message,
 .post-table .col-message,

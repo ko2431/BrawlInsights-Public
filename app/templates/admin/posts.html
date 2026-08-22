@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before) %}
+{% macro render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before, current_sort) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="投稿ページネーション">
             <ul class="pagination-list">
@@ -34,6 +34,7 @@
                 {% if min_like_count %}{% set _ = base_query_parts.append("min_like_count=" + min_like_count) %}{% endif %}
                 {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
                 {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
+                {% if current_sort %}{% set _ = base_query_parts.append("sort=" + current_sort) %}{% endif %}
                 {% set base_query = base_query_parts | join('&') %}
                 {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
 
@@ -219,7 +220,7 @@
         （最大1,000件／ページ）
     </p>
 
-    {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before) }}
+    {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before, current_sort) }}
 
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
@@ -245,8 +246,8 @@
                     <th>プレイヤー/クラブ名</th>
                     <th>プレイヤー/クラブタグ</th>
                     <th>コメント</th>
-                    <th>コメント数</th>
-                    <th>いいね数</th>
+                    <th @click="sortBy('message_count')" class="sortable-header"><span>コメント数</span><span x-show="sortColumn === 'message_count'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('like_count')" class="sortable-header"><span>いいね数</span><span x-show="sortColumn === 'like_count'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th>削除</th>
                     <th>クローズ</th>
                 </tr>
@@ -313,7 +314,7 @@
         </table>
     </div>
 
-    {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before) }}
+    {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before, current_sort) }}
 
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -374,6 +375,9 @@
                     created_before: '',
                 },
                 numericFields: ['post_id', 'user_id', 'min_comment_count', 'min_like_count'],
+                sortColumn: '{{ current_sort.rsplit("_", 1)[0] if current_sort else "" }}',
+                sortDirection: '{{ "asc" if current_sort.endswith("asc") else "desc" }}',
+                currentSort: '{{ current_sort }}',
 
                 initFilters(appliedFilters) {
                     this.applied = appliedFilters;
@@ -474,6 +478,16 @@
                             url.searchParams.delete(key);
                         }
                     });
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+
+                sortBy(column) {
+                    const newDirection = (this.sortColumn === column)
+                        ? (this.sortDirection === 'asc' ? 'desc' : 'asc')
+                        : 'desc';
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('sort', `${column}_${newDirection}`);
                     url.searchParams.set('page', '1');
                     window.location.href = url.toString();
                 },
