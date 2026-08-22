@@ -217,6 +217,7 @@ th {
 .ranked-dist-row__percent {
     font-weight: 700;
     font-size: 14.5px;
+    margin-top: 0.5px;
     margin-left: -2px;
     color: var(--color-222);
 }
@@ -339,5 +340,182 @@ th {
     }
     .ranked-dist-row__right--rank {
         gap: 3px 5px;
+    }
+}
+
+/* =========================================
+   プレイヤー各種データ分布
+   ========================================= */
+.player-dist-page [x-cloak] { display: none !important; }
+.player-dist-slot-tab__container {
+    width: 100%;
+    margin: -5px 0 14px;
+    padding: 10px;
+    background-color: var(--bg-f8f8f8);
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+.dark .player-dist-slot-tab__container {
+    border-color: #111;
+}
+.player-dist-slot-tab {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.player-dist-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 76px;
+    padding: 5px 5px 3px;
+    border-radius: 8px;
+    border: 1px solid var(--color-ddd);
+    background-color: #f0f0f0;
+    color: #555;
+    cursor: pointer;
+}
+.dark .player-dist-slot {
+    background-color: #262626;
+    color: #ccc;
+}
+.player-dist-slot--active {
+    background-color: #fff;
+    color: #333;
+    cursor: default;
+}
+.dark .player-dist-slot--active {
+    background-color: #1c1c1c;
+    color: #fff;
+}
+.player-dist-slot__icon {
+    margin: 2px 0;
+    height: 36px;
+    width: auto;
+    object-fit: contain;
+}
+.player-dist-slot__text {
+    max-width: 83px;
+    margin-top: 1px;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.2;
+    white-space: normal;
+}
+.player-dist-slot-tab__expand {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 1px 12px;
+    border: 1px dashed var(--color-ccc);
+    border-radius: 10px;
+    background-color: var(--bg-fefefe);
+    color: var(--color-555);
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+}
+.player-dist-slot-tab__expand:hover {
+    opacity: 0.8;
+}
+.dark .player-dist-slot-tab__expand {
+    border-color: #444;
+    background-color: var(--bg-f8f8f8);
+}
+
+.player-dist-row__value {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-size: 14.5px;
+    color: var(--color-111);
+}
+.dark .player-dist-row__value {
+    color: #fff;
+}
+.player-dist-row__value--emphasis {
+    font-size: 14.5px;
+}
+
+.player-dist-row--invert .ranked-dist-row__percent-label,
+.player-dist-row--invert .ranked-dist-row__percent,
+.player-dist-row--invert .ranked-dist-row__rank-name,
+.player-dist-row--invert .ranked-dist-row__score,
+.player-dist-row--invert .player-dist-row__value,
+.dark .player-dist-row--invert .ranked-dist-row__percent-label,
+.dark .player-dist-row--invert .ranked-dist-row__percent,
+.dark .player-dist-row--invert .ranked-dist-row__rank-name,
+.dark .player-dist-row--invert .ranked-dist-row__score,
+.dark .player-dist-row--invert .player-dist-row__value {
+    color: #fff;
+}
+
+.player-dist-row--blue { background-color: rgba(70, 140, 230, 0.36); }
+.player-dist-row--yellow { background-color: rgba(245, 210, 40, 0.42); }
+.player-dist-row--deep-purple { background-color: rgba(72, 42, 140, 0.82); }
+.player-dist-row--dark-purple { background-color: rgba(42, 22, 88, 0.88); }
+.player-dist-row--dark-red { background-color: rgba(92, 22, 32, 0.88); }
+.player-dist-row--dark-yellow { background-color: rgba(168, 138, 28, 0.52); }
+.player-dist-row--light-blue { background-color: rgba(150, 205, 245, 0.44); }
+.player-dist-row--pink { background-color: rgba(240, 140, 180, 0.40); }
+.player-dist-row--green { background-color: rgba(90, 190, 90, 0.36); }
+.player-dist-row--cyan { background-color: rgba(90, 200, 220, 0.36); }
+.player-dist-row--purple { background-color: rgba(160, 90, 230, 0.34); }
+.player-dist-row--gold { background-color: rgba(230, 180, 40, 0.38); }
+.player-dist-row--red { background-color: rgba(235, 70, 70, 0.34); }
+.player-dist-row--navy { background-color: rgba(16, 32, 82, 0.88); }
+.player-dist-row--crystal {
+    background: linear-gradient(90deg, rgba(126, 240, 255, 0.48) 0%, rgba(201, 168, 255, 0.52) 50%, rgba(255, 138, 216, 0.48) 100%);
+}
+
+.player-dist-row--record-12 {
+    background: linear-gradient(90deg, rgba(255, 179, 186, 0.58), rgba(255, 223, 186, 0.58), rgba(255, 255, 186, 0.58), rgba(186, 255, 201, 0.58), rgba(186, 225, 255, 0.58), rgba(226, 186, 255, 0.58));
+}
+.player-dist-row--record-11 { background-color: rgba(48, 24, 120, 0.88); }
+.player-dist-row--record-10 { background-color: rgba(88, 24, 128, 0.88); }
+.player-dist-row--record-9 { background-color: rgba(148, 22, 32, 0.88); }
+.player-dist-row--record-8 { background-color: rgba(90, 190, 90, 0.36); }
+.player-dist-row--record-7 { background-color: rgba(245, 210, 40, 0.42); }
+.player-dist-row--record-6 { background-color: rgba(235, 70, 70, 0.34); }
+.player-dist-row--record-5 { background-color: rgba(200, 70, 160, 0.40); }
+.player-dist-row--record-4 { background-color: rgba(90, 200, 220, 0.36); }
+.player-dist-row--record-3 { background-color: rgba(230, 180, 40, 0.38); }
+.player-dist-row--record-2 { background-color: rgba(160, 170, 185, 0.42); }
+.player-dist-row--record-1 { background-color: rgba(176, 125, 72, 0.34); }
+.player-dist-row--record-0 { background-color: rgba(140, 100, 60, 0.40); }
+
+.player-dist-row--fame-starrforce { background-color: rgba(160, 90, 230, 0.34); }
+.player-dist-row--fame-alien { background-color: rgba(90, 190, 90, 0.36); }
+.player-dist-row--fame-meteor { background-color: rgba(72, 52, 52, 0.88); }
+.player-dist-row--fame-galaxy { background-color: rgba(245, 210, 40, 0.42); }
+.player-dist-row--fame-saturn { background-color: rgba(240, 140, 40, 0.40); }
+.player-dist-row--fame-mars { background-color: rgba(235, 70, 70, 0.34); }
+.player-dist-row--fame-moon { background-color: rgba(200, 200, 205, 0.50); }
+.player-dist-row--fame-earth { background-color: rgba(40, 170, 150, 0.36); }
+
+@media (max-width: 639px) {
+    .player-dist-slot-tab {
+        gap: 6px;
+    }
+    .player-dist-slot {
+        min-width: 57px;
+        padding: 4px 4px 2px;
+    }
+    .player-dist-slot__icon {
+        margin: 1px 0;
+        height: 26px;
+    }
+    .player-dist-slot__text {
+        font-size: 10px;
+        max-width: 70px;
+    }
+}
+
+@media (max-width: 539px) {
+    .player-dist-slot-tab__container {
+        margin-top: -10px;
+    }
+    .player-dist-row__value--emphasis {
+        font-size: 13.5px;
     }
 }

@@ -1,0 +1,377 @@
+{# /app/templates/stats/player_stats_distribution.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】プレイヤー各種データ分布{% else %}Player Stats Distribution{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのプレイヤー各種データ（トロフィー・トップランカー・記録・名声など）の分布を確認できます。{% else %}View the distribution of Brawl Stars player stats such as trophies, prestige, records, and fame.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="stats-page__container ranked-dist-page player-dist-page"
+     x-data='playerDistPage({{ distribution | tojson }}, {{ initial_metric | tojson }})'
+     x-init="init()">
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}プレイヤー各種データ分布{% else %}Player Stats Distribution{% endif %}</h1>
+
+    <div class="info-block ranked-dist-page__info">
+        <p class="info-block__text">
+            {% if lang == "ja" %}
+            多くのアクティブなプレイヤーデータから算出した、各種データの分布です。アクティブでないプレイヤーは含まれないため、ゲーム内で遭遇する分布に近い、<b>ややレベルの高い評価</b>になっています。
+            {% else %}
+            This is the distribution of various player stats calculated from many active players. Inactive players are excluded, so it tends to be a <b>slightly higher rating</b>, closer to the distribution you'll encounter in-game.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="player-dist-slot-tab__container" x-cloak>
+        <div class="player-dist-slot-tab">
+            <template x-for="metricKey in activeMetricOrder" :key="metricKey">
+                <div class="player-dist-slot"
+                     :class="{ 'player-dist-slot--active': metric === metricKey }"
+                     @click="selectMetric(metricKey)">
+                    <img :src="metricMeta[metricKey].icon"
+                         :alt="metricName(metricKey)"
+                         class="player-dist-slot__icon">
+                    <p class="player-dist-slot__text" x-text="metricName(metricKey)"></p>
+                </div>
+            </template>
+        </div>
+        <button type="button"
+                class="player-dist-slot-tab__expand"
+                x-show="hasHiddenMetrics"
+                @click="toggleMetricListExpanded()"
+                x-text="showExpandedMetricList ? (isJa ? '表示を減らす' : 'Show less') : (isJa ? '表示を増やす' : 'Show more')">
+        </button>
+    </div>
+
+    <div class="ranked-dist-tabs ranked-dist-tabs--secondary" role="tablist" aria-label="{% if lang == 'ja' %}表示モード{% else %}View mode{% endif %}">
+        <button type="button" class="ranked-dist-tabs__btn"
+                x-show="percentModeAvailable"
+                x-cloak
+                :class="{ 'ranked-dist-tabs__btn--active': mode === 'percent' }"
+                @click="mode = 'percent'"
+                role="tab"
+                :aria-selected="mode === 'percent'">
+            {% if lang == "ja" %}上位%ベース{% else %}By Top %{% endif %}
+        </button>
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': mode === 'rank' }"
+                @click="mode = 'rank'"
+                role="tab"
+                :aria-selected="mode === 'rank'">
+            {% if lang == "ja" %}ランクベース{% else %}By Rank{% endif %}
+        </button>
+    </div>
+
+    <template x-if="!currentData || !currentData.available">
+        <p class="ranked-dist-page__empty">
+            {% if lang == "ja" %}分布データを読み込めませんでした。しばらくしてから再度お試しください。{% else %}Could not load distribution data. Please try again later.{% endif %}
+        </p>
+    </template>
+
+    {# --- 上位%ベース --- #}
+    <div class="ranked-dist-list" x-show="currentData && currentData.available && mode === 'percent' && percentModeAvailable" x-cloak>
+        <template x-for="row in visiblePercentRows" :key="metric + '-p-' + row.percent_key">
+            <div class="ranked-dist-row" :class="row.theme_class">
+                <div class="ranked-dist-row__left">
+                    <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
+                    <span class="ranked-dist-row__percent-label">{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
+                </div>
+                <div class="ranked-dist-row__right">
+                    <template x-if="rowIconUrl(row)">
+                        <img :src="rowIconUrl(row)"
+                             :alt="rowRankName(row) || metricName(metric)"
+                             class="ranked-dist-row__rank-icon">
+                    </template>
+                    <span class="ranked-dist-row__rank-name" x-show="showRankName" x-text="rowRankName(row)"></span>
+                    <span class="ranked-dist-row__score" x-text="formatValue(row, false)"></span>
+                </div>
+            </div>
+        </template>
+
+        <button type="button" class="ranked-dist-toggle" @click="showAll = !showAll">
+            <span x-show="!showAll">{% if lang == "ja" %}表示を増やす{% else %}Show More{% endif %}</span>
+            <span x-show="showAll" x-cloak>{% if lang == "ja" %}表示を減らす{% else %}Show Less{% endif %}</span>
+            <span class="ranked-dist-toggle__icon" x-text="showAll ? '△' : '▽'"></span>
+        </button>
+    </div>
+
+    {# --- ランクベース --- #}
+    <div class="ranked-dist-list" x-show="currentData && currentData.available && mode === 'rank'" x-cloak>
+        <template x-for="row in currentData.rank_rows" :key="metric + '-r-' + row.rank + '-' + row.value">
+            <div class="ranked-dist-row" :class="row.theme_class">
+                <div class="ranked-dist-row__left" :class="{ 'ranked-dist-row__left--rank': showRankName }">
+                    <template x-if="rowIconUrl(row)">
+                        <img :src="rowIconUrl(row)"
+                             :alt="rowRankName(row) || metricName(metric)"
+                             class="ranked-dist-row__rank-icon">
+                    </template>
+                    <span class="ranked-dist-row__rank-name ranked-dist-row__rank-name--emphasis"
+                          x-show="showRankName"
+                          x-text="rowRankName(row)"></span>
+                    <span class="player-dist-row__value player-dist-row__value--emphasis"
+                          x-show="showFixedRankValue"
+                          x-text="formatValue(row, true)"></span>
+                    <span class="ranked-dist-row__score"
+                          x-show="showNamedRankValue"
+                          x-text="formatValue(row, true)"></span>
+                </div>
+                <div class="ranked-dist-row__right ranked-dist-row__right--rank">
+                    <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
+                    <span class="ranked-dist-row__percent-label">{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    function playerDistPage(distribution, initialMetric) {
+        const isJa = {{ (lang == "ja") | tojson }};
+        const oldPlKeys = ['solo_pl_rank', 'team_pl_rank', 'highest_club_league'];
+        const recordNames = {% if lang == "ja" %}{
+            0: 'ランクなし', 1: 'レベル1', 2: 'レベル2', 3: 'レベル3', 4: 'レベル4',
+            5: 'レベル5', 6: 'レベル6', 7: 'レベル7', 8: 'レベル8', 9: 'レベル9',
+            10: 'レベル10', 11: 'レベル11', 12: 'レベル12'
+        }{% else %}{
+            0: 'No Rank', 1: 'Level 1', 2: 'Level 2', 3: 'Level 3', 4: 'Level 4',
+            5: 'Level 5', 6: 'Level 6', 7: 'Level 7', 8: 'Level 8', 9: 'Level 9',
+            10: 'Level 10', 11: 'Level 11', 12: 'Level 12'
+        }{% endif %};
+        const fameNames = {% if lang == "ja" %}{
+            24: 'スターフォース Ⅲ', 23: 'スターフォース Ⅱ', 22: 'スターフォース Ⅰ',
+            21: 'エイリアン Ⅲ', 20: 'エイリアン Ⅱ', 19: 'エイリアン Ⅰ',
+            18: 'メテオ Ⅲ', 17: 'メテオ Ⅱ', 16: 'メテオ Ⅰ',
+            15: 'ギャラクシー Ⅲ', 14: 'ギャラクシー Ⅱ', 13: 'ギャラクシー Ⅰ',
+            12: 'サターン Ⅲ', 11: 'サターン Ⅱ', 10: 'サターン Ⅰ',
+            9: 'マーズ Ⅲ', 8: 'マーズ Ⅱ', 7: 'マーズ Ⅰ',
+            6: 'ムーン Ⅲ', 5: 'ムーン Ⅱ', 4: 'ムーン Ⅰ',
+            3: 'アース Ⅲ', 2: 'アース Ⅱ', 1: 'アース Ⅰ', 0: 'ランクなし'
+        }{% else %}{
+            24: 'Starr Force Ⅲ', 23: 'Starr Force Ⅱ', 22: 'Starr Force Ⅰ',
+            21: 'Alien Ⅲ', 20: 'Alien Ⅱ', 19: 'Alien Ⅰ',
+            18: 'Meteoric Ⅲ', 17: 'Meteoric Ⅱ', 16: 'Meteoric Ⅰ',
+            15: 'Solar Ⅲ', 14: 'Solar Ⅱ', 13: 'Solar Ⅰ',
+            12: 'Saturnian Ⅲ', 11: 'Saturnian Ⅱ', 10: 'Saturnian Ⅰ',
+            9: 'Martian Ⅲ', 8: 'Martian Ⅱ', 7: 'Martian Ⅰ',
+            6: 'Lunar Ⅲ', 5: 'Lunar Ⅱ', 4: 'Lunar Ⅰ',
+            3: 'Global Ⅲ', 2: 'Global Ⅱ', 1: 'Global Ⅰ', 0: 'No Rank'
+        }{% endif %};
+        const oldPlNames = {% if lang == "ja" %}{
+            19: 'マスター',
+            18: 'レジェンド Ⅲ', 17: 'レジェンド Ⅱ', 16: 'レジェンド Ⅰ',
+            15: 'エリート Ⅲ', 14: 'エリート Ⅱ', 13: 'エリート Ⅰ',
+            12: 'ダイヤモンド Ⅲ', 11: 'ダイヤモンド Ⅱ', 10: 'ダイヤモンド Ⅰ',
+            9: 'ゴールド Ⅲ', 8: 'ゴールド Ⅱ', 7: 'ゴールド Ⅰ',
+            6: 'シルバー Ⅲ', 5: 'シルバー Ⅱ', 4: 'シルバー Ⅰ',
+            3: 'ブロンズ Ⅲ', 2: 'ブロンズ Ⅱ', 1: 'ブロンズ Ⅰ', 0: 'ランクなし'
+        }{% else %}{
+            19: 'Masters',
+            18: 'Legendary Ⅲ', 17: 'Legendary Ⅱ', 16: 'Legendary Ⅰ',
+            15: 'Mythic Ⅲ', 14: 'Mythic Ⅱ', 13: 'Mythic Ⅰ',
+            12: 'Diamond Ⅲ', 11: 'Diamond Ⅱ', 10: 'Diamond Ⅰ',
+            9: 'Gold Ⅲ', 8: 'Gold Ⅱ', 7: 'Gold Ⅰ',
+            6: 'Silver Ⅲ', 5: 'Silver Ⅱ', 4: 'Silver Ⅰ',
+            3: 'Bronze Ⅲ', 2: 'Bronze Ⅱ', 1: 'Bronze Ⅰ', 0: 'No Rank'
+        }{% endif %};
+        const recordIconTemplate = "{{ url_for('static', path='/images/record_levels/0.png') }}";
+        const fameIconTemplate = "{{ url_for('static', path='/images/fame/1.png') }}";
+        const oldPlIconTemplate = "{{ url_for('static', path='/images/ranked_mini_icons/1.png') }}";
+        const metricMeta = {
+            highest_trophies: { icon: "{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}", name_ja: "最多トロ", name_en: "Hi. Trop." },
+            current_trophies: { icon: "{{ url_for('static', path='/images/ui/trophy.png') }}", name_ja: "現在トロ", name_en: "Cur. Trop." },
+            average_highest_trophies: { icon: "{{ url_for('static', path='/images/ui/leaderboard_switch.png') }}", name_ja: "平均最多トロ", name_en: "Avg Hi. Trop." },
+            average_current_trophies: { icon: "{{ url_for('static', path='/images/ui/trophy_switch.png') }}", name_ja: "平均現在トロ", name_en: "Avg Cur. Trop." },
+            total_prestige_level: { icon: "{{ url_for('static', path='/images/ui/total_prestige.png') }}", name_ja: "合計トプラン", name_en: "Total Pres." },
+            prestige_1_brawlers: { icon: "{{ url_for('static', path='/images/rank/5.png') }}", name_ja: "トプラン1", name_en: "Pres. 1" },
+            prestige_2_brawlers: { icon: "{{ url_for('static', path='/images/rank/6.png') }}", name_ja: "トプラン2", name_en: "Pres. 2" },
+            prestige_3_brawlers: { icon: "{{ url_for('static', path='/images/rank/7.png') }}", name_ja: "トプラン3", name_en: "Pres. 3" },
+            unlocked_brawlers: { icon: "{{ url_for('static', path='/images/ui/unlocked.png') }}", name_ja: "キャラ数", name_en: "Unlocked" },
+            average_power: { icon: "{{ url_for('static', path='/images/ui/power_point.png') }}", name_ja: "平均パワー", name_en: "Avg Power" },
+            max_power_brawlers: { icon: "{{ url_for('static', path='/images/ui/power_11.png') }}", name_ja: "パワー11", name_en: "Power 11" },
+            gadgets: { icon: "{{ url_for('static', path='/images/accessories/gadget.png') }}", name_ja: "ガジェット", name_en: "Gadgets" },
+            star_powers: { icon: "{{ url_for('static', path='/images/accessories/starpower.png') }}", name_ja: "スタパ", name_en: "SP" },
+            gears: { icon: "{{ url_for('static', path='/images/accessories/gear.png') }}", name_ja: "ギア", name_en: "Gears" },
+            hyper_charges: { icon: "{{ url_for('static', path='/images/ui/hypercharge.webp') }}", name_ja: "ハイチャ", name_en: "HC" },
+            buffies: { icon: "{{ url_for('static', path='/images/ui/buddy.png') }}", name_ja: "バフィー", name_en: "Buffies" },
+            record_points: { icon: "{{ url_for('static', path='/images/record_levels/12.png') }}", name_ja: "記録", name_en: "Records" },
+            fame_points: { icon: "{{ url_for('static', path='/images/ui/credit.png') }}", name_ja: "累計名声", name_en: "Fame" },
+            total_mastery: { icon: "{{ url_for('static', path='/images/ui/mastery_gold.png') }}", name_ja: "旧マスタリー", name_en: "Old Mast." },
+            owned_skin_count: { icon: "{{ url_for('static', path='/images/ui/skin_super_rare.png') }}", name_ja: "合計スキン数", name_en: "Total Skins" },
+            estimated_play_time: { icon: "{{ url_for('static', path='/images/ui/refresh.png') }}", name_ja: "プレイ時間", name_en: "Play Time" },
+            team_victories: { icon: "{{ url_for('static', path='/images/mode_icons/3v3.png') }}", name_ja: "3対3勝利数", name_en: "3v3 Wins" },
+            solo_victories: { icon: "{{ url_for('static', path='/images/mode_icons/soloShowdown.png') }}", name_ja: "ソロ勝利数", name_en: "Solo Wins" },
+            duo_victories: { icon: "{{ url_for('static', path='/images/mode_icons/duoShowdown.png') }}", name_ja: "デュオ勝利数", name_en: "Duo Wins" },
+            exp_points: { icon: "{{ url_for('static', path='/images/ui/icon_xp.png') }}", name_ja: "旧XP", name_en: "Old XP" },
+            solo_pl_rank: { icon: "{{ url_for('static', path='/images/ui/pl_solo.png') }}", name_ja: "旧ソロPL", name_en: "Old Solo PL" },
+            team_pl_rank: { icon: "{{ url_for('static', path='/images/ui/pl_team.png') }}", name_ja: "旧チームPL", name_en: "Old Team PL" },
+            highest_club_league: { icon: "{{ url_for('static', path='/images/ui/club_league.png') }}", name_ja: "旧クラブ", name_en: "Old Club" },
+            legacy_rank_35s: { icon: "{{ url_for('static', path='/images/tier_icons/35.webp') }}", name_ja: "旧ランク35", name_en: "Old R35" },
+            prestige: { icon: "{{ url_for('static', path='/images/ui/prestige.png') }}", name_ja: "旧トプラン", name_en: "Old Pres." }
+        };
+        const metricOrderCompact = [
+            'highest_trophies', 'current_trophies', 'total_prestige_level', 'average_power',
+            'record_points', 'fame_points', 'owned_skin_count', 'estimated_play_time',
+            'team_victories', 'solo_victories', 'duo_victories'
+        ];
+        const metricOrderExpanded = [
+            'highest_trophies', 'current_trophies', 'average_highest_trophies', 'average_current_trophies',
+            'total_prestige_level', 'prestige_1_brawlers', 'prestige_2_brawlers', 'prestige_3_brawlers',
+            'unlocked_brawlers', 'average_power', 'max_power_brawlers', 'gadgets', 'star_powers',
+            'gears', 'hyper_charges', 'buffies', 'record_points', 'fame_points', 'total_mastery',
+            'owned_skin_count', 'estimated_play_time', 'team_victories', 'solo_victories', 'duo_victories',
+            'exp_points', 'solo_pl_rank', 'team_pl_rank', 'highest_club_league', 'legacy_rank_35s', 'prestige'
+        ];
+        return {
+            distribution,
+            metric: metricMeta[initialMetric] ? initialMetric : 'highest_trophies',
+            mode: 'rank',
+            savedMode: 'rank',
+            showAll: false,
+            showExpandedMetricList: false,
+            isJa,
+            metricMeta,
+            metricOrderCompact,
+            metricOrderExpanded,
+            init() {
+                if (!this.metricOrderCompact.includes(this.metric)) {
+                    this.showExpandedMetricList = true;
+                }
+                if (oldPlKeys.includes(this.metric)) {
+                    this.mode = 'rank';
+                }
+                this.syncUrl();
+            },
+            get currentData() {
+                return this.distribution ? this.distribution[this.metric] : null;
+            },
+            get percentModeAvailable() {
+                return !!(this.currentData && this.currentData.percent_mode_available);
+            },
+            get iconMode() {
+                return this.currentData ? this.currentData.icon_mode : 'fixed';
+            },
+            get showRankName() {
+                return this.iconMode === 'record' || this.iconMode === 'fame' || this.iconMode === 'old_pl';
+            },
+            get showFixedRankValue() {
+                return this.mode === 'rank' && this.iconMode === 'fixed';
+            },
+            get showNamedRankValue() {
+                return this.mode === 'rank' && (this.iconMode === 'record' || this.iconMode === 'fame');
+            },
+            get activeMetricOrder() {
+                return this.showExpandedMetricList ? this.metricOrderExpanded : this.metricOrderCompact;
+            },
+            get hasHiddenMetrics() {
+                return this.metricOrderExpanded.some((key) => !this.metricOrderCompact.includes(key));
+            },
+            get visiblePercentRows() {
+                const data = this.currentData;
+                if (!data) return [];
+                return this.showAll ? data.percent_rows_expanded : data.percent_rows_compact;
+            },
+            metricName(key) {
+                const meta = this.metricMeta[key];
+                if (!meta) return key;
+                return this.isJa ? meta.name_ja : meta.name_en;
+            },
+            selectMetric(key) {
+                const wasOldPl = oldPlKeys.includes(this.metric);
+                const isOldPl = oldPlKeys.includes(key);
+                this.metric = key;
+                if (isOldPl) {
+                    if (!wasOldPl) this.savedMode = this.mode;
+                    this.mode = 'rank';
+                } else if (wasOldPl) {
+                    this.mode = this.savedMode || 'rank';
+                    if (this.mode === 'percent' && !this.percentModeAvailable) {
+                        this.mode = 'rank';
+                    }
+                }
+                this.syncUrl();
+            },
+            toggleMetricListExpanded() {
+                this.showExpandedMetricList = !this.showExpandedMetricList;
+                if (!this.showExpandedMetricList && !this.metricOrderCompact.includes(this.metric)) {
+                    const fallback = this.metricOrderCompact.find((key) => this.distribution[key]);
+                    if (fallback) this.selectMetric(fallback);
+                }
+            },
+            syncUrl() {
+                const url = new URL(window.location.href);
+                url.searchParams.set('metric', this.metric);
+                history.replaceState({}, '', url);
+            },
+            rowRankName(row) {
+                if (!row) return '';
+                const rank = row.rank;
+                if (this.iconMode === 'record') return recordNames[rank] || recordNames[String(rank)] || '';
+                if (this.iconMode === 'fame') return fameNames[rank] || fameNames[String(rank)] || '';
+                if (this.iconMode === 'old_pl') return oldPlNames[rank] || oldPlNames[String(rank)] || '';
+                return '';
+            },
+            rowIconUrl(row) {
+                if (!row) return '';
+                if (this.iconMode === 'fixed') {
+                    return this.metricMeta[this.metric] ? this.metricMeta[this.metric].icon : '';
+                }
+                if (this.iconMode === 'record') {
+                    return recordIconTemplate.replace('0.png', String(row.rank) + '.png');
+                }
+                if (this.iconMode === 'fame') {
+                    if (!row.rank) return '';
+                    return fameIconTemplate.replace('1.png', String(row.rank) + '.png');
+                }
+                if (this.iconMode === 'old_pl') {
+                    if (!row.rank) return '';
+                    if (row.rank === 19) {
+                        return oldPlIconTemplate.replace('1.png', '19_old.png');
+                    }
+                    return oldPlIconTemplate.replace('1.png', String(row.rank) + '.png');
+                }
+                return '';
+            },
+            formatValue(row, isRankMode) {
+                if (!row || row.value == null) return '-';
+                const data = this.currentData;
+                const fmt = isRankMode
+                    ? (data && data.rank_value_format) || 'int'
+                    : (data && data.value_format) || 'int';
+                const number = Number(row.value);
+                if (fmt === 'float2') {
+                    return number.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+                return Math.round(number).toLocaleString();
+            }
+        };
+    }
+    </script>
+{% endblock %}

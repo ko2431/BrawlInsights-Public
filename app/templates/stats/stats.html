@@ -16,8 +16,8 @@
     <h1 class="page-title--main">{% if lang == "ja" %}統計データ{% else %}Statistics{% endif %}</h1>
 
     <p class="stats-page__description">
-        {% if lang == "ja" %}このタブでは、Tier表やランキングなどのブロスタのさまざまな統計データを閲覧できます。<br><b>【New】</b>新コンテンツ、<b>ガチバトルランク分布</b>が登場しました！
-        {% else %}On this tab, you can view a variety of Brawl Stars statistics, including Tier lists and leaderboards.<br><b>【New】</b>New content, <b>Ranked Rank Distribution</b>, is now available!
+        {% if lang == "ja" %}このタブでは、Tier表やランキングなどのブロスタのさまざまな統計データを閲覧できます。{% if false %}<br><b>【New】</b>新コンテンツ、<b>プレイヤー各種データ分布</b>が登場しました！{% endif %} {# TODO リリース後に削除 #}
+        {% else %}On this tab, you can view a variety of Brawl Stars statistics, including Tier lists and leaderboards.{% if false %}<br><b>【New】</b>New content, <b>Player Stats Distribution</b>, is now available!{% endif %}
         {% endif %}
     </p>
     
@@ -61,6 +61,14 @@
                         <img src="{{ url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png') }}" alt="スキン使用率ランキング" class="stats-page__content-image">
                     </div>
                 </a>
+                {% if current_user and current_user.is_admin %} {# TODO 後で削除 #}
+                <a href="{{ url_for('player_stats_distribution', lang=lang) }}">
+                    <div class="stats-page__content stats-page__content--responsive">
+                        <img src="{{ url_for('static', path='/images/banners/player_dist_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プレイヤー各種データ分布{% else %}Player Stats Distribution{% endif %}" class="stats-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/player_dist_banner_slim_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プレイヤー各種データ分布{% else %}Player Stats Distribution{% endif %}" class="stats-page__content-image--slim">
+                    </div>
+                </a>
+                {% endif %}
                 <a href="{{ url_for('player_ranking', lang=lang) }}">
                     <div class="stats-page__content stats-page__content--responsive">
                         <img src="{{ url_for('static', path='/images/banners/player_lb_banner_' + lang + '.png') }}" alt="総合トロフィーランキング" class="stats-page__content-image">
