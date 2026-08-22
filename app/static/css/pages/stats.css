@@ -294,6 +294,42 @@ th {
 .ranked-dist-row--masters { background-color: rgba(245, 210, 40, 0.42); }
 .ranked-dist-row--pro { background-color: rgba(150, 220, 50, 0.40); }
 
+.ranked-dist-mine-check {
+    display: flex;
+    align-items: center;
+    margin: -2px 0 8px;
+}
+.ranked-dist-mine-check--disabled,
+.ranked-dist-mine-check--disabled .form-checkbox-label {
+    color: #888;
+    opacity: 0.55;
+}
+.dark .ranked-dist-mine-check--disabled,
+.dark .ranked-dist-mine-check--disabled .form-checkbox-label {
+    color: #aaa;
+}
+.ranked-dist-mine-check__refresh {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    vertical-align: baseline;
+}
+.ranked-dist-mine-check__refresh.is-refreshing {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.ranked-dist-row--mine {
+    outline: 2px solid #e33;
+    box-sizing: border-box;
+}
+
 .ranked-dist-toggle {
     margin-top: 2px;
     width: 100%;
@@ -346,7 +382,7 @@ th {
 /* =========================================
    プレイヤー各種データ分布
    ========================================= */
-.player-dist-page [x-cloak] { display: none !important; }
+.ranked-dist-page [x-cloak] { display: none !important; }
 .player-dist-slot-tab__container {
     width: 100%;
     margin: -5px 0 14px;

@@ -1,0 +1,293 @@
+{# /app/templates/stats/fragments/ranked_rank_distribution_fragment.html #}
+<div class="ranked-dist-fragment"
+     x-data='rankedDistPage({{ distribution | tojson }}, {{ (player_snapshot.metrics if player_snapshot and player_snapshot.available else {}) | tojson }}, {{ (player_snapshot.available if player_snapshot else False) | tojson }}, {{ has_user | tojson }}, {{ url_for("distribution_main_account", lang=lang) | string | tojson }})'>
+
+    {# 指標タブ: 最高 / 現在 #}
+    <div class="ranked-dist-tabs" role="tablist" aria-label="{% if lang == 'ja' %}スコア種別{% else %}Score type{% endif %}">
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': metric === 'highest' }"
+                @click="metric = 'highest'"
+                role="tab"
+                :aria-selected="metric === 'highest'">
+            {% if lang == "ja" %}最高スコア{% else %}Highest Score{% endif %}
+        </button>
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': metric === 'current' }"
+                @click="metric = 'current'"
+                role="tab"
+                :aria-selected="metric === 'current'">
+            {% if lang == "ja" %}現在スコア{% else %}Current Score{% endif %}
+        </button>
+    </div>
+
+    {# 表示モードタブ: 上位% / ランク #}
+    <div class="ranked-dist-tabs ranked-dist-tabs--secondary" role="tablist" aria-label="{% if lang == 'ja' %}表示モード{% else %}View mode{% endif %}">
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': mode === 'percent' }"
+                @click="mode = 'percent'"
+                role="tab"
+                :aria-selected="mode === 'percent'">
+            {% if lang == "ja" %}上位%ベース{% else %}By Top %{% endif %}
+        </button>
+        <button type="button" class="ranked-dist-tabs__btn"
+                :class="{ 'ranked-dist-tabs__btn--active': mode === 'rank' }"
+                @click="mode = 'rank'"
+                role="tab"
+                :aria-selected="mode === 'rank'">
+            {% if lang == "ja" %}ランクベース{% else %}By Rank{% endif %}
+        </button>
+    </div>
+
+    {% include "stats/fragments/dist_mine_checkbox.html" %}
+
+    <template x-if="!currentData || !currentData.available">
+        <p class="ranked-dist-page__empty">
+            {% if lang == "ja" %}分布データを読み込めませんでした。しばらくしてから再度お試しください。{% else %}Could not load distribution data. Please try again later.{% endif %}
+        </p>
+    </template>
+
+    {# --- 上位%ベース --- #}
+    <div class="ranked-dist-list" x-show="currentData && currentData.available && mode === 'percent'" x-cloak>
+        <template x-for="row in displayPercentRows" :key="metric + '-p-' + (row.is_mine ? 'mine-' : '') + row.percent_key + '-' + row.score">
+            <div class="ranked-dist-row" :class="(row.theme_class || '') + (row.is_mine ? ' ranked-dist-row--mine' : '')">
+                <div class="ranked-dist-row__left">
+                    <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
+                    <span class="ranked-dist-row__percent-label" {% if not lang == 'ja' %}style="margin-right: 2px;"{% endif %}>{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
+                </div>
+                <div class="ranked-dist-row__right">
+                    <template x-if="row.rank > 0">
+                        <img :src="rankedIconUrl(row.rank)"
+                             :alt="rankName(row.rank)"
+                             class="ranked-dist-row__rank-icon">
+                    </template>
+                    <span class="ranked-dist-row__rank-name" x-text="rankName(row.rank)"></span>
+                    <span class="ranked-dist-row__score" x-text="formatScore(row.score)"></span>
+                </div>
+            </div>
+        </template>
+
+        <button type="button" class="ranked-dist-toggle" @click="showAll = !showAll">
+            <span x-show="!showAll">{% if lang == "ja" %}表示を増やす{% else %}Show More{% endif %}</span>
+            <span x-show="showAll" x-cloak>{% if lang == "ja" %}表示を減らす{% else %}Show Less{% endif %}</span>
+            <span class="ranked-dist-toggle__icon" x-text="showAll ? '△' : '▽'"></span>
+        </button>
+    </div>
+
+    {# --- ランクベース --- #}
+    <div class="ranked-dist-list" x-show="currentData && currentData.available && mode === 'rank'" x-cloak>
+        <template x-for="row in displayRankRows" :key="metric + '-r-' + (row.is_mine ? 'mine-' : '') + row.rank + '-' + row.score">
+            <div class="ranked-dist-row" :class="(row.theme_class || '') + (row.is_mine ? ' ranked-dist-row--mine' : '')">
+                <div class="ranked-dist-row__left ranked-dist-row__left--rank">
+                    <template x-if="row.rank > 0">
+                        <img :src="rankedIconUrl(row.rank)"
+                             :alt="rankName(row.rank)"
+                             class="ranked-dist-row__rank-icon">
+                    </template>
+                    <span class="ranked-dist-row__rank-name ranked-dist-row__rank-name--emphasis" x-text="rankName(row.rank)"></span>
+                    <span class="ranked-dist-row__score" x-text="formatScore(row.score)"></span>
+                </div>
+                <div class="ranked-dist-row__right ranked-dist-row__right--rank">
+                    <span class="stats-table-rating-grade" :class="row.grade_class" x-text="row.grade"></span>
+                    <span class="ranked-dist-row__percent-label" {% if not lang == 'ja' %}style="margin-right: 2px;"{% endif %}>{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
+                    <span class="ranked-dist-row__percent" x-text="row.percent_display"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+<script>
+function rankedDistPage(distribution, playerMetrics, hasMainAccount, hasUser, refreshUrl) {
+    const rankNames = {% if lang == "ja" %}{
+        0: 'ランクなし', 1: 'ブロンズ Ⅰ', 2: 'ブロンズ Ⅱ', 3: 'ブロンズ Ⅲ',
+        4: 'シルバー Ⅰ', 5: 'シルバー Ⅱ', 6: 'シルバー Ⅲ',
+        7: 'ゴールド Ⅰ', 8: 'ゴールド Ⅱ', 9: 'ゴールド Ⅲ',
+        10: 'ダイヤモンド Ⅰ', 11: 'ダイヤモンド Ⅱ', 12: 'ダイヤモンド Ⅲ',
+        13: 'エリート Ⅰ', 14: 'エリート Ⅱ', 15: 'エリート Ⅲ',
+        16: 'レジェンド Ⅰ', 17: 'レジェンド Ⅱ', 18: 'レジェンド Ⅲ',
+        19: 'マスター Ⅰ', 20: 'マスター Ⅱ', 21: 'マスター Ⅲ',
+        22: 'プロ'
+    }{% else %}{
+        0: 'No Rank', 1: 'Bronze Ⅰ', 2: 'Bronze Ⅱ', 3: 'Bronze Ⅲ',
+        4: 'Silver Ⅰ', 5: 'Silver Ⅱ', 6: 'Silver Ⅲ',
+        7: 'Gold Ⅰ', 8: 'Gold Ⅱ', 9: 'Gold Ⅲ',
+        10: 'Diamond Ⅰ', 11: 'Diamond Ⅱ', 12: 'Diamond Ⅲ',
+        13: 'Mythic Ⅰ', 14: 'Mythic Ⅱ', 15: 'Mythic Ⅲ',
+        16: 'Legendary Ⅰ', 17: 'Legendary Ⅱ', 18: 'Legendary Ⅲ',
+        19: 'Masters Ⅰ', 20: 'Masters Ⅱ', 21: 'Masters Ⅲ',
+        22: 'Pro'
+    }{% endif %};
+    const lang = {{ lang | tojson }};
+    const iconTemplate = "{{ url_for('static', path='/images/ranked_icons/1.png') }}";
+    const metricKeyBySlot = { highest: 'ranked_highest_score', current: 'ranked_current_score' };
+    return {
+        distribution,
+        playerSnapshot: playerMetrics || {},
+        hasMainAccount: !!hasMainAccount,
+        hasUser: !!hasUser,
+        showMine: !!hasMainAccount,
+        isRefreshing: false,
+        refreshUrl: refreshUrl ? (refreshUrl + (refreshUrl.includes('?') ? '&' : '?') + 'refresh=1') : '',
+        metric: 'current',
+        mode: 'rank',
+        showAll: false,
+        get currentData() {
+            return this.distribution ? this.distribution[this.metric] : null;
+        },
+        get currentMine() {
+            const key = metricKeyBySlot[this.metric];
+            return (this.playerSnapshot && key) ? (this.playerSnapshot[key] || null) : null;
+        },
+        get visiblePercentRows() {
+            const data = this.currentData;
+            if (!data) return [];
+            return this.showAll ? data.percent_rows_expanded : data.percent_rows_compact;
+        },
+        get displayPercentRows() {
+            return this.mergeMineRows(this.visiblePercentRows, 'percent');
+        },
+        get displayRankRows() {
+            const data = this.currentData;
+            if (!data) return [];
+            return this.mergeMineRows(data.rank_rows, 'rank');
+        },
+        get currentMetaText() {
+            const data = this.currentData;
+            if (!data || !data.available || !data.population) return '';
+            const pop = Number(data.population).toLocaleString();
+            if (lang === 'ja') {
+                return `集計対象: 約${pop}人のアクティブプレイヤー`;
+            }
+            return `Based on about ${pop} active players`;
+        },
+        valuesEqual(a, b) {
+            if (a == null || b == null) return false;
+            const na = Number(a);
+            const nb = Number(b);
+            if (!Number.isFinite(na) || !Number.isFinite(nb)) return false;
+            return Math.abs(na - nb) < 1e-6;
+        },
+        mineValue(mine) {
+            if (!mine) return 0;
+            return mine.score != null ? Number(mine.score) : Number(mine.value);
+        },
+        rowValue(row) {
+            if (!row) return 0;
+            return row.score != null ? Number(row.score) : Number(row.value);
+        },
+        buildMineRow(mine) {
+            return {
+                percent: mine.percent,
+                percent_key: mine.percent_key,
+                percent_display: mine.percent_display,
+                score: mine.score,
+                value: mine.value,
+                rank: mine.rank,
+                grade: mine.grade,
+                grade_class: mine.grade_class,
+                theme_class: mine.theme_class,
+                is_mine: true,
+                is_zero: !!mine.is_zero,
+            };
+        },
+        overlayMine(row, mine) {
+            return {
+                ...row,
+                percent: mine.percent,
+                percent_key: mine.percent_key,
+                percent_display: mine.percent_display,
+                grade: mine.grade,
+                grade_class: mine.grade_class,
+                theme_class: mine.theme_class,
+                rank: mine.rank,
+                score: mine.score != null ? mine.score : row.score,
+                value: mine.value != null ? mine.value : row.value,
+                is_mine: true,
+                is_zero: !!mine.is_zero,
+            };
+        },
+        findMineMatch(rows, mine) {
+            const mineVal = this.mineValue(mine);
+            return rows.findIndex((row) => this.valuesEqual(this.rowValue(row), mineVal));
+        },
+        findMineInsertIndex(rows, mine, mode) {
+            if (mode === 'percent') {
+                const minePercent = mine.percent == null ? Infinity : Number(mine.percent);
+                const mineVal = this.mineValue(mine);
+                for (let i = 0; i < rows.length; i++) {
+                    const rowPercent = rows[i].percent == null ? Infinity : Number(rows[i].percent);
+                    if (rowPercent > minePercent) return i;
+                    if (rowPercent === minePercent && mineVal >= this.rowValue(rows[i])) return i;
+                }
+                return rows.length;
+            }
+            const mineVal = this.mineValue(mine);
+            for (let i = 0; i < rows.length; i++) {
+                if (this.rowValue(rows[i]) < mineVal) return i;
+            }
+            return rows.length;
+        },
+        mergeMineRows(sourceRows, mode) {
+            const rows = (sourceRows || []).map((row) => ({ ...row, is_mine: !!row.is_mine }));
+            if (!this.showMine) return rows;
+            const mine = this.currentMine;
+            if (!mine) return rows;
+            const matchIndex = this.findMineMatch(rows, mine);
+            if (matchIndex >= 0) {
+                rows[matchIndex] = this.overlayMine(rows[matchIndex], mine);
+                return rows;
+            }
+            const insertAt = this.findMineInsertIndex(rows, mine, mode);
+            rows.splice(insertAt, 0, this.buildMineRow(mine));
+            return rows;
+        },
+        handleMineCheck(event) {
+            if (this.hasMainAccount) return;
+            event.preventDefault();
+            if (this.hasUser) {
+                alert({% if lang == "ja" %}"メインアカウントのプレイヤーデータを取得できませんでした。"{% else %}"Could not retrieve your main account player data."{% endif %});
+            } else {
+                alert({% if lang == "ja" %}"アカウントタブよりログインすると、あなたのメインアカウントのデータを表示して、自分の位置を分かりやすく確認できます。"{% else %}"Log in from the Account tab to display your main account data and easily see where you stand."{% endif %});
+            }
+        },
+        async refreshMine() {
+            if (!this.hasMainAccount || this.isRefreshing || !this.refreshUrl) return;
+            this.isRefreshing = true;
+            try {
+                const res = await fetch(this.refreshUrl, { credentials: 'same-origin' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.ok && data.available && data.metrics) {
+                    this.playerSnapshot = data.metrics;
+                }
+            } catch (_e) {
+                // 失敗時は直前のスナップショットを維持（アラートなし）
+            } finally {
+                this.isRefreshing = false;
+            }
+        },
+        rankName(rank) {
+            return rankNames[rank] || rankNames[String(rank)] || '-';
+        },
+        rankedIconUrl(rank) {
+            if (!rank || rank <= 0) return '';
+            return iconTemplate.replace('1.png', String(rank) + '.png');
+        },
+        formatScore(score) {
+            if (score == null) return '-';
+            return Number(score).toLocaleString();
+        }
+    };
+}
+</script>

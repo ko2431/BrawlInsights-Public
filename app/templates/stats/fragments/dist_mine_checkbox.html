@@ -1,0 +1,21 @@
+{# 分布ページ共通: メインアカウント行の表示チェック #}
+<div class="ranked-dist-mine-check form-checkbox-group"
+     :class="{ 'ranked-dist-mine-check--disabled': !hasMainAccount }"
+     x-cloak>
+    <input type="checkbox"
+           class="form-checkbox"
+           id="distMineCheckbox"
+           x-model="showMine"
+           @click="handleMineCheck($event)">
+    <label for="distMineCheckbox" class="form-checkbox-label">
+        <span x-show="hasMainAccount && showMine">
+            {% if lang == "ja" %}自分のメインアカウントの値を表示（{% else %}Show main account ({% endif %}<button type="button"
+                    class="ranked-dist-mine-check__refresh"
+                    :class="{ 'is-refreshing': isRefreshing }"
+                    @click.stop.prevent="refreshMine()">{% if lang == "ja" %}更新...{% else %}Update...{% endif %}</button>{% if lang == "ja" %}）{% else %}){% endif %}
+        </span>
+        <span x-show="!hasMainAccount || !showMine">
+            {% if lang == "ja" %}自分のメインアカウントの値を表示{% else %}Show main account{% endif %}
+        </span>
+    </label>
+</div>
