@@ -1,5 +1,5 @@
 {# /app/templates/admin/macros/badges.html #}
-{# 管理画面共通バッジ。color は red/blue/green/yellow/orange/purple/cyan/gray。空文字は非表示。 #}
+{# 管理画面共通バッジ。color は red/blue/green/yellow/orange/purple/cyan/gray または掲示板カテゴリー用トークン。空文字は非表示。 #}
 
 {% macro admin_badge(text, color='gray') -%}
 {%- if text is not none and (text | string | trim) -%}

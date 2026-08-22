@@ -12,13 +12,14 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, post_id, post_type, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) %}
+{% macro render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="投稿ページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
                 {% if post_id %}{% set _ = base_query_parts.append("post_id=" + post_id) %}{% endif %}
                 {% if post_type != 'all' %}{% set _ = base_query_parts.append("post_type=" + post_type) %}{% endif %}
+                {% if post_category != 'all' %}{% set _ = base_query_parts.append("post_category=" + post_category) %}{% endif %}
                 {% if status_filter != 'all' %}{% set _ = base_query_parts.append("status_filter=" + status_filter) %}{% endif %}
                 {% if close_status_filter != 'all' %}{% set _ = base_query_parts.append("close_status_filter=" + close_status_filter) %}{% endif %}
                 {% if user_type != 'all' %}{% set _ = base_query_parts.append("user_type=" + user_type) %}{% endif %}
@@ -29,6 +30,8 @@
                 {% if entity_tag %}{% set _ = base_query_parts.append("entity_tag=" + (entity_tag | urlencode)) %}{% endif %}
                 {% if comment_text %}{% set _ = base_query_parts.append("comment_text=" + (comment_text | urlencode)) %}{% endif %}
                 {% if comment_regex %}{% set _ = base_query_parts.append("comment_regex=" + (comment_regex | urlencode)) %}{% endif %}
+                {% if min_comment_count %}{% set _ = base_query_parts.append("min_comment_count=" + min_comment_count) %}{% endif %}
+                {% if min_like_count %}{% set _ = base_query_parts.append("min_like_count=" + min_like_count) %}{% endif %}
                 {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
                 {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
                 {% set base_query = base_query_parts | join('&') %}
@@ -99,6 +102,37 @@
             </select>
         </label>
         <label>
+            <span class="admin-filters__label-text">カテゴリー</span>
+            <select class="form-input admin-filters__select" x-model="draft.post_category">
+                <option value="all">すべて</option>
+                <optgroup label="チーム募集">
+                    <option value="team_ranked">ガチバトル</option>
+                    <option value="team_friendly">フレンドバトル</option>
+                    <option value="team_event">特別イベント</option>
+                    <option value="team_others">トロフィー</option>
+                    <option value="team_5v5">5対5ゲームモード</option>
+                    <option value="team_duoShowdown">デュオ バトルロイヤル</option>
+                    <option value="team_trioShowdown">トリオ バトルロイヤル</option>
+                    <option value="team_gemGrab">エメラルドハント</option>
+                    <option value="team_brawlBall">ブロストライカー</option>
+                    <option value="team_heist">強奪</option>
+                    <option value="team_bounty">賞金稼ぎ</option>
+                    <option value="team_hotZone">ホットゾーン</option>
+                    <option value="team_knockout">ノックアウト</option>
+                </optgroup>
+                <optgroup label="なんでも掲示板">
+                    <option value="general_chat">雑談</option>
+                    <option value="general_question">質問</option>
+                    <option value="general_offtopic">オフトピック</option>
+                    <option value="general_brawl_info">ブロスタ情報</option>
+                    <option value="general_x">X</option>
+                    <option value="general_discord">Discord</option>
+                    <option value="general_youtube">YouTube</option>
+                    <option value="general_tiktok">TikTok</option>
+                </optgroup>
+            </select>
+        </label>
+        <label>
             <span class="admin-filters__label-text">削除</span>
             <select class="form-input admin-filters__select" x-model="draft.status_filter">
                 <option value="all">すべて</option>
@@ -151,6 +185,14 @@
             <input class="form-input admin-filters__input" x-model="draft.comment_regex" maxlength="200" :disabled="!!draft.comment_text.trim()">
         </label>
         <label>
+            <span class="admin-filters__label-text">コメント数がこの値以上</span>
+            <input class="form-input admin-filters__input" x-model="draft.min_comment_count" inputmode="numeric" pattern="[0-9]*" maxlength="10" @input="sanitizeNumericField('min_comment_count')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">いいね数がこの値以上</span>
+            <input class="form-input admin-filters__input" x-model="draft.min_like_count" inputmode="numeric" pattern="[0-9]*" maxlength="10" @input="sanitizeNumericField('min_like_count')">
+        </label>
+        <label>
             <span class="admin-filters__label-text">この日時以降</span>
             <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_after">
         </label>
@@ -177,7 +219,7 @@
         （最大1,000件／ページ）
     </p>
 
-    {{ render_pagination(pagination, post_id, post_type, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before) }}
 
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
@@ -195,6 +237,7 @@
                     <th>ID</th>
                     <th>日時 (JST)</th>
                     <th>タイプ</th>
+                    <th>カテゴリー</th>
                     <th>ユーザー</th>
                     <th>ユーザーID</th>
                     <th>IPアドレス</th>
@@ -202,6 +245,8 @@
                     <th>プレイヤー/クラブ名</th>
                     <th>プレイヤー/クラブタグ</th>
                     <th>コメント</th>
+                    <th>コメント数</th>
+                    <th>いいね数</th>
                     <th>削除</th>
                     <th>クローズ</th>
                 </tr>
@@ -212,6 +257,7 @@
                     <td>{{ post.id }}</td>
                     <td>{{ post.created_at_text }}</td>
                     <td>{{ admin_badge(post.type_label, post.type_badge_color) }}</td>
+                    <td>{{ admin_badge(post.category_label, post.category_badge_color) }}</td>
                     <td>{{ post.host_user_name if post.host_user_name else "(ゲスト)" }}</td>
                     <td>
                         {% if post.host_id %}
@@ -241,6 +287,8 @@
                     <td class="col-message">
                         <div class="col-message-content">{{ post.comment if post.comment else "(なし)" }}</div>
                     </td>
+                    <td>{{ post.message_count if post.message_count is not none else "" }}</td>
+                    <td>{{ post.like_count if post.like_count is not none else "" }}</td>
                     <td class="form-checkbox-cell">
                         <input type="checkbox" class="form-checkbox"
                                :class="{'changed-field': isDirtyDeleted()}"
@@ -258,14 +306,14 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="12" style="text-align: center; color: #777;">投稿はありません。</td>
+                    <td colspan="15" style="text-align: center; color: #777;">投稿はありません。</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    {{ render_pagination(pagination, post_id, post_type, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before) }}
 
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -288,6 +336,7 @@
                 draft: {
                     post_id: '',
                     post_type: 'all',
+                    post_category: 'all',
                     status_filter: 'all',
                     close_status_filter: 'all',
                     user_type: 'all',
@@ -298,6 +347,8 @@
                     entity_tag: '',
                     comment_text: '',
                     comment_regex: '',
+                    min_comment_count: '',
+                    min_like_count: '',
                     created_after: '',
                     created_before: '',
                 },
@@ -306,6 +357,7 @@
                 filterDefaults: {
                     post_id: '',
                     post_type: 'all',
+                    post_category: 'all',
                     status_filter: 'all',
                     close_status_filter: 'all',
                     user_type: 'all',
@@ -316,10 +368,12 @@
                     entity_tag: '',
                     comment_text: '',
                     comment_regex: '',
+                    min_comment_count: '',
+                    min_like_count: '',
                     created_after: '',
                     created_before: '',
                 },
-                numericFields: ['post_id', 'user_id'],
+                numericFields: ['post_id', 'user_id', 'min_comment_count', 'min_like_count'],
 
                 initFilters(appliedFilters) {
                     this.applied = appliedFilters;
@@ -355,6 +409,7 @@
                     return {
                         post_id: (filters.post_id || '').trim(),
                         post_type: filters.post_type || 'all',
+                        post_category: filters.post_category || 'all',
                         status_filter: filters.status_filter || 'all',
                         close_status_filter: filters.close_status_filter || 'all',
                         user_type: filters.user_type || 'all',
@@ -365,6 +420,8 @@
                         entity_tag: (filters.entity_tag || '').trim(),
                         comment_text: (filters.comment_text || '').trim(),
                         comment_regex: (filters.comment_regex || '').trim(),
+                        min_comment_count: (filters.min_comment_count || '').trim(),
+                        min_like_count: (filters.min_like_count || '').trim(),
                         created_after: (filters.created_after || '').trim(),
                         created_before: (filters.created_before || '').trim(),
                     };
