@@ -25,7 +25,7 @@
                 <img src="{{ url_for('static', path='/images/ui/tools.svg') }}" alt="Tools" class="header-pc__nav-icon">
                 <span class="header-pc__nav-text">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</span>
             </a>
-            {# 募集掲示板 #}
+            {# 掲示板 #}
             <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'board' %}header-pc__nav-link--active{% endif %}" data-tab-id="board">
                 <span class="nav-icon-wrapper">
                     <img src="{{ url_for('static', path='/images/ui/boards.svg') }}" alt="Board" class="header-pc__nav-icon">
@@ -33,7 +33,7 @@
                     <span class="nav-tab-badge nav-tab-badge--pc">{{ notification_badge_text }}</span>
                     {% endif %}
                 </span>
-                <span class="header-pc__nav-text">{% if lang == "ja" %}募集掲示板{% else %}Boards{% endif %}</span>
+                <span class="header-pc__nav-text">{% if lang == "ja" %}掲示板{% else %}Boards{% endif %}</span>
             </a>
             {# アカウント #}
             <a href="{{ url_for('account_page', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'account' %}header-pc__nav-link--active{% endif %}" data-tab-id="account">
