@@ -1,10 +1,8 @@
 function adminNotificationCenter(config) {
     const lang = config.lang || "ja";
     const apiUrl = `/${lang}/admin/api/notifications`;
-    const filterOpenStorageKey = "bi_admin_notification_filter_open";
 
-    return {
-        filtersOpen: sessionStorage.getItem(filterOpenStorageKey) === "true",
+    return withAdminFilterCollapse({
         loading: false,
         requestSeq: 0,
         listEpoch: 0,
@@ -27,9 +25,6 @@ function adminNotificationCenter(config) {
             createdBefore: "",
         },
         init() {
-            this.$watch("filtersOpen", (val) => {
-                sessionStorage.setItem(filterOpenStorageKey, val);
-            });
             this.fetchPage({ reset: true });
         },
         levelBadgeColor(level) {
@@ -99,5 +94,5 @@ function adminNotificationCenter(config) {
             if (!this.hasMore || this.loading) return;
             this.fetchPage({ reset: false });
         },
-    };
+    }, "notifications");
 }

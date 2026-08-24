@@ -709,7 +709,7 @@ th {
 .admin-notification-center__filter-box {
     margin-bottom: 0;
 }
-.admin-notification-center__filter-toggle {
+.admin-filters__toggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -722,20 +722,23 @@ th {
     user-select: none;
     box-sizing: border-box;
 }
-.dark .admin-notification-center__filter-toggle {
+.dark .admin-filters__toggle {
     color: var(--color-eee);
 }
-.admin-notification-center__filter-toggle .section-toggle-icon {
+.admin-filters__toggle .section-toggle-icon {
     flex-shrink: 0;
     font-size: 1em;
     margin-left: 10px;
 }
-.admin-notification-center__filter-body {
+.admin-filters__body {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     margin-top: 8px;
     overflow-x: hidden;
+}
+[x-cloak] {
+    display: none !important;
 }
 .admin-notification-center__meta {
     margin: 8px 0 10px;

@@ -1,5 +1,6 @@
 {# /app/templates/admin/logs.html #}
 {% extends "base.html" %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -53,7 +54,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="logAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -64,7 +65,9 @@
     {% endif %}
     <h1 class="page-title--main">ログ確認</h1>
 
-    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+    <div x-data="logAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+    {% call admin_filters_wrapper() %}
+    <form @submit.prevent="submitFilters()">
         <label>
             <span class="admin-filters__label-text">日付</span>
             <input type="date" class="form-input admin-filters__input" x-model="draft.date">
@@ -118,6 +121,8 @@
         </label>
         <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
     </form>
+    {% endcall %}
+    </div>
 
     {% if log_file_exists and logs %}
         <p class="admin-page__description">
@@ -213,9 +218,10 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
     <script>
         document.addEventListener('alpine:init', () => {
-            Alpine.data('logAdmin', () => ({
+            Alpine.data('logAdmin', () => withAdminFilterCollapse({
                 applied: {},
                 draft: {
                     date: '',
@@ -341,7 +347,7 @@
                     });
                     window.location.href = url.toString();
                 },
-            }));
+            }, 'logs'));
         });
     </script>
 {% endblock %}

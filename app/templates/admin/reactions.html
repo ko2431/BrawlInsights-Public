@@ -1,5 +1,6 @@
 {# /app/templates/admin/reactions.html #}
 {% extends "base.html" %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -75,7 +76,8 @@
 
     <h1 class="page-title--main">リアクション確認</h1>
 
-    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+    {% call admin_filters_wrapper() %}
+    <form @submit.prevent="submitFilters()">
         <label>
             <span class="admin-filters__label-text">リアクションID</span>
             <input class="form-input admin-filters__input" x-model="draft.reaction_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('reaction_id')">
@@ -122,6 +124,7 @@
         </label>
         <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
     </form>
+    {% endcall %}
 
     <p class="admin-page__description">
         表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大1,000件／ページ）
@@ -208,6 +211,7 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
     <script>
         function handleAdminThreadLinkClick(event, el) {
             if (!event.altKey) {
@@ -227,7 +231,7 @@
         }
 
         document.addEventListener('alpine:init', () => {
-            Alpine.data('reactionAdmin', () => ({
+            Alpine.data('reactionAdmin', () => withAdminFilterCollapse({
                 applied: {},
                 draft: {
                     reaction_id: '',
@@ -325,7 +329,7 @@
                     url.searchParams.set('page', '1');
                     window.location.href = url.toString();
                 },
-            }));
+            }, 'reactions'));
         });
     </script>
 {% endblock %}

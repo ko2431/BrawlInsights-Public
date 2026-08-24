@@ -1,6 +1,7 @@
 {# /app/templates/admin/feedbacks.html #}
 {% extends "base.html" %}
 {% from "admin/macros/badges.html" import admin_badge %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -75,7 +76,8 @@
 
     <h1 class="page-title--main">フィードバック確認</h1>
 
-    <form class="admin-filters__container" @submit.prevent="submitFilters()">
+    {% call admin_filters_wrapper() %}
+    <form @submit.prevent="submitFilters()">
         <label>
             <span class="admin-filters__label-text">フィードバックID</span>
             <input class="form-input admin-filters__input" x-model="draft.feedback_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('feedback_id')">
@@ -123,6 +125,7 @@
         </label>
         <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
     </form>
+    {% endcall %}
 
     <p class="admin-page__description">
         表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大1,000件／ページ）
@@ -207,9 +210,10 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
     <script>
         document.addEventListener('alpine:init', () => {
-            Alpine.data('feedbackAdmin', () => ({
+            Alpine.data('feedbackAdmin', () => withAdminFilterCollapse({
                 applied: {},
                 draft: {
                     feedback_id: '',
@@ -395,7 +399,7 @@
                         this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
                     }
                 },
-            }));
+            }, 'feedbacks'));
 
             Alpine.data('feedbackRow', () => ({
                 id: null,

@@ -1,0 +1,15 @@
+{% macro admin_filters_wrapper(extra_class='') %}
+<div class="admin-filters__container{% if extra_class %} {{ extra_class }}{% endif %}">
+    <span class="admin-filters__toggle"
+          @click="filtersOpen = !filtersOpen"
+          :aria-expanded="filtersOpen"
+          role="button"
+          tabindex="0">
+        <span>フィルター</span>
+        <span class="section-toggle-icon" x-text="filtersOpen ? '△' : '▽'">▽</span>
+    </span>
+    <div x-show="filtersOpen" x-transition class="admin-filters__body" x-cloak style="display: none;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}

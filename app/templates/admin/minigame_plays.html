@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper %}
 {% block title %}管理者向け / ミニゲーム参加履歴{% endblock %}
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
@@ -62,7 +63,8 @@
  </div>
  {% endif %}
  <h1 class="page-title--main">ミニゲーム参加履歴</h1>
- <form class="admin-filters__container" @submit.prevent="submitFilters()">
+ {% call admin_filters_wrapper() %}
+ <form @submit.prevent="submitFilters()">
   <label>
    <span class="admin-filters__label-text">企画</span>
    <select class="form-input admin-filters__select" x-model="draft.campaign_id">
@@ -129,6 +131,7 @@
   </label>
   <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
  </form>
+ {% endcall %}
  <p class="admin-page__description">表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大100件／ページ）</p>
  {{ render_pagination(pagination, campaign_id, status_filter, play_method, gift_fulfillment_status, user_type, user_name, user_id, rank_filter, current_sort, created_after, created_before) }}
  <div class="table-wrapper" style="margin-top: 10px;"><table class="data-table purchase-table"><thead><tr>
@@ -156,9 +159,11 @@
 .minigame-play-status-badge.is-skipped{background:#e5e7eb;color:#374151}
 </style>
 {% endblock %}
-{% block scripts %}{{ super() }}<script>
+{% block scripts %}{{ super() }}
+<script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+<script>
 document.addEventListener('alpine:init', () => {
-    Alpine.data('minigamePlayAdmin', () => ({
+    Alpine.data('minigamePlayAdmin', () => withAdminFilterCollapse({
         applied: {},
         draft: {
             campaign_id: '',
@@ -289,6 +294,6 @@ document.addEventListener('alpine:init', () => {
                 alert(data.message);
             }
         },
-    }));
+    }, 'minigame_plays'));
 });
 </script>{% endblock %}
