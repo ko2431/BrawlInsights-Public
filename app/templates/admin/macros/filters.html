@@ -13,3 +13,10 @@
     </div>
 </div>
 {% endmacro %}
+
+{% macro admin_filters_actions() %}
+<div class="admin-filters__actions">
+    <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+    <button type="button" class="button button--secondary admin-filters__reset-button" @click="resetFilters()" :disabled="!canResetFilters">リセット</button>
+</div>
+{% endmacro %}

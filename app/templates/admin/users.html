@@ -1,6 +1,6 @@
 {# /app/templates/admin/users.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filters_actions %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -150,7 +150,7 @@
                 <option value="allowed">投稿可能</option>
             </select>
         </label>
-        <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+        {{ admin_filters_actions() }}
     </form>
     {% endcall %}
 

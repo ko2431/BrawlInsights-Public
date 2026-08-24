@@ -24,8 +24,28 @@ function adminNotificationCenter(config) {
             createdAfter: "",
             createdBefore: "",
         },
+        filterDefaults: {
+            level: "all",
+            category: "all",
+            text: "",
+            createdAfter: "",
+            createdBefore: "",
+        },
         init() {
             this.fetchPage({ reset: true });
+        },
+        normalizeFilters(filters) {
+            return {
+                level: filters.level || "all",
+                category: filters.category || "all",
+                text: (filters.text || "").trim(),
+                createdAfter: (filters.createdAfter || "").trim(),
+                createdBefore: (filters.createdBefore || "").trim(),
+            };
+        },
+        get canSubmitFilters() {
+            return JSON.stringify(this.normalizeFilters(this.draft))
+                !== JSON.stringify(this.normalizeFilters(this.applied));
         },
         levelBadgeColor(level) {
             if (level >= 30) return "red";
@@ -87,6 +107,9 @@ function adminNotificationCenter(config) {
             }
         },
         applyFilters() {
+            if (!this.canSubmitFilters) {
+                return;
+            }
             this.applied = { ...this.draft };
             this.fetchPage({ reset: true });
         },

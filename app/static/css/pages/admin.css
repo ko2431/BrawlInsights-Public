@@ -141,14 +141,23 @@ a.admin-home-grid__item:hover {
 .admin-filters__label-text {
     font-size: 15px;
 }
-.admin-filters__submit-button {
+.admin-filters__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
     margin-top: 10px;
+}
+.admin-filters__submit-button,
+.admin-filters__reset-button {
     border-radius: 9px;
     padding: 4px 12px;
 }
-.admin-filters__submit-button:disabled {
+.admin-filters__submit-button:disabled,
+.admin-filters__reset-button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+    color: #fff;
 }
 .admin-thread-link {
     text-decoration: underline;
@@ -174,14 +183,15 @@ a.admin-home-grid__item:hover {
 .dark .admin-filters__label-text {
     color: #eee;
 }
-.dark .admin-filters__submit-button:disabled {
+.dark .admin-filters__submit-button:disabled,
+.dark .admin-filters__reset-button:disabled {
     /* 共通 .dark .button:disabled の薄字＋opacity だとほぼ消えるため、枠内で読める色に上書き */
     opacity: 1;
     background-color: #4a4a4a;
     border-color: #4a4a4a;
     color: #bdbdbd;
 }
-.dark .admin-filters__submit-button:not(:disabled) {
+.dark .admin-filters__submit-button.button--primary:not(:disabled) {
     /* 暗い枠の上で白ボタンがはっきり見えるよう、既存 primary を維持しつつ縁を強める */
     background-color: #fff;
     color: #222;
@@ -721,9 +731,6 @@ th {
     cursor: pointer;
     user-select: none;
     box-sizing: border-box;
-}
-.dark .admin-filters__toggle {
-    color: var(--color-eee);
 }
 .admin-filters__toggle .section-toggle-icon {
     flex-shrink: 0;

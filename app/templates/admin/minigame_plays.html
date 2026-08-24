@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filters_actions %}
 {% block title %}管理者向け / ミニゲーム参加履歴{% endblock %}
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
@@ -129,7 +129,7 @@
    <span class="admin-filters__label-text">この日時以前</span>
    <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_before">
   </label>
-  <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
+  {{ admin_filters_actions() }}
  </form>
  {% endcall %}
  <p class="admin-page__description">表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b>件／<b>{{ '{:,}'.format(pagination.total_users) }}</b>人（最大100件／ページ）</p>
