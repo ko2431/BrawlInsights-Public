@@ -170,9 +170,9 @@ a.admin-home-grid__item:hover {
     min-width: 0;
 }
 /* datetime-local / date / time はブラウザ既定の最小幅で親をはみ出すことがある */
-.admin-filters__input[type="datetime-local"],
-.admin-filters__input[type="date"],
-.admin-filters__input[type="time"] {
+.form-input[type="datetime-local"],
+.form-input[type="date"],
+.form-input[type="time"] {
     display: block;
     min-width: 0;
     max-width: 100%;
@@ -180,9 +180,9 @@ a.admin-home-grid__item:hover {
 
 /* iOS / iPadOS（Safari・WKWebView）。Mac Safari には -webkit-touch-callout が無い */
 @supports (-webkit-touch-callout: none) {
-    .admin-filters__input[type="datetime-local"],
-    .admin-filters__input[type="date"],
-    .admin-filters__input[type="time"] {
+    .form-input[type="datetime-local"],
+    .form-input[type="date"],
+    .form-input[type="time"] {
         /* ネイティブ見た目を外し、form-input と同じ箱サイズに収める */
         -webkit-appearance: none;
         appearance: none;
@@ -193,17 +193,17 @@ a.admin-home-grid__item:hover {
     }
 
     /* iOS は値を中央揃えにする。左詰に戻す */
-    .admin-filters__input[type="datetime-local"]::-webkit-date-and-time-value,
-    .admin-filters__input[type="date"]::-webkit-date-and-time-value,
-    .admin-filters__input[type="time"]::-webkit-date-and-time-value {
+    .form-input[type="datetime-local"]::-webkit-date-and-time-value,
+    .form-input[type="date"]::-webkit-date-and-time-value,
+    .form-input[type="time"]::-webkit-date-and-time-value {
         text-align: left;
         min-width: 0;
         width: 100%;
     }
 
-    .admin-filters__input[type="datetime-local"]::-webkit-datetime-edit,
-    .admin-filters__input[type="date"]::-webkit-datetime-edit,
-    .admin-filters__input[type="time"]::-webkit-datetime-edit {
+    .form-input[type="datetime-local"]::-webkit-datetime-edit,
+    .form-input[type="date"]::-webkit-datetime-edit,
+    .form-input[type="time"]::-webkit-datetime-edit {
         padding: 0;
         margin: 0;
         min-width: 0;
@@ -212,9 +212,9 @@ a.admin-home-grid__item:hover {
         text-align: left;
     }
 
-    .admin-filters__input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
-    .admin-filters__input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-    .admin-filters__input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+    .form-input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+    .form-input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+    .form-input[type="time"]::-webkit-datetime-edit-fields-wrapper {
         padding: 0;
     }
 }
