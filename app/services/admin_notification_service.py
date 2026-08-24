@@ -16,6 +16,7 @@ ADMIN_NOTIFICATION_BADGE_TTL = 60
 ADMIN_NOTIFICATION_LEVELS_TTL = 60
 ADMIN_NOTIFICATION_LEVELS = frozenset({0, 10, 20, 30})
 BADGE_CACHE_PREFIX = "admin_notification_badge_count:"
+BADGE_EPOCH_REDIS_KEY = "admin_notification_badge_epoch"
 EVENT_LEVELS_CACHE_KEY = "admin_notification_event_levels"
 SCHEDULE_GRACE = datetime.timedelta(hours=6)
 
@@ -206,8 +207,23 @@ def format_admin_notification_datetime(dt: datetime.datetime | None) -> str:
     return jst_dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _badge_cache_key(user_id: int) -> str:
-    return f"{BADGE_CACHE_PREFIX}{user_id}"
+def _badge_cache_key(user_id: int, epoch: int = 0) -> str:
+    return f"{BADGE_CACHE_PREFIX}{epoch}:{user_id}"
+
+
+async def _read_badge_epoch() -> int:
+    r = get_redis()
+    if not r:
+        return 0
+    try:
+        raw = await r.get(BADGE_EPOCH_REDIS_KEY)
+        if raw is None:
+            return 0
+        if isinstance(raw, (bytes, bytearray)):
+            raw = raw.decode("utf-8")
+        return int(raw)
+    except Exception:
+        return 0
 
 
 def _log_internal(message: str, exc: BaseException | None = None) -> None:
@@ -255,14 +271,14 @@ def category_options() -> list[dict[str, str]]:
 
 
 async def invalidate_admin_notification_badge_cache() -> None:
+    """バッジキャッシュを世代番号で無効化する。SCANは使わない（本番のキー数では数十秒かかる）。"""
     r = get_redis()
     if not r:
         return
     try:
-        async for key_bytes in r.scan_iter(match=f"{BADGE_CACHE_PREFIX}*"):
-            await r.delete(key_bytes)
+        await r.incr(BADGE_EPOCH_REDIS_KEY)
     except Exception as e:
-        _log_internal(f"管理者通知バッジキャッシュの削除に失敗しました: {e}", e)
+        _log_internal(f"管理者通知バッジキャッシュの無効化に失敗しました: {e}", e)
 
 
 async def get_event_levels(db: asyncpg.Connection) -> dict[str, int]:
@@ -427,7 +443,8 @@ async def _insert_admin_notification(
     )
     if row is None:
         return None
-    await invalidate_admin_notification_badge_cache()
+    if level >= 20:
+        await invalidate_admin_notification_badge_cache()
     return int(row["id"])
 
 
@@ -437,7 +454,7 @@ async def mark_dashboard_read(db: asyncpg.Connection, admin_user_id: int) -> Non
             "UPDATE users SET admin_notifications_dashboard_read_at = NOW() WHERE id = $1",
             admin_user_id,
         )
-        await delete_cache(_badge_cache_key(admin_user_id))
+        await delete_cache(_badge_cache_key(admin_user_id, await _read_badge_epoch()))
     except asyncpg.PostgresError as e:
         _log_internal(f"管理者通知の総合画面既読更新に失敗しました (user={admin_user_id}): {e}", e)
 
@@ -455,7 +472,7 @@ async def mark_category_visited(db: asyncpg.Connection, admin_user_id: int, cate
             admin_user_id,
             category,
         )
-        await delete_cache(_badge_cache_key(admin_user_id))
+        await delete_cache(_badge_cache_key(admin_user_id, await _read_badge_epoch()))
     except asyncpg.PostgresError as e:
         _log_internal(
             f"管理者通知のカテゴリ既読更新に失敗しました (user={admin_user_id}, category={category}): {e}",
@@ -516,7 +533,7 @@ async def get_admin_notification_badge_context(
     if not user_id:
         return empty_admin_notification_badge_context()
 
-    cache_key = _badge_cache_key(user_id)
+    cache_key = _badge_cache_key(user_id, await _read_badge_epoch())
     cached = await get_cache(cache_key)
     if isinstance(cached, int):
         count = cached
