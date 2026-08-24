@@ -1,0 +1,37 @@
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function notificationSettingsPage() {
+    return {
+        levels: {{ event_levels|tojson }},
+        saving: false,
+        message: "",
+        saveSuccess: null,
+        async save() {
+            if (this.saving) return;
+            this.saving = true;
+            this.message = "";
+            try {
+                const response = await fetch("{{ url_for('admin_update_notification_settings', lang=lang) }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                    body: JSON.stringify({ levels: this.levels }),
+                });
+                const data = await response.json();
+                this.saveSuccess = Boolean(data.success);
+                this.message = data.message || (this.saveSuccess ? "保存しました。" : "保存に失敗しました。");
+                if (data.levels) this.levels = data.levels;
+            } catch (error) {
+                this.saveSuccess = false;
+                this.message = "保存に失敗しました。";
+            } finally {
+                this.saving = false;
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

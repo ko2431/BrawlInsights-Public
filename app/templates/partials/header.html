@@ -37,7 +37,12 @@
             </a>
             {# アカウント #}
             <a href="{{ url_for('account_page', lang=lang) }}" class="header-pc__nav-link {% if current_page == 'account' %}header-pc__nav-link--active{% endif %}" data-tab-id="account">
-                <img src="{{ url_for('static', path='/images/ui/account.svg') }}" alt="Account" class="header-pc__nav-icon">
+                <span class="nav-icon-wrapper">
+                    <img src="{{ url_for('static', path='/images/ui/account.svg') }}" alt="Account" class="header-pc__nav-icon">
+                    {% if show_admin_notification_badge %}
+                    <span class="nav-tab-badge nav-tab-badge--pc">{{ admin_notification_badge_text }}</span>
+                    {% endif %}
+                </span>
                 <span class="header-pc__nav-text">{% if lang == "ja" %}アカウント{% else %}Account{% endif %}</span>
             </a>
         </nav>

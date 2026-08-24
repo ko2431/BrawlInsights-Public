@@ -8,6 +8,7 @@ from .context_processors import (
     ip_processor,
     ad_banner_processor,
     board_notification_processor,
+    admin_notification_processor,
 )
 from app.utils.utils import format_display_datetime, format_last_played_time
 import re
@@ -25,6 +26,7 @@ templates = Jinja2Templates(
         ip_processor,
         ad_banner_processor,
         board_notification_processor,
+        admin_notification_processor,
     ],  # type: ignore
 )
 

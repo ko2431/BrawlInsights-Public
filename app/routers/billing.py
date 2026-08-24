@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.db.db import get_shared_db
 from app.services.user_service import User, get_user_include_invalid
+from app.services.admin_notification_service import emit_admin_notification
 
 router = APIRouter(prefix="/billing", tags=["Billing Webhook"])
 lang_router = APIRouter(prefix="/{lang}/billing", tags=["Billing"])
@@ -450,6 +451,28 @@ async def revenuecat_webhook(
             and event_type in {"INITIAL_PURCHASE", "NON_RENEWING_PURCHASE"}
         ):
             logger.info(f"{user_label}がアプリを支援する({_support_price_text(product_id)})を購入しました。")
+
+        if event_type in {"INITIAL_PURCHASE", "NON_RENEWING_PURCHASE"}:
+            purchase_event_key = "purchase_new"
+            purchase_title = "新しい購入"
+        elif event_type in {"CANCELLATION", "REFUND", "EXPIRATION"}:
+            purchase_event_key = "purchase_refund"
+            purchase_title = "購入がキャンセル／返金されました"
+        else:
+            purchase_event_key = "purchase_other"
+            purchase_title = "購入イベント"
+        await emit_admin_notification(
+            db,
+            purchase_event_key,
+            title=purchase_title,
+            summary=f"{event_type} / {product_id or entitlement_id or '-'} / {user_label}",
+            payload={
+                "event_id": inserted_event_id,
+                "event_type": event_type,
+                "product_id": product_id,
+                "user_id": user_id,
+            },
+        )
 
     return JSONResponse(
         {

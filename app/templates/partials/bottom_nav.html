@@ -29,7 +29,12 @@
     </a>
     {# アカウントタブ #}
     <a href="{{ url_for('account_page', lang=lang) }}" class="footer-mobile-nav__item {% if current_page == 'account' %}footer-mobile-nav__item--active{% endif %}" data-tab-id="account">
-        <img src="{{ url_for('static', path='/images/ui/account.svg') }}" alt="Account" class="footer-mobile-nav__icon">
+        <span class="nav-icon-wrapper">
+            <img src="{{ url_for('static', path='/images/ui/account.svg') }}" alt="Account" class="footer-mobile-nav__icon">
+            {% if show_admin_notification_badge %}
+            <span class="nav-tab-badge">{{ admin_notification_badge_text }}</span>
+            {% endif %}
+        </span>
         <span class="footer-mobile-nav__text">{% if lang == "ja" %}アカウント{% else %}Account{% endif %}</span>
     </a>
 </nav>

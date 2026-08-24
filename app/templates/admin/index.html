@@ -1,3 +1,7 @@
 {# [この部分は公開用リポジトリでは非公開にされています] #}
  #}
 {% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/pages/admin_notification_center.js') }}?v={{ app_version }}"></script>
+{% endblock %}

@@ -69,3 +69,25 @@ def board_notification_processor(request: Request) -> dict:
         "show_notification_badge": bool(context.get("show_notification_badge")),
         "notification_badge_text": context.get("notification_badge_text") or "",
     }
+
+
+def admin_notification_processor(request: Request) -> dict:
+    """
+    管理者向け通知バッジ情報をテンプレートコンテキストに渡す。
+    UserToStateMiddleware が request.state.admin_notification_context を設定済みであること前提。
+    """
+    empty = {
+        "show_admin_notification_badge": False,
+        "admin_notification_badge_text": "",
+    }
+    current_user = getattr(request.state, "current_user", None)
+    if not current_user or not getattr(current_user, "is_admin", False):
+        return empty
+
+    context = getattr(request.state, "admin_notification_context", None)
+    if not isinstance(context, dict):
+        return empty
+    return {
+        "show_admin_notification_badge": bool(context.get("show_admin_notification_badge")),
+        "admin_notification_badge_text": context.get("admin_notification_badge_text") or "",
+    }

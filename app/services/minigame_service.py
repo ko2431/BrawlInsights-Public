@@ -21,6 +21,11 @@ from app.services.brawl_service import (
 )
 from app.services.minigame_assets import BACK_SYMBOL, CARD_ASSETS, MYSTERY_IMAGE, static_url_path
 from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
+from app.services.admin_notification_service import (
+    clip_admin_notification_text,
+    emit_admin_notification,
+    format_admin_user_label,
+)
 
 DEFAULT_PRICE_AD_TOKENS = 7
 DEFAULT_PRICE_TOKEN_TOKENS = 20
@@ -369,6 +374,19 @@ async def draw_prize_rank(
         )
         if not updated:
             return await draw_prize_rank(db, campaign, is_admin_play=False)
+        if int(updated["remaining"] or 0) == 0:
+            campaign_name = campaign.get("name_ja") or campaign.get("name_en") or f"ID {campaign['id']}"
+            await emit_admin_notification(
+                db,
+                "minigame_stock_empty",
+                title="ギフト在庫切れ",
+                summary=(
+                    f"企画「{clip_admin_notification_text(str(campaign_name), 60)}」の"
+                    f"{chosen.get('rank')}等の残在庫が0になりました。"
+                ),
+                payload={"campaign_id": campaign["id"], "rank": chosen.get("rank")},
+                dedupe_key=f"minigame_stock_empty:{campaign['id']}:{chosen.get('rank')}",
+            )
 
     return chosen["rank"], copy.deepcopy({"rank": chosen["rank"], "items": chosen["items"]})
 
@@ -1191,7 +1209,31 @@ async def start_play(
         )
     await delete_cache(f"user:{user.id}")
     await try_claim_tutorial_mission(user, db, "spend_tokens")
-    return _record(row)
+    play = _record(row)
+    campaign_name = campaign.get("name_ja") or campaign.get("name_en") or f"ID {campaign['id']}"
+    if has_gift:
+        await emit_admin_notification(
+            db,
+            "minigame_gift_won",
+            title="ギフト景品が当選しました",
+            summary=(
+                f"ユーザー: {format_admin_user_label(user.name, user.id)} が企画"
+                f"「{clip_admin_notification_text(str(campaign_name), 60)}」で{rank}等に当選。"
+            ),
+            payload={"play_id": play.get("id"), "campaign_id": campaign["id"], "user_id": user.id, "rank": rank},
+        )
+    else:
+        await emit_admin_notification(
+            db,
+            "minigame_play",
+            title="ミニゲームに参加しました",
+            summary=(
+                f"ユーザー: {format_admin_user_label(user.name, user.id)} / "
+                f"企画「{clip_admin_notification_text(str(campaign_name), 60)}」 / {rank}等"
+            ),
+            payload={"play_id": play.get("id"), "campaign_id": campaign["id"], "user_id": user.id, "rank": rank},
+        )
+    return play
 
 
 async def _grant_items(db: asyncpg.Connection, user: User, items: list[dict[str, Any]]) -> list[dict[str, Any]]:

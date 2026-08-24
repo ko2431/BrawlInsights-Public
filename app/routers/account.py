@@ -12,6 +12,7 @@ from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
 from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, TICKET_SELL_TOKEN_RATE, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission
+from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
 from app.services import minigame_service
 from app.services.minigame_service import (
     AD_SKIP_TICKET_COST,
@@ -454,6 +455,21 @@ async def use_gift_code_process(
             # giveawayコードの場合、ユーザーの応募回数キャッシュをクリア
             if gift_code_obj.reward.get("giveaway"):
                 await delete_cache(f"giveaway:entries:{code_to_use}:{current_user.id}")
+                await emit_admin_notification(
+                    db,
+                    "giftcode_giveaway_used",
+                    title="プレゼント企画コードが使用されました",
+                    summary=f"コード {gift_code_obj.code} / ユーザー: {format_admin_user_label(current_user.name, current_user.id)} が1口応募",
+                    payload={"code": gift_code_obj.code, "user_id": current_user.id, "entries": 1},
+                )
+            else:
+                await emit_admin_notification(
+                    db,
+                    "giftcode_used",
+                    title="ギフトコードが使用されました",
+                    summary=f"コード {gift_code_obj.code} / ユーザー: {format_admin_user_label(current_user.name, current_user.id)}",
+                    payload={"code": gift_code_obj.code, "user_id": current_user.id},
+                )
             message = msg_ja if lang == "ja" and msg_ja else msg_en
             return JSONResponse({"success": True, "message": message})
         else:
@@ -546,6 +562,16 @@ async def use_giveaway_max_entries_process(
             consumed_tokens = user_tokens_before - user_tokens_after
 
         await delete_cache(f"giveaway:entries:{code_to_use}:{current_user.id}")
+        await emit_admin_notification(
+            db,
+            "giftcode_giveaway_used",
+            title="プレゼント企画コードが使用されました",
+            summary=(
+                f"コード {gift_code_obj.code} / ユーザー: {format_admin_user_label(current_user.name, current_user.id)} "
+                f"が{payload.entry_count}口応募"
+            ),
+            payload={"code": gift_code_obj.code, "user_id": current_user.id, "entries": payload.entry_count},
+        )
 
         if lang == "ja":
             message = (

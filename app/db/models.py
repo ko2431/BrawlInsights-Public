@@ -13,7 +13,8 @@ from sqlalchemy import (
     Index,
     desc,
     PrimaryKeyConstraint,
-    CheckConstraint
+    CheckConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.orm import declarative_base, relationship
@@ -74,6 +75,7 @@ class User(Base):
     notification_message_reply_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_message_reaction_enabled = Column(Boolean, nullable=False, server_default='True')
     notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
+    admin_notifications_dashboard_read_at = Column(DateTime(timezone=True), nullable=True)
 
     # リレーションシップ
     player = relationship("Player", back_populates="users", foreign_keys=[main_account])
@@ -1190,3 +1192,65 @@ class MinigamePlay(Base):
         Index('ix_minigame_plays_user_id_status', 'user_id', 'status'),
         Index('ix_minigame_plays_gift_fulfillment_status', 'gift_fulfillment_status'),
     )
+
+
+class AdminNotificationEventSetting(Base):
+    """
+    管理者向け通知のイベント種別ごとのレベル設定。
+    カタログ自体はコード定数。ここには実際に使うレベルだけを持つ。
+    """
+    __tablename__ = 'admin_notification_event_settings'
+
+    event_key = Column(Text, primary_key=True)
+    level = Column(SmallInteger, nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint('level IN (0, 10, 20, 30)', name='ck_admin_notification_event_settings_level'),
+    )
+
+
+class AdminNotification(Base):
+    """
+    管理者向け通知イベント。掲示板の board_notifications とは別系統。
+    level は INSERT 時点のスナップショット。
+    """
+    __tablename__ = 'admin_notifications'
+
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    category = Column(Text, nullable=False)
+    event_key = Column(Text, nullable=False)
+    level = Column(SmallInteger, nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False, server_default='')
+    payload = Column(JSONB, nullable=False, server_default='{}')
+    target_path = Column(Text, nullable=False)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    dedupe_key = Column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint('level IN (10, 20, 30)', name='ck_admin_notifications_level'),
+        Index('idx_admin_notifications_created_at', desc('created_at')),
+        Index('idx_admin_notifications_category_created_at', 'category', desc('created_at')),
+        Index('idx_admin_notifications_level_created_at', 'level', desc('created_at')),
+        Index(
+            'uq_admin_notifications_event_dedupe',
+            'event_key',
+            'dedupe_key',
+            unique=True,
+            postgresql_where=text('dedupe_key IS NOT NULL'),
+        ),
+    )
+
+
+class AdminNotificationCategoryRead(Base):
+    """
+    管理者ごと・カテゴリごとの個別管理画面訪問時刻。
+    level 30 の既読判定に使う。
+    """
+    __tablename__ = 'admin_notification_category_reads'
+
+    admin_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    category = Column(Text, primary_key=True)
+    visited_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

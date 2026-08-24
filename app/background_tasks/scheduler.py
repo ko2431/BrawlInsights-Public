@@ -19,8 +19,11 @@ from app.background_tasks.tasks import (
     cleanup_expired_profile_images_task,
     update_player_metric_thresholds_task
 )
+from app.services.admin_notification_service import poll_admin_notification_schedule_events
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+    # [この部分は公開用リポジトリでは非公開にされています]
 
     # [この部分は公開用リポジトリでは非公開にされています]
     

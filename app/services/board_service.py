@@ -15,6 +15,12 @@ from app.utils.url_detect import text_contains_detected_url
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 from app.core.board_trending import GENERAL_BOARD_TRENDING
+from app.services.admin_notification_service import (
+    POST_TYPE_LABELS_JA,
+    clip_admin_notification_text,
+    emit_admin_notification,
+    format_admin_user_label,
+)
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
