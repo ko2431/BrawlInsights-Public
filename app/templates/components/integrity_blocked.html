@@ -1,0 +1,14 @@
+{# 計測スクリプト未到達時のフラグメント差し替え。文言は警告島と共通。 #}
+{% set error_class = "club-error-msg" if kind == "club" else "player-error-msg" %}
+{% set wrap_class = "club-page__container" if kind == "club" else "player-page__container" %}
+<div class="{{ wrap_class }}">
+    <div class="{{ error_class }}">
+        {% if lang == "ja" %}
+        <h2>利用できません</h2>
+        <p>本サービスを正常に提供するためのセキュリティ・計測スクリプトが遮断されています。広告ブロック系ブラウザをお使いの場合、本サービスを正常にお使いいただけません。推奨の標準環境からアクセスしてください。</p>
+        {% else %}
+        <h2>Unavailable</h2>
+        <p>Security and measurement scripts required to provide this service normally are being blocked. If you are using an ad-blocking browser, you will not be able to use this service properly. Please access from a recommended standard environment.</p>
+        {% endif %}
+    </div>
+</div>

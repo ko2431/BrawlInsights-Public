@@ -584,3 +584,47 @@ body {
         height: 44px;
     }
 }
+
+/* --- 計測スクリプト未到達時のフローティング警告 --- */
+.integrity-island {
+    display: none;
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    box-sizing: border-box;
+    width: calc(100% - 24px);
+    max-width: 640px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background-color: #c62828;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+.integrity-island.is-visible {
+    display: block;
+}
+.dark .integrity-island {
+    background-color: #b71c1c;
+    color: #fff;
+}
+.integrity-island__text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 500;
+}
+@media (min-width: 840px) {
+    .integrity-island {
+        top: calc(40px + env(safe-area-inset-top) + 12px);
+    }
+}
+body.integrity-island-visible {
+    padding-top: calc(env(safe-area-inset-top) + var(--integrity-island-height, 0px) + 24px);
+}
+@media (min-width: 840px) {
+    body.integrity-island-visible {
+        padding-top: calc(40px + env(safe-area-inset-top) + var(--integrity-island-height, 0px) + 24px);
+    }
+}

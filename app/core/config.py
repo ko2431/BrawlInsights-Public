@@ -62,6 +62,11 @@ class Settings:
     # アーカイブバトル履歴の保存期間（月数）。未設定時は本番デフォルト（12ヶ月）
     ARCHIVE_RETENTION_MONTHS: int = int(os.getenv("ARCHIVE_RETENTION_MONTHS", 12))
 
+    # Web版の計測スクリプト遮断時に高負荷APIを拒否する。障害時は "false" で解除。
+    ADBLOCK_GATE_ENABLED: bool = str(os.getenv("ADBLOCK_GATE_ENABLED", "true")).strip().lower() not in (
+        "0", "false", "no", "off",
+    )
+
     def __init__(self):
         if self._cluster_nodes_raw:
             try:

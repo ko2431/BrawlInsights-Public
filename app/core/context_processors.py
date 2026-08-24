@@ -52,6 +52,15 @@ def ad_banner_processor(request: Request) -> dict:
     return {"ad_banner": banner}
 
 
+def page_integrity_processor(request: Request) -> dict:
+    """Web版の計測スクリプト到達確認用フラグをテンプレートへ渡す。"""
+    from app.core.page_integrity import is_integrity_ok, is_integrity_subject
+    return {
+        "page_integrity_ok": is_integrity_ok(request),
+        "page_integrity_gate_active": is_integrity_subject(request),
+    }
+
+
 def board_notification_processor(request: Request) -> dict:
     """
     募集掲示板タブ用の通知バッジ情報をテンプレートコンテキストに渡す。

@@ -770,12 +770,30 @@
             const inputElement = document.getElementById(inputId);
 
             if (formElement && inputElement) {
-                formElement.addEventListener('submit', function(event) {
-                    event.preventDefault(); // デフォルトの送信をキャンセル
-                    // 検索関数を実行
+                formElement.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+                    const allowed = window.__biAdsGate ? await window.__biAdsGate : true;
+                    if (!allowed) {
+                        const msg = window.__biIntegrityMessage ? window.__biIntegrityMessage() : '';
+                        if (msg) alert(msg);
+                        return;
+                    }
                     searchFunction(inputElement.value);
                 });
             }
+        }
+
+        function applyIntegrityGateToHomeSearch() {
+            if (!window.__biAdsGate) return;
+            window.__biAdsGate.then(function (allowed) {
+                if (allowed) return;
+                ['playerTagSearchForm', 'playerNameSearchForm', 'clubTagSearchForm', 'clubNameSearchForm'].forEach(function (id) {
+                    const form = document.getElementById(id);
+                    if (!form) return;
+                    const btn = form.querySelector('.search-form__button');
+                    if (btn) btn.classList.add('button--gated');
+                });
+            });
         }
 
         function performPlayerTagSearch(rawTagValue) {
@@ -1420,6 +1438,7 @@
             setupFormSubmitHandler('form#clubTagSearchForm', 'clubTagSearchInput', performClubTagSearch);
             setupFormSubmitHandler('form#playerNameSearchForm', 'playerNameSearchInput', performPlayerNameSearch);
             setupFormSubmitHandler('form#clubNameSearchForm', 'clubNameSearchInput', performClubNameSearch);
+            applyIntegrityGateToHomeSearch();
         });
     </script>
 {% endblock %}

@@ -7,6 +7,7 @@ from .context_processors import (
     version_processor,
     ip_processor,
     ad_banner_processor,
+    page_integrity_processor,
     board_notification_processor,
     admin_notification_processor,
 )
@@ -25,6 +26,7 @@ templates = Jinja2Templates(
         version_processor,
         ip_processor,
         ad_banner_processor,
+        page_integrity_processor,
         board_notification_processor,
         admin_notification_processor,
     ],  # type: ignore

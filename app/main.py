@@ -103,6 +103,8 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(AccessLogMiddleware)
 app.add_middleware(IPSecurityMiddleware)
 app.add_middleware(AnonymousIdMiddleware)
+# 後から add したものが先に実行される。Gate は Platform / User の内側（よりアプリ側）に置く。
+app.add_middleware(IntegrityGateMiddleware)
 app.add_middleware(UserToStateMiddleware)
 app.add_middleware(PlatformDetectionMiddleware)
 app.add_middleware(LanguageRedirectMiddleware)

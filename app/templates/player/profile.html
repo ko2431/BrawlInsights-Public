@@ -73,6 +73,9 @@ function playerFragmentLoader(url, pageLabel) {
             this.isLoading = true;
             this.hasError = false;
             try {
+                if (window.__biApplyIntegrityBlock && await window.__biApplyIntegrityBlock(this.$refs.content, 'player')) {
+                    return;
+                }
                 const res = await fetch(url, { credentials: 'same-origin' });
                 const html = await res.text();
                 if (!html || !html.trim()) throw new Error('Empty response');

@@ -70,6 +70,35 @@
     outline: none;
 }
 
+/* 計測スクリプト未到達時の見た目無効化（click は届くように disabled 属性は使わない） */
+.button.button--gated,
+.button.button--primary.button--gated,
+.button.button--gated:hover,
+.button.button--primary.button--gated:hover,
+.button.button--gated:focus,
+.button.button--primary.button--gated:focus,
+.button.button--gated:active,
+.button.button--primary.button--gated:active {
+    background-color: #ccc;
+    border-color: #ccc;
+    color: #fff;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.dark .button.button--gated,
+.dark .button.button--primary.button--gated,
+.dark .button.button--gated:hover,
+.dark .button.button--primary.button--gated:hover,
+.dark .button.button--gated:focus,
+.dark .button.button--primary.button--gated:focus,
+.dark .button.button--gated:active,
+.dark .button.button--primary.button--gated:active {
+    background-color: #555;
+    border-color: #555;
+    color: rgba(170, 170, 170, 0.4);
+    box-shadow: none;
+}
+
 .button--secondary {
     background-color: #fff;
     color: #333;
