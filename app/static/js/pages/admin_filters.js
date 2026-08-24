@@ -13,20 +13,20 @@ function withAdminFilterCollapse(component, pageKey) {
         });
     }
 
-    return {
-        ...component,
-        filtersOpen: sessionStorage.getItem(storageKey) === "true",
-        init() {
-            if (typeof originalInit === "function") {
-                originalInit.call(this);
-            }
-            ensureFilterCollapseWatch.call(this);
-        },
-        initFilters(appliedFilters) {
-            if (typeof originalInitFilters === "function") {
-                originalInitFilters.call(this, appliedFilters);
-            }
-            ensureFilterCollapseWatch.call(this);
-        },
+    // スプレッドすると getter（canSubmitFilters など）が一度評価された値になり、
+    // 以降リアクティブに更新されなくなるため、元オブジェクトを直接拡張する。
+    component.filtersOpen = sessionStorage.getItem(storageKey) === "true";
+    component.init = function init() {
+        if (typeof originalInit === "function") {
+            originalInit.call(this);
+        }
+        ensureFilterCollapseWatch.call(this);
     };
+    component.initFilters = function initFilters(appliedFilters) {
+        if (typeof originalInitFilters === "function") {
+            originalInitFilters.call(this, appliedFilters);
+        }
+        ensureFilterCollapseWatch.call(this);
+    };
+    return component;
 }
