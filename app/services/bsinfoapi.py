@@ -284,7 +284,7 @@ async def get_hypercharges_for_level(brawler_id: int, level: int = 11) -> dict[s
     """Fetch hypercharges for a brawler/level. Keys are accessory ID strings."""
     return await _get_brawler_accessory_map(
         kind="hypercharge",
-        endpoint="hypercharge",
+        endpoint="hypercharges",
         list_key="hyperCharges",
         brawler_id=brawler_id,
         level=level,
@@ -357,7 +357,7 @@ async def get_hypercharges_all_levels(brawler_id: int) -> dict[str, dict[str, di
     """Prefetch hypercharges for power levels 1-11. Outer keys are level strings."""
     return await _get_accessory_all_levels_bundled(
         kind="hypercharge",
-        endpoint="hypercharge",
+        endpoint="hypercharges",
         list_key="hyperCharges",
         brawler_id=brawler_id,
         include_cooldown=False,
