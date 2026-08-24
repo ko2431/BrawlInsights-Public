@@ -786,7 +786,6 @@ th {
     max-width: 100%;
     min-width: 0;
     margin-top: 8px;
-    overflow-x: hidden;
 }
 [x-cloak] {
     display: none !important;
