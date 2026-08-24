@@ -791,6 +791,12 @@ a.admin-notification-card--unread:hover {
     font-size: 12px;
     color: var(--color-777);
 }
+.admin-notification-card .admin-badge {
+    cursor: pointer;
+}
+.admin-notification-card .admin-badge.is-current-filter {
+    cursor: default;
+}
 .admin-notification-card__title {
     font-size: 15px;
     font-weight: 700;

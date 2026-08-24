@@ -90,6 +90,26 @@ function adminNotificationCenter(config) {
             this.applied = { ...this.draft };
             this.fetchPage({ reset: true });
         },
+        isAppliedLevel(level) {
+            return String(this.applied.level) === String(level);
+        },
+        isAppliedCategory(category) {
+            return String(this.applied.category) === String(category);
+        },
+        filterByLevel(level) {
+            const next = String(level);
+            if (this.isAppliedLevel(next)) return;
+            this.applied = { ...this.applied, level: next };
+            this.draft.level = next;
+            this.fetchPage({ reset: true });
+        },
+        filterByCategory(category) {
+            const next = String(category);
+            if (this.isAppliedCategory(next)) return;
+            this.applied = { ...this.applied, category: next };
+            this.draft.category = next;
+            this.fetchPage({ reset: true });
+        },
         loadMore() {
             if (!this.hasMore || this.loading) return;
             this.fetchPage({ reset: false });
