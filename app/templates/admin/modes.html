@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="modeAdmin()"> {# ページ全体のコンテナ #}
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="modeAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -24,9 +24,26 @@
 
     <p class="admin-page__description">
         モード総数: <b>{{ modes|length }}</b>
-        <span style="display: inline-block; width: 5px;"></span>
-        うち日本語名未設定: <b>{{ modes | rejectattr('ja') | list | length }}</b>
     </p>
+    <p class="catalog-note">
+        日次同期では BSInfo API の名前・説明・color 等を優先して上書きします。英語名・日本語名をここで保存すると手動フラグが立ち、名前だけは以降の自動同期で上書きされません。slug は公式APIの camelCase（アイコンファイル名）です。BSInfo 名から機械変換しないでください。名前が空の行は破棄モードです。
+    </p>
+
+    <div class="catalog-toolbar">
+        <button type="button" class="button" @click="syncFromBsinfo()" :disabled="syncStatus.running">BSInfoから再同期</button>
+        <label class="catalog-filter"><input type="checkbox" x-model="showNamelessOnly"> 名前なしのみ</label>
+        <span class="form-field-status server-response"
+              :class="{ 'success': syncStatus.success, 'error': !syncStatus.success && syncStatus.message }"
+              x-text="syncStatus.message"></span>
+    </div>
+    {% if catalog_gaps %}
+    <p class="catalog-gaps">
+        slug未設定: <b>{{ catalog_gaps.modes_without_slug|length }}</b> /
+        名前なしモード: <b>{{ catalog_gaps.nameless_mode_ids|length }}</b> /
+        legacy未突合slug: <b>{{ catalog_gaps.legacy_modes_unmatched|length }}</b>
+        <span class="catalog-note" style="display:block; margin-top: 4px;">battles の mode_id 未設定件数はバックフィルスクリプトのレポートで確認してください。</span>
+    </p>
+    {% endif %}
 
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
@@ -38,38 +55,75 @@
     </div>
 
     <div class="table-wrapper">
-        <table class="data-table mode-table">
+        <table class="data-table mode-table catalog-table">
             <thead>
-                <th @click="sortBy('en')">
-                    <span>英語名</span>
-                    <span x-show="sortColumn === 'en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
-                </th>
-                <th @click="sortBy('ja')">
-                    <span>日本語名</span>
-                    <span x-show="sortColumn === 'ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
-                </th>
+                <th @click="sortBy('id')"><span>ID</span><span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('slug')"><span>slug</span><span x-show="sortColumn === 'slug'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('en')"><span>英語名</span><span x-show="sortColumn === 'en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('ja')"><span>日本語名</span><span x-show="sortColumn === 'ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th>手動</th>
+                <th @click="sortBy('disabled')"><span>disabled</span><span x-show="sortColumn === 'disabled'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('desc_ja')"><span>desc_ja</span><span x-show="sortColumn === 'desc_ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('desc_en')"><span>desc_en</span><span x-show="sortColumn === 'desc_en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('desc2_ja')"><span>desc2_ja</span><span x-show="sortColumn === 'desc2_ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('desc2_en')"><span>desc2_en</span><span x-show="sortColumn === 'desc2_en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('overtime')"><span>overtime</span><span x-show="sortColumn === 'overtime'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('overtime_text_ja')"><span>延長 ja</span><span x-show="sortColumn === 'overtime_text_ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('overtime_text_en')"><span>延長 en</span><span x-show="sortColumn === 'overtime_text_en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('format_ja')"><span>format ja</span><span x-show="sortColumn === 'format_ja'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('format_en')"><span>format en</span><span x-show="sortColumn === 'format_en'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('color')"><span>color</span><span x-show="sortColumn === 'color'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('bg_color')"><span>bg_color</span><span x-show="sortColumn === 'bg_color'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('battle_time')"><span>battle_time</span><span x-show="sortColumn === 'battle_time'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('respawn_time')"><span>respawn_time</span><span x-show="sortColumn === 'respawn_time'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('is_boss_fight')"><span>boss</span><span x-show="sortColumn === 'is_boss_fight'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('is_special_event')"><span>special</span><span x-show="sortColumn === 'is_special_event'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('is_not_rewarding_trophies')"><span>no trophy</span><span x-show="sortColumn === 'is_not_rewarding_trophies'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('is_trophy_mode')"><span>trophy mode</span><span x-show="sortColumn === 'is_trophy_mode'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('rounds')"><span>rounds</span><span x-show="sortColumn === 'rounds'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('team_size')"><span>team_size</span><span x-show="sortColumn === 'team_size'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                <th @click="sortBy('team_count')"><span>team_count</span><span x-show="sortColumn === 'team_count'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
             </thead>
             <tbody>
-                <template x-for="mode_item in modesData" :key="mode_item.en">
-                    <tr x-data="modeRow(mode_item)" x-init="initComponent()" :key="id">
-                        <td x-text="mode_item.en"></td>
-                        <td
-                            contenteditable="true"
-                            class="is-editable"
-                            :class="{ 'changed': isDirty, 'show-placeholder': shouldShowPlaceholder && !isFocused }"
-                            :data-placeholder="(normalizeValue(currentJa) === '' && !isFocused) ? '未設定' : ''"
-                            @focus="handleFocus($el)"
-                            @blur="isFocused = false; handleInputOrBlur($el)"
-                            @input.debounce.200ms="handleInputOrBlur($el)"
-                        >
-                            {# 初期表示は initComponent で行うので、ここは空でOK #}
+                <template x-for="row in visibleRows" :key="row.id">
+                    <tr :class="{ 'is-nameless': !row.en && !row.ja, 'changed': isDirty(row) }">
+                        <td x-text="row.id"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.slug" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.en" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.ja" @input="markDirty()"></td>
+                        <td x-text="manualLabel(row)"></td>
+                        <td><input type="checkbox" x-model="row.disabled" @change="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc_ja" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc_en" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc2_ja" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc2_en" @input="markDirty()"></td>
+                        <td>
+                            <select class="catalog-input" x-model="row.overtime" @change="markDirty()">
+                                <option value="">未設定</option>
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                            </select>
                         </td>
+                        <td><input class="catalog-input" type="text" x-model="row.overtime_text_ja" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.overtime_text_en" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.format_ja" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.format_en" @input="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.color" @input="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.bg_color" @input="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.battle_time" @input="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.respawn_time" @input="markDirty()"></td>
+                        <td><input type="checkbox" x-model="row.is_boss_fight" @change="markDirty()"></td>
+                        <td><input type="checkbox" x-model="row.is_special_event" @change="markDirty()"></td>
+                        <td><input type="checkbox" x-model="row.is_not_rewarding_trophies" @change="markDirty()"></td>
+                        <td><input type="checkbox" x-model="row.is_trophy_mode" @change="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.rounds" @input="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.team_size" @input="markDirty()"></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.team_count" @input="markDirty()"></td>
                     </tr>
                 </template>
-                {# モードデータがない場合の表示 #}
-                <template x-if="modesData.length === 0">
+                <template x-if="visibleRows.length === 0">
                     <tr>
-                        <td colspan="2" style="text-align: center; color: #777;">モードデータがありません</td>
+                        <td colspan="26" style="text-align: center; color: #777;">モードデータがありません</td>
                     </tr>
                 </template>
             </tbody>
@@ -96,25 +150,40 @@
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }} {# base.htmlのscriptsブロックを継承する場合 #}
+    {{ super() }}
     <script>
         function modeAdmin() {
+            const fields = [
+                'slug', 'en', 'ja', 'disabled',
+                'desc_ja', 'desc_en', 'desc2_ja', 'desc2_en',
+                'overtime', 'overtime_text_ja', 'overtime_text_en', 'format_ja', 'format_en',
+                'color', 'bg_color', 'battle_time', 'respawn_time',
+                'is_boss_fight', 'is_special_event', 'is_not_rewarding_trophies', 'is_trophy_mode',
+                'rounds', 'team_size', 'team_count'
+            ];
             return {
-                modesData: {{ modes | tojson | safe }}, // 初期データ
-                sortColumn: null, // 現在ソート中の列 ('en' または 'ja')
-                sortDirection: 'asc', // 'asc' または 'desc'
-
+                rows: {{ modes | tojson | safe }},
+                originalsById: {},
+                sortColumn: 'id',
+                sortDirection: 'asc',
+                showNamelessOnly: false,
                 hasUnsavedChanges: false,
                 saveStatus: { message: '', success: false },
+                syncStatus: { message: '', success: false, running: false },
+
+                get visibleRows() {
+                    if (!this.showNamelessOnly) return this.rows;
+                    return this.rows.filter(row => !row.en && !row.ja);
+                },
 
                 init() {
-                    this.checkForAnyChanges();
-                    // 各行からの変更通知を受け取るために、イベントリスナーをルート要素に追加
-                    this.$root.addEventListener('rowinputchanged', () => {
-                        this.$nextTick(() => {
-                            this.checkForAnyChanges();
-                        });
+                    this.rows.forEach(row => {
+                        if (row.overtime === true) row.overtime = 'true';
+                        else if (row.overtime === false) row.overtime = 'false';
+                        else row.overtime = '';
                     });
+                    this.originalsById = Object.fromEntries(this.rows.map(row => [row.id, this.snapshot(row)]));
+                    this.markDirty();
                     window.addEventListener('beforeunload', (event) => {
                         if (this.hasUnsavedChanges) {
                             event.preventDefault();
@@ -123,20 +192,27 @@
                     });
                 },
 
-                checkForAnyChanges() {
-                    // console.log("checkForAnyChanges called");
-                    let changesFound = false;
-                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
-                        const rowData = Alpine.$data(rowEl);
-                        if (rowData) { // rowData が取得できるか確認
-                            // console.log(`Checking row ${rowData.id}, isDirty: ${rowData.isDirty}`); // 追加
-                            if (rowData.isDirty) {
-                                changesFound = true;
-                            }
-                        }
-                    });
-                    this.hasUnsavedChanges = changesFound;
-                    // console.log(`hasUnsavedChanges set to: ${this.hasUnsavedChanges}`);
+                snapshot(row) {
+                    const copy = {};
+                    fields.forEach(key => { copy[key] = row[key] ?? null; });
+                    return copy;
+                },
+
+                isDirty(row) {
+                    const original = this.originalsById[row.id];
+                    if (!original) return false;
+                    return fields.some(key => String(row[key] ?? '') !== String(original[key] ?? ''));
+                },
+
+                markDirty() {
+                    this.hasUnsavedChanges = this.rows.some(row => this.isDirty(row));
+                },
+
+                manualLabel(row) {
+                    const parts = [];
+                    if (row.en_is_manual) parts.push('en');
+                    if (row.ja_is_manual) parts.push('ja');
+                    return parts.length ? parts.join('/') : '';
                 },
 
                 sortBy(column) {
@@ -146,202 +222,106 @@
                         this.sortColumn = column;
                         this.sortDirection = 'asc';
                     }
-
-                    this.modesData.sort((a, b) => {
-                        // 比較する値を取得 (null や空文字列を考慮)
-                        // ここでは normalizeValue は使わず、直接値を比較し、null を最後に持っていく
-                        let valA = a[column];
-                        let valB = b[column];
-
-                        // null または "None" (文字列) または空文字列を評価
-                        const isEmpty = (val) => val === null || val === "None" || String(val).trim() === "";
-                        
-                        const aIsEmpty = isEmpty(valA);
-                        const bIsEmpty = isEmpty(valB);
-
-                        if (aIsEmpty && bIsEmpty) return 0;
-                        // 空の値を常に最初にする
-                        if (aIsEmpty) return -1; // aが空ならbより大きい(前)
-                        if (bIsEmpty) return 1; // bが空ならaより大きい(前) -> aが小さい(後)
-
-                        // 文字列としてロケール依存の比較
-                        let comparison = String(valA).localeCompare(String(valB), 'ja-JP-u-kf-upper', { sensitivity: 'base', numeric: true });
-
-                        return this.sortDirection === 'asc' ? comparison : comparison * -1;
+                    const dir = this.sortDirection === 'asc' ? 1 : -1;
+                    this.rows.sort((a, b) => {
+                        const valA = a[column];
+                        const valB = b[column];
+                        const aEmpty = valA === null || valA === undefined || String(valA).trim() === '';
+                        const bEmpty = valB === null || valB === undefined || String(valB).trim() === '';
+                        if (aEmpty && bEmpty) return 0;
+                        if (aEmpty) return -1;
+                        if (bEmpty) return 1;
+                        return String(valA).localeCompare(String(valB), 'ja-JP-u-kf-upper', { numeric: true }) * dir;
                     });
                 },
 
                 confirmSaveChanges() {
-                    this.checkForAnyChanges(); // 確認前に最新の状態を反映
-                    if (!this.hasUnsavedChanges) {
-                        this.saveStatus.message = '変更点はありません。';
-                        this.saveStatus.success = true;
+                    this.markDirty();
+                    const changed = this.rows.filter(row => this.isDirty(row));
+                    if (changed.length === 0) {
+                        this.saveStatus = { message: '変更点はありません。', success: true };
                         setTimeout(() => this.saveStatus.message = '', 3000);
                         return;
                     }
-
-                    const changedModes = [];
-                    this.$root.querySelectorAll('tbody tr[x-data]').forEach(rowEl => {
-                        const alpineData = Alpine.$data(rowEl);
-                        if (alpineData.isDirty) { // isDirty は getter
-                            changedModes.push({
-                                en: alpineData.id,
-                                ja: alpineData.normalizeValue(alpineData.currentJa)
-                            });
-                        }
-                    });
-
-                    if (changedModes.length === 0) {
-                        // このケースは hasUnsavedChanges が false のはずなので、通常は通らない
-                        this.saveStatus.message = '変更点はありませんでした。';
-                        this.saveStatus.success = true;
-                        setTimeout(() => this.saveStatus.message = '', 3000);
-                        return;
-                    }
-
-                    if (confirm(`${changedModes.length}件のモード名が変更されています。すべての変更を保存しますか？`)) {
-                        this.saveChanges(changedModes);
+                    if (confirm(`${changed.length}件のモード情報が変更されています。すべての変更を保存しますか？`)) {
+                        this.saveChanges(changed);
                     }
                 },
 
-                async saveChanges(modesToUpdate) {
-                    this.saveStatus.message = '保存中...';
-                    this.saveStatus.success = false;
+                payloadFromRow(row) {
+                    let overtime = row.overtime;
+                    if (overtime === 'true') overtime = true;
+                    else if (overtime === 'false') overtime = false;
+                    else overtime = null;
+                    return {
+                        id: row.id,
+                        slug: row.slug,
+                        en: row.en,
+                        ja: row.ja,
+                        desc_ja: row.desc_ja,
+                        desc_en: row.desc_en,
+                        desc2_ja: row.desc2_ja,
+                        desc2_en: row.desc2_en,
+                        overtime: overtime,
+                        overtime_text_ja: row.overtime_text_ja,
+                        overtime_text_en: row.overtime_text_en,
+                        format_ja: row.format_ja,
+                        format_en: row.format_en,
+                        color: row.color,
+                        bg_color: row.bg_color,
+                        battle_time: row.battle_time === '' ? null : row.battle_time,
+                        respawn_time: row.respawn_time === '' ? null : row.respawn_time,
+                        disabled: !!row.disabled,
+                        is_boss_fight: !!row.is_boss_fight,
+                        is_special_event: !!row.is_special_event,
+                        is_not_rewarding_trophies: !!row.is_not_rewarding_trophies,
+                        is_trophy_mode: !!row.is_trophy_mode,
+                        rounds: row.rounds === '' ? null : row.rounds,
+                        team_size: row.team_size === '' ? null : row.team_size,
+                        team_count: row.team_count === '' ? null : row.team_count,
+                    };
+                },
 
+                async saveChanges(rowsToUpdate) {
+                    this.saveStatus = { message: '保存中...', success: false };
                     try {
                         const response = await fetch("{{ url_for('admin_update_modes', lang=lang) }}", {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ modes: modesToUpdate })
+                            body: JSON.stringify({ modes: rowsToUpdate.map(row => this.payloadFromRow(row)) })
                         });
                         const data = await response.json();
-                        this.saveStatus.message = data.message;
-                        this.saveStatus.success = data.success;
-
+                        this.saveStatus = { message: data.message, success: data.success };
                         if (data.success) {
-                            // 保存成功後、ページをリロード (警告なし)
                             this.hasUnsavedChanges = false;
                             window.location.reload();
                         }
                     } catch (error) {
-                        console.error('Error saving mode names:', error);
-                        this.saveStatus.message = '保存中にエラーが発生しました。';
-                        this.saveStatus.success = false;
-                    } finally {
-                        setTimeout(() => this.saveStatus.message = '', 5000);
-                    }
-                }
-            }
-        }
-
-        function modeRow(modeItemFromFor) {
-            return {
-                id: modeItemFromFor.en,
-                initialJa: null, // x-init で設定
-                currentJa: null, // x-init で設定
-                isDirty: false,
-                isFocused: false,
-                shouldShowPlaceholder: false,
-                
-                // x-for から渡された初期の mode_item を保持 (ソートによる変更の影響を受けないように)
-                // ただし、この modeItemDataForInit も x-for の mode_item を参照するため、
-                // ソートで mode_item が変わると、この参照も変わってしまう。
-                // 根本的には、initialJa はコンポーネントがDOMにアタッチされた瞬間の値で固定する必要がある。
-                // x-init がキーによる再利用時にも再実行されないことを利用する。
-                
-                normalizeValue(value) {
-                    if (value === null || typeof value === "undefined" || String(value).trim() === "" || String(value).trim() === "None") {
-                        return "";
-                    }
-                    return String(value).trim();
-                },
-
-                updatePlaceholderVisibility() {
-                    this.shouldShowPlaceholder = this.normalizeValue(this.currentJa) === "";
-                },
-
-                calculateIsDirty() {
-                    // normalizeValue を使わずに、より厳密な比較を試す
-                    let initial = this.initialJa; // initComponentで正規化済みのはず
-                    let current = this.currentJa;
-
-                    // initialJa は initComponent で normalizeValue されているので、"" か実際の値。
-                    // currentJa はユーザー入力の trim() された値か、初期値。
-                    
-                    // currentJa が null や undefined の場合も考慮
-                    let normalizedCurrent = (current === null || typeof current === "undefined") ? "" : String(current).trim();
-                    if (normalizedCurrent === "None") normalizedCurrent = ""; // "None"文字列も空として扱う
-
-                    this.isDirty = initial !== normalizedCurrent;
-                    // console.log(`Row ID: ${this.id}, initial: "${initial}" (type: ${typeof initial}), currentJa: "${current}" (type: ${typeof current}), normalizedCurrent: "${normalizedCurrent}", isDirty: ${this.isDirty}`);
-                },
-
-                handleInputOrBlur(eventTarget) {
-                    const trimmedValue = eventTarget.textContent.trim();
-
-                    // currentJa の更新は、実際の値が変更された場合のみに限定
-                    if (this.currentJa !== trimmedValue) {
-                        this.currentJa = trimmedValue; // これが $watch をトリガーする
-                    }
-                    // $watch が currentJa の変更を検知して calculateIsDirty を呼び出す
-                    
-                    this.updatePlaceholderVisibility(); // isDirty更新後にplaceholder状態を更新
-                    
-                    if (trimmedValue === "") {
-                        this.$nextTick(() => {
-                            if (eventTarget.innerHTML !== "") {
-                                eventTarget.innerHTML = "";
-                            }
-                        });
+                        console.error('Error saving modes:', error);
+                        this.saveStatus = { message: '保存中にエラーが発生しました。', success: false };
                     }
                 },
 
-                handleFocus(eventTarget) {
-                    this.isFocused = true;
-                    this.shouldShowPlaceholder = false;
-                    if (this.normalizeValue(this.currentJa) === "" && eventTarget.textContent.trim() === "未設定") {
-                        eventTarget.textContent = "";
-                    } else if (this.currentJa === "None" && eventTarget.textContent.trim() === "None") {
-                        eventTarget.textContent = "";
-                    }
-                },
-
-                initComponent() {
-                    const tdElement = this.$el.querySelector("td.is-editable");
-                    
-                    // initialJaは、コンポーネント初期化時のmodeItemFromFor.jaを正規化したもので固定
-                    this.initialJa = this.normalizeValue(modeItemFromFor.ja === "None" ? null : modeItemFromFor.ja);
-                    this.currentJa = (modeItemFromFor.ja === "None" ? null : modeItemFromFor.ja); // currentJaの初期値
-                    
-                    if (tdElement) {
-                        // tdElement の初期のtextContentは、プレースホルダーロジックも考慮して設定
-                        if (this.normalizeValue(this.currentJa) === "") {
-                            // CSSでdata-placeholderを表示させるので、tdの中身は空にするか、
-                            // もしくはプレースホルダー自体をtextContentに入れるかはCSSの実装による。
-                            // ここでは、プレースホルダーはCSSで表示する前提で空にする。
-                            tdElement.textContent = ""; 
-                        } else {
-                            tdElement.textContent = this.currentJa;
+                async syncFromBsinfo() {
+                    if (!confirm('BSInfoからマップ/モードを再取得して上書きしますか？（手動フラグ付きの名前は維持されます）')) return;
+                    this.syncStatus = { message: '同期中...', success: false, running: true };
+                    try {
+                        const response = await fetch("{{ url_for('admin_sync_maps_modes', lang=lang) }}", { method: 'POST' });
+                        const data = await response.json();
+                        this.syncStatus = { message: data.message, success: data.success, running: false };
+                        if (data.success) {
+                            this.hasUnsavedChanges = false;
+                            window.location.reload();
                         }
+                    } catch (error) {
+                        this.syncStatus = { message: '同期中にエラーが発生しました。', success: false, running: false };
                     }
-
-                    this.calculateIsDirty(); // isDirtyを初期計算
-                    this.updatePlaceholderVisibility(); // 初期プレースホルダー状態
-
-                    this.$watch('currentJa', (newValue, oldValue) => {
-                        // currentJa が変更されたら isDirty を再計算し、親に通知
-                        this.calculateIsDirty();
-                        this.updatePlaceholderVisibility();
-                        this.$dispatch('rowinputchanged');
-                    });
                 }
             }
         }
 
-        // Alpine.jsの初期化
         document.addEventListener('alpine:init', () => {
             Alpine.data('modeAdmin', modeAdmin);
-            Alpine.data('modeRow', modeRow); // 新しいコンポーネントを登録
         });
-        </script>
+    </script>
 {% endblock %}

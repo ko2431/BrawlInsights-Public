@@ -17,6 +17,7 @@ from app.services.brawl_service import (get_prestige_borders, get_available_braw
 from app.services.user_service import get_all_regions
 from app.utils.utils import get_first_thursdays, format_utc_date, get_icon_path, calc_ranked_season
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
+from app.services.map_mode_catalog import mode_icon_candidates
 
 
 router = APIRouter(

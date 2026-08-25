@@ -1,5 +1,6 @@
 {# /app/templates/tools/trophy_table.html #}
 {% extends "base.html" %}
+{% from "macros/mode_icon.html" import mode_icon_img with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】トロフィー増減表{% else %}Trophy Change Table{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタのトロフィー増減表です。連勝ボーナスの分も含めてわかりやすく確認できます。{% else %}Brawl Stars Trophy Change Table. You can easily check the changes including the win streak bonus.{% endif %}{% endblock %}
@@ -35,31 +36,31 @@
                 </li>
                 <li class="sub-tab-nav__item">
                     <a href="#" @click.prevent="selectedMode = 'duels'" :class="{'sub-tab-nav__link--active': selectedMode === 'duels'}" class="sub-tab-nav__link">
-                        <img src="{{ url_for('static', path='/images/mode_icons/duels.png') }}" alt="デュエル" class="sub-tab-nav__icon">
+                        {{ mode_icon_img(slug='duels', class='sub-tab-nav__icon', alt='デュエル') }}
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}デュエル{% else %}Duels{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
                     <a href="#" @click.prevent="selectedMode = 'arena'" :class="{'sub-tab-nav__link--active': selectedMode === 'arena'}" class="sub-tab-nav__link">
-                        <img src="{{ url_for('static', path='/images/mode_icons/brawlArena.png') }}" alt="アリーナ" class="sub-tab-nav__icon">
+                        {{ mode_icon_img(slug='brawlArena', class='sub-tab-nav__icon', alt='アリーナ') }}
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}アリーナ{% else %}Arena{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
                     <a href="#" @click.prevent="selectedMode = 'solo'" :class="{'sub-tab-nav__link--active': selectedMode === 'solo'}" class="sub-tab-nav__link">
-                        <img src="{{ url_for('static', path='/images/mode_icons/soloShowdown.png') }}" alt="ソロ" class="sub-tab-nav__icon">
+                        {{ mode_icon_img(slug='soloShowdown', class='sub-tab-nav__icon', alt='ソロ') }}
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}ソロ{% else %}Solo{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
                     <a href="#" @click.prevent="selectedMode = 'duo'" :class="{'sub-tab-nav__link--active': selectedMode === 'duo'}" class="sub-tab-nav__link">
-                        <img src="{{ url_for('static', path='/images/mode_icons/duoShowdown.png') }}" alt="デュオ" class="sub-tab-nav__icon">
+                        {{ mode_icon_img(slug='duoShowdown', class='sub-tab-nav__icon', alt='デュオ') }}
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}デュオ{% else %}Duo{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
                     <a href="#" @click.prevent="selectedMode = 'trio'" :class="{'sub-tab-nav__link--active': selectedMode === 'trio'}" class="sub-tab-nav__link">
-                        <img src="{{ url_for('static', path='/images/mode_icons/trioShowdown.png') }}" alt="トリオ" class="sub-tab-nav__icon">
+                        {{ mode_icon_img(slug='trioShowdown', class='sub-tab-nav__icon', alt='トリオ') }}
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}トリオ{% else %}Trio{% endif %}</span>
                     </a>
                 </li>

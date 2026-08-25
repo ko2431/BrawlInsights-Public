@@ -1,9 +1,12 @@
-{% macro render_battle_log_pagination(pagination, current_tab, selected_brawler_id, before_date_filter, after_date_filter, lang) %}
+{% macro render_battle_log_pagination(pagination, filter_query, lang) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination battle-log-pagination" aria-label="バトル履歴ページネーション">
             <ul class="pagination-list">
-                {% set base_query_parts = [] %}
-                {% if current_tab and current_tab != 'all' %} {# [この部分は公開用リポジトリでは非公開にされています] #}
+                {% set query_prefix = "?" + filter_query + ("&" if filter_query else "") %}
+
+                {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}# [この部分は公開用リポジトリでは非公開にされています]
     </script>
 
     <script>

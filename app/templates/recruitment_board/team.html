@@ -1,5 +1,6 @@
 {# /app/templates/recruitment_board/team.html - シェル（即時表示、投稿フラグメントはクライアントで取得） #}
 {% extends "base.html" %}
+{% from "macros/mode_icon.html" import mode_icon_img with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】チーム募集掲示板{% else %}Team Recruitment Board{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタのチーム募集掲示板です。ガチバトルランク等で条件を設定して募集ができるほか、参加してもらう前の確認や、ゲーム内でチャットミュートの人とのやりとりに便利なチャット機能を備えています。{% else %}Brawl Stars team recruitment board. You can set conditions such as ranked rank for recruitment, and it features a chat function for pre-join confirmation and communication with players who have chat muted in-game.{% endif %}{% endblock %}
@@ -250,31 +251,31 @@
                         <p class="post-modal-category-select__title">{% if lang == "ja" %}ゲームモードを選択{% else %}Select Game Mode{% endif %}</p>
                         <div class="post-modal-category-select__container">
                             <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="gemGrab">
-                                <img src="{{ url_for('static', path='/images/mode_icons/gemGrab.png') }}" alt="エメラルドハント" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='gemGrab', class='post-modal-category-select__icon', alt='エメラルドハント') }}
                             </div>
                             <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="brawlBall">
-                                <img src="{{ url_for('static', path='/images/mode_icons/brawlBall.png') }}" alt="ブロストライカー" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='brawlBall', class='post-modal-category-select__icon', alt='ブロストライカー') }}
                             </div>
                             <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="heist">
-                                <img src="{{ url_for('static', path='/images/mode_icons/heist.png') }}" alt="強奪" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='heist', class='post-modal-category-select__icon', alt='強奪') }}
                             </div>
                             <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="bounty">
-                                <img src="{{ url_for('static', path='/images/mode_icons/bounty.png') }}" alt="賞金稼ぎ" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='bounty', class='post-modal-category-select__icon', alt='賞金稼ぎ') }}
                             </div>
                             <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="hotZone">
-                                <img src="{{ url_for('static', path='/images/mode_icons/hotZone.png') }}" alt="ホットゾーン" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='hotZone', class='post-modal-category-select__icon', alt='ホットゾーン') }}
                             </div>
                             <div class="post-modal-category-select" style="padding: 5px;" data-mode-value="knockout">
-                                <img src="{{ url_for('static', path='/images/mode_icons/knockout.png') }}" alt="ノックアウト" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='knockout', class='post-modal-category-select__icon', alt='ノックアウト') }}
                             </div>
                         </div>
                         <div class="post-modal-category-select__container" style="margin-top: 5px;">
                             <div class="post-modal-category-select" data-mode-value="duoShowdown">
-                                <img src="{{ url_for('static', path='/images/mode_icons/duoShowdown.png') }}" alt="デュオ" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='duoShowdown', class='post-modal-category-select__icon', alt='デュオ') }}
                                 <span class="post-modal-category-select__text">{% if lang == "ja" %}デュオ{% else %}Duo{% endif %}</span>
                             </div>
                             <div class="post-modal-category-select" data-mode-value="trioShowdown">
-                                <img src="{{ url_for('static', path='/images/mode_icons/trioShowdown.png') }}" alt="トリオ" class="post-modal-category-select__icon">
+                                {{ mode_icon_img(slug='trioShowdown', class='post-modal-category-select__icon', alt='トリオ') }}
                                 <span class="post-modal-category-select__text">{% if lang == "ja" %}トリオ{% else %}Trio{% endif %}</span>
                             </div>
                             <div class="post-modal-category-select" data-mode-value="5v5">

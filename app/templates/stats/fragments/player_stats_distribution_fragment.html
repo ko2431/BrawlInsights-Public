@@ -11,6 +11,8 @@
                      @click="selectMetric(metricKey)">
                     <img :src="metricMeta[metricKey].icon"
                          :alt="metricName(metricKey)"
+                         :data-icon-fallbacks="JSON.stringify(metricMeta[metricKey].iconFallbacks || [])"
+                         @error="window.handleModeIconError($event.target)"
                          class="player-dist-slot__icon">
                     <p class="player-dist-slot__text" x-text="metricName(metricKey)"></p>
                 </div>
@@ -64,6 +66,8 @@
                     <template x-if="rowIconUrl(row)">
                         <img :src="rowIconUrl(row)"
                              :alt="rowRankName(row) || metricName(metric)"
+                             :data-icon-fallbacks="JSON.stringify(rowIconFallbacks())"
+                             @error="window.handleModeIconError($event.target)"
                              class="ranked-dist-row__rank-icon">
                     </template>
                     <span class="ranked-dist-row__rank-name" x-show="showRankName" x-text="rowRankName(row)"></span>
@@ -87,6 +91,8 @@
                     <template x-if="rowIconUrl(row)">
                         <img :src="rowIconUrl(row)"
                              :alt="rowRankName(row) || metricName(metric)"
+                             :data-icon-fallbacks="JSON.stringify(rowIconFallbacks())"
+                             @error="window.handleModeIconError($event.target)"
                              class="ranked-dist-row__rank-icon">
                     </template>
                     <span class="ranked-dist-row__rank-name ranked-dist-row__rank-name--emphasis"
@@ -194,8 +200,10 @@ function playerDistPage(distribution, initialMetric, playerMetrics, hasMainAccou
         owned_skin_count: { icon: "{{ url_for('static', path='/images/ui/skin_super_rare.png') }}", name_ja: "合計スキン数", name_en: "Total Skins" },
         estimated_play_time: { icon: "{{ url_for('static', path='/images/ui/refresh.png') }}", name_ja: "プレイ時間", name_en: "Play Time" },
         team_victories: { icon: "{{ url_for('static', path='/images/mode_icons/3v3.png') }}", name_ja: "3対3勝利数", name_en: "3v3 Wins" },
-        solo_victories: { icon: "{{ url_for('static', path='/images/mode_icons/soloShowdown.png') }}", name_ja: "ソロ勝利数", name_en: "Solo Wins" },
-        duo_victories: { icon: "{{ url_for('static', path='/images/mode_icons/duoShowdown.png') }}", name_ja: "デュオ勝利数", name_en: "Duo Wins" },
+        {% set solo_icon_cands = mode_icon_candidates(None, 'soloShowdown') %}
+        {% set duo_icon_cands = mode_icon_candidates(None, 'duoShowdown') %}
+        solo_victories: { icon: "{{ url_for('static', path=solo_icon_cands[0]) }}", iconFallbacks: {{ solo_icon_cands[1:] | tojson }}, name_ja: "ソロ勝利数", name_en: "Solo Wins" },
+        duo_victories: { icon: "{{ url_for('static', path=duo_icon_cands[0]) }}", iconFallbacks: {{ duo_icon_cands[1:] | tojson }}, name_ja: "デュオ勝利数", name_en: "Duo Wins" },
         exp_points: { icon: "{{ url_for('static', path='/images/ui/icon_xp.png') }}", name_ja: "旧XP", name_en: "Old XP" },
         solo_pl_rank: { icon: "{{ url_for('static', path='/images/ui/pl_solo.png') }}", name_ja: "旧ソロPL", name_en: "Old Solo PL" },
         team_pl_rank: { icon: "{{ url_for('static', path='/images/ui/pl_team.png') }}", name_ja: "旧チームPL", name_en: "Old Team PL" },
@@ -437,6 +445,11 @@ function playerDistPage(distribution, initialMetric, playerMetrics, hasMainAccou
             if (this.iconMode === 'fame') return fameNames[rank] || fameNames[String(rank)] || '';
             if (this.iconMode === 'old_pl') return oldPlNames[rank] || oldPlNames[String(rank)] || '';
             return '';
+        },
+        rowIconFallbacks() {
+            if (this.iconMode !== 'fixed') return [];
+            const meta = this.metricMeta[this.metric];
+            return (meta && meta.iconFallbacks) || [];
         },
         rowIconUrl(row) {
             if (!row) return '';

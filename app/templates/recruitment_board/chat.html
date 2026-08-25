@@ -11,6 +11,7 @@
 
 {% block content %}
 {% if post.type == "team" %}
+    {% set image_fallbacks = [] %}
     {% if post.category == "ranked" %}
         {% set image_path = "/images/ui/ranked.png" %}
         {% set title = "ガチバトル" if lang == "ja" else "Ranked" %}
@@ -37,7 +38,9 @@
         {% set color1 = "#d4f6ff" %}
         {% set color2 = "#ffd4f9" %}
     {% else %}
-        {% set image_path = "/images/mode_icons/" + post.mode + ".png" %}
+        {% set icon_cands = mode_icon_candidates(None, post.mode) %}
+        {% set image_path = icon_cands[0] %}
+        {% set image_fallbacks = icon_cands[1:] %}
         {% if post.mode == "duoShowdown" %}
             {% set title = "デュオ バトルロイヤル" if lang == "ja" else "Duo Showdown" %}
             {% set color1 = "#e4ffd4" %}
@@ -158,7 +161,7 @@
                 <p class="chat-header__comment">{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</p>
             </div>
             {% elif post.hostplayer %}
-            <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}" {% if post.type == 'general' %}{% if dark %}style="filter: brightness(0) invert(1);"{% elif post.category == 'tiktok' %}style="filter: brightness(0);"{% endif %}{% endif %}>
+            <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}" {% if post.type == 'general' %}{% if dark %}style="filter: brightness(0) invert(1);"{% elif post.category == 'tiktok' %}style="filter: brightness(0);"{% endif %}{% endif %}{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
             <div class="chat-header__details">
                 {% if post.type == "friend" %}
                 <p class="chat-header__host-name">{{ post.hostplayer.name }}</p>

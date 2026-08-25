@@ -26,6 +26,23 @@ from app.services.user_service import get_region_name
 from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, parse_api_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.services.admin_notification_service import emit_admin_notification
+from app.services.map_mode_catalog import (
+    ensure_catalog,
+    format_mode_slug_to_display,
+    get_japanese_map_name,
+    get_japanese_mode_name,
+    get_map_by_en,
+    get_map_by_id,
+    get_mode_by_id,
+    get_mode_by_slug,
+    mode_icon_candidates,
+    mode_sort_key,
+    normalize_official_mode_id,
+    prepare_battle_mode_id,
+    resolve_map_filter_label,
+    resolve_mode_filter_label,
+)
+
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -93,122 +110,8 @@ class PlayerBrawler:
     # [この部分は公開用リポジトリでは非公開にされています]
 
 
-# [この部分は公開用リポジトリでは非公開にされています]
-
-async def get_english_map_name(ja: str, db: asyncpg.Connection) -> str | None:
-    """日本語のマップ名から英語名を取得する。
-
-    Args:
-        ja (str): 日本語のマップ名
-        db (asyncpg.Connection): データベース接続
-
-    Returns:
-        str | None: 英語のマップ名。見つからない場合はNone
-    """
-    result = await db.fetchval("SELECT en FROM maps WHERE ja = $1", ja)
-    return result
-
-async def check_new_maps(db: asyncpg.Connection) -> None:
-    """バトル履歴DBより、まだmapsに追加されていないマップを追加する
-
-    Args:
-        db (asyncpg.Connection): データベース接続
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-
-async def upsert_map(en: str, ja: str, db: asyncpg.Connection, allow_insert: bool = True) -> None:
-    """マップ情報を更新または挿入する
-
-    Args:
-        en (str): 英語のマップ名
-        ja (str): 日本語のマップ名
-        db (asyncpg.Connection): データベース接続
-        allow_insert (bool): enがまだDBに存在しなかった時、新規追加を許可するかどうか
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-    
-async def delete_map(en: str, db: asyncpg.Connection) -> bool:
-    """英語のマップ名に基づいてマップデータを削除する
-
-    Args:
-        en (str): 削除したい英語のマップ名
-        db (asyncpg.Connection): データベース接続
-
-    Returns:
-        bool: 削除が成功した場合はTrue、該当するマップが存在しなかった場合はFalse
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-    
-async def get_all_maps(db: asyncpg.Connection) -> list[dict[str, str]]:
-    """管理画面用。全てのマップデータを取得する。
-
-    Args:
-        db (asyncpg.Connection): データベース接続
-
-    Raises:
-        DataBaseError: データベースエラー
-
-    Returns:
-        list[dict[str, str]]: マップの辞書のリスト。辞書は'en'と'ja'の項目を持つ。
-    """
-    try:
-        results = await db.fetch("SELECT * FROM maps ORDER BY ja ASC NULLS LAST, en ASC")
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e
-    return [dict(row) for row in results]
-   
 
 # [この部分は公開用リポジトリでは非公開にされています]
-
-async def get_english_mode_name(ja: str, db: asyncpg.Connection) -> str | None:
-    """日本語のモード名から英語名を取得する。
-
-    Args:
-        ja (str): 日本語のモード名
-        db (asyncpg.Connection): データベース接続
-
-    Returns:
-        str | None: 英語のモード名。見つからない場合はNone
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-
-async def upsert_mode(en: str, ja: str, db: asyncpg.Connection, allow_insert: bool = True) -> None:
-    """モード情報を更新または挿入する
-
-    Args:
-        en (str): 英語のモード名
-        ja (str): 日本語のモード名
-        db (asyncpg.Connection): データベース接続
-        allow_insert (bool): enがまだDBに存在しなかった時、新規追加を許可するかどうか
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-    
-async def delete_mode(en: str, db: asyncpg.Connection) -> bool:
-    """英語のモード名に基づいてモードデータを削除する
-
-    Args:
-        en (str): 削除したい英語のモード名
-        db (asyncpg.Connection): データベース接続
-
-    Returns:
-        bool: 削除が成功した場合はTrue、該当するモードが存在しなかった場合はFalse
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-
-async def get_all_modes(db: asyncpg.Connection) -> list[dict[str, str]]:
-    """管理画面用。全てのモードデータを取得する。
-
-    Args:
-        db (asyncpg.Connection): データベース接続
-
-    Raises:
-        DataBaseError: データベースエラー
-
-    Returns:
-        list[dict[str, str]]: モードの辞書のリスト。辞書は'en'と'ja'の項目を持つ。
-    """
-    try:
-        # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_prestige_borders(db: asyncpg.Connection, date: datetime.date) -> dict[int, int]:
     """指定された日の全キャラのトップランカーボーダーを取得する。最大で30日間のキャッシュを使用する。
@@ -514,12 +417,19 @@ async def search_clubs(query: str, db: asyncpg.Connection, page: int = 1, per_pa
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
-    
-class Battles:
-    def __init__(self, dbrows: list[asyncpg.Record], player_tag_for_battles: str, db: asyncpg.Connection):
-        self.battles: list[Battle] = [Battle(dbrow=dbrow) for dbrow in dbrows]
-        self.player_tag: str = player_tag_for_battles # [この部分は公開用リポジトリでは非公開にされています]
-        
+
+
+def _wrap_ranked_mode_display(ja_name: str | None, en_name: str | None, slug: str | None, lang: str) -> str:
+    if lang == "ja" and ja_name:
+        if ja_name == "エメラルドハント":
+            return "エメラルド\nハント"
+        if ja_name == "ノックアウト":
+            return "ノック\nアウト"
+        if ja_name == "ブロストライカー":
+            return "ブロスト\nライカー"
+        if len(ja_name) >= 7:
+            split_point = len(ja_name) // [この部分は公開用リポジトリでは非公開にされています]
+
 class APIBattle:
     """バトルのAPIデータを整理する用。
     """

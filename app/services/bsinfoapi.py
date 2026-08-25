@@ -869,6 +869,158 @@ def apply_bsinfo_gear_overlays(
     return gears
 
 
+BSINFO_MAPS_CACHE_KEY = "bsinfo:maps:catalog"
+BSINFO_GAMEMODE_CACHE_KEY = "bsinfo:gamemodes:catalog"
+BSINFO_MAPS_UPDATE_LOCK_KEY = "bsinfo:maps:update_lock"
+BSINFO_GAMEMODE_UPDATE_LOCK_KEY = "bsinfo:gamemodes:update_lock"
+BSINFO_MAPS_UPDATE_LOCK_TTL = 6 * 60 * 60
+BSINFO_GAMEMODE_UPDATE_LOCK_TTL = 6 * 60 * 60
+
+
+def _extract_named_list(payload: dict | list | None, key: str) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        items = payload.get(key)
+        if isinstance(items, list):
+            return [item for item in items if isinstance(item, dict)]
+        single = payload.get(key.rstrip("s"))
+        if isinstance(single, dict):
+            return [single]
+    return []
+
+
+def _merge_lang_items(
+    items_en: list[dict[str, Any]],
+    items_ja: list[dict[str, Any]],
+) -> dict[int, dict[str, Any]]:
+    by_id_en = {_to_int(item.get("id")): item for item in items_en}
+    by_id_ja = {_to_int(item.get("id")): item for item in items_ja}
+    merged: dict[int, dict[str, Any]] = {}
+    for item_id in [key for key in (by_id_en.keys() | by_id_ja.keys()) if key is not None]:
+        merged[item_id] = {
+            "en": by_id_en.get(item_id, {}),
+            "ja": by_id_ja.get(item_id, {}),
+        }
+    return merged
+
+
+async def _get_locked_catalog(
+    *,
+    cache_key: str,
+    lock_key: str,
+    lock_ttl: int,
+    fetcher,
+    force: bool,
+) -> list[dict[str, Any]] | None:
+    if not force:
+        cached = await get_cache(cache_key)
+        if isinstance(cached, list) and cached:
+            lock = await get_cache(lock_key)
+            if lock:
+                return cached
+    fetched = await fetcher()
+    if fetched is not None:
+        await set_cache(key=cache_key, value=fetched, ttl=None)
+        await set_cache(key=lock_key, value=True, ttl=lock_ttl)
+        return fetched
+    cached = await get_cache(cache_key)
+    if isinstance(cached, list):
+        return cached
+    return None
+
+
+async def get_maps_catalog(*, force: bool = False) -> list[dict[str, Any]] | None:
+    """Return merged map dicts keyed fields: id, name_en, name_ja, codename, theme, mode_id, disabled."""
+    async def fetcher() -> list[dict[str, Any]] | None:
+        response_en, response_ja = await asyncio.gather(
+            _api_client.get("maps", params={"lang": "en"}),
+            _api_client.get("maps", params={"lang": "ja"}),
+        )
+        items_en = _extract_named_list(response_en if isinstance(response_en, dict) else None, "maps")
+        items_ja = _extract_named_list(response_ja if isinstance(response_ja, dict) else None, "maps")
+        if not items_en and not items_ja:
+            return None
+        merged_items = _merge_lang_items(items_en, items_ja)
+        result: list[dict[str, Any]] = []
+        for map_id, langs in merged_items.items():
+            item_en = langs["en"]
+            item_ja = langs["ja"]
+            result.append({
+                "id": map_id,
+                "name_en": _as_optional_str(item_en.get("name")),
+                "name_ja": _as_optional_str(item_ja.get("name")),
+                "codename": _as_optional_str(item_en.get("codename") or item_ja.get("codename")),
+                "theme": _coalesce(_to_int(item_en.get("theme")), _to_int(item_ja.get("theme"))),
+                "mode_id": _coalesce(_to_int(item_en.get("gameMode")), _to_int(item_ja.get("gameMode"))),
+                "disabled": bool(_coalesce(item_en.get("disabled"), item_ja.get("disabled"), False)),
+            })
+        result.sort(key=lambda item: item["id"])
+        return result
+
+    return await _get_locked_catalog(
+        cache_key=BSINFO_MAPS_CACHE_KEY,
+        lock_key=BSINFO_MAPS_UPDATE_LOCK_KEY,
+        lock_ttl=BSINFO_MAPS_UPDATE_LOCK_TTL,
+        fetcher=fetcher,
+        force=force,
+    )
+
+
+async def get_gamemode_catalog(*, force: bool = False) -> list[dict[str, Any]] | None:
+    """Return merged gamemode dicts with ja/en text fields."""
+    async def fetcher() -> list[dict[str, Any]] | None:
+        response_en, response_ja = await asyncio.gather(
+            _api_client.get("gamemode", params={"lang": "en"}),
+            _api_client.get("gamemode", params={"lang": "ja"}),
+        )
+        items_en = _extract_named_list(response_en if isinstance(response_en, dict) else None, "gamemode")
+        items_ja = _extract_named_list(response_ja if isinstance(response_ja, dict) else None, "gamemode")
+        if not items_en and not items_ja:
+            return None
+        merged_items = _merge_lang_items(items_en, items_ja)
+        result: list[dict[str, Any]] = []
+        for mode_id, langs in merged_items.items():
+            item_en = langs["en"]
+            item_ja = langs["ja"]
+            result.append({
+                "id": mode_id,
+                "name_en": _as_optional_str(item_en.get("name")),
+                "name_ja": _as_optional_str(item_ja.get("name")),
+                "desc_en": _as_optional_str(item_en.get("desc")),
+                "desc_ja": _as_optional_str(item_ja.get("desc")),
+                "desc2_en": _as_optional_str(item_en.get("desc2")),
+                "desc2_ja": _as_optional_str(item_ja.get("desc2")),
+                "overtime": _coalesce(item_en.get("overtime"), item_ja.get("overtime")),
+                "overtime_text_en": _as_optional_str(item_en.get("overtimeText")),
+                "overtime_text_ja": _as_optional_str(item_ja.get("overtimeText")),
+                "format_en": _as_optional_str(item_en.get("format")),
+                "format_ja": _as_optional_str(item_ja.get("format")),
+                "color": _as_optional_str(item_en.get("Color") or item_ja.get("Color")),
+                "bg_color": _as_optional_str(item_en.get("BgColor") or item_ja.get("BgColor")),
+                "battle_time": _coalesce(_to_int(item_en.get("battleTime")), _to_int(item_ja.get("battleTime"))),
+                "respawn_time": _coalesce(_to_int(item_en.get("respawnTime")), _to_int(item_ja.get("respawnTime"))),
+                "disabled": bool(_coalesce(item_en.get("disabled"), item_ja.get("disabled"), True)),
+                "is_boss_fight": bool(_coalesce(item_en.get("isBossFight"), item_ja.get("isBossFight"), False)),
+                "is_special_event": bool(_coalesce(item_en.get("isSpecialEvent"), item_ja.get("isSpecialEvent"), False)),
+                "is_not_rewarding_trophies": bool(_coalesce(item_en.get("isNotRewardingTrophies"), item_ja.get("isNotRewardingTrophies"), False)),
+                "is_trophy_mode": bool(_coalesce(item_en.get("isTrophyMode"), item_ja.get("isTrophyMode"), False)),
+                "rounds": _coalesce(_to_int(item_en.get("Rounds")), _to_int(item_ja.get("Rounds"))),
+                "team_size": _coalesce(_to_int(item_en.get("TeamSize")), _to_int(item_ja.get("TeamSize"))),
+                "team_count": _coalesce(_to_int(item_en.get("TeamCount")), _to_int(item_ja.get("TeamCount"))),
+            })
+        result.sort(key=lambda item: item["id"])
+        return result
+
+    return await _get_locked_catalog(
+        cache_key=BSINFO_GAMEMODE_CACHE_KEY,
+        lock_key=BSINFO_GAMEMODE_UPDATE_LOCK_KEY,
+        lock_ttl=BSINFO_GAMEMODE_UPDATE_LOCK_TTL,
+        fetcher=fetcher,
+        force=force,
+    )
+
+
 def _apply_gear_description_overrides(gear: dict[str, Any]) -> dict[str, Any]:
     """Return a gear dict with known incorrect BSInfo descriptions corrected."""
     gear_id = _to_int(gear.get("id"))

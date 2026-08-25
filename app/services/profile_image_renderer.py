@@ -6,6 +6,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from app.core.logger import logger
+from app.services.map_mode_catalog import mode_icon_asset_relpaths
 from app.services.brawl_service import Player, Brawler
 from app.services.image_generation_service import ImageGenerationJobData
 from app.services.text_renderer import (  # [この部分は公開用リポジトリでは非公開にされています]

@@ -1,3 +1,4 @@
+    {% from "macros/mode_icon.html" import mode_icon_img with context %}
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"

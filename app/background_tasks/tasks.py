@@ -9,7 +9,8 @@ from app.core.config import settings
 from app.core.cache import get_redis, set_cache
 from app.db.db import get_db_connection_for_bg_task
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
-from app.services.brawl_service import Brawler, get_available_brawlers, record_prestige_borders, get_player, insert_new_players_from_rankings, check_new_maps, check_new_modes, update_ranked_stats, calculate_and_save_accessory_stats, calculate_and_save_skin_stats, calculate_and_save_battle_card_stats, calculate_and_save_player_icon_stats, TEAM_3V3_COEF, TEAM_3V3_COEF_OVER10000, TEAM_3V3_COEF_OVER30000, TEAM_3V3_COEF_OVER60000, SOLO_COEF, SOLO_COEF_OVER1000, SOLO_COEF_OVER3000, SOLO_COEF_OVER6000, DUO_COEF, DUO_COEF_OVER2000, DUO_COEF_OVER6000, DUO_COEF_OVER12000
+from app.services.brawl_service import Brawler, get_available_brawlers, record_prestige_borders, get_player, insert_new_players_from_rankings, update_ranked_stats, calculate_and_save_accessory_stats, calculate_and_save_skin_stats, calculate_and_save_battle_card_stats, calculate_and_save_player_icon_stats, TEAM_3V3_COEF, TEAM_3V3_COEF_OVER10000, TEAM_3V3_COEF_OVER30000, TEAM_3V3_COEF_OVER60000, SOLO_COEF, SOLO_COEF_OVER1000, SOLO_COEF_OVER3000, SOLO_COEF_OVER6000, DUO_COEF, DUO_COEF_OVER2000, DUO_COEF_OVER6000, DUO_COEF_OVER12000
+from app.services.map_mode_catalog import fill_slugs_from_legacy_modes, sync_maps_and_modes_from_bsinfo
 from app.services.user_service import record_usage_stats
 from app.services.profile_image_renderer import PROFILE_IMAGE_OUTPUT_DIR
 from app.services.rating_service import (
@@ -58,20 +59,22 @@ from app.utils.utils import parse_utc_datetime
 
 
 async def check_new_maps_and_modes_task(db: asyncpg.Connection) -> None:
-    """新マップ/新モード名の追加を確認するタスク、およびランキングから新しいプレイヤーを追加するタスク。"""
-    logger.info("新マップ/新モード名の追加確認・ランキングから新しいプレイヤー追加のタスクを開始します")
+    """BSInfoからマップ/モードを同期し、ランキングから新しいプレイヤーを追加するタスク。"""
+    logger.info("マップ/モード同期・ランキングから新しいプレイヤー追加のタスクを開始します")
     try:
-        await check_new_maps(db)
-        await check_new_modes(db)
-        logger.info("新マップ/新モード名の追加確認のタスクが完了しました")
-        
+        sync_result = await sync_maps_and_modes_from_bsinfo(db)
+        logger.info(f"マップ/モード同期が完了しました: {sync_result}")
+        slug_filled = await fill_slugs_from_legacy_modes(db)
+        if slug_filled:
+            logger.info(f"legacy slug を {slug_filled} 件補完しました")
+
         count = await insert_new_players_from_rankings(db)
         logger.info(f"ランキングから新しいプレイヤー追加のタスクが完了しました。{count}人のプレイヤーを追加しました。")
     except asyncio.CancelledError:
-        logger.warning("新マップ/新モード名の追加確認・ランキングから新しいプレイヤー追加のタスクがキャンセルされました。")
+        logger.warning("マップ/モード同期・ランキングから新しいプレイヤー追加のタスクがキャンセルされました。")
         return
     except Exception as e:
-        logger.error(f"新マップ/新モード名の追加確認・ランキングから新しいプレイヤー追加のタスクでエラーが発生しました: {e}", exc_info=True)
+        logger.error(f"マップ/モード同期・ランキングから新しいプレイヤー追加のタスクでエラーが発生しました: {e}", exc_info=True)
 
 
 async def update_prestige_borders_task(db: asyncpg.Connection) -> None:

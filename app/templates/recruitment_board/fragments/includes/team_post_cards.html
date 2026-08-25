@@ -6,6 +6,7 @@
         {# ブロック済みユーザーの投稿はチャットと同様に表示しない #}
         {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
                 (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids)) %}
+            {% set image_fallbacks = [] %}
             {% if post.data.category == "ranked" %}
                 {% set image_path = "/images/ui/ranked.png" %}
                 {% set title = "ガチバトル" if lang == "ja" else "Ranked" %}
@@ -32,7 +33,9 @@
                 {% set color1 = "#d4f6ff" %}
                 {% set color2 = "#ffd4f9" %}
             {% else %}
-                {% set image_path = "/images/mode_icons/" + post.data.mode + ".png" %}
+                {% set icon_cands = mode_icon_candidates(None, post.data.mode) %}
+                {% set image_path = icon_cands[0] %}
+                {% set image_fallbacks = icon_cands[1:] %}
                 {% if post.data.mode == "duoShowdown" %}
                     {% set title = "デュオ バトルロイヤル" if lang == "ja" else "Duo Showdown" %}
                     {% set color1 = "#e4ffd4" %}
@@ -71,7 +74,7 @@
                 <div class="card post-card post-card--team" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
                     {# ゲームモード・募集タイプバッジ・n分前テキスト #}
                     <div class="post-card__header">
-                        <img src="{{ url_for('static', path=image_path) }}" alt="モードアイコン" class="post-card__player-icon">
+                        <img src="{{ url_for('static', path=image_path) }}" alt="モードアイコン" class="post-card__player-icon"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
                         <p class="post-card__title">{{ title }}</p>
                         <div class="post-card__header-meta">
                             {% if post.data.is_later_recruitment %}

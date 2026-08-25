@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from app.core.logger import logger
 from app.core.templating import templates
 from app.db.db import get_shared_db
+from app.core.cache import get_cache, set_cache
 from app.services.brawl_service import (Player, get_player, get_player_from_db, calc_num_of_available_brawlers, get_available_brawlers,
                                         get_brawler_analysis, get_current_ranked_pool, get_brawler,
                                         get_ban_suggestions, get_pick_suggestions, predict_win_rate,
@@ -33,7 +34,7 @@ from app.services.user_service import User, try_claim_tutorial_mission
 from app.services.board_service import get_or_create_brawler_guide_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
-from app.core.cache import get_cache, set_cache
+from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id
 
 router = APIRouter(
     prefix="/{lang}/tools",
@@ -307,13 +308,22 @@ async def starrdrop_calc(
 async def map_rotation(
     request: Request,
     lang: str,
-    db: asyncpg.Connection = Depends(get_shared_db) # DB接続が必要な場合
+    db: asyncpg.Connection = Depends(get_shared_db)
 ):
-    # テンプレートに渡すコンテキスト
+    try:
+        map_catalog = await get_map_names_by_id(db)
+        mode_slug_to_id = get_mode_slug_to_id()
+    except Exception as e:
+        logger.error(f"マップ周期のカタログ取得中にエラー: {e}", exc_info=True)
+        map_catalog = {}
+        mode_slug_to_id = {}
+
     context = {
         "request": request,
         "lang": lang,
-        "current_page": "tools"
+        "current_page": "tools",
+        "map_catalog": map_catalog,
+        "mode_slug_to_id": mode_slug_to_id,
     }
 
     try:
@@ -608,11 +618,18 @@ async def get_map(
     request: Request,
     lang: str,
     id: int,
-    name: str | None = Query(None, description="ページに表示するマップ名"),
-    is_tools_tab: bool = False
+    is_tools_tab: bool = False,
+    db: asyncpg.Connection = Depends(get_shared_db),
 ):
-    
-    # テンプレートに渡すコンテキスト
+    name = str(id)
+    try:
+        await ensure_catalog(db)
+        map_info = get_map_by_id(id)
+        if map_info:
+            name = map_info.ja if lang == "ja" and map_info.ja else (map_info.en or str(id))
+    except Exception as e:
+        logger.error(f"マップ名のカタログ取得中にエラー (id={id}): {e}", exc_info=True)
+
     context = {
         "request": request,
         "lang": lang,

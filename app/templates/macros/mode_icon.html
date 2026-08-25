@@ -1,0 +1,17 @@
+{# モードアイコン。IDファイル → slugファイル → mystery.png #}
+{% macro mode_icon_img(mode_id=None, slug=None, class='', alt='モードアイコン') -%}
+{%- set cands = mode_icon_candidates(mode_id, slug) -%}
+<img src="{{ url_for('static', path=cands[0]) }}"
+     class="{{ class }}"
+     alt="{{ alt }}"
+     data-icon-fallbacks='{{ cands[1:] | tojson }}'
+     onerror="handleModeIconError(this)">
+{%- endmacro %}
+
+{% macro mode_icon_from_paths(cands, class='', alt='モードアイコン') -%}
+<img src="{{ url_for('static', path=cands[0]) }}"
+     class="{{ class }}"
+     alt="{{ alt }}"
+     data-icon-fallbacks='{{ cands[1:] | tojson }}'
+     onerror="handleModeIconError(this)">
+{%- endmacro %}

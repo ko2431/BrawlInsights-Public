@@ -48,7 +48,7 @@
                             </div>
                             <div style="display: flex; flex: 1;"></div>
                             <div class="ranking-list__item-value">
-                                <img src="{{ url_for('static', path=image_path) }}" alt="単位アイコン" class="ranking-list__item-value-icon">
+                                <img src="{{ url_for('static', path=image_path) }}" alt="単位アイコン" class="ranking-list__item-value-icon"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
                                 <p class="ranking-list__item-score">{{ "{:,}".format(player.score) }}</p>
                             </div>
                         </div>
@@ -68,7 +68,7 @@
                             </div>
                             <div style="display: flex; flex: 1;"></div>
                             <div class="ranking-list__item-value">
-                                <img src="{{ url_for('static', path=image_path) }}" alt="単位アイコン" class="ranking-list__item-value-icon">
+                                <img src="{{ url_for('static', path=image_path) }}" alt="単位アイコン" class="ranking-list__item-value-icon"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
                                 <p class="ranking-list__item-score">{{ "{:,}".format(player.score) }}</p>
                             </div>
                         </div>

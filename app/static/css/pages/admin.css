@@ -913,3 +913,52 @@ a.admin-notification-card--unread:hover {
 .admin-notification-settings-table .admin-filters__select {
     width: 90px;
 }
+
+.catalog-note {
+    font-size: 13px;
+    color: var(--color-777);
+    margin: 0 0 10px;
+    line-height: 1.5;
+}
+.catalog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.catalog-filter {
+    font-size: 13px;
+}
+.catalog-gaps {
+    font-size: 13px;
+    margin: 0 0 12px;
+}
+.data-table.catalog-table input.catalog-input,
+.data-table.catalog-table select.catalog-input {
+    width: 100%;
+    min-width: 5em;
+    box-sizing: border-box;
+    padding: 3px 5px;
+    font: inherit;
+    border: 1px solid var(--color-ddd);
+    border-radius: 4px;
+    background: #fff;
+    color: inherit;
+}
+.data-table.catalog-table input.catalog-input--narrow {
+    min-width: 4em;
+    width: 6em;
+}
+.dark .data-table.catalog-table input.catalog-input,
+.dark .data-table.catalog-table select.catalog-input {
+    background: #2a2a2a;
+    border-color: #555;
+    color: #eee;
+}
+.data-table.catalog-table tr.is-nameless {
+    background-color: rgba(255, 165, 0, 0.12);
+}
+.data-table.catalog-table tr.changed td {
+    background-color: rgba(255, 0, 0, 0.06);
+}

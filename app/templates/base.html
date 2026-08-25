@@ -169,6 +169,29 @@
 
     <script src="{{ url_for('static', path='/js/smart_back.js') }}?v={{ app_version }}"></script>
 
+    <script>
+        function handleModeIconError(img) {
+            if (!img) return;
+            var queue = [];
+            try {
+                queue = JSON.parse(img.getAttribute('data-icon-fallbacks') || '[]');
+            } catch (e) {
+                queue = [];
+            }
+            if (!queue.length) {
+                img.onerror = null;
+                return;
+            }
+            var next = queue.shift();
+            img.setAttribute('data-icon-fallbacks', JSON.stringify(queue));
+            if (typeof next === 'string' && (next.indexOf('/static/') === 0 || next.indexOf('http') === 0)) {
+                img.src = next;
+            } else {
+                img.src = '/static' + (next && next.charAt(0) === '/' ? next : '/' + (next || ''));
+            }
+        }
+    </script>
+
     {# 各ページで追加のJavaScriptが必要な場合に使うブロック #}
     {% block scripts %}
         {# ここに全ページ共通のJSを配置することも可能 #}

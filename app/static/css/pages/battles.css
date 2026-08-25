@@ -13,9 +13,9 @@
     width: 90%;
     max-width: 1194px;
     margin: 10px auto; /* 上下マージン、左右中央揃え */
-    padding: 10px;
+    padding: 12px;
     background-color: var(--bg-f8f8f8);
-    border-radius: 14px;
+    border-radius: 18px;
     border: 1px solid #eee;
 }
 .dark .battle-log-filters__container {
@@ -52,7 +52,7 @@
     background-color: #f0f0f0;
     border: 1px solid var(--color-ddd);
     border-bottom: none;
-    border-radius: 10px 10px 0 0; /* 角丸を少し小さく */
+    border-radius: 12px 12px 0 0;
     transition: background-color 0.2s ease, color 0.2s ease;
     white-space: nowrap;
     text-align: center;
@@ -149,22 +149,74 @@
 
 
 /* --- フィルターフォーム --- */
+.battle-log-filters-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.battle-log-filters__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.battle-log-filters__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 3px 12px;
+    font-size: 14px;
+    border: none;
+    background-color: transparent;
+    transition: background-color 0.35s ease, border-color 0.35s ease;
+}
+.button.button--secondary.battle-log-filters__toggle:focus,
+.button.button--secondary.battle-log-filters__toggle:active {
+    box-shadow: none;
+    outline: none;
+    background-color: transparent;
+    border-color: transparent;
+}
+.button.button--secondary.battle-log-filters__toggle:active,
+.button.button--secondary.battle-log-filters__toggle.is-pressed {
+    background-color: #e0e0e0;
+    border-color: #aaa;
+}
+.dark .button.button--secondary.battle-log-filters__toggle:active,
+.dark .button.button--secondary.battle-log-filters__toggle.is-pressed {
+    background-color: #333;
+    border-color: #222;
+}
+.battle-log-filters__toggle-icon {
+    font-size: 12px;
+    line-height: 1;
+}
 .battle-log-filters {
     display: flex;
-    flex-wrap: wrap; /* 折り返しを許可 */
-    gap: 10px; /* フィルターアイテム間の隙間 */
-    align-items: center; /* 垂直方向中央揃え */
+    flex-wrap: wrap; /* グループ単位で折り返し */
+    gap: 10px 14px;
+    align-items: center;
 }
-.brawler-select-filter {
-    margin-right: 10px;
+.battle-log-filters.is-collapsed {
+    display: none;
 }
+.brawler-select-filter,
+.mode-select-filter,
+.map-select-filter,
 .season-select-filter {
-    margin-left: 5px;
+    flex: 0 1 auto;
 }
 .filter-item {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
+    white-space: nowrap;
     gap: 5px; /* ラベルと入力要素の間の隙間 */
+}
+.filter-item .sort-options__select {
+    max-width: 220px;
 }
 .filter-item__date-input {
     /* カレンダーピッカーのスタイル調整はブラウザ依存が強いので最小限に */
@@ -173,7 +225,7 @@
 }
 .date-range-filter {
     display: flex;
-    flex-wrap: wrap; /* PCでは1行、必要に応じて折り返し */
+    flex-wrap: nowrap;
     align-items: center;
     gap: 5px; /* 各要素間の隙間 */
 }
@@ -181,6 +233,7 @@
 .date-range-filter__line-2 {
     display: flex;
     align-items: center;
+    flex-wrap: nowrap;
     gap: 5px;
 }
 .date-range-filter__main-label,
@@ -190,21 +243,19 @@
 .date-range-filter__actions {
     display: flex;
     gap: 5px;
-    /* margin-left: auto; /* PC表示時に右寄せにするため（2行目がない場合） */
+    margin-left: auto;
 }
 .date-range-filter__separator {
     margin: 0 3px;
 }
-.filter-item__submit {
-    /* components.css の .button, .button--primary を流用 */
-    margin-left: 3px;
+.filter-item__submit,
+.filter-item__reset {
+    margin-left: 0;
     padding: 1px 12px; /* 少し小さめに */
     font-size: 15px;
 }
-.filter-item__reset {
-    margin-left: 3px;
-    padding: 1px 12px; /* 少し小さめに */
-    font-size: 15px;
+.filter-item__reset:disabled {
+    color: #fff;
 }
 
 @media (max-width: 839px) {
@@ -216,32 +267,28 @@
         width: 100%;
         justify-content: start;
     }
-    .brawler-select-filter .filter-item__select,
-    .season-select-filter .filter-item__select,
-    .date-range-filter { /* 日付範囲はまとめて制御 */
-        flex-grow: 1; /* 残りの幅を占める */
-    }
-    .season-select-filter {
-        margin-left: 0;
+    .filter-item .sort-options__select {
+        max-width: none;
+        flex: 1 1 auto;
+        min-width: 0;
     }
     .date-range-filter {
-        display: flex;
+        flex-wrap: wrap;
         justify-content: start;
     }
-     .filter-item__date-input {
+    .filter-item__date-input {
         flex-basis: calc(50% - 40px); /* 「から」とボタンの幅を考慮 */
     }
 }
 
 @media (max-width: 539px) {
-    .filter-item__submit {
-        margin-left: 2px;
+    .filter-item__submit,
+    .filter-item__reset {
         padding: 1px 9px; /* 少し小さめに */
         font-size: 13px;
     }
-    .filter-item__reset {
-        margin-left: 2px;
-        padding: 1px 9px; /* 少し小さめに */
+    .battle-log-filters__toggle {
+        padding: 2px 10px;
         font-size: 13px;
     }
 }

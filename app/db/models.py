@@ -290,10 +290,11 @@ class Battle(Base):
 
     tag = Column(Text, nullable=False)
     datetime = Column(DateTime(timezone=True), nullable=False)
-    event_id = Column(Integer, nullable=True)
+    event_id = Column(Integer, nullable=True)  # マップID（コンペ等では0）
     event_mode = Column(Text, nullable=True)
     event_map = Column(Text, nullable=True)
     battle_mode = Column(Text, nullable=True)
+    mode_id = Column(Integer, nullable=True)  # ゲームモードID（48000000+）
     battle_type = Column(Text, nullable=True)
     result = Column(Text, nullable=False)
     rank = Column(Integer, nullable=True)
@@ -331,10 +332,11 @@ class ArchivedBattle(Base):
 
     tag = Column(Text, nullable=False)
     datetime = Column(DateTime(timezone=True), nullable=False)
-    event_id = Column(Integer, nullable=True)
+    event_id = Column(Integer, nullable=True)  # マップID（コンペ等では0）
     event_mode = Column(Text, nullable=True)
     event_map = Column(Text, nullable=True)
     battle_mode = Column(Text, nullable=True)
+    mode_id = Column(Integer, nullable=True)  # ゲームモードID（48000000+）
     battle_type = Column(Text, nullable=True)
     result = Column(Text, nullable=False)
     rank = Column(Integer, nullable=True)
@@ -609,24 +611,69 @@ class PlayerIcon(Base):
     equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
 
 
-class Map(Base):
-    """
-    マップの静的情報を格納するテーブル。
-    """
-    __tablename__ = 'maps'
-
-    en = Column(Text, primary_key=True)
-    ja = Column(Text, nullable=True)
-
-
 class Mode(Base):
     """
-    ゲームモードの静的情報を格納するテーブル。
+    ゲームモードの静的情報。主キーは公式/BSInfoのモードID（48000000+）。
+    slug は公式APIの camelCase（gemGrab）。en は表示用 Title Case（Gem Grab）。
     """
     __tablename__ = 'modes'
 
-    en = Column(Text, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    slug = Column(Text, nullable=True)
+    en = Column(Text, nullable=True)
     ja = Column(Text, nullable=True)
+    en_is_manual = Column(Boolean, nullable=False, server_default='False')
+    ja_is_manual = Column(Boolean, nullable=False, server_default='False')
+    desc_ja = Column(Text, nullable=True)
+    desc_en = Column(Text, nullable=True)
+    desc2_ja = Column(Text, nullable=True)
+    desc2_en = Column(Text, nullable=True)
+    overtime = Column(Boolean, nullable=True)
+    overtime_text_ja = Column(Text, nullable=True)
+    overtime_text_en = Column(Text, nullable=True)
+    format_ja = Column(Text, nullable=True)
+    format_en = Column(Text, nullable=True)
+    color = Column(Text, nullable=True)
+    bg_color = Column(Text, nullable=True)
+    battle_time = Column(Integer, nullable=True)
+    respawn_time = Column(Integer, nullable=True)
+    disabled = Column(Boolean, nullable=False, server_default='True')
+    is_boss_fight = Column(Boolean, nullable=False, server_default='False')
+    is_special_event = Column(Boolean, nullable=False, server_default='False')
+    is_not_rewarding_trophies = Column(Boolean, nullable=False, server_default='False')
+    is_trophy_mode = Column(Boolean, nullable=False, server_default='False')
+    rounds = Column(Integer, nullable=True)
+    team_size = Column(Integer, nullable=True)
+    team_count = Column(Integer, nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('uq_modes_slug', 'slug', unique=True, postgresql_where=text('slug IS NOT NULL')),
+        Index('idx_modes_en', 'en'),
+    )
+
+
+class Map(Base):
+    """
+    マップの静的情報。主キーは公式/BSInfoのマップID（15始まり）。
+    """
+    __tablename__ = 'maps'
+
+    id = Column(Integer, primary_key=True)
+    en = Column(Text, nullable=True)
+    ja = Column(Text, nullable=True)
+    en_is_manual = Column(Boolean, nullable=False, server_default='False')
+    ja_is_manual = Column(Boolean, nullable=False, server_default='False')
+    codename = Column(Text, nullable=True)
+    theme = Column(Integer, nullable=True)
+    mode_id = Column(Integer, ForeignKey('modes.id', ondelete='SET NULL'), nullable=True)
+    disabled = Column(Boolean, nullable=False, server_default='False')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_maps_en', 'en'),
+        Index('idx_maps_mode_id', 'mode_id'),
+    )
 
 
 class Announcement(Base):

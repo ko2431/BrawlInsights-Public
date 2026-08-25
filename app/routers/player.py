@@ -4,14 +4,18 @@ import asyncpg
 import math
 import datetime
 import uuid
-from typing import Optional, Any
+from typing import Annotated, Any, Optional
+from types import SimpleNamespace
+
+from pydantic import BeforeValidator
 
 from app.exceptions.custom_exceptions import BrawlStarsAPIError
 from app.core.logger import logger
 from app.core.config import settings
 from app.core.logging_config import add_log_info
 from app.db.db import get_shared_db
-from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_titles
+from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_titles, collect_battle_mode_map_filter_options, get_brawler
+from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
 from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
@@ -32,7 +36,26 @@ router = APIRouter(
         "player": player,
         "player_icon_path": "/" + icon_path_rel,
         "current_tab": tab,
-        "selected_brawler_id": current_brawler_id_for_tab,
+        "selected_brawler_id": selected_brawler_id,
+        "selected_mode_id": 0 if filter_unknown_mode else selected_mode_id,
+        "selected_event_id": selected_event_id,
+        "brawler_filter_groups": brawler_filter_groups,
+        "uncategorized_brawlers": uncategorized_brawlers,
+        "mode_filter_options": mode_filter_options,
+        "map_filter_options": map_filter_options,
+        "has_unknown_mode_option": has_unknown_mode_option,
+        "show_brawler_usage": show_brawler_usage,
+        "show_mode_usage": show_mode_usage,
+        "show_map_graphs": show_map_graphs,
+        "show_brawler_trophy_trend": show_brawler_trophy_trend,
+        "show_ranked_trend": show_ranked_trend,
+        "show_new_player_notice": show_new_player_notice,
+        "raw_battle_count": raw_battle_count,
+        "has_mode_filter": has_mode_filter,
+        "filter_scope_ja": filter_scope_ja,
+        "filter_scope_en": filter_scope_en,
+        "filter_query": filter_query,
+        "shared_filter_query": shared_filter_query,
         "battles_on_page": battles_on_page,
         "win": battles_on_page_win,
         "lose": battles_on_page_lose,

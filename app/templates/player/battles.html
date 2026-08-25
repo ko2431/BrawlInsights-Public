@@ -16,7 +16,7 @@
 
 {% block content %}
 <div class="player-page__container"
-     x-data="playerFragmentLoader('{{ url_for('get_player_battles_fragment', lang=lang, tag=tag[1:]) }}?tab={{ current_tab }}{% if before_date_filter %}&before={{ before_date_filter }}{% endif %}{% if after_date_filter %}&after={{ after_date_filter }}{% endif %}{% if selected_brawler_id %}&brawler_id={{ selected_brawler_id }}{% endif %}&page={{ current_page_num }}', '{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}')"
+     x-data="playerFragmentLoader('{{ url_for('get_player_battles_fragment', lang=lang, tag=tag[1:]) }}?tab={{ current_tab }}{% if before_date_filter %}&before={{ before_date_filter }}{% endif %}{% if after_date_filter %}&after={{ after_date_filter }}{% endif %}{% if selected_brawler_id %}&brawler_id={{ selected_brawler_id }}{% endif %}{% if selected_mode_id is not none %}&mode_id={{ selected_mode_id }}{% endif %}{% if selected_event_id %}&event_id={{ selected_event_id }}{% endif %}&page={{ current_page_num }}', '{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}')"
      x-init="load()">
 
     {# --- ローディング状態 --- #}

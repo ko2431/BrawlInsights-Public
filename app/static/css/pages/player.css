@@ -339,7 +339,7 @@
     text-align: right; /* 右寄せ */
 }
 .sort-options__label {
-    margin-right: 8px;
+    margin-right: 4px;
     font-size: 14px;
     color: var(--color-555);
     font-weight: 400;
@@ -347,7 +347,7 @@
 .sort-options__select {
     padding: 5px 8px;
     border: 1px solid #ccc;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 14px;
     cursor: pointer;
     background-color: #fff; /* 背景色 */

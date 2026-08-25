@@ -12,6 +12,7 @@ from .context_processors import (
     admin_notification_processor,
 )
 from app.utils.utils import format_display_datetime, format_last_played_time
+from app.services.map_mode_catalog import mode_icon_candidates
 import re
 from markupsafe import Markup
 
@@ -35,6 +36,7 @@ templates = Jinja2Templates(
 # カスタムグローバル関数を登録
 templates.env.globals['format_display_datetime'] = format_display_datetime
 templates.env.globals['format_last_played_time'] = format_last_played_time
+templates.env.globals['mode_icon_candidates'] = mode_icon_candidates
 
 NG_WORDS = [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています]
 def censor_filter(text: str) -> str:
