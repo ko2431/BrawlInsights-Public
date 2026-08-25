@@ -1,3 +1,7 @@
+{% macro battle_brawler_filter_href(lang, tag, filter_query_without_brawler, brawler_id) -%}
+/{{ lang }}/player/battles/{{ tag }}?{{ (filter_query_without_brawler ~ "&") if filter_query_without_brawler else "" }}brawler_id={{ brawler_id }}
+{%- endmacro %}
+
 {% macro render_battle_log_pagination(pagination, filter_query, lang) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination battle-log-pagination" aria-label="バトル履歴ページネーション">

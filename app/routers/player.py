@@ -56,6 +56,7 @@ router = APIRouter(
         "filter_scope_ja": filter_scope_ja,
         "filter_scope_en": filter_scope_en,
         "filter_query": filter_query,
+        "filter_query_without_brawler": filter_query_without_brawler,
         "shared_filter_query": shared_filter_query,
         "battles_on_page": battles_on_page,
         "win": battles_on_page_win,
