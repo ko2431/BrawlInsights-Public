@@ -85,10 +85,12 @@
     bottom: -1px;
     font-weight: bold;
     z-index: 1; /* 下線を隠すため */
+    cursor: default;
 }
 .sub-tab-nav__link--active:hover {
     background-color: #fff;
     color: #333;
+    cursor: default;
 }
 .dark .sub-tab-nav__link--active,
 .dark .sub-tab-nav__link--active:hover {
