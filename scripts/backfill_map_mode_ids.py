@@ -9,6 +9,7 @@ Alembic 適用後に VPS で実行する。upgrade 自体はこのスクリプ�
   python3 scripts/backfill_map_mode_ids.py --skip-seed
   python3 scripts/backfill_map_mode_ids.py --report-only
   python3 scripts/backfill_map_mode_ids.py --batch-days 7 --sleep 0.5
+  python3 scripts/backfill_map_mode_ids.py --skip-seed --batch-days 1 --start 2024-06-01 --command-timeout 900
 """
 from __future__ import annotations
 
@@ -45,7 +46,7 @@ def _parse_update_count(result: str) -> int:
         return 0
 
 
-async def _connect() -> asyncpg.Connection:
+async def _connect(*, command_timeout: float) -> asyncpg.Connection:
     conn = await asyncpg.connect(
         host=settings.DB_HOST,
         port=settings.DB_PORT,
@@ -53,7 +54,7 @@ async def _connect() -> asyncpg.Connection:
         password=settings.DB_PASSWORD,
         database=settings.DB_NAME,
         timeout=60.0,
-        command_timeout=300.0,
+        command_timeout=command_timeout,
     )
     await setup_jsonb_codec(conn)
     return conn
@@ -72,6 +73,7 @@ async def _backfill_table(
     *,
     batch_days: int,
     sleep_s: float,
+    start_at: datetime | None = None,
 ) -> dict[str, int]:
     if table not in ALLOWED_TABLES:
         raise ValueError(table)
@@ -83,6 +85,14 @@ async def _backfill_table(
 
     start = mn.astimezone(timezone.utc) if mn.tzinfo else mn.replace(tzinfo=timezone.utc)
     end = mx.astimezone(timezone.utc) if mx.tzinfo else mx.replace(tzinfo=timezone.utc)
+    if start_at is not None:
+        start_at_utc = start_at.astimezone(timezone.utc) if start_at.tzinfo else start_at.replace(tzinfo=timezone.utc)
+        if start_at_utc > start:
+            start = start_at_utc
+            logger.info(f"{table}: --start により {start.isoformat()} から再開します")
+    if start > end:
+        logger.info(f"{table}: 開始日が最終日時より後のためスキップします")
+        return totals
     window = timedelta(days=batch_days)
     cursor = start
     batch_index = 0
@@ -91,6 +101,7 @@ async def _backfill_table(
     while cursor <= end:
         nxt = cursor + window
         batch_index += 1
+        logger.info(f"{table} batch {batch_index} 開始 {cursor.date()}〜{nxt.date()}")
         map_updated = _parse_update_count(
             await db.execute(
                 f"""
@@ -176,7 +187,7 @@ def _print_report(report: dict) -> None:
 
 async def _run(args: argparse.Namespace) -> int:
     await connect_redis()
-    db = await _connect()
+    db = await _connect(command_timeout=args.command_timeout)
     try:
         if not args.report_only and not args.skip_seed:
             logger.info("BSInfo から maps/modes を同期します（既存の手動日本語名は上書きします）")
@@ -186,9 +197,15 @@ async def _run(args: argparse.Namespace) -> int:
             logger.info(f"legacy slug 補完: {slug_filled} 件")
 
         if not args.report_only:
-            await _backfill_table(db, "battles", batch_days=args.batch_days, sleep_s=args.sleep)
+            await _backfill_table(
+                db, "battles",
+                batch_days=args.batch_days, sleep_s=args.sleep, start_at=args.start,
+            )
             if not args.skip_archived:
-                await _backfill_table(db, "archived_battles", batch_days=args.batch_days, sleep_s=args.sleep)
+                await _backfill_table(
+                    db, "archived_battles",
+                    batch_days=args.batch_days, sleep_s=args.sleep, start_at=args.start,
+                )
 
         report = await collect_unresolved_report(db, include_battle_scans=True)
         _print_report(report)
@@ -206,11 +223,26 @@ def main() -> None:
     parser.add_argument("--skip-archived", action="store_true", help="archived_battles を対象外にする")
     parser.add_argument("--batch-days", type=int, default=7, help="日付バッチ幅（日）。既定 7")
     parser.add_argument("--sleep", type=float, default=0.5, help="バッチ間スリープ秒。既定 0.5")
+    parser.add_argument(
+        "--start",
+        type=lambda value: datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc),
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="この日付（UTC 0:00）から再開する。省略時はテーブルの最古日時",
+    )
+    parser.add_argument(
+        "--command-timeout",
+        type=float,
+        default=300.0,
+        help="1ステートメントの秒タイムアウト。既定 300。本番の大きい窓では 900 など",
+    )
     args = parser.parse_args()
     if args.batch_days < 1:
         parser.error("--batch-days は 1 以上")
     if args.sleep < 0:
         parser.error("--sleep は 0 以上")
+    if args.command_timeout < 30:
+        parser.error("--command-timeout は 30 以上")
     raise SystemExit(asyncio.run(_run(args)))
 
 
