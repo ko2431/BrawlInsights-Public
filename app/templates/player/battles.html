@@ -49,11 +49,17 @@
 {% endblock %}
 {% block scripts %}
 <script>
+try {
+    if (sessionStorage.getItem('bi_battles_reload_anchor') && 'scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+} catch (e) {}
 function playerFragmentLoader(url, pageLabel) {
     return {
         isLoading: true,
         hasError: false,
         pendingScrollTarget: null,
+        pendingScrollInstant: false,
         updatePageTitle(container) {
             const nameEl = container.querySelector('.profile-header__name');
             const tagEl = container.querySelector('.profile-header__tag');
@@ -70,8 +76,24 @@ function playerFragmentLoader(url, pageLabel) {
             const normalizedTarget = target.startsWith('#') ? target.substring(1) : target;
             const el = document.getElementById(normalizedTarget);
             if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.scrollIntoView({
+                    behavior: this.pendingScrollInstant ? 'auto' : 'smooth',
+                    block: 'start'
+                });
             }
+            this.pendingScrollInstant = false;
+        },
+        consumeReloadScrollIntent() {
+            try {
+                const reloadAnchor = sessionStorage.getItem('bi_battles_reload_anchor');
+                if (reloadAnchor) {
+                    sessionStorage.removeItem('bi_battles_reload_anchor');
+                    this.pendingScrollTarget = reloadAnchor;
+                    this.pendingScrollInstant = true;
+                    return true;
+                }
+            } catch (e) {}
+            return false;
         },
         async load(scrollTarget) {
             this.isLoading = true;
@@ -100,7 +122,9 @@ function playerFragmentLoader(url, pageLabel) {
                     }
                 });
                 this.updatePageTitle(container);
-                this.pendingScrollTarget = scrollTarget || (window.location.hash ? window.location.hash.substring(1) : null);
+                if (!this.consumeReloadScrollIntent()) {
+                    this.pendingScrollTarget = scrollTarget || (window.location.hash ? window.location.hash.substring(1) : null);
+                }
 
                 // 4xx/5xxでもフラグメント側のエラーUIを優先表示
                 if (!res.ok && !container.querySelector('.player-error-msg')) {
