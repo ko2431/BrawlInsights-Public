@@ -732,10 +732,13 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    appearance: none;
+    -webkit-appearance: none;
 
     border-radius: 11px;
     width: 100%;
     aspect-ratio: 1 / 1; /* 正方形にする */
+    cursor: pointer;
 }
 .battle-results-digest--win {
     border: 2px solid rgb(6, 154, 6);
