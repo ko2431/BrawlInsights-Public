@@ -9,13 +9,14 @@ Alembic 適用後に VPS で実行する。upgrade 自体はこのスクリプ�
   python3 scripts/backfill_map_mode_ids.py --skip-seed
   python3 scripts/backfill_map_mode_ids.py --report-only
   python3 scripts/backfill_map_mode_ids.py --batch-days 7 --sleep 0.5
-  python3 scripts/backfill_map_mode_ids.py --skip-seed --batch-days 1 --start 2024-06-01 --command-timeout 900
+  python3 scripts/backfill_map_mode_ids.py --skip-seed --batch-days 1 --start YYYY-MM-DD --command-timeout 900
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -37,6 +38,12 @@ from app.services.map_mode_catalog import (
 )
 
 ALLOWED_TABLES = frozenset({"battles", "archived_battles"})
+
+
+def _progress(message: str) -> None:
+    """tmux でもすぐ見えるよう stdout に出す。アプリの logger はスクリプト単体では出ないことが多い。"""
+    print(message, flush=True)
+    logger.info(message)
 
 
 def _parse_update_count(result: str) -> int:
@@ -63,7 +70,10 @@ async def _connect(*, command_timeout: float) -> asyncpg.Connection:
 async def _table_bounds(db: asyncpg.Connection, table: str) -> tuple[datetime | None, datetime | None]:
     if table not in ALLOWED_TABLES:
         raise ValueError(table)
+    _progress(f"{table}: MIN/MAX(datetime) を取得しています（大きいテーブルでは数分かかることがあります）")
+    started = time.monotonic()
     row = await db.fetchrow(f"SELECT MIN(datetime) AS mn, MAX(datetime) AS mx FROM {table}")
+    _progress(f"{table}: 範囲取得完了 {row['mn']} 〜 {row['mx']} ({time.monotonic() - started:.1f}s)")
     return row["mn"], row["mx"]
 
 
@@ -80,7 +90,7 @@ async def _backfill_table(
     mn, mx = await _table_bounds(db, table)
     totals = {"map_path": 0, "event_mode": 0, "battle_mode": 0}
     if mn is None or mx is None:
-        logger.info(f"{table}: 行がないためスキップします")
+        _progress(f"{table}: 行がないためスキップします")
         return totals
 
     start = mn.astimezone(timezone.utc) if mn.tzinfo else mn.replace(tzinfo=timezone.utc)
@@ -89,19 +99,24 @@ async def _backfill_table(
         start_at_utc = start_at.astimezone(timezone.utc) if start_at.tzinfo else start_at.replace(tzinfo=timezone.utc)
         if start_at_utc > start:
             start = start_at_utc
-            logger.info(f"{table}: --start により {start.isoformat()} から再開します")
+            _progress(f"{table}: --start により {start.date()} から再開します")
     if start > end:
-        logger.info(f"{table}: 開始日が最終日時より後のためスキップします")
+        _progress(f"{table}: 開始日が最終日時より後のためスキップします")
         return totals
     window = timedelta(days=batch_days)
     cursor = start
     batch_index = 0
-    logger.info(f"{table}: {start.isoformat()} 〜 {end.isoformat()} を {batch_days}日窓で更新します")
+    total_batches = int((end - start) / window) + 1
+    _progress(
+        f"{table}: {start.isoformat()} 〜 {end.isoformat()} を {batch_days}日窓 "
+        f"（約 {total_batches} バッチ、command_timeout 内に終わるまで1バッチ待ち）で更新します"
+    )
 
     while cursor <= end:
         nxt = cursor + window
         batch_index += 1
-        logger.info(f"{table} batch {batch_index} 開始 {cursor.date()}〜{nxt.date()}")
+        _progress(f"{table} [{batch_index}/{total_batches}] 開始 {cursor.date()}〜{nxt.date()}")
+        batch_started = time.monotonic()
         map_updated = _parse_update_count(
             await db.execute(
                 f"""
@@ -150,16 +165,18 @@ async def _backfill_table(
         totals["map_path"] += map_updated
         totals["event_mode"] += event_mode_updated
         totals["battle_mode"] += battle_mode_updated
-        if batch_index % 10 == 0 or map_updated or event_mode_updated or battle_mode_updated:
-            logger.info(
-                f"{table} batch {batch_index} {cursor.date()}〜{nxt.date()}: "
-                f"map={map_updated} event_mode={event_mode_updated} battle_mode={battle_mode_updated}"
-            )
+        elapsed = time.monotonic() - batch_started
+        _progress(
+            f"{table} [{batch_index}/{total_batches}] 完了 {cursor.date()}〜{nxt.date()}: "
+            f"map={map_updated} event_mode={event_mode_updated} battle_mode={battle_mode_updated} "
+            f"({elapsed:.1f}s) 累計 map={totals['map_path']} event_mode={totals['event_mode']} "
+            f"battle_mode={totals['battle_mode']}"
+        )
         cursor = nxt
         if sleep_s > 0:
             await asyncio.sleep(sleep_s)
 
-    logger.info(f"{table} 完了: {totals}")
+    _progress(f"{table} 完了: {totals}")
     return totals
 
 
@@ -186,15 +203,26 @@ def _print_report(report: dict) -> None:
 
 
 async def _run(args: argparse.Namespace) -> int:
+    _progress(
+        f"開始 skip_seed={args.skip_seed} skip_archived={args.skip_archived} "
+        f"report_only={args.report_only} batch_days={args.batch_days} sleep={args.sleep} "
+        f"start={args.start.date() if args.start else '(最古から)'} "
+        f"command_timeout={args.command_timeout}s"
+    )
+    _progress("Redis に接続しています")
     await connect_redis()
+    _progress("PostgreSQL に接続しています")
     db = await _connect(command_timeout=args.command_timeout)
+    _progress("DB 接続完了")
     try:
         if not args.report_only and not args.skip_seed:
-            logger.info("BSInfo から maps/modes を同期します（既存の手動日本語名は上書きします）")
+            _progress("BSInfo から maps/modes を同期します（既存の手動日本語名は上書きします）")
             sync_result = await sync_maps_and_modes_from_bsinfo(db, force=True)
-            logger.info(f"同期結果: {sync_result}")
+            _progress(f"同期結果: {sync_result}")
             slug_filled = await fill_slugs_from_legacy_modes(db)
-            logger.info(f"legacy slug 補完: {slug_filled} 件")
+            _progress(f"legacy slug 補完: {slug_filled} 件")
+        elif args.skip_seed and not args.report_only:
+            _progress("BSInfo 同期はスキップします (--skip-seed)")
 
         if not args.report_only:
             await _backfill_table(
@@ -206,7 +234,10 @@ async def _run(args: argparse.Namespace) -> int:
                     db, "archived_battles",
                     batch_days=args.batch_days, sleep_s=args.sleep, start_at=args.start,
                 )
+            else:
+                _progress("archived_battles はスキップします (--skip-archived)")
 
+        _progress("未解決レポートを集計しています（battles 全表の COUNT は時間がかかることがあります）")
         report = await collect_unresolved_report(db, include_battle_scans=True)
         _print_report(report)
         return 0
@@ -214,6 +245,7 @@ async def _run(args: argparse.Namespace) -> int:
         await db.close()
         await close_redis()
         await bsinfo_client.aclose()
+        _progress("接続を閉じました")
 
 
 def main() -> None:
