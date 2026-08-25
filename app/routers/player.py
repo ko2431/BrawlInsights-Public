@@ -48,6 +48,7 @@ router = APIRouter(
         "show_mode_usage": show_mode_usage,
         "show_teammate_usage": show_teammate_usage,
         "show_map_graphs": show_map_graphs,
+        "show_map_pick_rates": show_map_pick_rates,
         "show_brawler_trophy_trend": show_brawler_trophy_trend,
         "show_ranked_trend": show_ranked_trend,
         "show_new_player_notice": show_new_player_notice,
