@@ -309,6 +309,27 @@
     margin-right: 8px;
 }
 
+/* オプション：設定ボックス＋説明文のセット */
+.account-option {
+    margin-bottom: 10px;
+}
+.account-option .info-item__label {
+    line-height: 1.3;
+}
+.account-option .info-item__label:has(+ select) {
+    margin-right: 12px;
+}
+.account-option .info-item__value {
+    white-space: nowrap;
+}
+.account-option .form-input {
+    width: auto;
+}
+.account-option .info-block__text {
+    display: block;
+    margin-top: 5px;
+}
+
 .editable-item .info-item__edit-form {
     width: 100%;
     padding: 10px 15px 5px;

@@ -801,7 +801,10 @@
             const tagForValidation = validateAndFormatTag(formattedClientSide);
 
             if (tagForValidation) {
-                window.location.href = `/${currentLang}/player/profile/${tagForValidation}`;
+                const landingUrl = (typeof window.biBuildPlayerLandingUrl === 'function')
+                    ? window.biBuildPlayerLandingUrl(currentLang, tagForValidation)
+                    : `/${currentLang}/player/profile/${tagForValidation}`;
+                window.location.href = landingUrl;
             } else {
                 const alertMessage = currentLang === "ja" ? '有効な形式のプレイヤータグを入力してください。' : 'Please enter a valid format player tag.';
                 alert(alertMessage);
