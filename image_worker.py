@@ -18,6 +18,36 @@ def handle_shutdown_signal(sig, frame):
     logger.info(f"シグナル {sig} を受信しました。画像生成ワーカーの安全なシャットダウンを開始します...")
     if shutdown_task is None or shutdown_task.done():
         # [この部分は公開用リポジトリでは非公開にされています]
+    await close_redis()
+    await close_db_connection()
+    logger.info("画像生成ワーカーのリソースを正常に解放しました。")
+
+
+async def shutdown():
+    if shutdown_event.is_set():
+        return
+
+    logger.info("画像生成ワーカーのシャットダウン処理を開始します。")
+    try:
+        if running_tasks:
+            logger.info(f"{len(running_tasks)}個の画像生成タスクをキャンセルします。")
+            for task in running_tasks:
+                task.cancel()
+
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*running_tasks, return_exceptions=True),
+                    timeout=5.0,
+                )
+                logger.info("全ての画像生成タスクは正常に終了しました。")
+            except asyncio.TimeoutError:
+                logger.warning("画像生成タスクのシャットダウンが5秒以内に完了しませんでした。")
+            except asyncio.CancelledError:
+                logger.warning("画像生成ワーカーのシャットダウン処理自体がキャンセルされました。")
+            except Exception as e:
+                logger.error(f"画像生成ワーカーのシャットダウン中に予期せぬエラーが発生しました: {e}", exc_info=True)
+    finally:
+        # [この部分は公開用リポジトリでは非公開にされています]
 
     image_task = asyncio.create_task(image_generation_task_loop(), name="ImageGenerationLoop")
     running_tasks.add(image_task)

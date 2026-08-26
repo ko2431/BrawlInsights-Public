@@ -1893,14 +1893,20 @@ async def websocket_endpoint(
             except json.JSONDecodeError:
                 logger.warning(f"不正なJSONデータを受信しました。")
                 continue
+            except RuntimeError as e:
+                if "WebSocket is not connected" in str(e):
+                    logger.debug(f"WebSocket接続が既に閉じられています (スレッド: {thread_id})")
+                    break
+                logger.error(
+                    f"WebSocketメッセージ処理中に予期せぬエラー (スレッド: {thread_id}): {e}",
+                    exc_info=True
+                )
+                continue
             except Exception as e:
                 logger.error(
                     f"WebSocketメッセージ処理中に予期せぬエラー (スレッド: {thread_id}): {e}",
                     exc_info=True
                 )
-                if isinstance(e, RuntimeError) and "WebSocket is not connected" in str(e):
-                    logger.warning(f"回復不能なWebSocketエラーのためループを終了します (スレッド: {thread_id})")
-                    break
                 continue
 
     finally:

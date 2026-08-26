@@ -4,6 +4,14 @@
         <p class="search-results__text">
             {% if lang == "ja" %}検索語句が指定されていません。{% else %}No search query specified.{% endif %}
         </p>
+    {% elif error_type == "timeout" %}
+        <p class="search-results__text">
+            {% if lang == "ja" %}
+                検索語句が短すぎたため、検索がタイムアウトしました。検索語句を<b>長くする</b>か、<b>完全一致</b>にチェックを入れると速くなります。
+            {% else %}
+                The search keyword was too short and timed out. Using <b>a longer keyword</b>, or <b>checking exact match</b>, will make the search much faster.
+            {% endif %}
+        </p>
     {% else %}
         <p class="search-results__text">
             {% if lang == "ja" %}検索中にエラーが発生しました。しばらくしてからもう一度お試しください。{% else %}An error occurred during search. Please try again later.{% endif %}

@@ -12,6 +12,32 @@ from app.services.meowapi import _api_client as _meow_api_client
 from app.services.bsinfoapi import _api_client as _bsinfo_api_client
 
 # [この部分は公開用リポジトリでは非公開にされています]
+    await close_redis()
+    await close_db_connection()
+    try:
+        await _meow_api_client.aclose()
+        logger.info("MeowAPI クライアント接続を閉じました。")
+    except Exception as e:
+        logger.error(f"MeowAPI クライアントのクローズ中にエラーが発生しました: {e}", exc_info=True)
+    try:
+        await _bsinfo_api_client.aclose()
+        logger.info("BSInfo API クライアント接続を閉じました。")
+    except Exception as e:
+        logger.error(f"BSInfo API クライアントのクローズ中にエラーが発生しました: {e}", exc_info=True)
+
+    logger.info("すべてのリソースが正常に解放されました。")
+
+async def shutdown():
+    """
+    シャットダウン処理の本体。タスクのキャンセルを行う。
+    """
+    if shutdown_event.is_set():
+        return
+
+    logger.info("シャットダウン処理を開始します。")
+    shutdown_event.set()
+
+    # [この部分は公開用リポジトリでは非公開にされています]
     await start_scheduler()
 
     update_task = asyncio.create_task(player_update_task_loop(), name="PlayerUpdateLoop")

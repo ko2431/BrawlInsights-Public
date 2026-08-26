@@ -52,6 +52,20 @@ def get_redis() -> Optional[redis.Redis]: # 型ヒントを修正
         logger.warning("Redis接続が利用できません。connect_redisが呼び出されていません。")
     return redis_pool
 
+
+def _is_redis_closed_error(e: Exception) -> bool:
+    """シャットダウン中の切断など、想定内の Redis 切断エラーかどうか。"""
+    msg = str(e)
+    return "Buffer is closed" in msg or "Connection closed" in msg
+
+
+def _log_cache_error(operation: str, e: Exception, *, key: str | None = None, prefix: str | None = None) -> None:
+    ident = f"key: {key}" if key is not None else f"prefix: {prefix}"
+    if _is_redis_closed_error(e):
+        logger.warning(f"Redis{operation}中に接続が閉じていました ({ident}): {e}")
+        return
+    logger.error(f"Redis{operation}中にエラー ({ident}): {e}", exc_info=True)
+
 # --- キャッシュ操作関数 ---
 
 async def get_cache(key: str) -> Optional[Any]:
@@ -66,7 +80,7 @@ async def get_cache(key: str) -> Optional[Any]:
             return json.loads(cached_data_bytes.decode('utf-8'))
         return None
     except Exception as e:
-        logger.error(f"Redisからのキャッシュ取得中にエラー (key: {key}): {e}", exc_info=True)
+        _log_cache_error("からのキャッシュ取得", e, key=key)
         return None
 
 async def set_cache(key: str, value: Any, ttl: int | None = 3600): # ttlのデフォルトは1時間
@@ -82,7 +96,7 @@ async def set_cache(key: str, value: Any, ttl: int | None = 3600): # ttlのデ�
         else: # ttlがNoneの場合は永続化
             await r.set(key, value_json_bytes)
     except Exception as e:
-        logger.error(f"Redisへのキャッシュ設定中にエラー (key: {key}): {e}", exc_info=True)
+        _log_cache_error("へのキャッシュ設定", e, key=key)
 
 async def delete_cache(key: str):
     """Redisからキャッシュを削除する。存在しないキーを指定してもエラーにはならない。"""
@@ -92,7 +106,7 @@ async def delete_cache(key: str):
     try:
         await r.delete(key)
     except Exception as e:
-        logger.error(f"Redisからのキャッシュ削除中にエラー (key: {key}): {e}", exc_info=True)
+        _log_cache_error("からのキャッシュ削除", e, key=key)
 
 async def adjust_cache_counter_if_exists(key: str, delta: int = 1, ttl: int | None = None) -> bool:
     """既存の整数カウンタキャッシュを増減する。キーが無い場合は何もしない。
@@ -116,7 +130,7 @@ async def adjust_cache_counter_if_exists(key: str, delta: int = 1, ttl: int | No
             await r.expire(key, ttl)
         return True
     except Exception as e:
-        logger.error(f"Redisカウンタ更新中にエラー (key: {key}): {e}", exc_info=True)
+        _log_cache_error("カウンタ更新", e, key=key)
         return False
 
 async def clear_cache_by_prefix(prefix: str):
@@ -131,4 +145,4 @@ async def clear_cache_by_prefix(prefix: str):
             await r.delete(key_bytes)
         logger.info(f"プレフィックス '{prefix}' を持つキャッシュをクリアしました。")
     except Exception as e:
-        logger.error(f"Redisのプレフィックスによるキャッシュクリア中にエラー (prefix: {prefix}): {e}", exc_info=True)
+        _log_cache_error("のプレフィックスによるキャッシュクリア", e, prefix=prefix)

@@ -27,6 +27,7 @@ from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_
 # [この部分は公開用リポジトリでは非公開にされています]
 
     # [この部分は公開用リポジトリでは非公開にされています]
+    await close_redis() # [この部分は公開用リポジトリでは非公開にされています]
             except Exception as e:
                 logger.error(
                     f"ミドルウェアでの通知バッジ取得中にエラー (User: {current_user_for_state.name}): {e}",
