@@ -359,7 +359,7 @@
     vertical-align: middle; /* 垂直方向中央揃え */
     font-size: 15px; /* 基本フォントサイズ */
     font-weight: 400; /* 基本の太さ */
-    line-height: 1.5;
+    line-height: 1.4;
 }
 .dark .data-table th,
 .dark .data-table td {
