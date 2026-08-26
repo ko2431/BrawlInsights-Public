@@ -236,15 +236,15 @@ class Player(Base):
 
     # パフォーマンス改善のためのインデックスを __table_args__ で定義
     __table_args__ = (
-        # pg_bigm: 1〜2文字の短いクエリに強い（ILIKE '%s%'や'%あ%'など）
+        # pg_bigm: 1〜2文字の短いクエリに強い。gin_bigm_ops は LIKE のみ（ILIKE では使えない）
         Index(
             'idx_gin_players_name_bigm',
             'name',
             postgresql_using='gin',
             postgresql_ops={'name': 'gin_bigm_ops'}
         ),
-        # pg_trgm: 3文字以上の長いクエリに強い（ILIKE '%ブロスタプレイヤー%'など）
-        # クエリプランナーが文字列長に応じて自動的に最適なインデックスを選択する
+        # pg_trgm: 3文字以上の ILIKE に強い（'%ブロスタプレイヤー%'など）
+        # 短い検索はアプリ側で LIKE に切り替え、bigm インデックスを使う
         Index(
             'idx_gin_players_name_trgm',
             'name',
