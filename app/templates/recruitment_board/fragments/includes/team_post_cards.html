@@ -71,7 +71,7 @@
                 {% endif %}
             {% endif %}
             <div class="post-card-wrapper">
-                <div class="card post-card post-card--team" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
+                <div class="card post-card post-card--team post-card--tinted" style="--board-c1: {{ color1 }}; --board-c2: {{ color2 }};">
                     {# ゲームモード・募集タイプバッジ・n分前テキスト #}
                     <div class="post-card__header">
                         <img src="{{ url_for('static', path=image_path) }}" alt="モードアイコン" class="post-card__player-icon"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
@@ -82,7 +82,7 @@
                             {% else %}
                             <span class="post-card__recruit-type-badge post-card__recruit-type-badge--instant">{% if lang == "ja" %}今すぐ募集{% else %}Instant{% endif %}</span>
                             {% endif %}
-                            <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}" style="color: #555;">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                            <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
                         </div>
                     </div>
                     {# ガチバトルランクの翻訳表 (ダイヤモンドはダイヤに省略) #}

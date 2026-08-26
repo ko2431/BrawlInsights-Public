@@ -196,38 +196,38 @@
             <div class="post-modal-section">
                 <p class="post-modal-section-title">1. {% if lang == "ja" %}カテゴリー{% else %}Category{% endif %}</p>
                 <div class="general-board-category-grid{% if current_user.is_admin %} general-board-category-grid--admin{% endif %}">
-                    <div class="general-board-category-item" data-category="chat" style="background: linear-gradient(135deg, #d4e6ff, #d4f0ff);">
+                    <div class="general-board-category-item" data-category="chat" style="--board-c1: #d4e6ff; --board-c2: #d4f0ff;">
                         <img src="{{ url_for('static', path='/images/ui/family_friendly.png') }}" alt="雑談" class="general-icon--chat">
                         <span>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</span>
                     </div>
-                    <div class="general-board-category-item" data-category="question" style="background: linear-gradient(135deg, #fff6d4, #ffeed4);">
+                    <div class="general-board-category-item" data-category="question" style="--board-c1: #fff6d4; --board-c2: #ffeed4;">
                         <img src="{{ url_for('static', path='/images/ui/mystery.png') }}" alt="質問" class="general-icon--question">
                         <span>{% if lang == "ja" %}質問{% else %}Question{% endif %}</span>
                     </div>
-                    <div class="general-board-category-item" data-category="offtopic" style="background: linear-gradient(135deg, #e8d4ff, #f0d4ff);">
+                    <div class="general-board-category-item" data-category="offtopic" style="--board-c1: #e8d4ff; --board-c2: #f0d4ff;">
                         <img src="{{ url_for('static', path='/images/ui/gameroom.png') }}" alt="{% if lang == 'ja' %}オフトピック{% else %}Off Topic{% endif %}" class="general-icon--offtopic">
                         <span>{% if lang == "ja" %}オフトピック{% else %}Off Topic{% endif %}</span>
                     </div>
                     {% if current_user.is_admin %}
-                    <div class="general-board-category-item" data-category="brawl_info" style="background: linear-gradient(135deg, #d8f7cb, #c5f2b1);">
+                    <div class="general-board-category-item" data-category="brawl_info" style="--board-c1: #d8f7cb; --board-c2: #c5f2b1;">
                         <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="ブロスタ情報" class="general-icon--brawl-info">
                         <span>{% if lang == "ja" %}情報{% else %}Info{% endif %}</span>
                     </div>
                     {% endif %}
-                    <div class="general-board-category-item general-board-category-item--dark" data-category="x" style="background: linear-gradient(135deg, #3a3a3a, #4a4a4a);">
+                    <div class="general-board-category-item general-board-category-item--dark" data-category="x" style="--board-c1: #3a3a3a; --board-c2: #4a4a4a;">
                         <img src="{{ url_for('static', path='/images/ui/x.png') }}" alt="X" class="general-icon--x" style="filter: invert(1);">
                         <span>X</span>
                     </div>
-                    <div class="general-board-category-item general-board-category-item--dark" data-category="discord" style="background: linear-gradient(135deg, #4752c4, #5865f2);">
+                    <div class="general-board-category-item general-board-category-item--dark" data-category="discord" style="--board-c1: #4752c4; --board-c2: #5865f2;">
                         <img src="{{ url_for('static', path='/images/ui/discord.svg') }}" alt="Discord" class="general-icon--discord" style="filter: brightness(0) invert(1);">
                         <span>Discord</span>
                     </div>
-                    <div class="general-board-category-item" data-category="youtube" style="background: linear-gradient(135deg, #ffd4d4, #ffd4de);">
+                    <div class="general-board-category-item" data-category="youtube" style="--board-c1: #ffd4d4; --board-c2: #ffd4de;">
                         <img src="{{ url_for('static', path='/images/ui/youtube.png') }}" alt="YouTube" class="general-icon--youtube">
                         <span>YouTube</span>
                     </div>
-                    <div class="general-board-category-item" data-category="tiktok" style="background: linear-gradient(135deg, #ffd4ef, #ffd4e6);">
-                        <img src="{{ url_for('static', path='/images/ui/tiktok_white.png') }}" alt="TikTok" class="general-icon--tiktok" style="filter: brightness(0);">
+                    <div class="general-board-category-item" data-category="tiktok" style="--board-c1: #ffd4ef; --board-c2: #ffd4e6;">
+                        <img src="{{ url_for('static', path='/images/ui/tiktok_white.png') }}" alt="TikTok" class="general-icon--tiktok">
                         <span>TikTok</span>
                     </div>
                 </div>

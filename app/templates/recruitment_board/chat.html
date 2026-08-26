@@ -148,7 +148,7 @@
 {% endif %}
 <div class="chat-page__container {% if post.type in ['team', 'general'] %}team-chat{% endif %}{% if platform != 'web' and not (current_user and (current_user.is_admin or current_user.is_delete_ads)) %} chat-page__container--reserve-top-banner{% endif %}">
     {# ヘッダー部分 (スレッド情報) #}
-    <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}" style="background: linear-gradient(90deg, {{ color1 }}, {{ color2 }});">
+    <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}{% if color1 is defined %} chat-header--tinted{% endif %}{% if dark %} chat-header--brand-dark{% endif %}"{% if color1 is defined %} style="--board-c1: {{ color1 }}; --board-c2: {{ color2 }};"{% endif %}>
         <div class="chat-header__content">
             {% if post.type == "brawler_guide" %}
             {# キャラクター図鑑用ヘッダー #}
@@ -161,14 +161,14 @@
                 <p class="chat-header__comment">{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</p>
             </div>
             {% elif post.hostplayer %}
-            <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}" {% if post.type == 'general' %}{% if dark %}style="filter: brightness(0) invert(1);"{% elif post.category == 'tiktok' %}style="filter: brightness(0);"{% endif %}{% endif %}{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
+            <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
             <div class="chat-header__details">
                 {% if post.type == "friend" %}
                 <p class="chat-header__host-name">{{ post.hostplayer.name }}</p>
                 <p class="chat-header__comment">{% if lang == "ja" %}フレンド募集{% else %}Friend Recruitment{% endif %}</p>
                 {% elif post.type == "general" %}
-                <p class="chat-header__host-name" {% if dark %}style="color: #fff;"{% endif %}>{{ title }}</p>
-                <p class="chat-header__comment" {% if dark %}style="color: rgba(255,255,255,0.7);"{% endif %}>{% if lang == "ja" %}なんでも掲示板{% else %}General Board{% endif %}</p>
+                <p class="chat-header__host-name">{{ title }}</p>
+                <p class="chat-header__comment">{% if lang == "ja" %}なんでも掲示板{% else %}General Board{% endif %}</p>
                 {% else %}
                 <p class="chat-header__host-name">{{ title }}</p>
                 <p class="chat-header__comment">{% if lang == "ja" %}チーム募集{% else %}Team Recruitment{% endif %}</p>

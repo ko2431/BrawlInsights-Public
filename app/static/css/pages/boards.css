@@ -583,8 +583,20 @@ body.modal-open {
     box-sizing: border-box;
     overflow-x: hidden;
 }
-.dark .team-board .post-card {
-    border: 1px solid #eee;
+.post-card--tinted {
+    --board-tint-bg: #242424;
+    --board-grad-angle: 90deg;
+    background: linear-gradient(var(--board-grad-angle), var(--board-c1), var(--board-c2));
+}
+.post-card--general.post-card--tinted {
+    --board-grad-angle: 135deg;
+}
+.dark .post-card--tinted {
+    background: linear-gradient(
+        var(--board-grad-angle),
+        color-mix(in srgb, var(--board-c1) 90%, var(--board-tint-bg)),
+        color-mix(in srgb, var(--board-c2) 90%, var(--board-tint-bg))
+    );
 }
 .post-card__header {
     display: flex;
@@ -608,6 +620,27 @@ body.modal-open {
 .team-board .post-card__title {
     color: #000;
     flex: 1;                  /* 余白をタイトル側が吸収し、狭い幅ではモード名のみ省略する */
+}
+.post-card--general .post-card__title {
+    color: #000;
+}
+.post-card--brand-dark .post-card__title {
+    color: #fff;
+}
+.dark .post-card--brand-dark .post-card__title {
+    color: #fff;
+}
+.post-card--brand-dark .post-card__ago-text {
+    color: rgba(255, 255, 255, 0.7);
+}
+.post-card--brand-dark .post-card__player-icon {
+    filter: brightness(0) invert(1);
+}
+.post-card--general .category-icon--tiktok {
+    filter: brightness(0);
+}
+.dark .post-card--general .category-icon--tiktok {
+    filter: brightness(0) invert(1);
 }
 .post-card__header-meta {
     display: flex;
@@ -646,8 +679,11 @@ body.modal-open {
 }
 .post-card__ago-text {
     font-size: 14px;
-    color: var(--color-555);
+    color: #555;
     flex-shrink: 0;           /* 「n分前」テキストがプレイヤー名に押されて縮まないようにする */
+}
+.dark .post-card__ago-text {
+    color: #444;
 }
 
 .post-card__info-and-conditions {
@@ -1174,6 +1210,7 @@ body.modal-open {
     grid-template-columns: repeat(4, 1fr);
 }
 .general-board-category-item {
+    --board-tint-bg: #242424;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1185,6 +1222,14 @@ body.modal-open {
     cursor: pointer;
     transition: border-color 0.2s;
     gap: 4px;
+    background: linear-gradient(135deg, var(--board-c1), var(--board-c2));
+}
+.dark .general-board-category-item {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--board-c1) 90%, var(--board-tint-bg)),
+        color-mix(in srgb, var(--board-c2) 90%, var(--board-tint-bg))
+    );
 }
 .general-board-category-item img {
     width: auto;
@@ -1196,6 +1241,12 @@ body.modal-open {
 }
 .general-board-category-item--dark span {
     color: #fff;
+}
+.dark .general-board-category-item--dark span {
+    color: #fff;
+}
+.general-board-category-item .general-icon--tiktok {
+    filter: brightness(0);
 }
 .general-board-category-item.selected {
     border-color: #ff5353;

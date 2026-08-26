@@ -64,6 +64,18 @@
     z-index: 10;
     flex-shrink: 0; /* ヘッダーが縮まないようにする */
 }
+.chat-header--tinted {
+    --board-grad-angle: 90deg;
+    --board-tint-bg: var(--bg-fefefe);
+    background: linear-gradient(var(--board-grad-angle), var(--board-c1), var(--board-c2));
+}
+.dark .chat-header--tinted {
+    background: linear-gradient(
+        var(--board-grad-angle),
+        color-mix(in srgb, var(--board-c1) 90%, var(--board-tint-bg)),
+        color-mix(in srgb, var(--board-c2) 90%, var(--board-tint-bg))
+    );
+}
 .chat-header--app {
     padding: 6px 15px;
 }
@@ -100,8 +112,14 @@
     font-size: 16px;
     margin: 0;
 }
-.dark .team-chat .chat-header__host-name {
+.chat-header--tinted .chat-header__host-name {
     color: #000;
+}
+.chat-header--brand-dark .chat-header__host-name {
+    color: #fff;
+}
+.dark .chat-header--brand-dark .chat-header__host-name {
+    color: #fff;
 }
 .chat-header__comment {
     font-size: 14px;
@@ -111,8 +129,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.dark .team-chat .chat-header__comment {
+.chat-header--tinted .chat-header__comment {
     color: #555;
+}
+.chat-header--brand-dark .chat-header__comment {
+    color: rgba(255, 255, 255, 0.7);
+}
+.dark .chat-header--brand-dark .chat-header__comment {
+    color: rgba(255, 255, 255, 0.7);
+}
+.chat-header--brand-dark .chat-header__host-icon {
+    filter: brightness(0) invert(1);
+}
+.chat-header--tinted .chat-header__host-icon--tiktok {
+    filter: brightness(0);
+}
+.dark .chat-header--tinted .chat-header__host-icon--tiktok {
+    filter: brightness(0) invert(1);
 }
 @media (max-width: 539px) {
     .chat-header__host-name { font-size: 15px; }

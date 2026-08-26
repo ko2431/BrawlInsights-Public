@@ -40,13 +40,13 @@
         {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
                 (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids)) %}
             <div class="post-card-wrapper">
-                <div class="card post-card post-card--general" style="background: linear-gradient(135deg, {{ cat_info.color1 }}, {{ cat_info.color2 }});">
+                <div class="card post-card post-card--general post-card--tinted{% if cat_info.dark %} post-card--brand-dark{% endif %}" style="--board-c1: {{ cat_info.color1 }}; --board-c2: {{ cat_info.color2 }};">
                     {# ヘッダー: カテゴリーアイコン + カテゴリー名 + 経過時間 #}
                     <div class="post-card__header">
-                        <img src="{{ url_for('static', path='/images/ui/' + cat_info.icon) }}" alt="{{ cat }}" class="post-card__player-icon category-icon--{{ cat }}" {% if cat_info.dark %}style="filter: brightness(0) invert(1);"{% elif cat == 'tiktok' %}style="filter: brightness(0);"{% endif %}>
-                        <p class="post-card__title" style="color: {% if cat_info.dark %}#fff{% else %}#000{% endif %};">{{ category_names_ja[cat] if lang == "ja" else category_names_en[cat] }}</p>
+                        <img src="{{ url_for('static', path='/images/ui/' + cat_info.icon) }}" alt="{{ cat }}" class="post-card__player-icon category-icon--{{ cat }}">
+                        <p class="post-card__title">{{ category_names_ja[cat] if lang == "ja" else category_names_en[cat] }}</p>
                         <div style="display: flex; flex: 1;"></div>
-                        <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}" style="color: {% if cat_info.dark %}rgba(255,255,255,0.7){% else %}#555{% endif %};">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                        <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
                     </div>
                     {# ひとことと条件 #}
                     <div class="post-card__info-and-conditions">
