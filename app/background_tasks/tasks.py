@@ -198,6 +198,13 @@ async def update_player_metric_thresholds_task(db: asyncpg.Connection) -> None:
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
+        except TimeoutError:
+            logger.error(
+                f"バトルアーカイブ移管がタイムアウトしました (デフォルト保存期間)。"
+                f"本日は {total_archived:,}件まで移管して中断します。"
+            )
+            timed_out = True
+            break
 
         batch_count = result or 0
 
@@ -208,28 +215,27 @@ async def update_player_metric_thresholds_task(db: asyncpg.Connection) -> None:
         logger.info(f"バトルアーカイブ進行中 (デフォルト保存期間): 今回 {batch_count:,}件 / 累計 {total_archived:,}件")
 
         # [この部分は公開用リポジトリでは非公開にされています]
+                except TimeoutError:
+                    logger.error(
+                        f"バトルアーカイブ移管がタイムアウトしました (カスタム保存期間: {player_tag})。"
+                        f"本日は {total_archived:,}件まで移管して中断します。"
+                    )
+                    timed_out = True
+                    break
 
-        batch_count = result or 0
-        if batch_count > 0:
-            total_archived += batch_count
-            logger.info(f"バトルアーカイブ進行中 (カスタム保存期間: {player_tag}): {batch_count:,}件")
+                batch_count = result or 0
+                if batch_count == 0:
+                    break
 
-    return total_archived
-
-
-
-async def _purge_old_archived_battles(db: asyncpg.Connection) -> int:
-    """
-    アーカイブテーブルから保存期限を過ぎたバトルを完全削除する。
-    判定基準はバトル日時（datetime）。
-    
-    Returns:
-        int: 完全削除した合計件数
-    """
-    total_purged = 0
-
-    while True:
-        # [この部分は公開用リポジトリでは非公開にされています]
+                total_archived += batch_count
+                logger.info(f"バトルアーカイブ進行中 (カスタム保存期間: {player_tag}): {batch_count:,}件")
+                # [この部分は公開用リポジトリでは非公開にされています]
+        except TimeoutError:
+            logger.error(
+                f"古いアーカイブ削除がタイムアウトしました。"
+                f"本日は {total_purged:,}件まで削除して中断します。"
+            )
+            break
 
         batch_count = result or 0
 
@@ -240,6 +246,12 @@ async def _purge_old_archived_battles(db: asyncpg.Connection) -> int:
         logger.info(f"古いアーカイブ削除進行中: 今回 {batch_count:,}件 / 累計 {total_purged:,}件")
 
         await asyncio.sleep(0.5)
+
+    if total_purged >= PURGE_DAILY_LIMIT:
+        logger.warning(
+            f"古いアーカイブ削除が日次上限 ({PURGE_DAILY_LIMIT:,}件) に達したため中断しました。"
+            f"残りは翌日以降に削除します。"
+        )
 
     return total_purged
 
@@ -260,6 +272,12 @@ async def _restore_battles_from_archive(db: asyncpg.Connection) -> int:
     total_restored = 0
 
     # [この部分は公開用リポジトリでは非公開にされています]
+            except TimeoutError:
+                logger.error(
+                    f"バトル復元がタイムアウトしました ({player_tag})。"
+                    f"本日は {total_restored:,}件まで復元して中断します。"
+                )
+                return total_restored
 
             batch_count = result or 0
 

@@ -15,6 +15,7 @@ from app.background_tasks.tasks import (
     sync_user_view_data_from_redis,
     update_accessory_stats_task,
     archive_expired_battles_task,
+    purge_old_archived_battles_task,
     demote_inactive_players,
     cleanup_expired_profile_images_task,
     update_player_metric_thresholds_task
