@@ -1,34 +1,98 @@
 import redis.asyncio as redis # 非同期版Redisクライアント
 import json
 import asyncio
+import time
 from typing import Optional, Any
+from redis.exceptions import BusyLoadingError, ConnectionError as RedisConnectionError
 from app.core.config import settings
 from app.core.logger import logger
 
 # Redis接続プールを保持するグローバル変数
 redis_pool: Optional[redis.Redis] = None # 型ヒントを修正
 
+# unattended-upgrades 等で Redis が再起動し、2.7GB 級の RDB をロードする観測値（停止~50秒+ロード~20秒）に余裕を持たせる
+_CONNECT_RETRY_SECONDS = 90.0
+_CONNECT_RETRY_INTERVAL = 2.0
+_TRANSIENT_LOG_INTERVAL = 10.0
+_last_transient_log_at = 0.0
+_suppressed_transient_logs = 0
+
+
+def _is_transient_redis_error(e: Exception) -> bool:
+    """再起動・RDBロード中など、短時間で解消する Redis エラーかどうか。"""
+    if isinstance(e, (BusyLoadingError, RedisConnectionError)):
+        return True
+    msg = str(e)
+    return (
+        "Buffer is closed" in msg
+        or "Connection closed" in msg
+        or "loading the dataset in memory" in msg
+        or "Connection reset by peer" in msg
+        or "Connection refused" in msg
+    )
+
+
+def _log_transient_redis_warning(message: str) -> None:
+    """高頻度の一時エラーを 10 秒に1回へ間引く。"""
+    global _last_transient_log_at, _suppressed_transient_logs
+    now = time.monotonic()
+    elapsed = now - _last_transient_log_at
+    if elapsed >= _TRANSIENT_LOG_INTERVAL:
+        omitted = ""
+        if _suppressed_transient_logs:
+            omitted = f"（直前 {elapsed:.0f}秒で {_suppressed_transient_logs}件を省略）"
+            _suppressed_transient_logs = 0
+        logger.warning(f"{message}{omitted}")
+        _last_transient_log_at = now
+        return
+    _suppressed_transient_logs += 1
+
+
+async def _discard_redis_client(client: redis.Redis | None) -> None:
+    if client is None:
+        return
+    try:
+        await asyncio.wait_for(client.close(), timeout=2.0)
+    except Exception:
+        pass
+
+
 async def connect_redis():
     """Redis接続プールを初期化する"""
     global redis_pool
-    if redis_pool is None:
+    if redis_pool is not None:
+        return
+
+    deadline = time.monotonic() + _CONNECT_RETRY_SECONDS
+    attempt = 0
+    while True:
+        attempt += 1
+        client: redis.Redis | None = None
         try:
-            # redis.asyncio.from_url を使うとURL形式で設定できる
-            # または個別にhost, portなどを指定
-            redis_pool = redis.Redis(
+            client = redis.Redis(
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
                 password=settings.REDIS_PASSWORD,
                 db=settings.REDIS_DB,
                 decode_responses=False # バイト列で取得・設定するためFalseに（JSONシリアライズのため）
             )
-            await redis_pool.ping() # 接続確認
-            logger.info(f"Redis接続プールを確立しました: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
+            await client.ping()
+            redis_pool = client
+            suffix = f"（{attempt}回目で成功）" if attempt > 1 else ""
+            logger.info(f"Redis接続プールを確立しました: {settings.REDIS_HOST}:{settings.REDIS_PORT}{suffix}")
+            return
         except Exception as e:
-            logger.error(f"Redis接続プールの確立に失敗しました: {e}", exc_info=True)
+            await _discard_redis_client(client)
             redis_pool = None
-            raise RuntimeError(f"Failed to connect to Redis: {e}") # 接続失敗時はNoneのまま
-            # 必要に応じてここでアプリケーションの起動を中止するなどの処理も検討
+            remaining = deadline - time.monotonic()
+            if _is_transient_redis_error(e) and remaining > 0:
+                logger.warning(
+                    f"Redis接続を待機します ({attempt}回目, 残り約{remaining:.0f}秒): {e}"
+                )
+                await asyncio.sleep(min(_CONNECT_RETRY_INTERVAL, remaining))
+                continue
+            logger.error(f"Redis接続プールの確立に失敗しました: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to connect to Redis: {e}") from e
 
 async def close_redis():
     """Redis接続プールを閉じる"""
@@ -49,20 +113,16 @@ def get_redis() -> Optional[redis.Redis]: # 型ヒントを修正
     if redis_pool is None:
         # アプリケーション起動時に connect_redis が呼ばれているはずなので、
         # ここで None の場合は問題がある
-        logger.warning("Redis接続が利用できません。connect_redisが呼び出されていません。")
+        _log_transient_redis_warning(
+            "Redis接続が利用できません。connect_redisが呼び出されていないか、再起動待ちです。"
+        )
     return redis_pool
-
-
-def _is_redis_closed_error(e: Exception) -> bool:
-    """シャットダウン中の切断など、想定内の Redis 切断エラーかどうか。"""
-    msg = str(e)
-    return "Buffer is closed" in msg or "Connection closed" in msg
 
 
 def _log_cache_error(operation: str, e: Exception, *, key: str | None = None, prefix: str | None = None) -> None:
     ident = f"key: {key}" if key is not None else f"prefix: {prefix}"
-    if _is_redis_closed_error(e):
-        logger.warning(f"Redis{operation}中に接続が閉じていました ({ident}): {e}")
+    if _is_transient_redis_error(e):
+        _log_transient_redis_warning(f"Redis{operation}中に一時的なエラー ({ident}): {e}")
         return
     logger.error(f"Redis{operation}中にエラー ({ident}): {e}", exc_info=True)
 
