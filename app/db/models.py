@@ -254,13 +254,6 @@ class Player(Base):
         Index('idx_players_level_updated_at', 'level', 'last_updated_at'),
         Index('idx_players_lower_name', func.lower("name")),
 
-        Index(
-            'idx_gin_players_previous_names_path_ops',
-            'previous_names',
-            postgresql_using='gin',
-            # キー付き containment 用。$.* の値検索には使えない
-            postgresql_ops={'previous_names': 'jsonb_path_ops'}
-        ),
         # 改名前検索: 値配列への @> 用。jsonb_path_exists / @? '$.*' では Seq Scan になる
         Index(
             'idx_gin_players_previous_name_values',

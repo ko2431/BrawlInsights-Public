@@ -48,11 +48,11 @@
         {% if lang == "ja" %}
             ・検索結果の画面で、「？」のプレイヤーアイコン、または初期クラブアイコンが表示されていたり、トロフィーの値が「不明」となっていたりすることがあります。これは負荷軽減のための措置です。プレイヤーの閲覧後は正しいアイコンとトロフィーの値が反映されます。
             <div class="line-space"></div>
-            ・<b>改名前の名前を含めて検索</b>で検索対象となる改名前の名前は、各プレイヤープロフィールページで閲覧できる改名履歴の範囲と同じです。
+            ・<b>改名前の名前を含めて検索</b>で検索対象となる改名前の名前は、各プレイヤープロフィールページで閲覧できる改名履歴の範囲と同じです。ただし、負荷軽減のため、改名前の名前は完全一致のみで検索されます。
         {% else %}
             ・In the search results screen, you may see a "?" player icon, an initial/default club icon, or a trophy count listed as "Unknown". This is an intentional measure to reduce server load. After viewing the player’s details, the correct icons and trophy count will be updated.
             <div class="line-space"></div>
-            ・The names included when <b>include previous names</b> is enabled are limited to those shown in the name history on each player's profile page.
+            ・The names included when <b>include previous names</b> is enabled are limited to those shown in the name history on each player's profile page. However, for performance reasons, previous names are only searched for exact matches.
         {% endif %}
     </div>
 
