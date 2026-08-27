@@ -258,8 +258,17 @@ class Player(Base):
             'idx_gin_players_previous_names_path_ops',
             'previous_names',
             postgresql_using='gin',
-            # jsonb_path_existsを高速化するための専用opsを指定
+            # キー付き containment 用。$.* の値検索には使えない
             postgresql_ops={'previous_names': 'jsonb_path_ops'}
+        ),
+        # 改名前検索: 値配列への @> 用。jsonb_path_exists / @? '$.*' では Seq Scan になる
+        Index(
+            'idx_gin_players_previous_name_values',
+            text("jsonb_path_query_array(previous_names, '$.*'::jsonpath)"),
+            postgresql_using='gin',
+            postgresql_ops={
+                "jsonb_path_query_array(previous_names, '$.*'::jsonpath)": 'jsonb_path_ops'
+            },
         ),
     )
 
