@@ -1,5 +1,6 @@
 from fastapi import Request
 import logging
+import re
 import colorlog
 import time
 import os
@@ -9,21 +10,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from app.core.config import settings
 
-
-def _silence_websocket_framework_loggers():
-    for logger_name in (
-        "uvicorn.access",
-        "uvicorn.protocols.websockets",
-        "uvicorn.protocols.websockets.websockets_impl",
-        "websockets",
-        "websockets.server",
-    ):
-        logging.getLogger(logger_name).setLevel(logging.WARNING)
-
-def setup_worker_logger():
-    os.makedirs("logs", exist_ok=True)
-
-    # [この部分は公開用リポジトリでは非公開にされています]
+# [この部分は公開用リポジトリでは非公開にされています]
     _silence_websocket_framework_loggers()
 
     # [この部分は公開用リポジトリでは非公開にされています]
