@@ -3,6 +3,7 @@ import asyncpg
 import datetime
 import heapq
 import math
+from typing import Any
 
 from app.core.logger import logger
 from app.core.config import settings
@@ -267,6 +268,9 @@ async def update_player_metric_thresholds_task(db: asyncpg.Connection) -> None:
         )
 
     return total_purged
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 async def _restore_battles_from_archive(db: asyncpg.Connection) -> int:

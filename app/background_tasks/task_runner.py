@@ -40,6 +40,7 @@ _JST = ZoneInfo("Asia/Tokyo")
 QUIET_HOURS_END_HOUR_JST = 8
 BACKUP_HOUR_JST = 3
 PRESTIGE_CATCHUP_WINDOW_SEC = 15 * 60
+INTERRUPTED_NOTIFY_AFTER_SEC = 2 * 60 * 60
 
 _owned_run_ids: set[int] = set()
 _inflight_tasks: dict[int, asyncio.Task[Any]] = {}
@@ -485,7 +486,7 @@ def _get_handler(task_key: str):
     return handlers.get(task_key)
 
 
-async def _invoke_handler(handler, *, db=None, ctx: TaskContext | None = None) -> None:
+async def _invoke_handler(handler, *, db=None, ctx: TaskContext | None = None) -> Any:
     kwargs: dict[str, Any] = {}
     try:
         if "ctx" in signature(handler).parameters:
@@ -493,9 +494,8 @@ async def _invoke_handler(handler, *, db=None, ctx: TaskContext | None = None) -
     except (TypeError, ValueError):
         pass
     if db is None:
-        await handler(**kwargs)
-    else:
-        await handler(db, **kwargs)
+        return await handler(**kwargs)
+    return await handler(db, **kwargs)
 
 
 async def _run_interval_handler(task: TaskDef, handler) -> None:
@@ -677,144 +677,7 @@ async def _claim_next_run(*, allow_heavy: bool, heavy_only: bool = False) -> dic
                         heavy_keys,
                     ) is not None
                 worker_id = current_worker_id()
-                # PostgreSQL では LIMIT のあとに FOR UPDATE を置く。逆だと syntax error になり、
-                # queued のまま永遠に消化されない。
-                if heavy_only:
-                    claimed = await db.fetchrow(
-                        """
-                        WITH picked AS (
-                            SELECT id
-                            FROM worker_task_runs
-                            WHERE status = 'queued' AND task_key = ANY($1::text[])
-                            ORDER BY id
-                            LIMIT 1
-                            FOR UPDATE SKIP LOCKED
-                        )
-                        UPDATE worker_task_runs AS target
-                        SET status = 'running',
-                            started_at = NOW(),
-                            heartbeat_at = NOW(),
-                            worker_id = $2
-                        FROM picked
-                        WHERE target.id = picked.id
-                        RETURNING target.*
-                        """,
-                        heavy_keys,
-                        worker_id,
-                    )
-                elif (not allow_heavy or heavy_running) and heavy_keys:
-                    claimed = await db.fetchrow(
-                        """
-                        WITH picked AS (
-                            SELECT id
-                            FROM worker_task_runs
-                            WHERE status = 'queued' AND NOT (task_key = ANY($1::text[]))
-                            ORDER BY id
-                            LIMIT 1
-                            FOR UPDATE SKIP LOCKED
-                        )
-                        UPDATE worker_task_runs AS target
-                        SET status = 'running',
-                            started_at = NOW(),
-                            heartbeat_at = NOW(),
-                            worker_id = $2
-                        FROM picked
-                        WHERE target.id = picked.id
-                        RETURNING target.*
-                        """,
-                        heavy_keys,
-                        worker_id,
-                    )
-                else:
-                    claimed = await db.fetchrow(
-                        """
-                        WITH picked AS (
-                            SELECT id
-                            FROM worker_task_runs
-                            WHERE status = 'queued'
-                            ORDER BY id
-                            LIMIT 1
-                            FOR UPDATE SKIP LOCKED
-                        )
-                        UPDATE worker_task_runs AS target
-                        SET status = 'running',
-                            started_at = NOW(),
-                            heartbeat_at = NOW(),
-                            worker_id = $1
-                        FROM picked
-                        WHERE target.id = picked.id
-                        RETURNING target.*
-                        """,
-                        worker_id,
-                    )
-                return dict(claimed) if claimed is not None else None
-    except asyncpg.UndefinedTableError:
-        logger.error("worker_task_runs テーブルがありません。マイグレーションを適用してください。")
-        return None
-    except Exception as e:
-        logger.error(f"キュー済みタスクの取得に失敗しました: {e}", exc_info=True)
-        return None
-
-
-async def _execute_run(run: dict[str, Any], shutdown_event: asyncio.Event) -> None:
-    global _heavy_run_id
-    task_key = run["task_key"]
-    run_id = int(run["id"])
-    task = get_task(task_key)
-    handler = _get_handler(task_key)
-    ctx = TaskContext(run_id, shutdown_event)
-    _owned_run_ids.add(run_id)
-    heavy_token: str | None = None
-    heartbeat_task = asyncio.create_task(ctx.heartbeat_loop(), name=f"heartbeat-{run_id}")
-
-    try:
-        if handler is None:
-            raise RuntimeError(f"未登録のタスクです: {task_key}")
-
-        is_heavy = bool(task and task.kind == TaskKind.DAILY_HEAVY)
-        if is_heavy:
-            heavy_token = await _acquire_heavy_lock()
-            if not heavy_token:
-                logger.info(f"重いタスク '{task_key}' は排他ロックを取れなかったため待機に戻します (run_id={run_id})。")
-                async with get_db_connection_for_bg_task() as db:
-                    await db.execute(
-                        """
-                        UPDATE worker_task_runs
-                        SET status = 'queued', started_at = NULL, heartbeat_at = NULL, worker_id = NULL
-                        WHERE id = $1 AND status = 'running'
-                        """,
-                        run_id,
-                    )
-                _owned_run_ids.discard(run_id)
-                await asyncio.sleep(2)
-                return
-            ctx.heavy_lock_token = heavy_token
-            _heavy_run_id = run_id
-
-        checkpoint = await fetch_resumable_checkpoint(task_key, run_id)
-        if checkpoint:
-            await ctx.set_progress(
-                checkpoint=checkpoint,
-                message="前回の checkpoint から再開します",
-            )
-        elif task is not None:
-            await ctx.set_progress(step="running", message=f"{task.name_ja} を実行中です")
-        logger.info(f"タスク '{task_key}' の実行を開始します (run_id={run_id})。")
-
-        if task is None or task.needs_db:
-            async with get_db_connection_for_bg_task() as db:
-                await _invoke_handler(handler, db=db, ctx=ctx)
-        else:
-            await _invoke_handler(handler, ctx=ctx)
-
-        await ctx.mark_success()
-        logger.info(f"タスク '{task_key}' が完了しました (run_id={run_id})。")
-    except asyncio.CancelledError:
-        await ctx.mark_interrupted("ワーカー停止により中断されました")
-        logger.warning(f"タスク '{task_key}' がキャンセルされました (run_id={run_id})。")
-    except Exception as e:
-        await ctx.mark_failed(str(e))
-        logger.error(f"タスク '{task_key}' が失敗しました (run_id={run_id}): {e}", exc_info=True)
+                # [この部分は公開用リポジトリでは非公開にされています]
     finally:
         heartbeat_task.cancel()
         try:

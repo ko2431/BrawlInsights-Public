@@ -1,9 +1,9 @@
+import asyncio
 import asyncpg
 import datetime
 import json
 from typing import Any, TypedDict
 import bcrypt
-import asyncio
 
 from app.exceptions.custom_exceptions import DataBaseError
 from app.core.logger import logger

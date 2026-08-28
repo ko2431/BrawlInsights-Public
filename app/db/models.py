@@ -480,7 +480,7 @@ class BrawlerAccessoryStats(Base):
 class PlayerBrawlerDB(Base):
     """
     プレイヤーの所持キャラクター情報を格納するテーブル。
-    level 10以上のプレイヤーのみデータを保存する。
+    level 20以上のプレイヤーのみデータを保存する。
     """
     __tablename__ = 'player_brawlers'
 

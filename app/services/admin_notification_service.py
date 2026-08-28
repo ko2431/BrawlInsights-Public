@@ -54,6 +54,7 @@ ADMIN_PATH_SLUG_TO_CATEGORY = {
     "pins": "pins",
     "regions": "regions",
     "secretquestions": "secretquestions",
+    # [この部分は公開用リポジトリでは非公開にされています]
 }
 
 
@@ -131,6 +132,7 @@ EVENT_CATALOG: tuple[AdminNotificationEvent, ...] = (
     AdminNotificationEvent("region_updated", "regions", "地域情報変更", 10, "/admin/regions"),
     AdminNotificationEvent("secretquestion_created", "secretquestions", "秘密の質問追加", 10, "/admin/secretquestions"),
     AdminNotificationEvent("secretquestion_updated", "secretquestions", "秘密の質問変更", 10, "/admin/secretquestions"),
+    # [この部分は公開用リポジトリでは非公開にされています]
 )
 
 EVENT_BY_KEY: dict[str, AdminNotificationEvent] = {event.key: event for event in EVENT_CATALOG}
@@ -162,6 +164,7 @@ CATEGORY_LABELS: dict[str, str] = {
     "pins": "ピンズ情報管理",
     "regions": "地域情報管理",
     "secretquestions": "秘密の質問管理",
+    # [この部分は公開用リポジトリでは非公開にされています]
 }
 
 
