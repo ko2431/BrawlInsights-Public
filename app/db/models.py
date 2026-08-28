@@ -525,7 +525,8 @@ class PlayerBrawlerDB(Base):
 class Accessory(Base):
     """
     アクセサリー（ガジェット・スターパワー・ギア・ハイパーチャージ）のマスターデータ。
-    PlayerBrawlerデータから自動で追加され、日本語名や説明文は管理者が後から入力する。
+    PlayerBrawlerデータから自動で追加され、日本語名・説明文・クールダウンはワーカーがBSInfoから同期する。
+    説明文はパワーレベル11の代表値を保存する。
     """
     __tablename__ = 'accessories'
 
@@ -534,12 +535,12 @@ class Accessory(Base):
     type = Column(Text, nullable=False)              # "gadget" / "starPower" / "gear" / "hyperCharge"
     rarity = Column(Integer, nullable=True)          # ギア用レア度
     en = Column(Text, nullable=False)                # 英語名 (Title Case: "Spark Plug")
-    ja = Column(Text, nullable=True)                 # 日本語名 (管理者が後から入力)
-    description_en = Column(Text, nullable=True)     # 英語説明文 (管理者が手動入力)
-    description_ja = Column(Text, nullable=True)     # 日本語説明文 (管理者が手動入力)
-    buffie_description_en = Column(Text, nullable=True)  # バフィー有効時の英語説明文
-    buffie_description_ja = Column(Text, nullable=True)  # バフィー有効時の日本語説明文
-    cooldown = Column(Integer, nullable=True)        # クールダウン秒数 (ガジェット専用、管理者が入力)
+    ja = Column(Text, nullable=True)                 # 日本語名 (BSInfo同期)
+    description_en = Column(Text, nullable=True)     # 英語説明文 (BSInfo同期、パワー11)
+    description_ja = Column(Text, nullable=True)     # 日本語説明文 (BSInfo同期、パワー11)
+    buffie_description_en = Column(Text, nullable=True)  # バフィー有効時の英語説明文 (BSInfo同期、パワー11)
+    buffie_description_ja = Column(Text, nullable=True)  # バフィー有効時の日本語説明文 (BSInfo同期、パワー11)
+    cooldown = Column(Integer, nullable=True)        # クールダウン秒数 (ガジェット専用、BSInfo同期)
     is_invalid = Column(Boolean, nullable=False, server_default='False')  # ゲーム内削除などで表示対象外にするフラグ
 
 

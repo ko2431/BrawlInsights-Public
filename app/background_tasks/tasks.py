@@ -13,6 +13,7 @@ from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.services.brawl_service import Brawler, get_available_brawlers, record_prestige_borders, get_player, insert_new_players_from_rankings, update_ranked_stats, calculate_and_save_accessory_stats, calculate_and_save_skin_stats, calculate_and_save_battle_card_stats, calculate_and_save_player_icon_stats, TEAM_3V3_COEF, TEAM_3V3_COEF_OVER10000, TEAM_3V3_COEF_OVER30000, TEAM_3V3_COEF_OVER60000, SOLO_COEF, SOLO_COEF_OVER1000, SOLO_COEF_OVER3000, SOLO_COEF_OVER6000, DUO_COEF, DUO_COEF_OVER2000, DUO_COEF_OVER6000, DUO_COEF_OVER12000
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import fill_slugs_from_legacy_modes, sync_maps_and_modes_from_bsinfo
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services.user_service import record_usage_stats
 from app.services.profile_image_renderer import PROFILE_IMAGE_OUTPUT_DIR
 from app.services.rating_service import (
@@ -83,6 +84,9 @@ async def check_new_maps_and_modes_task(db: asyncpg.Connection, ctx=None) -> Non
     except Exception as e:
         logger.error(f"マップ/モード同期タスクでエラーが発生しました: {e}", exc_info=True)
         raise
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
