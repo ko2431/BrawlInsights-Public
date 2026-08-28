@@ -38,9 +38,17 @@ from app.utils.utils import parse_utc_datetime
                 # [この部分は公開用リポジトリでは非公開にされています]
                 
                 logger.info(f"今回のプレイヤーアップデート処理では、{len(tags)}人のプレイヤーがアップデート対象です。1回あたりの待ち時間は{waiting_time:.2f}秒です。")
+                if ctx is not None:
+                    await ctx.set_progress(
+                        step="updating",
+                        current=0,
+                        total=len(tags),
+                        waiting_time_sec=round(waiting_time, 2),
+                        message=f"0/{len(tags)}人",
+                    )
                 brawlstarsapierror_count = 0
                 
-                for tag in tags:
+                for index, tag in enumerate(tags, start=1):
                     # [この部分は公開用リポジトリでは非公開にされています]
 
                 logger.info(f"プレイヤーアップデート処理(1ループ)が完了しました。次のループに進みます。")
@@ -48,14 +56,19 @@ from app.utils.utils import parse_utc_datetime
                 
             except asyncio.CancelledError:
                 logger.info("プレイヤーアップデートタスクループがキャンセルされました。")
-                break # [この部分は公開用リポジトリでは非公開にされています]
+                raise
+            
+            except asyncpg.PostgresError as db_err:
+                logger.error(f"プレイヤーアップデートタスクループ DBエラー: {db_err}", exc_info=True)
+                # [この部分は公開用リポジトリでは非公開にされています]
         
         logger.info("ガチバトル統計のアップデートタスクが完了しました")
     except asyncio.CancelledError:
         logger.warning("使用統計・ガチバトル統計のアップデートタスクがキャンセルされました。")
-        return
+        raise
     except Exception as e:
         logger.error(f"使用統計・ガチバトル統計のアップデートタスクでエラーが発生しました: {e}", exc_info=True)
+        raise
 
 
 async def check_new_maps_and_modes_task(db: asyncpg.Connection) -> None:
@@ -72,9 +85,10 @@ async def check_new_maps_and_modes_task(db: asyncpg.Connection) -> None:
         logger.info(f"ランキングから新しいプレイヤー追加のタスクが完了しました。{count}人のプレイヤーを追加しました。")
     except asyncio.CancelledError:
         logger.warning("マップ/モード同期・ランキングから新しいプレイヤー追加のタスクがキャンセルされました。")
-        return
+        raise
     except Exception as e:
         logger.error(f"マップ/モード同期・ランキングから新しいプレイヤー追加のタスクでエラーが発生しました: {e}", exc_info=True)
+        raise
 
 
 async def update_prestige_borders_task(db: asyncpg.Connection) -> None:
@@ -86,8 +100,10 @@ async def update_prestige_borders_task(db: asyncpg.Connection) -> None:
 
     except asyncio.CancelledError:
         logger.warning("ユーザー閲覧データの同期タスクがキャンセルされました。")
+        raise
     except Exception as e:
         logger.error(f"ユーザー閲覧データの同期タスクで予期せぬエラーが発生しました: {e}", exc_info=True)
+        raise
 
 
 async def update_accessory_stats_task(db: asyncpg.Connection) -> None:
@@ -192,9 +208,10 @@ async def update_player_metric_thresholds_task(db: asyncpg.Connection) -> None:
         logger.info("プレイヤー評価指標の閾値集計タスクが完了しました。")
     except asyncio.CancelledError:
         logger.warning("プレイヤー評価指標の閾値集計タスクがキャンセルされました。")
-        return
+        raise
     except Exception as e:
         logger.error(f"プレイヤー評価指標の閾値集計タスクでエラーが発生しました: {e}", exc_info=True)
+        raise
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -303,8 +320,10 @@ async def demote_inactive_players() -> None:
         # [この部分は公開用リポジトリでは非公開にされています]
     except asyncpg.PostgresError as e:
         logger.error(f"プレイヤーレベル降格処理中にDBエラー: {e}", exc_info=True)
+        raise
     except Exception as e:
         logger.error(f"プレイヤーレベル降格処理中に予期せぬエラー: {e}", exc_info=True)
+        raise
 
 
 async def cleanup_expired_profile_images_task(db: asyncpg.Connection) -> None:
@@ -319,5 +338,7 @@ async def cleanup_expired_profile_images_task(db: asyncpg.Connection) -> None:
             logger.info("クリーンアップ対象の期限切れプロフィール画像はありませんでした。")
     except asyncio.CancelledError:
         logger.warning("期限切れプロフィール画像のクリーンアップタスクがキャンセルされました。")
+        raise
     except Exception as e:
         logger.error(f"期限切れプロフィール画像のクリーンアップタスクでエラーが発生しました: {e}", exc_info=True)
+        raise

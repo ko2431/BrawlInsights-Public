@@ -1303,3 +1303,45 @@ class AdminNotificationCategoryRead(Base):
     admin_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
     category = Column(Text, primary_key=True)
     visited_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class WorkerTaskRun(Base):
+    """
+    バックグラウンドワーカーのタスク実行台帳。
+    APScheduler はメモリ上のため、成否・進捗・手動実行キューはここを正とする。
+    """
+    __tablename__ = 'worker_task_runs'
+
+    id = Column(Integer, primary_key=True)
+    task_key = Column(Text, nullable=False)
+    status = Column(Text, nullable=False)
+    trigger = Column(Text, nullable=False)
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    heartbeat_at = Column(DateTime(timezone=True), nullable=True)
+    progress = Column(JSONB, nullable=False, server_default='{}')
+    result = Column(JSONB, nullable=True)
+    error_message = Column(Text, nullable=True)
+    worker_id = Column(Text, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'running', 'success', 'failed', 'interrupted', 'skipped')",
+            name='ck_worker_task_runs_status',
+        ),
+        CheckConstraint(
+            "trigger IN ('cron', 'manual', 'catchup', 'resume', 'startup')",
+            name='ck_worker_task_runs_trigger',
+        ),
+        Index('ix_worker_task_runs_task_key_id', 'task_key', desc('id')),
+        Index('ix_worker_task_runs_status_id', 'status', 'id'),
+        Index(
+            'uq_worker_task_runs_inflight',
+            'task_key',
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+    )

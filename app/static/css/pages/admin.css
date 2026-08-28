@@ -962,3 +962,89 @@ a.admin-notification-card--unread:hover {
 .data-table.catalog-table tr.changed td {
     background-color: rgba(255, 0, 0, 0.06);
 }
+
+.worker-task-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+.worker-task-card {
+    background: var(--bg-fdfdfd);
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.dark .worker-task-card {
+    background: #262626;
+    border-color: #363636;
+}
+.worker-task-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.worker-task-card__title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.3;
+}
+.worker-task-card__schedule,
+.worker-task-card__desc,
+.worker-task-card__status,
+.worker-task-card__meta,
+.worker-task-card__progress-text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+}
+.worker-task-card__desc {
+    color: #666;
+}
+.dark .worker-task-card__desc {
+    color: #bbb;
+}
+.worker-task-card__error {
+    margin: 0;
+    font-size: 13px;
+    color: #b42318;
+    word-break: break-all;
+}
+.dark .worker-task-card__error {
+    color: #fca5a5;
+}
+.worker-task-card__run {
+    margin-top: 4px;
+    align-self: flex-start;
+    border-radius: 10px;
+}
+.worker-task-progress {
+    height: 8px;
+    background: #eee;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.dark .worker-task-progress {
+    background: #3a3a3a;
+}
+.worker-task-progress__bar {
+    height: 100%;
+    background: #3b82f6;
+}
+.worker-task-message--ok {
+    color: #157347;
+}
+.worker-task-message--ng {
+    color: #b42318;
+}
+.dark .worker-task-message--ok {
+    color: #86efac;
+}
+.dark .worker-task-message--ng {
+    color: #fca5a5;
+}

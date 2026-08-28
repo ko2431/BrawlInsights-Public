@@ -1,0 +1,142 @@
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('workerTaskAdmin', () => withAdminFilterCollapse({
+                tasks: {{ task_summaries | tojson }},
+                runMessage: '',
+                runSuccess: true,
+                runningKey: null,
+                pollTimer: null,
+                applied: {},
+                draft: {
+                    task_key: '{{ task_key }}',
+                    status_filter: '{{ status_filter }}',
+                },
+                filterDefaults: {
+                    task_key: 'all',
+                    status_filter: 'all',
+                },
+
+                init() {
+                    this.initFilters({{ applied_filters | tojson }});
+                    this.pollTimer = setInterval(() => this.poll(), 8000);
+                },
+
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+
+                kindColor(kind) {
+                    return {
+                        always_on: 'purple',
+                        interval_light: 'blue',
+                        daily_light: 'green',
+                        daily_heavy: 'orange',
+                    }[kind] || 'gray';
+                },
+
+                isBusy(task) {
+                    const status = task.latest && task.latest.status;
+                    return status === 'queued' || status === 'running';
+                },
+
+                async poll() {
+                    try {
+                        const response = await fetch("{{ url_for('admin_worker_tasks_api', lang=lang) }}", {
+                            headers: { "Accept": "application/json" },
+                        });
+                        const data = await response.json();
+                        if (data.success && Array.isArray(data.tasks)) {
+                            this.tasks = data.tasks;
+                        }
+                    } catch (error) {
+                    }
+                },
+
+                async runTask(task) {
+                    if (this.isBusy(task) || this.runningKey) return;
+                    if (task.is_heavy && !confirm(task.name_ja + ' は完了まで時間がかかる場合があります。実行しますか？')) {
+                        return;
+                    }
+                    this.runningKey = task.key;
+                    this.runMessage = '';
+                    try {
+                        let force = false;
+                        if (task.success_today && task.once_per_day) {
+                            if (!confirm(task.name_ja + ' は本日すでに成功しています。上書き実行しますか？')) {
+                                this.runningKey = null;
+                                return;
+                            }
+                            force = true;
+                        }
+                        const response = await fetch("{{ url_for('admin_run_worker_task', lang=lang) }}", {
+                            method: 'POST',
+                            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                            body: JSON.stringify({ task_key: task.key, force }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok && data.reason === 'already_succeeded_today' && !force) {
+                            if (confirm(data.message || '本日すでに成功しています。上書き実行しますか？')) {
+                                const retry = await fetch("{{ url_for('admin_run_worker_task', lang=lang) }}", {
+                                    method: 'POST',
+                                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                                    body: JSON.stringify({ task_key: task.key, force: true }),
+                                });
+                                const retryData = await retry.json();
+                                this.runSuccess = Boolean(retryData.success);
+                                this.runMessage = retryData.message || '';
+                            } else {
+                                this.runningKey = null;
+                                return;
+                            }
+                        } else {
+                            this.runSuccess = Boolean(data.success);
+                            this.runMessage = data.message || '';
+                        }
+                        await this.poll();
+                    } catch (error) {
+                        this.runSuccess = false;
+                        this.runMessage = '実行リクエストに失敗しました。';
+                    } finally {
+                        this.runningKey = null;
+                    }
+                },
+
+                get canSubmitFilters() {
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+
+                normalizedDraft() {
+                    return this.normalizeFilters(this.draft);
+                },
+
+                normalizedApplied() {
+                    return this.normalizeFilters(this.applied);
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        task_key: filters.task_key || 'all',
+                        status_filter: filters.status_filter || 'all',
+                    };
+                },
+
+                submitFilters() {
+                    const params = new URLSearchParams();
+                    const normalized = this.normalizedDraft();
+                    if (normalized.task_key !== 'all') params.set('task_key', normalized.task_key);
+                    if (normalized.status_filter !== 'all') params.set('status_filter', normalized.status_filter);
+                    const query = params.toString();
+                    window.location.href = "{{ url_for('admin_worker_tasks', lang=lang) }}" + (query ? ('?' + query) : '');
+                },
+            }, 'worker-tasks'));
+        });
+    </script>
+{% endblock %}
