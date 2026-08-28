@@ -60,7 +60,7 @@
                     }
                 },
 
-                async runTask(task) {
+                async runTask(task, resume = false) {
                     if (this.isBusy(task) || this.runningKey) return;
                     if (task.is_heavy && !confirm(task.name_ja + ' は完了まで時間がかかる場合があります。実行しますか？')) {
                         return;
@@ -69,7 +69,7 @@
                     this.runMessage = '';
                     try {
                         let force = false;
-                        if (task.success_today && task.once_per_day) {
+                        if (!resume && task.success_today && task.once_per_day) {
                             if (!confirm(task.name_ja + ' は本日すでに成功しています。上書き実行しますか？')) {
                                 this.runningKey = null;
                                 return;
@@ -79,7 +79,7 @@
                         const response = await fetch("{{ url_for('admin_run_worker_task', lang=lang) }}", {
                             method: 'POST',
                             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                            body: JSON.stringify({ task_key: task.key, force }),
+                            body: JSON.stringify({ task_key: task.key, force, resume }),
                         });
                         const data = await response.json();
                         if (!response.ok && data.reason === 'already_succeeded_today' && !force) {

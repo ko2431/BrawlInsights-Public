@@ -638,6 +638,18 @@ async def search_players_fast(
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
+
+async def warmup_ranked_stats_caches(
+    db: asyncpg.Connection,
+    target_date: datetime.date,
+    ctx: Any = None,
+) -> None:
+    """当日分のガチバトル統計キャッシュをウォームアップする。
+
+    中断再開時は checkpoint と Redis の既存キーを飛ばす。新規実行では再計算する。
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
+
 def _invert_result(result: str) -> str:
     """勝敗を反転させるヘルパー関数"""
     if result == 'w': return 'l'

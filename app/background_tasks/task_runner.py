@@ -5,7 +5,9 @@ import os
 import secrets
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from inspect import signature
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import asyncpg
 
@@ -30,7 +32,14 @@ DISPATCH_POLL_SEC = 1.0
 MAX_LIGHT_INFLIGHT = 4
 HEAVY_LOCK_KEY = "lock:worker_task:heavy"
 HEAVY_LOCK_TTL_SEC = 90
+TASK_SUCCESS_ALIASES: dict[str, tuple[str, ...]] = {}
+LEGACY_TASK_NAME_JA: dict[str, str] = {}
+# [この部分は公開用リポジトリでは非公開にされています]
 ERROR_MESSAGE_MAX_LEN = 2000
+_JST = ZoneInfo("Asia/Tokyo")
+QUIET_HOURS_END_HOUR_JST = 8
+BACKUP_HOUR_JST = 3
+PRESTIGE_CATCHUP_WINDOW_SEC = 15 * 60
 
 _owned_run_ids: set[int] = set()
 _inflight_tasks: dict[int, asyncio.Task[Any]] = {}
@@ -113,12 +122,20 @@ class TaskContext:
     def __init__(self, run_id: int, shutdown_event: asyncio.Event | None = None) -> None:
         self.run_id = run_id
         self.shutdown_event = shutdown_event
+        self.heavy_lock_token: str | None = None
         self._progress: dict[str, Any] = {}
         self._lock = asyncio.Lock()
 
     @property
     def should_stop(self) -> bool:
         return bool(self.shutdown_event and self.shutdown_event.is_set())
+
+    def get_checkpoint(self) -> dict[str, Any]:
+        checkpoint = self._progress.get("checkpoint")
+        return dict(checkpoint) if isinstance(checkpoint, dict) else {}
+
+    async def save_checkpoint(self, **kwargs: Any) -> None:
+        await self.set_progress(checkpoint={**self.get_checkpoint(), **kwargs})
 
     async def set_progress(self, **kwargs: Any) -> None:
         async with self._lock:
@@ -152,6 +169,8 @@ class TaskContext:
                             """,
                             self.run_id,
                         )
+                    if self.heavy_lock_token:
+                        await _refresh_heavy_lock(self.heavy_lock_token)
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
@@ -187,7 +206,7 @@ async def _finish_run(
                     result = COALESCE($3, result),
                     error_message = $4,
                     progress = CASE
-                        WHEN progress->>'message' LIKE '%を実行中です' THEN (progress - 'message')
+                        WHEN $2 = 'success' THEN (COALESCE(progress, '{}'::jsonb) - 'message')
                         ELSE progress
                     END
                 WHERE id = $1 AND status IN ('queued', 'running')
@@ -210,7 +229,11 @@ async def interrupt_all_running_for_startup() -> int:
     try:
         redis_client = get_redis()
         if redis_client:
-            await redis_client.delete(HEAVY_LOCK_KEY)
+            await redis_client.delete(
+                HEAVY_LOCK_KEY,
+                "lock:archive_expired_battles",
+                "lock:purge_old_archived_battles",
+            )
     except Exception as e:
         logger.warning(f"重いタスクの Redis ロック削除に失敗しました: {e}")
 
@@ -275,17 +298,18 @@ async def recover_stale_runs() -> int:
 
 async def _has_success_today(db: asyncpg.Connection, task_key: str) -> bool:
     start, end = utc_day_bounds()
+    keys = [task_key, *TASK_SUCCESS_ALIASES.get(task_key, ())]
     found = await db.fetchval(
         """
         SELECT 1
         FROM worker_task_runs
-        WHERE task_key = $1
+        WHERE task_key = ANY($1::text[])
           AND status = 'success'
           AND finished_at >= $2
           AND finished_at < $3
         LIMIT 1
         """,
-        task_key,
+        keys,
         start,
         end,
     )
@@ -353,6 +377,77 @@ async def enqueue_task(
         return EnqueueResult(False, None, "error")
 
 
+def _as_jst(now: datetime) -> datetime:
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(_JST)
+
+
+def in_quiet_hours(now: datetime | None = None) -> bool:
+    return _as_jst(now or datetime.now(timezone.utc)).hour < QUIET_HOURS_END_HOUR_JST
+
+
+def in_backup_window(now: datetime | None = None) -> bool:
+    return _as_jst(now or datetime.now(timezone.utc)).hour == BACKUP_HOUR_JST
+
+
+def in_prestige_catchup_window(now: datetime | None = None) -> bool:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    scheduled = now.replace(hour=7, minute=59, second=0, microsecond=0)
+    return abs((now - scheduled).total_seconds()) <= PRESTIGE_CATCHUP_WINDOW_SEC
+
+
+def is_cron_due_today(task: TaskDef, now: datetime | None = None) -> bool:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    if task.cron_hour_utc is None:
+        return False
+    scheduled = now.replace(
+        hour=task.cron_hour_utc,
+        minute=task.cron_minute_utc,
+        second=0,
+        microsecond=0,
+    )
+    return now >= scheduled
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def fetch_resumable_checkpoint(task_key: str, current_run_id: int) -> dict[str, Any]:
+    try:
+        async with get_db_connection_for_bg_task() as db:
+            row = await db.fetchrow(
+                """
+                SELECT status, progress, started_at
+                FROM worker_task_runs
+                WHERE task_key = $1 AND id < $2
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                task_key,
+                current_run_id,
+            )
+    except Exception:
+        return {}
+    if not row or row["status"] not in ("interrupted", "failed"):
+        return {}
+    started_at = row["started_at"]
+    if started_at is None:
+        return {}
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    start, end = utc_day_bounds()
+    if not (start <= started_at < end):
+        return {}
+    progress = row["progress"] or {}
+    checkpoint = progress.get("checkpoint") if isinstance(progress, dict) else None
+    return dict(checkpoint) if isinstance(checkpoint, dict) else {}
+
+
 async def start_player_update_run(shutdown_event: asyncio.Event) -> TaskContext | None:
     await recover_stale_runs()
     try:
@@ -388,6 +483,19 @@ def _get_handler(task_key: str):
     }
     # [この部分は公開用リポジトリでは非公開にされています]
     return handlers.get(task_key)
+
+
+async def _invoke_handler(handler, *, db=None, ctx: TaskContext | None = None) -> None:
+    kwargs: dict[str, Any] = {}
+    try:
+        if "ctx" in signature(handler).parameters:
+            kwargs["ctx"] = ctx
+    except (TypeError, ValueError):
+        pass
+    if db is None:
+        await handler(**kwargs)
+    else:
+        await handler(db, **kwargs)
 
 
 async def _run_interval_handler(task: TaskDef, handler) -> None:
@@ -660,10 +768,10 @@ async def _execute_run(run: dict[str, Any], shutdown_event: asyncio.Event) -> No
     heartbeat_task = asyncio.create_task(ctx.heartbeat_loop(), name=f"heartbeat-{run_id}")
 
     try:
-        if task is None or handler is None:
+        if handler is None:
             raise RuntimeError(f"未登録のタスクです: {task_key}")
 
-        is_heavy = task.kind == TaskKind.DAILY_HEAVY
+        is_heavy = bool(task and task.kind == TaskKind.DAILY_HEAVY)
         if is_heavy:
             heavy_token = await _acquire_heavy_lock()
             if not heavy_token:
@@ -680,16 +788,24 @@ async def _execute_run(run: dict[str, Any], shutdown_event: asyncio.Event) -> No
                 _owned_run_ids.discard(run_id)
                 await asyncio.sleep(2)
                 return
+            ctx.heavy_lock_token = heavy_token
             _heavy_run_id = run_id
 
-        await ctx.set_progress(step="running", message=f"{task.name_ja} を実行中です")
+        checkpoint = await fetch_resumable_checkpoint(task_key, run_id)
+        if checkpoint:
+            await ctx.set_progress(
+                checkpoint=checkpoint,
+                message="前回の checkpoint から再開します",
+            )
+        elif task is not None:
+            await ctx.set_progress(step="running", message=f"{task.name_ja} を実行中です")
         logger.info(f"タスク '{task_key}' の実行を開始します (run_id={run_id})。")
 
-        if task.needs_db:
+        if task is None or task.needs_db:
             async with get_db_connection_for_bg_task() as db:
-                await handler(db)
+                await _invoke_handler(handler, db=db, ctx=ctx)
         else:
-            await handler()
+            await _invoke_handler(handler, ctx=ctx)
 
         await ctx.mark_success()
         logger.info(f"タスク '{task_key}' が完了しました (run_id={run_id})。")
@@ -792,7 +908,9 @@ def _row_to_public_dict(row: asyncpg.Record | None) -> dict[str, Any] | None:
         duration_sec = max(0.0, (end - started_at).total_seconds())
     progress = row["progress"] or {}
     progress_text = progress.get("message") if isinstance(progress, dict) else None
-    if (
+    if row["status"] == "success":
+        progress_text = None
+    elif (
         row["status"] != "running"
         and isinstance(progress_text, str)
         and progress_text.endswith("を実行中です")
@@ -863,7 +981,9 @@ async def fetch_task_summaries(db: asyncpg.Connection) -> list[dict[str, Any]]:
                 "schedule_ja": task.schedule_ja,
                 "description_ja": task.description_ja,
                 "is_heavy": task.kind == TaskKind.DAILY_HEAVY,
-                "success_today": task.key in success_today,
+                "success_today": task.key in success_today or any(
+                    alias in success_today for alias in TASK_SUCCESS_ALIASES.get(task.key, ())
+                ),
                 "next_scheduled_at": next_at,
                 "latest": latest,
             }

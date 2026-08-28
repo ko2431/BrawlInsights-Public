@@ -49,7 +49,7 @@ def _build_tasks() -> dict[str, TaskDef]:
             needs_db=True,
             schedule_ja="15分ごと",
             description_ja="期限切れのプロフィール画像ファイルとDBパスを削除します。",
-            display_order=10,
+            display_order=12,
             interval_minutes=15,
         ),
     ]

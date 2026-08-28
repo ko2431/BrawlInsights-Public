@@ -10,6 +10,7 @@ from app.core.cache import get_redis, set_cache
 from app.db.db import get_db_connection_for_bg_task
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.services.brawl_service import Brawler, get_available_brawlers, record_prestige_borders, get_player, insert_new_players_from_rankings, update_ranked_stats, calculate_and_save_accessory_stats, calculate_and_save_skin_stats, calculate_and_save_battle_card_stats, calculate_and_save_player_icon_stats, TEAM_3V3_COEF, TEAM_3V3_COEF_OVER10000, TEAM_3V3_COEF_OVER30000, TEAM_3V3_COEF_OVER60000, SOLO_COEF, SOLO_COEF_OVER1000, SOLO_COEF_OVER3000, SOLO_COEF_OVER6000, DUO_COEF, DUO_COEF_OVER2000, DUO_COEF_OVER6000, DUO_COEF_OVER12000
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import fill_slugs_from_legacy_modes, sync_maps_and_modes_from_bsinfo
 from app.services.user_service import record_usage_stats
 from app.services.profile_image_renderer import PROFILE_IMAGE_OUTPUT_DIR
@@ -61,34 +62,29 @@ from app.utils.utils import parse_utc_datetime
             except asyncpg.PostgresError as db_err:
                 logger.error(f"プレイヤーアップデートタスクループ DBエラー: {db_err}", exc_info=True)
                 # [この部分は公開用リポジトリでは非公開にされています]
-        
-        logger.info("ガチバトル統計のアップデートタスクが完了しました")
-    except asyncio.CancelledError:
-        logger.warning("使用統計・ガチバトル統計のアップデートタスクがキャンセルされました。")
-        raise
-    except Exception as e:
-        logger.error(f"使用統計・ガチバトル統計のアップデートタスクでエラーが発生しました: {e}", exc_info=True)
-        raise
 
 
-async def check_new_maps_and_modes_task(db: asyncpg.Connection) -> None:
-    """BSInfoからマップ/モードを同期し、ランキングから新しいプレイヤーを追加するタスク。"""
-    logger.info("マップ/モード同期・ランキングから新しいプレイヤー追加のタスクを開始します")
+async def check_new_maps_and_modes_task(db: asyncpg.Connection, ctx=None) -> None:
+    """BSInfoからマップ/モードを同期する。旧キー maps_modes_and_rankings では続けてランキング追加も行う。"""
+    logger.info("マップ/モード同期タスクを開始します")
     try:
+        if ctx is not None:
+            await ctx.set_progress(step="maps_modes", message="マップ/モードを同期中です")
         sync_result = await sync_maps_and_modes_from_bsinfo(db)
         logger.info(f"マップ/モード同期が完了しました: {sync_result}")
         slug_filled = await fill_slugs_from_legacy_modes(db)
         if slug_filled:
             logger.info(f"legacy slug を {slug_filled} 件補完しました")
-
-        count = await insert_new_players_from_rankings(db)
-        logger.info(f"ランキングから新しいプレイヤー追加のタスクが完了しました。{count}人のプレイヤーを追加しました。")
+        logger.info("マップ/モード同期タスクが完了しました")
     except asyncio.CancelledError:
-        logger.warning("マップ/モード同期・ランキングから新しいプレイヤー追加のタスクがキャンセルされました。")
+        logger.warning("マップ/モード同期タスクがキャンセルされました。")
         raise
     except Exception as e:
-        logger.error(f"マップ/モード同期・ランキングから新しいプレイヤー追加のタスクでエラーが発生しました: {e}", exc_info=True)
+        logger.error(f"マップ/モード同期タスクでエラーが発生しました: {e}", exc_info=True)
         raise
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 async def update_prestige_borders_task(db: asyncpg.Connection) -> None:
@@ -106,7 +102,7 @@ async def update_prestige_borders_task(db: asyncpg.Connection) -> None:
         raise
 
 
-async def update_accessory_stats_task(db: asyncpg.Connection) -> None:
+async def update_accessory_stats_task(db: asyncpg.Connection, ctx=None) -> None:
     """アクセサリー（ガジェット・スターパワー・ギア）の所持率を計算・保存するタスク"""
     # [この部分は公開用リポジトリでは非公開にされています]
 
