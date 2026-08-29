@@ -50,6 +50,6 @@ CARD_ASSETS: dict[tuple[str, int], dict] = {
     ("bingo1", 4): {"pool": [_spray(68000641), _spray(68000572), _spray(68000675), _spray(68000671), _spray(68000357), _spray(68000355)]},
     ("bingo1", 5): {"pool": [_spray(68000351), _spray(68000352), _spray(68000566), _spray(68000560), _spray(68000561), _spray(68000569)]},
     ("bingo1", 6): {"pool": [_spray(68000728), _spray(68000722), _spray(68000723), _spray(68000727), _spray(68000726), _spray(68000497)]},
-    ("bingo1", 7): {"pool": [_spray(68000080), _spray(68000061), _spray(68000079), _spray(68000081), _spray(68000062), _spray(68000004)]},
+    ("bingo1", 7): {"pool": [_spray(68000095), _spray(68000096), _spray(68000097), _spray(68000102), _spray(68000115)]},
     ("bingo1", 8): {"pool": [_spray(68000664), _spray(68000671), _spray(68000666), _spray(68000683), _spray(68000694)]},
 }
