@@ -183,6 +183,7 @@
                     <th class="col-main-account">メインアカウント</th>
                     <th @click="sortBy('tokens')" class="col-numeric sortable-header"><span>トークン数</span><span x-show="sortColumn === 'tokens'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('tickets')" class="col-numeric sortable-header"><span>チケット数</span><span x-show="sortColumn === 'tickets'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    <th @click="sortBy('elixirs')" class="col-numeric sortable-header"><span>エリクサー数</span><span x-show="sortColumn === 'elixirs'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th class="col-list">プレイヤーブックマーク</th>
                     <th @click="sortBy('saved_accounts_limit')" class="col-limit sortable-header"><span>上限</span><span x-show="sortColumn === 'saved_accounts_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th class="col-list">プレイヤー閲覧履歴</th>
@@ -235,6 +236,9 @@
                     <td class="col-limit">
                         <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('ad_skip_tickets')}" x-model.number="ad_skip_tickets" step="1">
                     </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('auto_track_elixirs')}" x-model.number="auto_track_elixirs" step="1">
+                    </td>
                     <td class="col-list">
                         <div class="col-list-content" x-html="getJoinedTagsHtml('saved_accounts')"></div>
                     </td>
@@ -285,7 +289,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="29" style="text-align: center; color: #777;">ユーザーはいません。</td>
+                    <td colspan="30" style="text-align: center; color: #777;">ユーザーはいません。</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -490,7 +494,7 @@
                 saved_accounts: [], saved_accounts_limit: 0, viewed_accounts: [], viewed_accounts_limit: 0,
                 saved_clubs: [], saved_clubs_limit: 0, viewed_clubs: [], viewed_clubs_limit: 0,
                 is_delete_ads: false, is_admin: false, is_invalid: false, is_prohibit_posting: false,
-                custom_settings_str: '{}', pv_count: 0, tokens: 0, ad_skip_tickets: 0, token_limit: null, token_claim_count: 0,
+                custom_settings_str: '{}', pv_count: 0, tokens: 0, ad_skip_tickets: 0, auto_track_elixirs: 0, token_limit: null, token_claim_count: 0,
                 last_claim_date: '', ticket_claim_count: 0, last_ticket_claim_date: '', secret_questions: {},
                 isCustomSettingsValid: true,
 
@@ -506,7 +510,7 @@
 
                     const watchableProperties = [
                         'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'is_delete_ads', 'is_admin',
-                        'is_invalid', 'is_prohibit_posting', 'custom_settings_str', 'token_limit', 'tokens', 'ad_skip_tickets'
+                        'is_invalid', 'is_prohibit_posting', 'custom_settings_str', 'token_limit', 'tokens', 'ad_skip_tickets', 'auto_track_elixirs'
                     ];
 
                     watchableProperties.forEach(key => {
@@ -530,7 +534,8 @@
                         custom_settings: this.initial.custom_settings,
                         token_limit: this.initial.token_limit,
                         tokens: this.initial.tokens,
-                        ad_skip_tickets: this.initial.ad_skip_tickets
+                        ad_skip_tickets: this.initial.ad_skip_tickets,
+                        auto_track_elixirs: this.initial.auto_track_elixirs
                     };
                     return JSON.stringify(initialData) !== JSON.stringify(currentData);
                 },
@@ -539,7 +544,7 @@
                     const initialValue = this.initial[field];
                     let currentValue = this[field];
 
-                    if (['token_limit', 'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'tokens', 'ad_skip_tickets'].includes(field)) {
+                    if (['token_limit', 'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'tokens', 'ad_skip_tickets', 'auto_track_elixirs'].includes(field)) {
                         const initialValForComp = initialValue === null || initialValue === undefined ? null : Number(initialValue);
                         const currentValForComp = currentValue === '' || currentValue === null || currentValue === undefined ? null : Number(currentValue);
                         return initialValForComp !== currentValForComp;
@@ -563,10 +568,14 @@
                     }
                     const tokens = this.tokens === '' || this.tokens === null ? null : Number(this.tokens);
                     const tickets = this.ad_skip_tickets === '' || this.ad_skip_tickets === null ? null : Number(this.ad_skip_tickets);
+                    const elixirs = this.auto_track_elixirs === '' || this.auto_track_elixirs === null ? null : Number(this.auto_track_elixirs);
                     if (tokens === null || !Number.isInteger(tokens)) {
                         return false;
                     }
                     if (tickets === null || !Number.isInteger(tickets)) {
+                        return false;
+                    }
+                    if (elixirs === null || !Number.isInteger(elixirs)) {
                         return false;
                     }
                     return true;
@@ -613,7 +622,8 @@
                         custom_settings: this.custom_settings_str,
                         token_limit: this.token_limit === '' || this.token_limit === null ? null : Number(this.token_limit),
                         tokens: Number(this.tokens),
-                        ad_skip_tickets: Number(this.ad_skip_tickets)
+                        ad_skip_tickets: Number(this.ad_skip_tickets),
+                        auto_track_elixirs: Number(this.auto_track_elixirs)
                     };
                 },
 
@@ -638,7 +648,8 @@
                         custom_settings: parsedCustomSettings,
                         token_limit: this.token_limit === '' || this.token_limit === null ? null : Number(this.token_limit),
                         tokens: this.tokens === '' || this.tokens === null ? null : Number(this.tokens),
-                        ad_skip_tickets: this.ad_skip_tickets === '' || this.ad_skip_tickets === null ? null : Number(this.ad_skip_tickets)
+                        ad_skip_tickets: this.ad_skip_tickets === '' || this.ad_skip_tickets === null ? null : Number(this.ad_skip_tickets),
+                        auto_track_elixirs: this.auto_track_elixirs === '' || this.auto_track_elixirs === null ? null : Number(this.auto_track_elixirs)
                     };
                 }
             }));

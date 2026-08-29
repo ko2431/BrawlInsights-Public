@@ -113,9 +113,11 @@ async def extend_player_retention(
         message = "保存期間は既に上限に達しています。" if lang == "ja" else "Storage period has already reached the maximum."
         return JSONResponse({"success": False, "message": message}, status_code=400)
 
-    # 4. トークンが足りるかチェック
-    COST = 100
-    if current_user.tokens < COST:
+    # 4. エリクサーまたはトークンが足りるかチェック
+    TOKEN_COST = 100
+    ELIXIR_COST = 240
+    use_elixir = (current_user.auto_track_elixirs or 0) >= ELIXIR_COST
+    if not use_elixir and current_user.tokens < TOKEN_COST:
         message = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
         return JSONResponse({"success": False, "message": message}, status_code=400)
 
@@ -123,17 +125,24 @@ async def extend_player_retention(
     new_months = min(current_months + 1, MAX_BATTLE_LOG_RETENTION_MONTHS)
     try:
         async with db.transaction():
-            # 6. トークンを消費
-            success_spend = await current_user.spend_tokens(db, COST)
-            if not success_spend:
-                raise ValueError("トークン不足により処理を中断しました。")
+            if use_elixir:
+                success_spend = await current_user.spend_elixirs(db, ELIXIR_COST)
+                if not success_spend:
+                    raise ValueError("エリクサー不足により処理を中断しました。")
+            else:
+                success_spend = await current_user.spend_tokens(db, TOKEN_COST)
+                if not success_spend:
+                    raise ValueError("トークン不足により処理を中断しました。")
 
             # 7. 保存期間を更新
             await extend_battle_log_retention(db=db, tag=formatted_tag, new_months=new_months)
 
     except ValueError as e:
         logger.warning(f"バトル履歴保存期間の延長処理を中断 (User: {current_user.name}): {e}")
-        message = "トークンが足りません。" if lang == "ja" else "Not enough tokens."
+        if use_elixir:
+            message = "エリクサーが足りません。" if lang == "ja" else "Not enough elixir."
+        else:
+            message = "トークンが足りません。" if lang == "ja" else "Not enough tokens."
         return JSONResponse({"success": False, "message": message}, status_code=400)
     except Exception as e:
         logger.error(f"バトル履歴保存期間の延長処理中にエラー (User: {current_user.name}, Player: {player.tag}): {e}", exc_info=True)

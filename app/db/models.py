@@ -61,6 +61,7 @@ class User(Base):
     token_limit = Column(Integer, nullable=True)
     token_claim_count = Column(Integer, server_default='0')
     ad_skip_tickets = Column(Integer, nullable=False, server_default='0')
+    auto_track_elixirs = Column(Integer, nullable=False, server_default='0')
     ticket_claim_count = Column(Integer, nullable=False, server_default='0')
     last_ticket_claim_date = Column(Date, nullable=True)
     last_advance_mission_date = Column(Date, nullable=True)

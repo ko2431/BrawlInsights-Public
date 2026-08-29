@@ -1257,6 +1257,11 @@ async def _grant_items(db: asyncpg.Connection, user: User, items: list[dict[str,
             granted["before_tokens"] = before_tokens
             granted["after_tokens"] = user.tokens
             granted["converted_to_tokens"] = bool(user.is_delete_ads)
+        elif kind == "auto_track_elixir":
+            before_elixirs = user.auto_track_elixirs or 0
+            await user.claim_elixirs(db, int(item["amount"]))
+            granted["before_elixirs"] = before_elixirs
+            granted["after_elixirs"] = user.auto_track_elixirs
         elif kind == "auto_track_extend":
             if not user.main_account:
                 raise ValueError("Main account is required.")
@@ -1406,6 +1411,11 @@ def format_prize_label(items: list[dict[str, Any]], lang: str) -> str:
             labels.append(
                 f"{amount}広告スキップチケット" if lang == "ja" else f"{amount} Ad Skip Ticket{'s' if amount != 1 else ''}"
             )
+        elif kind == "auto_track_elixir":
+            amount = int(item["amount"])
+            labels.append(
+                f"{amount}自動追跡エリクサー" if lang == "ja" else f"{amount} Auto-Tracking Elixir{'s' if amount != 1 else ''}"
+            )
         elif kind == "auto_track_extend":
             duration = (
                 _format_duration_ja(int(item.get("days", 0) or 0), int(item.get("hours", 0) or 0))
@@ -1437,11 +1447,37 @@ def format_prize_label(items: list[dict[str, Any]], lang: str) -> str:
                 labels.append(f"{token_amount}トークン + {ticket_amount}チケット")
             else:
                 labels.append(f"{token_amount} Tokens + {ticket_amount} Tickets")
+        elif kind == "token_and_elixir":
+            token_amount = int(item.get("token_amount", 0) or 0)
+            elixir_amount = int(item.get("elixir_amount", 0) or 0)
+            if lang == "ja":
+                labels.append(f"{token_amount}トークン + {elixir_amount}自動追跡エリクサー")
+            else:
+                labels.append(f"{token_amount} Tokens + {elixir_amount} Auto-Tracking Elixir{'s' if elixir_amount != 1 else ''}")
+        elif kind == "ticket_and_elixir":
+            ticket_amount = int(item.get("ticket_amount", 0) or 0)
+            elixir_amount = int(item.get("elixir_amount", 0) or 0)
+            if lang == "ja":
+                labels.append(f"{ticket_amount}広告スキップチケット + {elixir_amount}自動追跡エリクサー")
+            else:
+                labels.append(
+                    f"{ticket_amount} Ad Skip Ticket{'s' if ticket_amount != 1 else ''} + {elixir_amount} Auto-Tracking Elixir{'s' if elixir_amount != 1 else ''}"
+                )
+        elif kind == "token_and_ticket_and_elixir":
+            token_amount = int(item.get("token_amount", 0) or 0)
+            ticket_amount = int(item.get("ticket_amount", 0) or 0)
+            elixir_amount = int(item.get("elixir_amount", 0) or 0)
+            if lang == "ja":
+                labels.append(f"{token_amount}トークン + {ticket_amount}広告スキップチケット + {elixir_amount}自動追跡エリクサー")
+            else:
+                labels.append(
+                    f"{token_amount} Tokens + {ticket_amount} Ad Skip Ticket{'s' if ticket_amount != 1 else ''} + {elixir_amount} Auto-Tracking Elixir{'s' if elixir_amount != 1 else ''}"
+                )
     if not labels:
         return ""
     if len(labels) == 1:
         return labels[0]
-    if all(i.get("type") in {"token", "ad_skip_ticket"} for i in items):
+    if all(i.get("type") in {"token", "ad_skip_ticket", "auto_track_elixir"} for i in items):
         return " + ".join(labels)
     return " / ".join(labels)
 
@@ -1575,6 +1611,11 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
         for tier in tiers
         for item in tier.get("items", [])
     )
+    needs_elixir = any(
+        item.get("type") == "auto_track_elixir"
+        for tier in tiers
+        for item in tier.get("items", [])
+    )
     if needs_main:
         main_note = _message(
             lang,
@@ -1583,6 +1624,13 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
             f'Auto-tracking / battle log retention rewards are granted to your main account (<b>{main_account_name}</b>).<br>'
             f'<a href="/{lang}/help/automatic_acquisition" class="info-block__link">What is player auto-tracking?</a>',
         )
+    if needs_elixir:
+        elixir_link = _message(
+            lang,
+            f'<a href="#elixir" class="info-block__link">自動追跡エリクサーとは？</a>',
+            f'<a href="#elixir" class="info-block__link">What is Auto-Tracking Elixir?</a>',
+        )
+        main_note = f"{main_note}<br>{elixir_link}" if main_note else elixir_link
 
     return {"lead": lead, "legend": legend, "note": note, "main_account_note": main_note}
 

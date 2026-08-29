@@ -37,6 +37,8 @@ async def _clear_user_caches(user_id: int) -> None:
 
 TICKET_SELL_TOKEN_RATE = 6
 _TICKET_SELL_PRESETS = (1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30)
+ELIXIR_SELL_DIVISOR = 3
+_ELIXIR_SELL_PRESETS = (3, 6, 9, 12, 15, 21, 30, 45, 60, 75, 90, 120, 150, 180, 210, 240)
 
 
 def get_ticket_sell_options(held: int) -> list[int]:
@@ -50,6 +52,22 @@ def get_ticket_sell_options(held: int) -> list[int]:
         n += 10
     if held not in options:
         options.append(held)
+    return options
+
+
+def get_elixir_sell_options(held: int) -> list[int]:
+    """エリクサー売却セレクト用の個数候補を返す。3未満なら空リスト。"""
+    held = int(held or 0)
+    if held < ELIXIR_SELL_DIVISOR:
+        return []
+    options = [n for n in _ELIXIR_SELL_PRESETS if n <= held]
+    n = 270
+    while n <= held:
+        options.append(n)
+        n += 30
+    sellable_held = held - (held % ELIXIR_SELL_DIVISOR)
+    if sellable_held >= ELIXIR_SELL_DIVISOR and sellable_held not in options:
+        options.append(sellable_held)
     return options
 
 # [この部分は公開用リポジトリでは非公開にされています]

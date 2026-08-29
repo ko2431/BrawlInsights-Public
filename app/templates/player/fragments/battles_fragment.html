@@ -14,7 +14,7 @@
     </script>
 
     <script>
-        async function extendTracking10Days(playerTag, playerName, lang, userTokens) {
+        async function extendTracking10Days(playerTag, playerName, lang, userTokens, userElixirs) {
             // ログイン状態のチェック (userTokens が null かどうかで判定)
             if (userTokens === null) {
                 const alertMsg = lang === 'ja' 
@@ -24,9 +24,10 @@
                 return;
             }
 
-            const cost = 90;
-            // トークン数のチェック
-            if (userTokens < cost) {
+            const elixirCost = 216;
+            const tokenCost = 90;
+            const useElixir = userElixirs !== null && userElixirs >= elixirCost;
+            if (!useElixir && userTokens < tokenCost) {
                 const alertMsg = lang === 'ja'
                     ? `トークンが足りません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`
                     : `Not enough tokens. (You have: ${userTokens})\nFor details on how to get tokens, check the Account tab.`;
@@ -34,13 +35,15 @@
                 return;
             }
 
-            // 確認ダイアログの表示
-            const confirmMsg = lang === 'ja'
-                ? `${cost}トークン消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を10日間追加しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`
-                : `Spend ${cost} tokens to extend auto-tracking for "${playerName}" by 10 days?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+            const confirmMsg = useElixir
+                ? (lang === 'ja'
+                    ? `${elixirCost}エリクサー消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を10日間追加しますか？\n(エリクサー: ${userElixirs} → ${userElixirs - elixirCost})`
+                    : `Spend ${elixirCost} elixir to extend auto-tracking for "${playerName}" by 10 days?\n(Elixir: ${userElixirs} → ${userElixirs - elixirCost})`)
+                : (lang === 'ja'
+                    ? `${tokenCost}トークン消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を10日間追加しますか？\n(トークン数: ${userTokens} → ${userTokens - tokenCost})`
+                    : `Spend ${tokenCost} tokens to extend auto-tracking for "${playerName}" by 10 days?\n(Tokens: ${userTokens} → ${userTokens - tokenCost})`);
 
             if (confirm(confirmMsg)) {
-                // APIエンドポイントのURLを生成
                 const url = `/${lang}/player/extend-tracking-10days/${playerTag.replace('#', '')}`;
 
                 try {
@@ -48,16 +51,13 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            // CSRFトークンが必要な場合はここに追加
                         }
                     });
                     const data = await response.json();
 
-                    // 結果をアラートで表示
                     alert(data.message);
 
                     if (response.ok && data.success) {
-                        // 成功したらページをリロード
                         location.reload();
                     }
                 } catch (error) {
@@ -70,7 +70,7 @@
     </script>
 
     <script>
-        async function extendRetention(playerTag, playerName, lang, userTokens, currentMonths) {
+        async function extendRetention(playerTag, playerName, lang, userTokens, userElixirs, currentMonths) {
             if (userTokens === null) {
                 const alertMsg = lang === 'ja' 
                     ? 'この機能を利用するにはログインが必要です。\nアカウントタブより、ログインまたはアカウントを作成できます。'
@@ -79,8 +79,10 @@
                 return;
             }
 
-            const cost = 100;
-            if (userTokens < cost) {
+            const elixirCost = 240;
+            const tokenCost = 100;
+            const useElixir = userElixirs !== null && userElixirs >= elixirCost;
+            if (!useElixir && userTokens < tokenCost) {
                 const alertMsg = lang === 'ja'
                     ? `トークンが足りません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`
                     : `Not enough tokens. (You have: ${userTokens})\nFor details on how to get tokens, check the Account tab.`;
@@ -104,9 +106,13 @@
                 }
             }
 
-            const confirmMsg = lang === 'ja'
-                ? `${cost}トークン消費して、プレイヤー「${playerName}」のバトル履歴保存期間を1ヶ月延長しますか？\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(トークン数: ${userTokens} → ${userTokens - cost})`
-                : `Spend ${cost} tokens to extend battle log storage for "${playerName}" by 1 month?\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+            const confirmMsg = useElixir
+                ? (lang === 'ja'
+                    ? `${elixirCost}エリクサー消費して、プレイヤー「${playerName}」のバトル履歴保存期間を1ヶ月延長しますか？\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(エリクサー: ${userElixirs} → ${userElixirs - elixirCost})`
+                    : `Spend ${elixirCost} elixir to extend battle log storage for "${playerName}" by 1 month?\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(Elixir: ${userElixirs} → ${userElixirs - elixirCost})`)
+                : (lang === 'ja'
+                    ? `${tokenCost}トークン消費して、プレイヤー「${playerName}」のバトル履歴保存期間を1ヶ月延長しますか？\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(トークン数: ${userTokens} → ${userTokens - tokenCost})`
+                    : `Spend ${tokenCost} tokens to extend battle log storage for "${playerName}" by 1 month?\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(Tokens: ${userTokens} → ${userTokens - tokenCost})`);
 
             if (confirm(confirmMsg)) {
                 const url = `/${lang}/player/extend-retention/${playerTag.replace('#', '')}`;

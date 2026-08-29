@@ -11,7 +11,7 @@ from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, TICKET_SELL_TOKEN_RATE, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission
+from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission
 from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
 from app.services import minigame_service
 from app.services.minigame_service import (
@@ -979,6 +979,85 @@ async def sell_tickets_process(
     )
 
 
+class ElixirSellRequest(BaseModel):
+    elixir_count: int
+
+
+@router.post("/sell-elixirs", name="account_sell_elixirs")
+async def sell_elixirs_process(
+    request: Request,
+    payload: ElixirSellRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    lang = request.path_params.get("lang", "ja")
+
+    if payload.elixir_count < ELIXIR_SELL_DIVISOR or payload.elixir_count % ELIXIR_SELL_DIVISOR != 0:
+        return JSONResponse(
+            {"success": False, "message": "無効なリクエストです。" if lang == "ja" else "Invalid request."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if (current_user.auto_track_elixirs or 0) < payload.elixir_count:
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "エリクサーが足りないため、売却できません。" if lang == "ja" else "You do not have enough elixir to sell."
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    before_tokens = current_user.tokens
+
+    try:
+        sold_elixirs, converted_tokens = await current_user.convert_elixirs_to_tokens(
+            db, payload.elixir_count, ELIXIR_SELL_DIVISOR
+        )
+    except ValueError:
+        return JSONResponse(
+            {"success": False, "message": "無効なリクエストです。" if lang == "ja" else "Invalid request."},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    except DataBaseError as e:
+        logger.error(f"エリクサー売却中にデータベースエラー (User ID: {current_user.id}): {e}")
+        message = "データベースエラーが発生しました。" if lang == "ja" else "A database error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        logger.error(f"エリクサー売却中に予期せぬエラー (User ID: {current_user.id}): {e}", exc_info=True)
+        message = "予期せぬエラーが発生しました。" if lang == "ja" else "An unexpected error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if sold_elixirs < 1:
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "エリクサーが足りないため、売却できません。" if lang == "ja" else "You do not have enough elixir to sell."
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    logger.info(
+        f"{current_user.name} (ID: {current_user.id}) が{sold_elixirs}エリクサーを{converted_tokens}トークンに売却しました。"
+    )
+
+    message = (
+        f"{sold_elixirs}エリクサーを{converted_tokens}トークンに売却しました。\n(トークン数: {before_tokens} → {current_user.tokens})"
+        if lang == "ja"
+        else f"Sold {sold_elixirs} elixir for {converted_tokens} tokens.\n(Tokens: {before_tokens} -> {current_user.tokens})"
+    )
+    return JSONResponse(
+        {
+            "success": True,
+            "message": message,
+            "before_tokens": before_tokens,
+            "after_tokens": current_user.tokens,
+            "sold_elixirs": sold_elixirs,
+            "after_elixirs": current_user.auto_track_elixirs,
+            "earned_tokens": converted_tokens,
+        }
+    )
+
+
 #^ プライバシー設定関連のエンドポイント
 # 履歴の公開設定リクエストモデル ---
 class HistoryPrivacyRequest(BaseModel):
@@ -1379,6 +1458,14 @@ async def account_minigame_complete(
                             if lang == "ja"
                             else f"<br>Received {item.get('amount', 0)} tokens"
                             f" (tokens: {item.get('before_tokens')} → {item.get('after_tokens')})"
+                        )
+                    elif item.get("type") == "auto_track_elixir":
+                        grant_parts.append(
+                            f"<br>{item.get('amount', 0)}自動追跡エリクサーを受け取りました"
+                            f"（エリクサー: {item.get('before_elixirs')} → {item.get('after_elixirs')}）"
+                            if lang == "ja"
+                            else f"<br>Received {item.get('amount', 0)} Auto-Tracking Elixir(s)"
+                            f" (elixir: {item.get('before_elixirs')} → {item.get('after_elixirs')})"
                         )
                 grant_detail = "".join(grant_parts)
                 message = (
