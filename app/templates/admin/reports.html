@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) %}
+{% macro render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, target_user_name, target_user_id, target_user_ip, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="通報ページネーション">
             <ul class="pagination-list">
@@ -25,6 +25,9 @@
                 {% if user_id %}{% set _ = base_query_parts.append("user_id=" + user_id) %}{% endif %}
                 {% if user_ip %}{% set _ = base_query_parts.append("user_ip=" + (user_ip | urlencode)) %}{% endif %}
                 {% if target_type != 'all' %}{% set _ = base_query_parts.append("target_type=" + target_type) %}{% endif %}
+                {% if target_user_name %}{% set _ = base_query_parts.append("target_user_name=" + (target_user_name | urlencode)) %}{% endif %}
+                {% if target_user_id %}{% set _ = base_query_parts.append("target_user_id=" + target_user_id) %}{% endif %}
+                {% if target_user_ip %}{% set _ = base_query_parts.append("target_user_ip=" + (target_user_ip | urlencode)) %}{% endif %}
                 {% if post_id %}{% set _ = base_query_parts.append("post_id=" + post_id) %}{% endif %}
                 {% if message_id %}{% set _ = base_query_parts.append("message_id=" + message_id) %}{% endif %}
                 {% if target_content %}{% set _ = base_query_parts.append("target_content=" + (target_content | urlencode)) %}{% endif %}
@@ -125,6 +128,18 @@
             </select>
         </label>
         <label>
+            <span class="admin-filters__label-text">ターゲットユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.target_user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ターゲットユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.target_user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('target_user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">ターゲットIPアドレス</span>
+            <input class="form-input admin-filters__input" x-model="draft.target_user_ip" maxlength="45">
+        </label>
+        <label>
             <span class="admin-filters__label-text">投稿ID</span>
             <input class="form-input admin-filters__input" x-model="draft.post_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('post_id')">
         </label>
@@ -185,7 +200,7 @@
         （最大1,000件／ページ）
     </p>
 
-    {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, target_user_name, target_user_id, target_user_ip, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
 
     <div class="save-changes-block">
         <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
@@ -205,6 +220,8 @@
                     <th>ユーザー</th>
                     <th>ユーザーID / IP</th>
                     <th>ターゲット</th>
+                    <th>ターゲットユーザー</th>
+                    <th>ターゲットユーザーID / IP</th>
                     <th>投稿ID</th>
                     <th>メッセージID</th>
                     <th>ターゲット内容</th>
@@ -233,6 +250,16 @@
                             report.target_type_label,
                             {"post": "red", "message": "cyan"}.get(report.target_type, "gray")
                         ) }}
+                    </td>
+                    <td>{{ report.target_user_name if report.target_user_name else "(ゲスト)" }}</td>
+                    <td>
+                        {% if report.target_user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ report.target_user_id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.target_user_id }}</a>
+                        {% elif report.target_user_ip %}
+                            {{ report.target_user_ip }}
+                        {% endif %}
                     </td>
                     <td>
                         {% if report.post_id %}
@@ -268,7 +295,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="11" style="text-align: center; color: #777;">通報はありません。</td>
+                    <td colspan="13" style="text-align: center; color: #777;">通報はありません。</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -284,7 +311,7 @@
          x-text="saveStatus.message" style="margin-top: -5px;">
     </div>
 
-    {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, target_user_name, target_user_id, target_user_ip, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
 
     {% if platform != "web" %}
     <div class="back-button__container"
@@ -329,6 +356,9 @@
                     user_id: '',
                     user_ip: '',
                     target_type: 'all',
+                    target_user_name: '',
+                    target_user_id: '',
+                    target_user_ip: '',
                     post_id: '',
                     message_id: '',
                     target_content: '',
@@ -347,6 +377,9 @@
                     user_id: '',
                     user_ip: '',
                     target_type: 'all',
+                    target_user_name: '',
+                    target_user_id: '',
+                    target_user_ip: '',
                     post_id: '',
                     message_id: '',
                     target_content: '',
@@ -357,7 +390,7 @@
                     created_after: '',
                     created_before: '',
                 },
-                numericFields: ['report_id', 'user_id', 'post_id', 'message_id'],
+                numericFields: ['report_id', 'user_id', 'target_user_id', 'post_id', 'message_id'],
                 hasUnsavedChanges: false,
                 saveStatus: { message: '', success: false },
 
@@ -400,6 +433,9 @@
                         user_id: (filters.user_id || '').trim(),
                         user_ip: (filters.user_ip || '').trim(),
                         target_type: filters.target_type || 'all',
+                        target_user_name: (filters.target_user_name || '').trim(),
+                        target_user_id: (filters.target_user_id || '').trim(),
+                        target_user_ip: (filters.target_user_ip || '').trim(),
                         post_id: (filters.post_id || '').trim(),
                         message_id: (filters.message_id || '').trim(),
                         target_content: (filters.target_content || '').trim(),
