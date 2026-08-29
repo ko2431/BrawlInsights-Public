@@ -361,7 +361,7 @@ class PostCreateRequest(BaseModel):
     comment: str | None = None
     region: str | None = None
     conditions_application_type: str = Field(default="and")
-    chat_permission_level: int = Field(default=30)
+    chat_permission_level: int = Field(default=30)  # 受け取るがサーバー側で上書きするため未使用
     category: str | None = None
     mode: str | None = None
     hashtags: list[str] = Field(default_factory=list)
@@ -1638,7 +1638,6 @@ async def create_new_post(
             link=post_data.link,
             comment=post_data.comment,
             conditions_application_type=post_data.conditions_application_type,
-            chat_permission_level=post_data.chat_permission_level,
             category=post_data.category,
             mode=post_data.mode,
             hashtags=post_data.hashtags,
