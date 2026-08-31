@@ -250,7 +250,7 @@
                                     {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
                                 </button>
                                 <div class="player-list__item-main">
-                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費してブックマーク枠を<span x-text="userLimit + 2"></span>枠に拡張{% else %}Spend 10 tokens to expand to <span x-text="userLimit + 2"></span> slots{% endif %}</p>
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}15トークン消費してブックマーク枠を<span x-text="userLimit + 2"></span>枠に拡張{% else %}Spend 15 tokens to expand to <span x-text="userLimit + 2"></span> slots{% endif %}</p>
                                 </div>
                             </div>
                         </template>
@@ -340,7 +340,7 @@
                                     {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
                                 </button>
                                 <div class="player-list__item-main">
-                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費して閲覧履歴の表示枠を{{ current_user.viewed_accounts_limit + 3 }}枠に拡張{% else %}Spend 10 tokens to expand to {{ current_user.viewed_accounts_limit + 3 }} slots{% endif %}</p>
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}15トークン消費して閲覧履歴の表示枠を{{ current_user.viewed_accounts_limit + 3 }}枠に拡張{% else %}Spend 15 tokens to expand to {{ current_user.viewed_accounts_limit + 3 }} slots{% endif %}</p>
                                 </div>
                             </div>
                         </template>
@@ -499,7 +499,7 @@
                                     {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
                                 </button>
                                 <div class="player-list__item-main">
-                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費してブックマーク枠を<span x-text="userLimit + 2"></span>枠に拡張{% else %}Spend 10 tokens to expand to <span x-text="userLimit + 2"></span> slots{% endif %}</p>
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}15トークン消費してブックマーク枠を<span x-text="userLimit + 2"></span>枠に拡張{% else %}Spend 15 tokens to expand to <span x-text="userLimit + 2"></span> slots{% endif %}</p>
                                 </div>
                             </div>
                         </template>
@@ -586,7 +586,7 @@
                                     {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
                                 </button>
                                 <div class="player-list__item-main">
-                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}10トークン消費して閲覧履歴の表示枠を{{ current_user.viewed_clubs_limit + 3 }}枠に拡張{% else %}Spend 10 tokens to expand to {{ current_user.viewed_clubs_limit + 3 }} slots{% endif %}</p>
+                                    <p class="player-list__item--empty-text">{% if lang == "ja" %}15トークン消費して閲覧履歴の表示枠を{{ current_user.viewed_clubs_limit + 3 }}枠に拡張{% else %}Spend 15 tokens to expand to {{ current_user.viewed_clubs_limit + 3 }} slots{% endif %}</p>
                                 </div>
                             </div>
                         </template>
@@ -1013,7 +1013,7 @@
                     const userTokens = {{ current_user.tokens if current_user else 0 }};
                     const lang = '{{ lang }}';
 
-                    const cost = 10;
+                    const cost = 15;
                     let confirmMessage = '';
                     let successMessage = '';
                     const slotsToAdd = (target === 'bookmarks' || target === 'club_bookmarks') ? 2 : 3;
@@ -1021,34 +1021,34 @@
                     // --- メッセージ設定 ---
                     if (target === 'bookmarks') {
                         if (lang === 'ja') {
-                            confirmMessage = `10トークン消費して、プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `15トークン消費して、プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しました。`;
                         } else {
-                            confirmMessage = `Spend 10 tokens to expand bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `Spend 15 tokens to expand bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `Expanded bookmark slots by ${slotsToAdd}.`;
                         }
                     } else if (target === 'history') {
                         if (lang === 'ja') {
-                            confirmMessage = `10トークン消費して、プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `15トークン消費して、プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
                         } else {
-                            confirmMessage = `Spend 10 tokens to expand history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `Spend 15 tokens to expand history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `Expanded history display slots by ${slotsToAdd}.`;
                         }
                     } else if (target === 'club_bookmarks') {
                         if (lang === 'ja') {
-                            confirmMessage = `10トークン消費して、クラブのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `15トークン消費して、クラブのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `クラブのブックマーク枠を${slotsToAdd}枠拡張しました。`;
                         } else {
-                            confirmMessage = `Spend 10 tokens to expand club bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `Spend 15 tokens to expand club bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `Expanded club bookmark slots by ${slotsToAdd}.`;
                         }
                     } else if (target === 'club_history') {
                         if (lang === 'ja') {
-                            confirmMessage = `10トークン消費して、クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `15トークン消費して、クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
                         } else {
-                            confirmMessage = `Spend 10 tokens to expand club history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                            confirmMessage = `Spend 15 tokens to expand club history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
                             successMessage = `Expanded club history display slots by ${slotsToAdd}.`;
                         }
                     }

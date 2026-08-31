@@ -663,7 +663,7 @@ async def expand_slots_process(
     lang = request.path_params.get("lang", "ja")
     target = payload.target
 
-    if current_user.tokens < 10:
+    if current_user.tokens < 15:
         message = "トークンが足りないため拡張できません。" if lang == "ja" else "Not enough tokens to expand."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
 
