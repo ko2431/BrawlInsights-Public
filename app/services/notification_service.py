@@ -381,6 +381,7 @@ async def create_message_notifications(
         reply_target = await get_message(db, reply_to_message_id, include_deleted_message=True)
         if (
             reply_target
+            and not reply_target.is_deleted
             and reply_target.thread_id == thread_id
             and reply_target.user_id
             and reply_target.user_id != sender_user_id
