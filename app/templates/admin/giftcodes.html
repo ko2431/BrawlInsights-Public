@@ -26,37 +26,54 @@
         ギフトコード総数: <b>{{ giftcodes|length }}</b>
     </p>
 
-    <p class="admin-page__description">
-        <b>報酬の書き方</b> (この順番で指定すること)
-        <br>"user_id": 指定した場合、このユーザーID以外からの使用は拒絶する。
-        <br>"user_ids": 指定した場合、このユーザーID以外からの使用は拒絶する。"1,2,3"のようにカンマ区切りの文字列で指定すること。
-        <br>"user_name": 指定した場合、このユーザー名以外からの使用は拒絶する。
-        <br>"msg": ギフトコードが使用できた場合に出力するメッセージ(各言語で共通設定する場合はこれ)
-        <br>"msg_ja": 日本語でのメッセージ
-        <br>"msg_en": 英語でのメッセージ
-        <br>"claim_tokens": 指定した数のトークンを受け取る。上限にすでに達しているユーザーは受け取れない。
-        <br>"claim_tickets": 指定した数の広告スキップチケットを受け取る。広告削除が有効のユーザーは、🎟️1=10トークンの代替報酬として受け取る。
-        <br>"claim_elixirs": 指定した数の自動追跡エリクサーを受け取る。広告削除が有効のユーザーでもエリクサーとして付与される。
-        <br>"spend_tokens": 指定した数のトークンを消費する。数が足りなくて消費できない場合は使えない。
-        <br>*以下、上限を増やす系のギフトは、もともと上限がない(無制限: None)ユーザーの場合は完全にスキップする。
-        <br>"saved_accounts_limit": ブックマーク上限を指定した数だけ増やす。
-        <br>"saved_accounts_limit_max24": ブックマーク上限を指定した数だけ増やす。ただし適用後24を超えた場合は24になる。
-        <br>"viewed_accounts_limit": 閲覧履歴上限を指定した数だけ増やす。
-        <br>"viewed_accounts_limit_max25": 閲覧履歴上限を指定した数だけ増やす。ただし適用後25を超えた場合は25になる。
-        <br>"is_delete_ads": 広告非表示設定を更新する。trueまたはfalse。
-        <br>"is_admin": 管理者かどうかの設定を更新する。trueまたはfalse。
-        <br>"is_invalid": trueを指定すると、アカウントを無効化する。通常の操作では戻せないので注意！
-        <br>"is_prohibit_posting": 投稿を禁止するかどうかの設定を更新する。trueまたはfalse。
-        <br>"custom_settings": カスタム設定を上書きする。辞書で指定。
-        <br>"custom_settings_merge": カスタム設定を結合(被った項目は上書き)する。辞書で指定。
-        <br>"token_limit": トークン所持上限を指定した数だけ増やす。
-        <br>"token_limit_overwrite": トークン所持上限を上書きする。None(null)を指定すると上限なしになる。
-        <br><b>見本（トークン付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_tokens": 10}
-        <br><b>見本（チケット付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_tickets": 3}
-        <br><b>見本（エリクサー付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_elixirs": 24}
-        <br><b>見本（プレ企画）</b> {"giveaway": true, "spend_tokens": 20}
-        <br><b>見本（トークン景品）</b> {"user_ids": "1,2,3", "msg_ja": "プレゼント企画の景品受け取りが完了しました。", "msg_en": "Gift code successfully used.", "claim_tokens": 100}
-    </p>
+    <div x-data="{ open: sessionStorage.getItem('bi_admin_giftcodes_reward_help_open') === 'true' }"
+         x-init="$watch('open', val => sessionStorage.setItem('bi_admin_giftcodes_reward_help_open', val))">
+        <p class="admin-page__description" @click="open = !open" style="cursor: pointer;">
+            <b>報酬の書き方</b> (この順番で指定すること)
+            <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+        </p>
+        <div x-show="open" x-transition x-cloak style="display: none;">
+            <p class="admin-page__description" style="margin-top: 0;">
+                "user_id": 指定した場合、このユーザーID以外からの使用は拒絶する。
+                <br>"user_ids": 指定した場合、このユーザーID以外からの使用は拒絶する。"1,2,3"のようにカンマ区切りの文字列で指定すること。
+                <br>"user_name": 指定した場合、このユーザー名以外からの使用は拒絶する。
+                <br>"msg": ギフトコードが使用できた場合に出力するメッセージ(各言語で共通設定する場合はこれ)
+                <br>"msg_ja": 日本語でのメッセージ
+                <br>"msg_en": 英語でのメッセージ
+                <br>"claim_tokens": 指定した数のトークンを受け取る。上限にすでに達しているユーザーは受け取れない。
+                <br>"claim_tickets": 指定した数の広告スキップチケットを受け取る。広告削除が有効のユーザーは、🎟️1=10トークンの代替報酬として受け取る。
+                <br>"claim_elixirs": 指定した数の自動追跡エリクサーを受け取る。広告削除が有効のユーザーでもエリクサーとして付与される。
+                <br>"spend_tokens": 指定した数のトークンを消費する。数が足りなくて消費できない場合は使えない。
+                <br>*以下、上限を増やす系のギフトは、もともと上限がない(無制限: None)ユーザーの場合は完全にスキップする。
+                <br>"saved_accounts_limit": ブックマーク上限を指定した数だけ増やす。
+                <br>"saved_accounts_limit_max24": ブックマーク上限を指定した数だけ増やす。ただし適用後24を超えた場合は24になる。
+                <br>"viewed_accounts_limit": 閲覧履歴上限を指定した数だけ増やす。
+                <br>"viewed_accounts_limit_max25": 閲覧履歴上限を指定した数だけ増やす。ただし適用後25を超えた場合は25になる。
+                <br>"is_delete_ads": 広告非表示設定を更新する。trueまたはfalse。
+                <br>"is_admin": 管理者かどうかの設定を更新する。trueまたはfalse。
+                <br>"is_invalid": trueを指定すると、アカウントを無効化する。通常の操作では戻せないので注意！
+                <br>"is_prohibit_posting": 投稿を禁止するかどうかの設定を更新する。trueまたはfalse。
+                <br>"custom_settings": カスタム設定を上書きする。辞書で指定。
+                <br>"custom_settings_merge": カスタム設定を結合(被った項目は上書き)する。辞書で指定。
+                <br>"token_limit": トークン所持上限を指定した数だけ増やす。
+                <br>"token_limit_overwrite": トークン所持上限を上書きする。None(null)を指定すると上限なしになる。
+                <br>*以下は使用者のメインアカウントに対して適用する。プレイヤーが見つからない場合はそのキーをスキップする。
+                <br>"auto_track_extend": プレイヤー自動追跡の残り時間を指定時間（時間単位、小数可）だけ延長する。負の値で短縮できる。残り時間は0を下回らない。期限切れの状態で負の値を指定した場合は何も起きない。
+                <br>"auto_track_overwrite": プレイヤー自動追跡の残り時間を指定時間（時間単位、小数可）に上書きする。0で無効化。負の値は不可（スキップ）。
+                <br>"battle_log_retention": バトル履歴保存期間を指定月数（整数のみ、負可）だけ延長する。未設定時はシステムデフォルト（4ヶ月）から加算。適用後は0〜120ヶ月に収める。トークン補填はしない。
+                <br>"battle_log_retention_overwrite": バトル履歴保存期間を指定月数（整数のみ、0可、負不可）に上書きする。120を超えた値は120になる。0は未設定（デフォルト4ヶ月）とは別で、次回アーカイブ処理でそのプレイヤーのバトルが即期限切れ扱いになる。
+                <br><b>見本（トークン付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_tokens": 10}
+                <br><b>見本（チケット付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_tickets": 3}
+                <br><b>見本（エリクサー付与）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "claim_elixirs": 24}
+                <br><b>見本（プレ企画）</b> {"giveaway": true, "spend_tokens": 20}
+                <br><b>見本（トークン景品）</b> {"user_ids": "1,2,3", "msg_ja": "プレゼント企画の景品受け取りが完了しました。", "msg_en": "Gift code successfully used.", "claim_tokens": 100}
+                <br><b>見本（自動追跡延長）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "auto_track_extend": 24}
+                <br><b>見本（自動追跡上書き）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "auto_track_overwrite": 48.5}
+                <br><b>見本（保存期間延長）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "battle_log_retention": 3}
+                <br><b>見本（保存期間上書き）</b> {"msg_ja": "ギフトコードを使用しました。", "msg_en": "Gift code successfully used.", "battle_log_retention_overwrite": 12}
+            </p>
+        </div>
+    </div>
 
     {# フィルターボタン #}
     <div class="filter-buttons" style="margin-top: 15px;">

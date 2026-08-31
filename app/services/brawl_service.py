@@ -561,16 +561,45 @@ async def get_player_for_tracking_extension(tag: str, db: asyncpg.Connection) ->
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 
-async def add_auto_tracking_time(player: Player, hours: int) -> None:
+def _hours_to_timedelta(hours: float) -> datetime.timedelta:
+    """時間（小数可）を秒丸めの timedelta に変換する。
+
+    0 以外は少なくとも 1 秒の符号付き delta にする。
+    正の微小値を 0 秒に丸めると、activate 側の再計測で期限が無効化されるため。
+    """
+    seconds = round(float(hours) * 3600)
+    if hours > 0:
+        seconds = max(1, seconds)
+    elif hours < 0:
+        seconds = min(-1, seconds)
+    return datetime.timedelta(seconds=seconds)
+
+
+async def add_auto_tracking_time(player: Player, hours: float) -> None:
     """
     プレイヤーの自動追跡機能の有効期限を指定時間分、延長する。
     有効期限が設定されていない、または期限切れの場合は、現在時刻から延長する。
+    負の時間を指定した場合は期限を短縮し、過去になった場合は無効化する。
+    期限切れ／未設定の状態で 0 以下を指定した場合は何もしない。
 
     Args:
         player (Player):対象のプレイヤーオブジェクト
-        hours (int): 延長する時間
+        hours (float): 延長する時間（小数・負数可）
     """
     # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def set_auto_tracking_remaining_hours(player: Player, hours: float) -> None:
+    """
+    プレイヤーの自動追跡の残り時間を、現在時刻からの指定時間に上書きする。
+    hours が 0 以下の場合は自動追跡を無効化する。
+
+    Args:
+        player (Player): 対象のプレイヤーオブジェクト
+        hours (float): 上書き後の残り時間（小数可。0以下なら無効化）
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
+
 
 async def get_hide_history_settings(db: asyncpg.Connection, tag: str) -> tuple[bool, bool] | None:
     """指定したプレイヤータグの履歴非公開設定状況を取得する。デフォルト時間のキャッシュを使用する。

@@ -107,7 +107,7 @@ async def extend_player_retention(
 
     # 3. 現在の保存期間を取得し、上限チェック
     current_retention = await get_battle_log_retention_months(db=db, tag=formatted_tag)
-    current_months = current_retention if current_retention else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS
+    current_months = current_retention if current_retention is not None else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS
 
     if current_months >= MAX_BATTLE_LOG_RETENTION_MONTHS:
         message = "保存期間は既に上限に達しています。" if lang == "ja" else "Storage period has already reached the maximum."
