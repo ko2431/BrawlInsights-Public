@@ -187,11 +187,23 @@ class TextStyle:
 # ---------------------------------------------------------------------------
 
 def _is_skippable_char(char: str) -> bool:
-    """描画すると豆腐になりやすい不可視文字（異体字選択子など）か判定する。"""
+    """描画すると豆腐になりやすい不可視文字（異体字選択子など）か判定する。
+
+    改行は Pillow の textlength() が ValueError を送出するため、1行描画経路では捨てる。
+    """
+    if char in "\n\r":
+        return True
     code = ord(char)
     if (0xFE00 <= code <= 0xFE0F) or (0xE0100 <= code <= 0xE01EF):
         return True
     return False
+
+
+def _collapse_newlines(text: str) -> str:
+    """1行描画用に改行を空白へ畳む。"""
+    if not text or ("\n" not in text and "\r" not in text):
+        return text
+    return " ".join(line for line in text.splitlines() if line)
 
 
 def _get_font_for_char(
@@ -561,7 +573,7 @@ def draw_text(
     Returns:
         (描画幅, 描画高さ) のタプル
     """
-    text = str(text)
+    text = _collapse_newlines(str(text))
     color_mode = _normalize_color_code_mode(color_code_mode)
     parsed_chars = _parse_color_code_chars(text, enable_color_codes)
     plain_text = _chars_to_plain_text(parsed_chars)
@@ -721,7 +733,7 @@ def draw_text_ellipsis(
     Returns:
         (描画幅, 描画高さ) のタプル
     """
-    text = str(text)
+    text = _collapse_newlines(str(text))
     color_mode = _normalize_color_code_mode(color_code_mode)
 
     if enable_color_codes:

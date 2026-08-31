@@ -159,6 +159,7 @@
                                 @focus="handleFocus($el, 'name_en')"
                                 @blur="focusedField['name_en'] = false; handleBlur($el, 'name_en')"
                                 @input.debounce.300ms="handleInput($el, 'name_en')"
+                                @keydown.enter.prevent
                                 data-field="name_en"
                                 style="min-width: 120px;">
                             </td>
@@ -178,6 +179,7 @@
                                 @focus="handleFocus($el, 'name_ja')"
                                 @blur="focusedField['name_ja'] = false; handleBlur($el, 'name_ja')"
                                 @input.debounce.300ms="handleInput($el, 'name_ja')"
+                                @keydown.enter.prevent
                                 data-field="name_ja"
                                 style="min-width: 120px;">
                             </td>
@@ -536,7 +538,13 @@
 
                 handleBlur(el, key) {
                     this.focusedField[key] = false;
-                    const text = el.textContent;
+                    let text = el.textContent;
+                    if (key === 'name_en' || key === 'name_ja' || key === 'rarity') {
+                        text = text.replace(/[\r\n]+/g, ' ').replace(/[ \t]+/g, ' ').trim();
+                        if (el.textContent !== text) {
+                            el.textContent = text;
+                        }
+                    }
                     this.currentValues[key] = text;
                     this.validateField(key);
                     this._recalcState();
