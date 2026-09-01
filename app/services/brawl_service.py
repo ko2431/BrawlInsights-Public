@@ -347,6 +347,11 @@ async def get_club(tag: str, db: asyncpg.Connection, use_long_cache: bool = Fals
     cached_data = await get_cache(cache_key)
     if cached_data and use_long_cache:
         return await Club.from_dict(cached_data, db)
+
+    if await is_brawlstats_api_unavailable():
+        if cached_data:
+            return await Club.from_dict(cached_data, db)
+        raise BrawlStarsAPIError()
     
     freshness_flag = await get_cache(freshness_key)
     if not freshness_flag:
@@ -357,10 +362,10 @@ async def get_club(tag: str, db: asyncpg.Connection, use_long_cache: bool = Fals
     try:
         club = Club(tag, db)
         await club.get_club_data()
-    except (BrawlStarsAPIError, DataBaseError) as e:
+    except (BrawlStarsAPIError, DataBaseError):
         if cached_data:
             return await Club.from_dict(cached_data, db)
-        raise e
+        raise
     else:
         await set_cache(key=freshness_key, value=True, ttl=180)
         await set_cache(key=cache_key, value=club.to_dict(), ttl=1800)

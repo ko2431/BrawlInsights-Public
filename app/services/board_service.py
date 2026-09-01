@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
-from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, Club, get_club, get_club_name, get_player_icon_from_db
+from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, Club, get_club, get_club_name, get_player_icon_from_db, is_brawlstats_api_unavailable
 from app.services.user_service import User, get_region_name, get_user
 from app.utils.utils import format_utc_datetime, parse_utc_datetime, get_normalized_ip, get_icon_path, format_tag
 from app.utils.url_detect import text_contains_detected_url

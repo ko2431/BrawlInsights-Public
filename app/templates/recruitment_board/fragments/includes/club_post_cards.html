@@ -52,7 +52,7 @@
                                     <div class="post-card__host-info-stat">
                                         <img src="{{ url_for('static', path='/images/ui/member.png') }}" alt="メンバー" class="icon--stat post-card__host-info-stat-icon">
                                         <p class="post-card__host-info-stat-text">{% if lang == "ja" %}メンバー{% else %}Members{% endif %}</p>
-                                        <p class="post-card__host-info-stat-value">{{ post.data.hostclub.member_count }}</p>
+                                        <p class="post-card__host-info-stat-value">{{ post.data.hostclub.member_count if post.data.hostclub.member_count is not none else "-" }}</p>
                                     </div>
                                 </div>
                                 <div style="flex: 1;">
