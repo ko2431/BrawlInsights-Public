@@ -734,7 +734,8 @@ body.has-top-banner .chat-ad-banner-spacer {
 }
 .chat-input__textarea {
     flex: 1;
-    padding: 8px 12px;
+    padding: 7px 10px;
+    line-height: 1.45;
     border-radius: 21px;
     border: 1px solid #ccc;
     font-size: 15px;
