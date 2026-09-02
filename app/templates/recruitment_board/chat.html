@@ -258,12 +258,9 @@
                     <div class="message-bubble__content-wrapper">
                         {% if not (current_user and message.user_id == current_user.id) %}
                             {% set display_name = message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') %}
+                            {% set host_badge %}{% if message.user_id and message.user_id == post.host_id %}<span class="message-bubble__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% endset %}
                             {% set admin_badge %}{% if message.user_is_admin %}<span class="message-bubble__admin-badge">{% if lang == "ja" %}Brawl Insights 管理者{% else %}Brawl Insights Admin{% endif %}</span>{% endif %}{% endset %}
-                            {% if message.user_id and message.user_id == post.host_id %}
-                                <span class="message-bubble__user-name"><b>{{ display_name }}</b> ({% if lang == "ja" %}スレッド主{% else %}OP{% endif %}){{ admin_badge }}</span>
-                            {% else %}
-                                <span class="message-bubble__user-name">{{ display_name }}{{ admin_badge }}</span>
-                            {% endif %}
+                            <span class="message-bubble__user-name">{{ display_name }}{{ host_badge }}{{ admin_badge }}</span>
                         {% endif %}
                         <div class="message-bubble__content">{%- if message.reply_to -%}
                             {%- if message.reply_to.is_deleted -%}
@@ -271,7 +268,7 @@
                             {%- elif message.reply_to.user_id and message.reply_to.user_id in blocked_ids.user_ids -%}
                                     <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-blocked="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}ブロックしたユーザーのメッセージ{% else %}Message from a blocked user{% endif %}</span></div>
                             {%- else -%}
-                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
                             {%- endif -%}
                             {%- endif -%}<div class="message-bubble__text">{{ message.message|censor }}</div></div>
                         {# リアクション表示エリア (JSで実装) #}
@@ -1096,6 +1093,9 @@
                 }
                 const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
                 const userName = escapeHtml(replyTo.user_name || guestName);
+                const hostBadge = replyTo.user_id && replyTo.user_id === postHostId
+                    ? `<span class="message-reply-preview__host-badge">${lang === 'ja' ? 'スレッド主' : 'OP'}</span>`
+                    : '';
                 const adminBadge = replyTo.user_is_admin
                     ? `<span class="message-reply-preview__admin-badge">${lang === 'ja' ? '管理者' : 'Admin'}</span>`
                     : '';
@@ -1106,7 +1106,7 @@
                         <div class="message-reply-preview__header">
                             ${iconHtml}
                             <div class="message-reply-preview__meta">
-                                <span class="message-reply-preview__name">${userName}${adminBadge}</span>
+                                <span class="message-reply-preview__name">${userName}${hostBadge}${adminBadge}</span>
                                 <span class="message-reply-preview__text">${previewText}</span>
                             </div>
                         </div>
@@ -1239,18 +1239,16 @@
                     `;
                 }
 
-                const isHost = message.user_id && message.user_id === postHostId;
                 let userNameHtml = '';
                 if (!isSelf) {
                     const userName = escapeHtml(message.user_name || guestName);
+                    const hostBadgeHtml = message.user_id && message.user_id === postHostId
+                        ? `<span class="message-bubble__host-badge">${lang === 'ja' ? 'スレッド主' : 'OP'}</span>`
+                        : '';
                     const adminBadgeHtml = message.user_is_admin
                         ? `<span class="message-bubble__admin-badge">${lang === 'ja' ? 'Brawl Insights 管理者' : 'Brawl Insights Admin'}</span>`
                         : '';
-                    if (isHost) {
-                        userNameHtml = `<span class="message-bubble__user-name"><b>${userName}</b> (${lang === 'ja' ? 'スレッド主' : 'OP'})${adminBadgeHtml}</span>`;
-                    } else {
-                        userNameHtml = `<span class="message-bubble__user-name">${userName}${adminBadgeHtml}</span>`;
-                    }
+                    userNameHtml = `<span class="message-bubble__user-name">${userName}${hostBadgeHtml}${adminBadgeHtml}</span>`;
                 }
 
                 const timestampText = lang === 'ja' ? message.created_at_text_ja : message.created_at_text_en;

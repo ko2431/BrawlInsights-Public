@@ -389,7 +389,8 @@ body.has-top-banner .chat-ad-banner-spacer {
     margin-bottom: 1px;
     line-height: 1.25;
 }
-.message-bubble__admin-badge {
+.message-bubble__admin-badge,
+.message-bubble__host-badge {
     display: inline-block;
     margin-top: -1px;
     margin-left: 5px;
@@ -400,11 +401,19 @@ body.has-top-banner .chat-ad-banner-spacer {
     line-height: 1.4;
     vertical-align: middle;
     white-space: nowrap;
-    background-color: #e74c3c;
     color: #fff;
+}
+.message-bubble__admin-badge {
+    background-color: #e74c3c;
+}
+.message-bubble__host-badge {
+    background-color: #3498db;
 }
 .dark .message-bubble__admin-badge {
     background-color: #c0392b;
+}
+.dark .message-bubble__host-badge {
+    background-color: #2980b9;
 }
 @media (max-width: 539px) {
     .message-bubble__user-name { font-size: 12px; }
@@ -563,15 +572,27 @@ body.has-top-banner .chat-ad-banner-spacer {
 .message-bubble--self .message-reply-preview__name {
     color: rgba(255, 255, 255, 0.95);
 }
-.message-reply-preview__admin-badge {
+.message-reply-preview__admin-badge,
+.message-reply-preview__host-badge {
     display: inline-block;
     font-size: 10px;
     font-weight: 700;
     color: #fff;
-    background-color: #c90808;
     border-radius: 4px;
     padding: 1px 4px;
     line-height: 1.2;
+}
+.message-reply-preview__admin-badge {
+    background-color: #e74c3c;
+}
+.message-reply-preview__host-badge {
+    background-color: #3498db;
+}
+.dark .message-reply-preview__admin-badge {
+    background-color: #c0392b;
+}
+.dark .message-reply-preview__host-badge {
+    background-color: #2980b9;
 }
 .message-reply-preview__text {
     font-size: 12px;
