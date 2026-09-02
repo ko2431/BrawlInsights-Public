@@ -455,6 +455,15 @@
             const defaultPlayerIconPath = "{{ url_for('static', path='/images/player_icon/0.png') }}";
             // ブロック済みユーザーID（WebSocket新着のクライアント側フィルタ用。ページ再読込で最新化）
             const blockedUserIds = new Set({{ blocked_ids.user_ids | tojson }});
+            function isBlockedUserId(userId) {
+                return userId != null && blockedUserIds.has(userId);
+            }
+            // メッセージ本体と同様、リアクションもサーバーでは除外せずフロントで非表示にする
+            function visibleReactions(reactions) {
+                if (!Array.isArray(reactions) || reactions.length === 0) return [];
+                if (blockedUserIds.size === 0) return reactions;
+                return reactions.filter(r => !isBlockedUserId(r.user_id));
+            }
             let hasMoreOlderMessages = {{ 'true' if has_more_older_messages else 'false' }};
             let hasMoreNewerMessages = {{ 'true' if has_more_newer_messages else 'false' }};
             let isLoadingOlderMessages = false;
@@ -477,7 +486,7 @@
             // リアクションの状態を管理するオブジェクト
             let messageReactions = {};
             {% for msg_id, msg_data in messages.items() %}
-                messageReactions[{{ msg_id }}] = {{ msg_data.reactions | tojson }};
+                messageReactions[{{ msg_id }}] = visibleReactions({{ msg_data.reactions | tojson }});
             {% endfor %}
 
             // --- 初期化処理 ---
@@ -857,6 +866,9 @@
                             break;
                         case 'new_reaction': {
                             const reaction = data.data;
+                            if (isBlockedUserId(reaction.user_id)) {
+                                break;
+                            }
                             if (messageReactions[reaction.message_id]) {
                                 messageReactions[reaction.message_id].push(reaction);
                             } else {
@@ -1172,7 +1184,7 @@
                 messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
                 messageReactions = {};
                 messagesPayload.forEach(item => {
-                    messageReactions[item.data.id] = item.reactions || [];
+                    messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
                 updateMessageGrouping();
@@ -1290,7 +1302,7 @@
                 }
 
                 messagesPayload.forEach(item => {
-                    messageReactions[item.data.id] = item.reactions || [];
+                    messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
 
@@ -1303,7 +1315,7 @@
                 const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
                 messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
                 messagesPayload.forEach(item => {
-                    messageReactions[item.data.id] = item.reactions || [];
+                    messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
                 updateMessageGrouping();
@@ -1815,7 +1827,7 @@
                 const container = document.getElementById(`reactions-for-${messageId}`);
                 if (!container) return;
                 
-                const reactions = messageReactions[messageId] || [];
+                const reactions = visibleReactions(messageReactions[messageId] || []);
                 if (reactions.length === 0) {
                     container.innerHTML = '';
                     container.onclick = null;
@@ -1853,7 +1865,7 @@
                 hideHostMenu();
                 hideThreadMenu();
                 
-                const reactions = messageReactions[messageId] || [];
+                const reactions = visibleReactions(messageReactions[messageId] || []);
                 reactionListBody.innerHTML = ''; // 中身をクリア
 
                 let lastEmoji = null;
