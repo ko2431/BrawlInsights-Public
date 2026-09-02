@@ -235,7 +235,7 @@
             {% if post.type == "brawler_guide" %}
                 <p class="post-comment">{% if lang == "ja" %}このキャラクターについて、自由に発言や質問ができます！キャラクターに関係ない発言やスパム、ミッション達成目的の無意味な発言は禁止されています。そのような発言は利用制限の対象となることがあります。{% else %}Feel free to comment or ask questions about this brawler! Comments unrelated to the brawler, spam, and meaningless posts for mission completion are prohibited. Such posts may result in usage restrictions.{% endif %}</p>
             {% else %}
-                <p class="post-comment">{%- if post.comment -%}<b>{% if lang == "ja" %}ホストのコメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}{%- else -%}<span style="color: #888;"><i>({% if lang == "ja" %}ホストのコメントはありません{% else %}No Comment{% endif %})</i></span>{%- endif -%}{%- if post.type in ['team', 'friend', 'general'] and post.hostplayer -%}<br><b>{% if lang == "ja" %}ホストのプロフィール{% else %}Host Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=post.hostplayer.tag[1:]) }}" class="post-comment__profile-link">{{ post.hostplayer.name }} ({{ post.hostplayer.tag }})</a>{%- endif -%}</p>
+                <p class="post-comment"><b>{% if lang == "ja" %}投稿者{% else %}Poster{% endif %}:</b> {{ post.host_user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}{%- if post.comment -%}<br><b>{% if lang == "ja" %}コメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}{%- else -%}<br><span style="color: #888;"><i>({% if lang == "ja" %}コメントはありません{% else %}No comment{% endif %})</i></span>{%- endif -%}{%- if post.type in ['team', 'friend', 'general'] and post.hostplayer -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=post.hostplayer.tag[1:]) }}" class="post-comment__profile-link">{{ post.hostplayer.name }} ({{ post.hostplayer.tag }})</a>{%- elif post.type == 'club' and host_main_account_tag and host_main_account_name -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=host_main_account_tag[1:]) }}" class="post-comment__profile-link">{{ host_main_account_name }} ({{ host_main_account_tag }})</a>{%- endif -%}</p>
             {% endif %}
         </div>
         <div id="older-messages-loader" class="older-messages-loader" hidden aria-hidden="true">
@@ -260,7 +260,7 @@
                             {% set display_name = message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') %}
                             {% set admin_badge %}{% if message.user_is_admin %}<span class="message-bubble__admin-badge">{% if lang == "ja" %}Brawl Insights 管理者{% else %}Brawl Insights Admin{% endif %}</span>{% endif %}{% endset %}
                             {% if message.user_id and message.user_id == post.host_id %}
-                                <span class="message-bubble__user-name"><b>{{ display_name }}</b> ({% if lang == "ja" %}ホスト{% else %}Host{% endif %}){{ admin_badge }}</span>
+                                <span class="message-bubble__user-name"><b>{{ display_name }}</b> ({% if lang == "ja" %}スレッド主{% else %}OP{% endif %}){{ admin_badge }}</span>
                             {% else %}
                                 <span class="message-bubble__user-name">{{ display_name }}{{ admin_badge }}</span>
                             {% endif %}
@@ -1235,7 +1235,7 @@
                         ? `<span class="message-bubble__admin-badge">${lang === 'ja' ? 'Brawl Insights 管理者' : 'Brawl Insights Admin'}</span>`
                         : '';
                     if (isHost) {
-                        userNameHtml = `<span class="message-bubble__user-name"><b>${userName}</b> (${lang === 'ja' ? 'ホスト' : 'Host'})${adminBadgeHtml}</span>`;
+                        userNameHtml = `<span class="message-bubble__user-name"><b>${userName}</b> (${lang === 'ja' ? 'スレッド主' : 'OP'})${adminBadgeHtml}</span>`;
                     } else {
                         userNameHtml = `<span class="message-bubble__user-name">${userName}${adminBadgeHtml}</span>`;
                     }

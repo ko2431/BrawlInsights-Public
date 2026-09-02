@@ -107,7 +107,7 @@
                     {# ホスト情報と条件 #}
                     <div class="post-card__info-and-conditions" style="min-width: 210px;">
                         <div class="post-card__host-info">
-                            <p class="post-card__host-info-title">{% if lang == "ja" %}ホスト{% else %}Host{% endif %}: {{ post.data.hostplayer.name }}</p>
+                            <p class="post-card__host-info-title">{% if lang == "ja" %}投稿者{% else %}Poster{% endif %}: {{ post.data.hostplayer.name }}</p>
                             {% if post.data.hostplayer %}
                             <div class="post-card__host-info-scroll-area">
                             <div class="post-card__host-info-stats">

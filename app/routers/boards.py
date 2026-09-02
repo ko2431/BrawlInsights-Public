@@ -12,7 +12,7 @@ from app.db import db as db_module
 from app.core.logger import logger
 from app.core.templating import templates
 from app.core import cache as cache_module
-from app.services.brawl_service import Player, get_player, get_player_from_db, get_brawler
+from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block, try_progress_tutorial_board
 from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS
 from app.services.notification_service import (
@@ -1346,6 +1346,21 @@ async def chat_thread(
             except Exception as e:
                 logger.warning(f"chat_thread: brawler情報の取得に失敗: brawler_id={brawler_id_for_chat}, error={e}")
 
+    host_main_account_tag: str | None = None
+    host_main_account_name: str | None = None
+    if post.type == "club" and post.host_id:
+        try:
+            host_user = await get_user(db, post.host_id)
+            if host_user and host_user.main_account:
+                host_main_account_tag = host_user.main_account
+                host_main_account_name = await get_player_name(host_user.main_account, db)
+        except Exception as e:
+            logger.warning(
+                f"chat_thread: クラブ投稿者のメインアカウント取得に失敗: post_id={post.id}, error={e}"
+            )
+            host_main_account_tag = None
+            host_main_account_name = None
+
     context = {
         "request": request,
         "lang": lang,
@@ -1362,6 +1377,8 @@ async def chat_thread(
         "admob_banner_position": "top",
         "hide_navigation_controls": True,
         "brawler": brawler_for_chat,
+        "host_main_account_tag": host_main_account_tag,
+        "host_main_account_name": host_main_account_name,
     }
 
     try:
