@@ -2109,6 +2109,22 @@
             }
 
             if (form) {
+                if (sendButton) {
+                    // 仮想キーボード表示中に送信ボタンを押すと、先に textarea が blur して
+                    // キーボードが閉じ・レイアウトがずれ、タップが届かないことがある。
+                    // pointerdown で blur を止め、キーボードを開いたまま送信する。
+                    sendButton.addEventListener('pointerdown', (event) => {
+                        if (typeof event.button === 'number' && event.button !== 0) return;
+                        event.preventDefault();
+                        if (sendButton.disabled) return;
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                        } else {
+                            sendButton.click();
+                        }
+                    });
+                }
+
                 form.addEventListener('submit', async function(event) {
                     event.preventDefault(); // フォームのデフォルト送信をキャンセル
                     
