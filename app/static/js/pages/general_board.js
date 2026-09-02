@@ -384,13 +384,14 @@
                 try {
                     const response = await fetch(`/${lang}/boards/posts/${postId}/good`, { method: 'POST' });
                     if (!response.ok) {
-                        const data = await response.json().catch(() => ({}));
                         if (response.status === 401) {
                             alert(lang === 'ja'
                                 ? 'この機能を利用するにはログインが必要です。アカウントタブより、メールアドレス不要でログインできます。'
                                 : 'You need to log in to use this feature. You can log in from the Account tab without an email address.');
                         } else {
-                            alert(data.detail || (lang === 'ja' ? 'グッドの更新に失敗しました' : 'Failed to update good'));
+                            alert(lang === 'ja'
+                                ? '操作に失敗しました。投稿がすでに削除された可能性があります。'
+                                : 'Failed to update good. The post may have been deleted.');
                         }
                         return;
                     }

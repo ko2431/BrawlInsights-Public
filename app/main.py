@@ -405,6 +405,15 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             status_code=400
         )
 
+    # 4xxはクライアント起因の想定内エラー。トレースバック付きERRORは過剰なので短く記録する
+    if 400 <= exc.status_code < 500:
+        logger.info(f"HTTPクライアントエラー: Code: {exc.status_code}, Path: {request.url.path}, Detail: {exc.detail}")
+        return templates.TemplateResponse(
+            "error/server_error.html",
+            {"request": request, "lang": lang, "error_code": exc.status_code, "error_detail": exc.detail, "is_error_page": True},
+            status_code=exc.status_code
+        )
+
     # 500系やその他のHTTPエラー
     logger.error(f"HTTPエラーが発生しました: Code: {exc.status_code}, Path: {request.url.path}, Detail: {exc.detail}", exc_info=True)
     return templates.TemplateResponse(

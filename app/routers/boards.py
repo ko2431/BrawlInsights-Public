@@ -1821,7 +1821,11 @@ async def toggle_post_good(
             "is_up_voted_by_current_user": result["is_up_voted_by_current_user"]
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # 削除済み投稿へのいいねなど想定内。ERRORログも例外ハンドラも経由させない
+        detail = str(e)
+        status_code = 404 if detail == "投稿が見つかりません" else 400
+        logger.info(f"投稿(ID:{post_id})へのグッド操作を拒否: {detail}")
+        return JSONResponse(status_code=status_code, content={"detail": detail})
     except DataBaseError as e:
         logger.error(f"投稿(ID:{post_id})へのグッド操作中にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
