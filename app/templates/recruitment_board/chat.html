@@ -1605,6 +1605,14 @@
                 replyButton.onclick = () => startReplyToMessage(messageId);
                 messageMenuActions.appendChild(replyButton);
 
+                const copyButton = document.createElement('button');
+                copyButton.type = 'button';
+                copyButton.className = 'chat-menu__action-btn';
+                copyButton.style.color = '#111';
+                copyButton.textContent = lang === 'ja' ? 'メッセージをコピー' : 'Copy Message';
+                copyButton.onclick = () => copyMessageText(messageId);
+                messageMenuActions.appendChild(copyButton);
+
                 if (isAdmin || isOwnMessage) {
                     const deleteButton = document.createElement('button');
                     deleteButton.className = 'chat-menu__action-btn';
@@ -2197,13 +2205,13 @@
 
             // --- スレッドメニュー / ジャンプ / 共有 ---
             // text/title を渡すと iOS の「コピー」が本文だけを取るため、url のみ渡す
-            async function copyChatShareUrl(url) {
+            async function copyTextToClipboard(text) {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(url);
+                    await navigator.clipboard.writeText(text);
                     return;
                 }
                 const textarea = document.createElement('textarea');
-                textarea.value = url;
+                textarea.value = text;
                 textarea.setAttribute('readonly', '');
                 textarea.style.position = 'fixed';
                 textarea.style.left = '-9999px';
@@ -2213,6 +2221,17 @@
                 document.body.removeChild(textarea);
                 if (!ok) {
                     throw new Error('execCommand copy failed');
+                }
+            }
+
+            async function copyMessageText(messageId) {
+                hideMessageMenu();
+                const textEl = document.querySelector(`#message-${messageId} .message-bubble__text`);
+                const text = textEl ? (textEl.innerText || '') : '';
+                try {
+                    await copyTextToClipboard(text);
+                } catch (error) {
+                    console.error('Failed to copy message text:', error);
                 }
             }
 
@@ -2238,7 +2257,7 @@
                         await navigator.share({ url: chatShareUrl });
                         return;
                     }
-                    await copyChatShareUrl(chatShareUrl);
+                    await copyTextToClipboard(chatShareUrl);
                     alert(copiedMessage);
                 } catch (error) {
                     const shareErrorText = String(error?.errorMessage || error?.message || '').toLowerCase();
@@ -2248,7 +2267,7 @@
                     }
                     console.error('Chat share failed:', error);
                     try {
-                        await copyChatShareUrl(chatShareUrl);
+                        await copyTextToClipboard(chatShareUrl);
                         alert(copiedMessage);
                     } catch (copyError) {
                         console.error('Chat share clipboard fallback failed:', copyError);
