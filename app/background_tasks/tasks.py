@@ -7,8 +7,8 @@ from typing import Any
 
 from app.core.logger import logger
 from app.core.config import settings
-from app.core.cache import get_redis, set_cache
-from app.db.db import get_db_connection_for_bg_task
+from app.core.cache import get_redis, set_cache, is_transient_redis_error, log_transient_redis_warning
+from app.db.db import get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.services.brawl_service import Brawler, get_available_brawlers, record_prestige_borders, get_player, insert_new_players_from_rankings, update_ranked_stats, calculate_and_save_accessory_stats, calculate_and_save_skin_stats, calculate_and_save_battle_card_stats, calculate_and_save_player_icon_stats, TEAM_3V3_COEF, TEAM_3V3_COEF_OVER10000, TEAM_3V3_COEF_OVER30000, TEAM_3V3_COEF_OVER60000, SOLO_COEF, SOLO_COEF_OVER1000, SOLO_COEF_OVER3000, SOLO_COEF_OVER6000, DUO_COEF, DUO_COEF_OVER2000, DUO_COEF_OVER6000, DUO_COEF_OVER12000
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -103,7 +103,17 @@ async def update_prestige_borders_task(db: asyncpg.Connection) -> None:
         logger.warning("ユーザー閲覧データの同期タスクがキャンセルされました。")
         raise
     except Exception as e:
-        logger.error(f"ユーザー閲覧データの同期タスクで予期せぬエラーが発生しました: {e}", exc_info=True)
+        if is_transient_redis_error(e) or is_transient_pg_error(e):
+            if is_transient_redis_error(e):
+                log_transient_redis_warning(
+                    f"ユーザー閲覧データの同期タスクで一時的な接続エラー: {e}"
+                )
+            else:
+                log_transient_pg_warning(
+                    f"ユーザー閲覧データの同期タスクで一時的な接続エラー: {e}"
+                )
+        else:
+            logger.error(f"ユーザー閲覧データの同期タスクで予期せぬエラーが発生しました: {e}", exc_info=True)
         raise
 
 

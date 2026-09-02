@@ -339,7 +339,12 @@ class ConnectionManager:
                 else:
                     logger.error(f"Redisリスナーで予期せぬRuntimeError (スレッド: {thread_id}): {e}", exc_info=True)
             except Exception as e:
-                logger.error(f"Redisリスナーで予期せぬエラー (スレッド: {thread_id}): {e}", exc_info=True)
+                if cache_module.is_transient_redis_error(e):
+                    cache_module.log_transient_redis_warning(
+                        f"Redisリスナーで一時的な接続エラー (スレッド: {thread_id}): {e}"
+                    )
+                else:
+                    logger.error(f"Redisリスナーで予期せぬエラー (スレッド: {thread_id}): {e}", exc_info=True)
             finally:
                 logger.debug(f"Redisチャネル '{channel_name}' の購読を終了します。")
 

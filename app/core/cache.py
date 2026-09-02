@@ -18,7 +18,7 @@ _last_transient_log_at = 0.0
 _suppressed_transient_logs = 0
 
 
-def _is_transient_redis_error(e: Exception) -> bool:
+def is_transient_redis_error(e: Exception) -> bool:
     """再起動・RDBロード中など、短時間で解消する Redis エラーかどうか。"""
     if isinstance(e, (BusyLoadingError, RedisConnectionError)):
         return True
@@ -32,7 +32,7 @@ def _is_transient_redis_error(e: Exception) -> bool:
     )
 
 
-def _log_transient_redis_warning(message: str) -> None:
+def log_transient_redis_warning(message: str) -> None:
     """高頻度の一時エラーを 10 秒に1回へ間引く。"""
     global _last_transient_log_at, _suppressed_transient_logs
     now = time.monotonic()
@@ -85,7 +85,7 @@ async def connect_redis():
             await _discard_redis_client(client)
             redis_pool = None
             remaining = deadline - time.monotonic()
-            if _is_transient_redis_error(e) and remaining > 0:
+            if is_transient_redis_error(e) and remaining > 0:
                 logger.warning(
                     f"Redis接続を待機します ({attempt}回目, 残り約{remaining:.0f}秒): {e}"
                 )
@@ -113,7 +113,7 @@ def get_redis() -> Optional[redis.Redis]: # 型ヒントを修正
     if redis_pool is None:
         # アプリケーション起動時に connect_redis が呼ばれているはずなので、
         # ここで None の場合は問題がある
-        _log_transient_redis_warning(
+        log_transient_redis_warning(
             "Redis接続が利用できません。connect_redisが呼び出されていないか、再起動待ちです。"
         )
     return redis_pool
@@ -121,8 +121,8 @@ def get_redis() -> Optional[redis.Redis]: # 型ヒントを修正
 
 def _log_cache_error(operation: str, e: Exception, *, key: str | None = None, prefix: str | None = None) -> None:
     ident = f"key: {key}" if key is not None else f"prefix: {prefix}"
-    if _is_transient_redis_error(e):
-        _log_transient_redis_warning(f"Redis{operation}中に一時的なエラー ({ident}): {e}")
+    if is_transient_redis_error(e):
+        log_transient_redis_warning(f"Redis{operation}中に一時的なエラー ({ident}): {e}")
         return
     logger.error(f"Redis{operation}中にエラー ({ident}): {e}", exc_info=True)
 

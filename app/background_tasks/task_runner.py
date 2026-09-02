@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from inspect import signature
@@ -19,10 +20,10 @@ from app.background_tasks.task_registry import (
     get_task,
     iter_tasks,
 )
-from app.core.cache import get_redis
+from app.core.cache import get_redis, is_transient_redis_error, log_transient_redis_warning
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.db import get_db_connection_for_bg_task
+from app.db.db import expire_stale_pool_connections, get_db_connection_for_bg_task, is_transient_pg_error
 
 PLAYER_UPDATE_START_DELAY_SEC = 30
 SHUTDOWN_TIMEOUT_SEC = 45.0
@@ -32,6 +33,8 @@ DISPATCH_POLL_SEC = 1.0
 MAX_LIGHT_INFLIGHT = 4
 HEAVY_LOCK_KEY = "lock:worker_task:heavy"
 HEAVY_LOCK_TTL_SEC = 90
+WORKER_TRANSIENT_RETRY_SECONDS = 90.0
+WORKER_TRANSIENT_RETRY_INTERVAL = 5.0
 TASK_SUCCESS_ALIASES: dict[str, tuple[str, ...]] = {}
 LEGACY_TASK_NAME_JA: dict[str, str] = {}
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -45,6 +48,37 @@ INTERRUPTED_NOTIFY_AFTER_SEC = 2 * 60 * 60
 _owned_run_ids: set[int] = set()
 _inflight_tasks: dict[int, asyncio.Task[Any]] = {}
 _heavy_run_id: int | None = None
+
+
+def _is_transient_worker_error(e: Exception) -> bool:
+    return is_transient_pg_error(e) or is_transient_redis_error(e)
+
+
+async def _run_with_transient_retry(task_key: str, operation):
+    """PostgreSQL/Redis 再起動中は接続を張り直して同じタスクを再試行する。"""
+    recovery_deadline: float | None = None
+    attempt = 0
+    while True:
+        try:
+            return await operation()
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            if not _is_transient_worker_error(e):
+                raise
+            now = time.monotonic()
+            if recovery_deadline is None:
+                recovery_deadline = now + WORKER_TRANSIENT_RETRY_SECONDS
+            remaining = recovery_deadline - now
+            if remaining <= 0:
+                raise
+            attempt += 1
+            expire_stale_pool_connections()
+            logger.warning(
+                f"タスク '{task_key}' が一時的な接続エラーのため再試行します "
+                f"({attempt}回目, 残り約{remaining:.0f}秒): {e}"
+            )
+            await asyncio.sleep(min(WORKER_TRANSIENT_RETRY_INTERVAL, remaining))
 
 
 def current_worker_id() -> str:
@@ -605,7 +639,7 @@ async def run_recorded_interval_task(task_key: str) -> None:
     ctx = TaskContext(run_id)
     _owned_run_ids.add(run_id)
     try:
-        await _run_interval_handler(task, handler)
+        await _run_with_transient_retry(task_key, lambda: _run_interval_handler(task, handler))
         await ctx.mark_success()
     except asyncio.CancelledError:
         await ctx.mark_interrupted("ワーカー停止により中断されました")
@@ -622,7 +656,13 @@ async def _acquire_heavy_lock() -> str | None:
     if not redis_client:
         return "db-only"
     token = secrets.token_hex(16)
-    acquired = await redis_client.set(HEAVY_LOCK_KEY, token, nx=True, ex=HEAVY_LOCK_TTL_SEC)
+    try:
+        acquired = await redis_client.set(HEAVY_LOCK_KEY, token, nx=True, ex=HEAVY_LOCK_TTL_SEC)
+    except Exception as e:
+        if is_transient_redis_error(e):
+            log_transient_redis_warning(f"重いタスクの Redis ロック取得をスキップします: {e}")
+            return "db-only"
+        raise
     return token if acquired else None
 
 
@@ -632,13 +672,19 @@ async def _refresh_heavy_lock(token: str) -> None:
     redis_client = get_redis()
     if not redis_client:
         return
-    await redis_client.eval(
-        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end",
-        1,
-        HEAVY_LOCK_KEY,
-        token,
-        str(HEAVY_LOCK_TTL_SEC),
-    )
+    try:
+        await redis_client.eval(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end",
+            1,
+            HEAVY_LOCK_KEY,
+            token,
+            str(HEAVY_LOCK_TTL_SEC),
+        )
+    except Exception as e:
+        if is_transient_redis_error(e):
+            log_transient_redis_warning(f"重いタスクの Redis ロック延長をスキップします: {e}")
+            return
+        raise
 
 
 async def _release_heavy_lock(token: str | None) -> None:

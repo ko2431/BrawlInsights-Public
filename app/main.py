@@ -22,16 +22,16 @@ from user_agents import parse
 from app.core.config import settings
 from app.core.logging_config import setup_logger, get_log_extra_info
 from app.core.logger import logger
-from app.core.cache import connect_redis, close_redis, set_cache, get_cache
-from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_connection_for_bg_task
+from app.core.cache import connect_redis, close_redis, set_cache, get_cache, is_transient_redis_error, log_transient_redis_warning
+from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning
 # [この部分は公開用リポジトリでは非公開にされています]
 
     # [この部分は公開用リポジトリでは非公開にされています]
     await close_redis() # [この部分は公開用リポジトリでは非公開にされています]
             except Exception as e:
-                logger.error(
-                    f"ミドルウェアでの通知バッジ取得中にエラー (User: {current_user_for_state.name}): {e}",
-                    exc_info=True,
+                _log_middleware_exception(
+                    f"ミドルウェアでの通知バッジ取得中にエラー (User: {current_user_for_state.name})",
+                    e,
                 )
 
         if should_load_page_extras:
@@ -58,13 +58,19 @@ from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_
                     await set_cache(cache_key, True, seconds_until_midnight)
 
             except Exception as e:
-                logger.error(f"ミドルウェアでのトークン付与処理中にエラー (User: {current_user_for_state.name}): {e}", exc_info=True)
+                _log_middleware_exception(
+                    f"ミドルウェアでのトークン付与処理中にエラー (User: {current_user_for_state.name})",
+                    e,
+                )
 
             # PVカウントと最終閲覧日時更新 ---
             try:
                 await current_user_for_state.record_view_in_redis()
             except Exception as e:
-                logger.error(f"ミドルウェアでのPVカウント記録中にエラー (User: {current_user_for_state.name}): {e}", exc_info=True)
+                _log_middleware_exception(
+                    f"ミドルウェアでのPVカウント記録中にエラー (User: {current_user_for_state.name})",
+                    e,
+                )
         
         response = await call_next(request)
         return response
