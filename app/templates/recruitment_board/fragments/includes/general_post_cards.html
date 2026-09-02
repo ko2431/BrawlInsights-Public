@@ -52,7 +52,10 @@
                     <div class="post-card__info-and-conditions">
                         {# ひとことボックス #}
                         <div class="post-card__host-info general-post-card__host-info" {% if not post.data.required_highest_trophies and not post.data.required_ranked_highest_rank and not post.data.required_ranked_current_rank and not post.data.required_solo_pl_rank and not post.data.required_prestige %}style="flex: 1; max-width: 100%;"{% endif %}>
-                            <p class="post-card__host-info-title">{% if lang == "ja" %}ホスト: {{ post.data.host_user_name or '匿名' }}{% else %}Host: {{ post.data.host_user_name or 'Anonymous' }}{% endif %}</p>
+                            <p class="post-card__host-info-title general-post-card__author">
+                                <img src="{{ post.data.host_user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="general-post-card__author-icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                                <span class="general-post-card__author-name">{% if lang == "ja" %}{{ post.data.host_user_name or '匿名' }}{% else %}{{ post.data.host_user_name or 'Anonymous' }}{% endif %}</span>
+                            </p>
                             <div class="post-card__host-info-scroll-area" style="max-height: 110px;">
                                 {% if post.data.comment %}
                                 <p class="post-card__comment-text">{{ post.data.comment|censor }}</p>

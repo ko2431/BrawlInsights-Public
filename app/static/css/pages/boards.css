@@ -711,6 +711,9 @@ body.modal-open {
 .post-card__host-info {
     flex: 2;
 }
+.general-post-card__host-info {
+    padding-top: 3px; /* なんでも掲示板ではアイコンの表示があるため、上パディングをわずかに増やす */
+}
 .post-card__conditions-box {
     flex: 1;
     display: flex; /* flexコンテナに設定 */
@@ -1128,6 +1131,23 @@ body.modal-open {
     min-height: 50px;
     height: auto !important;
     max-height: 110px;
+}
+.general-post-card__author {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.general-post-card__author-icon {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+    transform: scale(1.1);
+    transform-origin: center center;
+}
+.general-post-card__author-name {
+    min-width: 0;
 }
 .posts__container.view-compact .post-card__host-info-scroll-area,
 .posts__container.view-compact .post-card__conditions-list-wrapper {
