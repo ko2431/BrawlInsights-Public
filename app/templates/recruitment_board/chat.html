@@ -1534,6 +1534,18 @@
                 if (left + menuRect.width > maxRight) {
                     left = maxRight - menuRect.width;
                 }
+
+                // アプリ版 AdMob 上部バナー（ネイティブ描画で WebView より前面）と重なる場合は、バナー下へずらす
+                if (!isWebPlatform) {
+                    const bannerSpacer = document.querySelector('.chat-ad-banner-spacer');
+                    const bannerRect = bannerSpacer?.getBoundingClientRect();
+                    if (bannerRect && bannerRect.height > 0) {
+                        const minTopViewport = bannerRect.bottom + 5;
+                        if (top - window.scrollY < minTopViewport) {
+                            top = window.scrollY + minTopViewport;
+                        }
+                    }
+                }
                 
                 // 6. 計算した最終的な位置を適用して表示
                 menuElement.style.top = `${top}px`;
