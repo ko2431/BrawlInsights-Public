@@ -189,7 +189,7 @@ async def get_message(db: asyncpg.Connection, id: int, include_deleted_message: 
 
 async def get_messages(db: asyncpg.Connection, page: int = 1, per_page: int = 100, thread_id: int | None = None,
                        include_deleted_message: bool = False, after_message_id: int | None = None,
-                       before_message_id: int | None = None) -> tuple[list[Message], int]:
+                       before_message_id: int | None = None, from_oldest: bool = False) -> tuple[list[Message], int]:
     """メッセージを、条件に合わせて新しい順に取得する。1秒間のキャッシュを使用する。
 
     Args:
@@ -200,6 +200,7 @@ async def get_messages(db: asyncpg.Connection, page: int = 1, per_page: int = 10
         include_deleted_message (bool): 削除されているメッセージも取得対象とするかどうか。デフォルトはFalse。
         after_message_id (int | None): 指定した場合、このメッセージIDより後のメッセージのみ取得する。
         before_message_id (int | None): 指定した場合、このメッセージIDより前のメッセージのみ取得する。
+        from_oldest (bool): True の場合、最新ではなく最古側から取得する（戻り値は新しい順のまま）。
         
     Raises:
         DataBaseError: データベースエラー

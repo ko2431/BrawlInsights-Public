@@ -101,6 +101,7 @@ async def _fetch_chat_messages_payload(
     blocked_user_ids: list[int],
     before_message_id: int | None = None,
     after_message_id: int | None = None,
+    from_oldest: bool = False,
     per_page: int = CHAT_MESSAGES_OLDER_LOAD,
 ) -> tuple[list[dict], bool, bool]:
     """チャット表示用のメッセージとリアクションを取得する。
@@ -117,6 +118,8 @@ async def _fetch_chat_messages_payload(
         fetch_kwargs["before_message_id"] = before_message_id
     if after_message_id is not None:
         fetch_kwargs["after_message_id"] = after_message_id
+    if from_oldest:
+        fetch_kwargs["from_oldest"] = True
 
     messages_data, _ = await get_messages(**fetch_kwargs)
     # get_messages は常に新しい順で返すため、表示用に古い→新しいへ反転
@@ -1376,27 +1379,30 @@ async def get_chat_messages(
     before_message_id: int | None = Query(None, ge=1, description="このIDより古いメッセージを取得する"),
     after_message_id: int | None = Query(None, ge=1, description="このIDより新しいメッセージを取得する"),
     around_message_id: int | None = Query(None, ge=1, description="このID周辺のメッセージを取得する"),
+    edge: str | None = Query(None, pattern="^(oldest|newest)$", description="スレッドの最古/最新端のウィンドウを取得する"),
     per_page: int = Query(CHAT_MESSAGES_OLDER_LOAD, ge=1, le=CHAT_MESSAGES_OLDER_LOAD),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
-    """チャットスレッドのメッセージを追加取得する（過去 / 未来 / 周辺）。"""
+    """チャットスレッドのメッセージを追加取得する（過去 / 未来 / 周辺 / 端）。"""
     post = await get_post(db, id=thread_id, include_deleted_post=True)
     if not post:
         raise HTTPException(status_code=404, detail="Chat thread not found")
 
     mode_count = sum(
-        1 for value in (before_message_id, after_message_id, around_message_id) if value is not None
+        1 for value in (before_message_id, after_message_id, around_message_id, edge) if value is not None
     )
     if mode_count != 1:
         raise HTTPException(
             status_code=400,
-            detail="Specify exactly one of before_message_id, after_message_id, around_message_id",
+            detail="Specify exactly one of before_message_id, after_message_id, around_message_id, edge",
         )
 
-    anchor_id = before_message_id or after_message_id or around_message_id
-    anchor_message = await get_message(db, anchor_id, include_deleted_message=True)
-    if not anchor_message or anchor_message.thread_id != thread_id:
-        raise HTTPException(status_code=400, detail="Invalid message anchor")
+    anchor_message = None
+    if edge is None:
+        anchor_id = before_message_id or after_message_id or around_message_id
+        anchor_message = await get_message(db, anchor_id, include_deleted_message=True)
+        if not anchor_message or anchor_message.thread_id != thread_id:
+            raise HTTPException(status_code=400, detail="Invalid message anchor")
 
     user: User | None = getattr(request.state, "current_user", None)
     blocker_user_id = user.id if user else None
@@ -1412,8 +1418,16 @@ async def get_chat_messages(
         blocked_ids = {"user_ids": [], "anonymous_ids": []}
 
     try:
-        if around_message_id is not None:
-            if anchor_message.is_deleted:
+        if edge is not None:
+            messages_payload, has_more_older, has_more_newer = await _fetch_chat_messages_payload(
+                db,
+                thread_id=thread_id,
+                blocked_user_ids=blocked_ids["user_ids"],
+                from_oldest=(edge == "oldest"),
+                per_page=min(per_page, CHAT_MESSAGES_INITIAL_LOAD),
+            )
+        elif around_message_id is not None:
+            if not anchor_message or anchor_message.is_deleted:
                 raise HTTPException(status_code=400, detail="Invalid around_message_id")
             messages_payload, has_more_older, has_more_newer = await _fetch_chat_messages_around(
                 db,

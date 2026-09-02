@@ -241,12 +241,12 @@ body.has-top-banner .chat-ad-banner-spacer {
 }
 
 .back-button__container,
-.share-button__container {
+.menu-button__container {
     margin: 0;
 }
 
 .back-button,
-.share-button {
+.menu-button {
     background-color: rgba(255, 255, 255, 0.3);
     border: 1px solid #ccc;
     color: #222;
@@ -261,17 +261,17 @@ body.has-top-banner .chat-ad-banner-spacer {
     -webkit-appearance: none;
 }
 .back-button:hover,
-.share-button:hover {
+.menu-button:hover {
     background-color: rgba(255, 255, 255, 0.4);
     border-color: #bbb;
 }
 
 .dark .back-button,
-.dark .share-button {
+.dark .menu-button {
     background-color: #eee;
 }
 .dark .back-button:hover,
-.dark .share-button:hover {
+.dark .menu-button:hover {
     background-color: #ddd;
 }
 
@@ -908,6 +908,13 @@ body.has-top-banner .chat-ad-banner-spacer {
 }
 .chat-menu__action-btn:hover {
     background-color: #e0e0e0;
+}
+.chat-menu__action-btn:disabled {
+    color: #999;
+    cursor: default;
+}
+.chat-menu__action-btn:disabled:hover {
+    background-color: transparent;
 }
 .chat-menu__action-btn--reply {
     color: #319fe3;
