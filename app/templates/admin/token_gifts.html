@@ -1,0 +1,358 @@
+{# /app/templates/admin/token_gifts.html #}
+{% extends "base.html" %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filters_actions %}
+
+{# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
+
+{% block title %}管理者向け / トークン進呈確認{% endblock %}
+{% block og_description %}トークン進呈を確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% macro render_pagination(pagination, gift_id, thread_id, message_id, giver_user_name, giver_user_id, giver_ip, giver_main_account, recipient_user_name, recipient_user_id, recipient_ip, recipient_main_account, amount_filter, comment_filter, comment_text, comment_regex, created_after, created_before) %}
+    {% if pagination.total_pages > 1 %}
+        <nav class="pagination" aria-label="トークン進呈ページネーション">
+            <ul class="pagination-list">
+                {% set base_query_parts = [] %}
+                {% if gift_id %}{% set _ = base_query_parts.append("gift_id=" + gift_id) %}{% endif %}
+                {% if thread_id %}{% set _ = base_query_parts.append("thread_id=" + thread_id) %}{% endif %}
+                {% if message_id %}{% set _ = base_query_parts.append("message_id=" + message_id) %}{% endif %}
+                {% if giver_user_name %}{% set _ = base_query_parts.append("giver_user_name=" + (giver_user_name | urlencode)) %}{% endif %}
+                {% if giver_user_id %}{% set _ = base_query_parts.append("giver_user_id=" + giver_user_id) %}{% endif %}
+                {% if giver_ip %}{% set _ = base_query_parts.append("giver_ip=" + (giver_ip | urlencode)) %}{% endif %}
+                {% if giver_main_account %}{% set _ = base_query_parts.append("giver_main_account=" + (giver_main_account | urlencode)) %}{% endif %}
+                {% if recipient_user_name %}{% set _ = base_query_parts.append("recipient_user_name=" + (recipient_user_name | urlencode)) %}{% endif %}
+                {% if recipient_user_id %}{% set _ = base_query_parts.append("recipient_user_id=" + recipient_user_id) %}{% endif %}
+                {% if recipient_ip %}{% set _ = base_query_parts.append("recipient_ip=" + (recipient_ip | urlencode)) %}{% endif %}
+                {% if recipient_main_account %}{% set _ = base_query_parts.append("recipient_main_account=" + (recipient_main_account | urlencode)) %}{% endif %}
+                {% if amount_filter != 'all' %}{% set _ = base_query_parts.append("amount_filter=" + amount_filter) %}{% endif %}
+                {% if comment_filter != 'all' %}{% set _ = base_query_parts.append("comment_filter=" + comment_filter) %}{% endif %}
+                {% if comment_text %}{% set _ = base_query_parts.append("comment_text=" + (comment_text | urlencode)) %}{% endif %}
+                {% if comment_regex %}{% set _ = base_query_parts.append("comment_regex=" + (comment_regex | urlencode)) %}{% endif %}
+                {% if created_after %}{% set _ = base_query_parts.append("created_after=" + (created_after | urlencode)) %}{% endif %}
+                {% if created_before %}{% set _ = base_query_parts.append("created_before=" + (created_before | urlencode)) %}{% endif %}
+                {% set base_query = base_query_parts | join('&') %}
+                {% set query_prefix = "?" + base_query + ("&" if base_query else "") %}
+
+                {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.prev_num }}">&lt;</a></li>
+                {% endif %}
+
+                {% set page_numbers = [] %}
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.current_page - 2 and p <= pagination.current_page + 2) %}
+                        {% if page_numbers and p > page_numbers[-1] + 1 %}
+                            {% set _ = page_numbers.append('...') %}
+                        {% endif %}
+                        {% set _ = page_numbers.append(p) %}
+                    {% endif %}
+                {% endfor %}
+
+                {% for p in page_numbers %}
+                    {% if p == '...' %}
+                        <li class="page-item disabled"><span class="page-link ellipsis">...</span></li>
+                    {% elif p == pagination.current_page %}
+                        <li class="page-item active"><span class="page-link current">{{ p }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ query_prefix }}page={{ p }}">{{ p }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link page-arrow" href="{{ query_prefix }}page={{ pagination.next_num }}">&gt;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="tokenGiftAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">トークン進呈確認</h1>
+
+    {% call admin_filters_wrapper() %}
+    <form @submit.prevent="submitFilters()">
+        <label>
+            <span class="admin-filters__label-text">進呈ID</span>
+            <input class="form-input admin-filters__input" x-model="draft.gift_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('gift_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">スレッドID</span>
+            <input class="form-input admin-filters__input" x-model="draft.thread_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('thread_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">メッセージID</span>
+            <input class="form-input admin-filters__input" x-model="draft.message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('message_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">贈る側ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.giver_user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">贈る側ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.giver_user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('giver_user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">贈る側IP</span>
+            <input class="form-input admin-filters__input" x-model="draft.giver_ip" maxlength="45">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">贈る側メインタグ</span>
+            <input class="form-input admin-filters__input" x-model="draft.giver_main_account" maxlength="20">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">受け側ユーザー名</span>
+            <input class="form-input admin-filters__input" x-model="draft.recipient_user_name" maxlength="100">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">受け側ユーザーID</span>
+            <input class="form-input admin-filters__input" x-model="draft.recipient_user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('recipient_user_id')">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">受け側IP</span>
+            <input class="form-input admin-filters__input" x-model="draft.recipient_ip" maxlength="45">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">受け側メインタグ</span>
+            <input class="form-input admin-filters__input" x-model="draft.recipient_main_account" maxlength="20">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">数量</span>
+            <select class="form-input admin-filters__select" x-model="draft.amount_filter">
+                <option value="all">すべて</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+                <option value="75">75</option>
+                <option value="100">100</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">コメント</span>
+            <select class="form-input admin-filters__select" x-model="draft.comment_filter">
+                <option value="all">すべて</option>
+                <option value="has_comment">コメントあり</option>
+                <option value="no_comment">コメントなし</option>
+                <option value="deleted">コメント削除</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">コメント部分一致</span>
+            <input class="form-input admin-filters__input" x-model="draft.comment_text" maxlength="200" :disabled="!!draft.comment_regex.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">コメント正規表現</span>
+            <input class="form-input admin-filters__input" x-model="draft.comment_regex" maxlength="200" :disabled="!!draft.comment_text.trim()">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以降</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_after">
+        </label>
+        <label>
+            <span class="admin-filters__label-text">この日時以前</span>
+            <input type="datetime-local" class="form-input admin-filters__input" x-model="draft.created_before">
+        </label>
+        {{ admin_filters_actions() }}
+    </form>
+    {% endcall %}
+
+    <p class="admin-result-summary">
+        該当 <b>{{ '{:,}'.format(pagination.total_items) }}</b>件
+        （贈る側 <b>{{ '{:,}'.format(pagination.giver_users) }}</b>人 / 受け側 <b>{{ '{:,}'.format(pagination.recipient_users) }}</b>人）
+        （最大1,000件／ページ）
+    </p>
+
+    {{ render_pagination(pagination, gift_id, thread_id, message_id, giver_user_name, giver_user_id, giver_ip, giver_main_account, recipient_user_name, recipient_user_id, recipient_ip, recipient_main_account, amount_filter, comment_filter, comment_text, comment_regex, created_after, created_before) }}
+
+    <div class="table-wrapper" style="margin-top: 10px;">
+        <table class="data-table message-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>日時 (JST)</th>
+                    <th>スレッド</th>
+                    <th>贈る側</th>
+                    <th>贈る側ID</th>
+                    <th>贈る側IP</th>
+                    <th>贈る側タグ</th>
+                    <th>受け側</th>
+                    <th>受け側ID</th>
+                    <th>受け側IP</th>
+                    <th>受け側タグ</th>
+                    <th>数量</th>
+                    <th>手数料</th>
+                    <th>コメント</th>
+                    <th>コメント削除</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for gift in gifts %}
+                <tr>
+                    <td>{{ gift.id }}</td>
+                    <td>{{ gift.created_at_text }}</td>
+                    <td>
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=gift.thread_id) }}?message_id={{ gift.message_id }}"
+                           class="admin-thread-link"
+                           data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ gift.thread_id }}"
+                           onclick="return handleAdminThreadLinkClick(event, this)"
+                           {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ gift.thread_id }}</a>
+                    </td>
+                    <td>{{ gift.giver_user_name or '(なし)' }}</td>
+                    <td>
+                        {% if gift.giver_user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ gift.giver_user_id }}" class="admin-thread-link" {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ gift.giver_user_id }}</a>
+                        {% endif %}
+                    </td>
+                    <td>{{ gift.giver_ip }}</td>
+                    <td>{{ gift.giver_main_account or '' }}</td>
+                    <td>{{ gift.recipient_user_name or '(なし)' }}</td>
+                    <td>
+                        {% if gift.recipient_user_id %}
+                            <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ gift.recipient_user_id }}" class="admin-thread-link" {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ gift.recipient_user_id }}</a>
+                        {% endif %}
+                    </td>
+                    <td>{{ gift.recipient_ip }}</td>
+                    <td>{{ gift.recipient_main_account or '' }}</td>
+                    <td>{{ '{:,}'.format(gift.amount) }}</td>
+                    <td>{{ gift.fee }}</td>
+                    <td class="col-message"><div class="col-message-content">{{ gift.comment }}</div></td>
+                    <td>{{ '削除' if gift.is_comment_deleted else '' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="15" style="text-align: center; color: #777;">トークン進呈はありません。</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ render_pagination(pagination, gift_id, thread_id, message_id, giver_user_name, giver_user_id, giver_ip, giver_main_account, recipient_user_name, recipient_user_id, recipient_ip, recipient_main_account, amount_filter, comment_filter, comment_text, comment_regex, created_after, created_before) }}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+    <script>
+        function handleAdminThreadLinkClick(event, el) {
+            if (!event.altKey) {
+                return true;
+            }
+            event.preventDefault();
+            const url = el.dataset.adminPostsUrl;
+            if (!url) {
+                return false;
+            }
+            if (el.target === '_blank') {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            } else {
+                window.location.href = url;
+            }
+            return false;
+        }
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('tokenGiftAdmin', () => withAdminFilterCollapse({
+                applied: {},
+                draft: {
+                    gift_id: '', thread_id: '', message_id: '',
+                    giver_user_name: '', giver_user_id: '', giver_ip: '', giver_main_account: '',
+                    recipient_user_name: '', recipient_user_id: '', recipient_ip: '', recipient_main_account: '',
+                    amount_filter: 'all', comment_filter: 'all', comment_text: '', comment_regex: '',
+                    created_after: '', created_before: '',
+                },
+                filterDefaults: {
+                    gift_id: '', thread_id: '', message_id: '',
+                    giver_user_name: '', giver_user_id: '', giver_ip: '', giver_main_account: '',
+                    recipient_user_name: '', recipient_user_id: '', recipient_ip: '', recipient_main_account: '',
+                    amount_filter: 'all', comment_filter: 'all', comment_text: '', comment_regex: '',
+                    created_after: '', created_before: '',
+                },
+                numericFields: ['gift_id', 'thread_id', 'message_id', 'giver_user_id', 'recipient_user_id'],
+                initFilters(appliedFilters) {
+                    this.applied = appliedFilters;
+                    this.draft = { ...appliedFilters };
+                },
+                get canSubmitFilters() {
+                    if (!this.isFilterInputValid()) return false;
+                    return JSON.stringify(this.normalizedDraft()) !== JSON.stringify(this.normalizedApplied());
+                },
+                normalizedDraft() { return this.normalizeFilters(this.draft); },
+                normalizedApplied() { return this.normalizeFilters(this.applied); },
+                normalizeFilters(filters) {
+                    return {
+                        gift_id: (filters.gift_id || '').trim(),
+                        thread_id: (filters.thread_id || '').trim(),
+                        message_id: (filters.message_id || '').trim(),
+                        giver_user_name: (filters.giver_user_name || '').trim(),
+                        giver_user_id: (filters.giver_user_id || '').trim(),
+                        giver_ip: (filters.giver_ip || '').trim(),
+                        giver_main_account: (filters.giver_main_account || '').trim(),
+                        recipient_user_name: (filters.recipient_user_name || '').trim(),
+                        recipient_user_id: (filters.recipient_user_id || '').trim(),
+                        recipient_ip: (filters.recipient_ip || '').trim(),
+                        recipient_main_account: (filters.recipient_main_account || '').trim(),
+                        amount_filter: filters.amount_filter || 'all',
+                        comment_filter: filters.comment_filter || 'all',
+                        comment_text: (filters.comment_text || '').trim(),
+                        comment_regex: (filters.comment_regex || '').trim(),
+                        created_after: (filters.created_after || '').trim(),
+                        created_before: (filters.created_before || '').trim(),
+                    };
+                },
+                isFilterInputValid() {
+                    const draft = this.normalizedDraft();
+                    for (const field of this.numericFields) {
+                        if (draft[field] && !/^\d+$/.test(draft[field])) return false;
+                    }
+                    if (draft.comment_text && draft.comment_regex) return false;
+                    if (draft.created_after && draft.created_before && draft.created_after > draft.created_before) return false;
+                    return true;
+                },
+                sanitizeNumericField(field) {
+                    this.draft[field] = (this.draft[field] || '').replace(/\D/g, '');
+                },
+                submitFilters() {
+                    if (!this.canSubmitFilters) return;
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizedDraft();
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                },
+            }, 'token_gifts'));
+        });
+    </script>
+{% endblock %}

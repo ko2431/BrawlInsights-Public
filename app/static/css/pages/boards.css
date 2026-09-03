@@ -972,6 +972,10 @@ body.modal-open {
     max-width: 500px; /* 少し最大幅を狭く */
     max-height: 400px; /* 最大高さを小さく */
 }
+.token-gift-modal-content {
+    max-width: 500px;
+    max-height: 520px;
+}
 
 .post-modal-category-select__container {
     display: flex;
@@ -1435,6 +1439,60 @@ body.modal-open {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+.notification-target__text--empty {
+    font-style: italic;
+    color: var(--color-888);
+}
+.notification-target__container--gift-bronze {
+    background: linear-gradient(135deg, #f3e0c2 0%, #d7a56a 55%, #b07838 100%);
+    border-color: #c49a5a;
+    color: #4a3310;
+}
+.notification-target__container--gift-silver {
+    background: linear-gradient(135deg, #f4f6f8 0%, #c5ccd3 55%, #8f9aa6 100%);
+    border-color: #9aa4ae;
+    color: #2c3338;
+}
+.notification-target__container--gift-gold {
+    background: linear-gradient(135deg, #fff4c2 0%, #e8c04a 50%, #c4921a 100%);
+    border-color: #d4a017;
+    color: #5a3e00;
+}
+.notification-target__container--gift-platinum {
+    background: linear-gradient(135deg, #f2fbff 0%, #c9e7f2 45%, #8ec4d8 100%);
+    border-color: #7fb7cc;
+    color: #1d3d4a;
+}
+.notification-target__container--gift-black {
+    background: linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 55%, #000 100%);
+    border-color: #111;
+    color: #f5f0e6;
+}
+.dark .notification-target__container--gift-bronze {
+    background: linear-gradient(135deg, #8a5a28 0%, #6b3f14 55%, #3d2208 100%);
+    border-color: #c49a5a;
+    color: #ffe7c2;
+}
+.dark .notification-target__container--gift-silver {
+    background: linear-gradient(135deg, #8d959c 0%, #5c646c 55%, #3a4046 100%);
+    border-color: #c5ccd3;
+    color: #f3f6f8;
+}
+.dark .notification-target__container--gift-gold {
+    background: linear-gradient(135deg, #c9a227 0%, #8c6a12 50%, #5a4308 100%);
+    border-color: #e8c04a;
+    color: #fff4c2;
+}
+.dark .notification-target__container--gift-platinum {
+    background: linear-gradient(135deg, #6fa3b6 0%, #3d6d80 50%, #1e3f4c 100%);
+    border-color: #c9e7f2;
+    color: #eef9ff;
+}
+.dark .notification-target__container--gift-black {
+    background: linear-gradient(135deg, #222 0%, #0d0d0d 55%, #000 100%);
+    border-color: #555;
+    color: #f5f0e6;
 }
 .notification-reactions__container {
     display: flex;

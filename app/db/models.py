@@ -75,6 +75,7 @@ class User(Base):
     notification_participated_thread_message_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_message_reply_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_message_reaction_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
     notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
     admin_notifications_dashboard_read_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -851,6 +852,12 @@ class Post(Base):
     __table_args__ = (
         # CREATE INDEX ON posts (type, created_at DESC); を正しく定義
         Index('idx_posts_type_created_at_desc', 'type', desc('created_at')),
+        Index(
+            'idx_posts_host_id_created_at_desc',
+            'host_id',
+            desc('created_at'),
+            postgresql_where=text('host_id IS NOT NULL'),
+        ),
     )
 
 
@@ -902,6 +909,41 @@ class Message(Base):
         # CREATE INDEX ON messages (thread_id, created_at ASC); を正しく定義
         Index('idx_messages_thread_id_created_at_asc', 'thread_id', 'created_at'),
         Index('idx_messages_reply_to_message_id', 'reply_to_message_id'),
+        Index(
+            'idx_messages_user_id_created_at_desc',
+            'user_id',
+            desc('created_at'),
+            postgresql_where=text('user_id IS NOT NULL'),
+        ),
+    )
+
+
+class TokenGift(Base):
+    """
+    チャット上のトークン進呈の経済記録。コメント削除後も進呈そのものは残す。
+    """
+    __tablename__ = 'token_gifts'
+
+    id = Column(Integer, primary_key=True)
+    thread_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    message_id = Column(Integer, ForeignKey('messages.id', ondelete='CASCADE'), nullable=False)
+    giver_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    recipient_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    amount = Column(Integer, nullable=False)
+    fee = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    is_comment_deleted = Column(Boolean, nullable=False, server_default='False')
+    giver_ip = Column(INET, nullable=False)
+    recipient_ip = Column(INET, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('message_id', name='uq_token_gifts_message_id'),
+        CheckConstraint('amount > 0', name='ck_token_gifts_amount_positive'),
+        CheckConstraint('fee >= 0', name='ck_token_gifts_fee_nonnegative'),
+        Index('idx_token_gifts_thread_id_created_at', 'thread_id', 'created_at'),
+        Index('idx_token_gifts_giver_user_id_created_at', 'giver_user_id', desc('created_at')),
+        Index('idx_token_gifts_recipient_user_id_created_at', 'recipient_user_id', desc('created_at')),
     )
 
 

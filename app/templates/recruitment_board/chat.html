@@ -241,9 +241,49 @@
         <div id="older-messages-loader" class="older-messages-loader" hidden aria-hidden="true">
             <span class="older-messages-loader__text">{% if lang == "ja" %}読み込み中...{% else %}Loading...{% endif %}</span>
         </div>
+        {% macro token_gift_user_name(user_id, user_name, main_tag, main_name, is_blocked) -%}
+            {%- if is_blocked -%}
+                <span class="token-gift-event__user token-gift-event__user--blocked">{% if lang == 'ja' %}ブロック済みのユーザー{% else %}Blocked user{% endif %}</span>
+            {%- else -%}
+                <button type="button" class="token-gift-event__user"
+                    data-user-id="{{ user_id or '' }}"
+                    data-user-name="{{ user_name or '' }}"
+                    data-main-account-tag="{{ main_tag or '' }}"
+                    data-main-account-name="{{ main_name or '' }}">{{ user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}</button>
+            {%- endif -%}
+        {%- endmacro %}
         {% for message_id, msg_data in messages.items() %}
             {% set message = msg_data.data %}
-            {% if not message.is_deleted and message.user_id not in blocked_ids.user_ids %} {# 削除済みメッセージとブロック済みメッセージは表示しない #}
+            {% if not message.is_deleted %}
+            {% if message.message_type == 'token_gift' %}
+                {% set giver_blocked = message.user_id in blocked_ids.user_ids %}
+                {% set recipient_blocked = message.gift_recipient_user_id in blocked_ids.user_ids %}
+                {% if not (giver_blocked and recipient_blocked) %}
+                {% set gift_has_comment = message.message and not message.is_comment_deleted %}
+                <div class="token-gift-event{% if message.gift_tier %} token-gift-event--{{ message.gift_tier }}{% endif %}{% if gift_has_comment %} token-gift-event--has-comment{% endif %}"
+                    id="message-{{ message.id }}"
+                    data-message-id="{{ message.id }}"
+                    data-message-type="token_gift"
+                    data-user-id="{{ message.user_id }}"
+                    data-user-name="{{ message.user_name }}"
+                    data-main-account-tag="{{ message.user_main_account_tag }}"
+                    data-main-account-name="{{ message.user_main_account_name }}"
+                    data-recipient-user-id="{{ message.gift_recipient_user_id }}"
+                    data-gift-amount="{{ message.gift_amount or 0 }}"
+                    data-has-comment="{{ '1' if gift_has_comment else '0' }}"
+                    data-comment-deleted="{{ '1' if message.is_comment_deleted else '0' }}"
+                    data-created-at="{{ message.created_at }}">
+                    <div class="token-gift-event__box">
+                        <p class="token-gift-event__line">{% if lang == 'ja' %}{{ token_gift_user_name(message.user_id, message.user_name, message.user_main_account_tag, message.user_main_account_name, giver_blocked) }}が{{ token_gift_user_name(message.gift_recipient_user_id, message.gift_recipient_user_name, message.gift_recipient_main_account_tag, message.gift_recipient_main_account_name, recipient_blocked) }}に<b>{{ "{:,}".format(message.gift_amount or 0) }}</b>トークンを贈りました{% else %}{{ token_gift_user_name(message.user_id, message.user_name, message.user_main_account_tag, message.user_main_account_name, giver_blocked) }} gifted <b>{{ "{:,}".format(message.gift_amount or 0) }}</b> tokens to {{ token_gift_user_name(message.gift_recipient_user_id, message.gift_recipient_user_name, message.gift_recipient_main_account_tag, message.gift_recipient_main_account_name, recipient_blocked) }}{% endif %}</p>
+                        {% if message.is_comment_deleted %}
+                            <p class="token-gift-event__comment token-gift-event__comment--deleted">{% if lang == 'ja' %}コメントは削除されました{% else %}The comment was deleted{% endif %}</p>
+                        {% elif message.message %}
+                            <p class="token-gift-event__comment"><span class="token-gift-event__comment-body">{{ message.message|censor }}</span></p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            {% elif message.user_id not in blocked_ids.user_ids %} {# 削除済みメッセージとブロック済みメッセージは表示しない #}
                 <div class="message-bubble {% if current_user and message.user_id == current_user.id %}message-bubble--self{% endif %}"
                     id="message-{{ message.id }}"
                     data-message-id="{{ message.id }}"
@@ -253,7 +293,7 @@
                     data-main-account-name="{{ message.user_main_account_name }}"
                     data-created-at="{{ message.created_at }}">
                     {% if not (current_user and message.user_id == current_user.id) %}
-                        <div class="message-bubble__icon-wrapper {% if message.user_main_account_tag %}message-bubble__icon-wrapper--clickable{% endif %}"><img src="{{ message.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="User Icon" class="message-bubble__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"></div>
+                        <div class="message-bubble__icon-wrapper {% if message.user_id %}message-bubble__icon-wrapper--clickable{% endif %}"><img src="{{ message.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="User Icon" class="message-bubble__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"></div>
                     {% endif %}
                     <div class="message-bubble__content-wrapper">
                         {% if not (current_user and message.user_id == current_user.id) %}
@@ -276,6 +316,7 @@
                         <span class="message-bubble__timestamp">{{ message.created_at_text_ja if lang == "ja" else message.created_at_text_en }}{% if loop.last %}<span class="reaction-prompt"> - {% if lang == 'ja' %}メッセージをタップしてリアクション{% else %}Tap message to react{% endif %}</span>{% endif %}</span>
                     </div>
                 </div>
+            {% endif %}
             {% endif %}
         {% endfor %}
     </main>
@@ -391,6 +432,33 @@
         </div>
     </div>
 </div>
+
+<div id="token-gift-modal-overlay" class="post-modal-overlay report-modal-overlay token-gift-modal-overlay">
+    <div class="post-modal-content report-modal-content token-gift-modal-content">
+        <header class="post-modal-header">
+            <button type="button" id="token-gift-modal-cancel-btn" class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+            <button type="button" id="token-gift-modal-submit-btn" class="button button--primary post-button" disabled>{% if lang == "ja" %}贈る{% else %}Gift{% endif %}</button>
+        </header>
+        <div class="post-modal-body">
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">1. {% if lang == "ja" %}贈る量を選ぶ{% else %}Choose amount{% endif %}</p>
+                <p class="info-block__text post-modal-section-description" id="token-gift-modal-description"></p>
+                <div class="filters__container post-modal-conditions">
+                    <form method="get" class="filter-form post-modal-conditions-filter-form" onsubmit="return false;">
+                        <label for="token-gift-amount-select" class="filter-form__label post-modal-conditions-filter-form__label">{% if lang == "ja" %}贈る量:{% else %}Amount:{% endif %}</label>
+                        <select id="token-gift-amount-select" class="filter-form__select post-modal-conditions-filter-form__select">
+                            <option value="">-</option>
+                        </select>
+                    </form>
+                </div>
+            </div>
+            <div class="post-modal-section">
+                <p class="post-modal-section-title">2. {% if lang == "ja" %}コメント{% else %}Comment{% endif %}</p>
+                <textarea id="token-gift-comment-input" class="form-input post-modal-section-form-input" rows="3" maxlength="{{ token_gift_comment_max_length }}" placeholder="{% if lang == 'ja' %}コメントを入力 (任意){% else %}Enter a comment (optional){% endif %}"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -443,6 +511,7 @@
             let currentPostState = {{ post.to_dict() | tojson }};
             const currentUserId = {{ current_user.id if current_user else 'null' }};
             const isPermittedToChat = {{ 'true' if is_permitted_to_chat else 'false' }};
+            const isProhibitPosting = {{ 'true' if is_prohibit_posting else 'false' }};
             const isAdmin = {{ 'true' if current_user and current_user.is_admin else 'false' }};
             const postHostId = {{ post.host_id if post.host_id else 'null' }};
             const lang = "{{ lang }}";
@@ -450,6 +519,17 @@
             const isWebPlatform = platform === 'web';
             const threadId = {{ post.id }};
             const defaultPlayerIconPath = "{{ url_for('static', path='/images/player_icon/0.png') }}";
+            let currentUserTokens = {{ current_user_tokens | tojson }};
+            const tokenGiftOptions = {{ token_gift_options | tojson }};
+            const tokenGiftCommentMaxLength = {{ token_gift_comment_max_length | tojson }};
+            const tokenGiftModalOverlay = document.getElementById('token-gift-modal-overlay');
+            const tokenGiftModalSubmitBtn = document.getElementById('token-gift-modal-submit-btn');
+            const tokenGiftModalCancelBtn = document.getElementById('token-gift-modal-cancel-btn');
+            const tokenGiftAmountSelect = document.getElementById('token-gift-amount-select');
+            const tokenGiftCommentInput = document.getElementById('token-gift-comment-input');
+            const tokenGiftModalDescription = document.getElementById('token-gift-modal-description');
+            const messageMenuSeparator = messageMenu ? messageMenu.querySelector('.chat-menu__separator') : null;
+            const CHAT_ITEM_SELECTOR = '.message-bubble:not(.message-bubble--deleting), .token-gift-event';
             // ブロック済みユーザーID（WebSocket新着のクライアント側フィルタ用。ページ再読込で最新化）
             const blockedUserIds = new Set({{ blocked_ids.user_ids | tojson }});
             function isBlockedUserId(userId) {
@@ -460,6 +540,23 @@
                 if (!Array.isArray(reactions) || reactions.length === 0) return [];
                 if (blockedUserIds.size === 0) return reactions;
                 return reactions.filter(r => !isBlockedUserId(r.user_id));
+            }
+            function formatTokenAmount(amount) {
+                return Number(amount || 0).toLocaleString('en-US');
+            }
+            function isTokenGiftMessage(message) {
+                return Boolean(message && (message.message_type === 'token_gift' || message.messageType === 'token_gift'));
+            }
+            function shouldHideTokenGift(message) {
+                return isBlockedUserId(message.user_id) && isBlockedUserId(message.gift_recipient_user_id);
+            }
+            function restoreMessageMenuChrome() {
+                if (messageMenuEmojis) messageMenuEmojis.style.display = '';
+                if (messageMenuSeparator) messageMenuSeparator.style.display = '';
+            }
+            function hideMessageMenuChrome() {
+                if (messageMenuEmojis) messageMenuEmojis.style.display = 'none';
+                if (messageMenuSeparator) messageMenuSeparator.style.display = 'none';
             }
             let hasMoreOlderMessages = {{ 'true' if has_more_older_messages else 'false' }};
             let hasMoreNewerMessages = {{ 'true' if has_more_newer_messages else 'false' }};
@@ -696,7 +793,7 @@
 
             function linkifyExistingMessages() {
                 if (!messagesContainer) return;
-                messagesContainer.querySelectorAll('.message-bubble__text').forEach((el) => {
+                messagesContainer.querySelectorAll('.message-bubble__text, .token-gift-event__comment-body').forEach((el) => {
                     el.innerHTML = formatMessageHtml(el.textContent);
                 });
             }
@@ -834,6 +931,13 @@
                                 delete typingUsers[incomingMessage.user_id];
                                 updateTypingIndicator();
                             }
+                            if (isTokenGiftMessage(incomingMessage)) {
+                                if (shouldHideTokenGift(incomingMessage)) {
+                                    break;
+                                }
+                                appendNewMessage(incomingMessage);
+                                break;
+                            }
                             // ブロック済みユーザーの新着は描画しない（初回HTML/過去取得APIと同条件）
                             if (incomingMessage.user_id != null && blockedUserIds.has(incomingMessage.user_id)) {
                                 break;
@@ -896,6 +1000,10 @@
                                 updateTypingIndicator();
                             }
                             break;
+                        case 'token_gift_comment_deleted': {
+                            applyTokenGiftCommentDeleted(data.data.message_id);
+                            break;
+                        }
                     }
                 };
                 
@@ -950,9 +1058,7 @@
             function updateMessageGrouping() {
                 if (!messagesContainer) return;
 
-                const bubbles = Array.from(
-                    messagesContainer.querySelectorAll('.message-bubble:not(.message-bubble--deleting)')
-                );
+                const items = Array.from(messagesContainer.querySelectorAll(CHAT_ITEM_SELECTOR));
                 const groupingClasses = [
                     'message-bubble--hide-timestamp',
                     'message-bubble--hide-author',
@@ -960,15 +1066,25 @@
                     'message-bubble--compact-with-reaction'
                 ];
 
-                bubbles.forEach(el => el.classList.remove(...groupingClasses));
-                if (bubbles.length < 2) return;
+                items.forEach(el => {
+                    if (el.classList.contains('message-bubble')) {
+                        el.classList.remove(...groupingClasses);
+                    }
+                });
+                if (items.length < 2) return;
 
                 let i = 0;
-                while (i < bubbles.length) {
+                while (i < items.length) {
+                    const start = items[i];
+                    if (!start.classList.contains('message-bubble')) {
+                        i += 1;
+                        continue;
+                    }
                     let j = i + 1;
-                    while (j < bubbles.length) {
-                        const prev = bubbles[j - 1];
-                        const curr = bubbles[j];
+                    while (j < items.length) {
+                        const prev = items[j - 1];
+                        const curr = items[j];
+                        if (!curr.classList.contains('message-bubble')) break;
                         const prevUserId = prev.dataset.userId;
                         const currUserId = curr.dataset.userId;
                         // user_id が無いゲスト同士などは誤ってまとめない
@@ -983,7 +1099,7 @@
 
                     if (j - i > 1) {
                         for (let k = i; k < j; k++) {
-                            const el = bubbles[k];
+                            const el = items[k];
                             const isFirst = k === i;
                             const isLast = k === j - 1;
                             const isSelf = el.classList.contains('message-bubble--self');
@@ -1049,17 +1165,17 @@
             }
 
             function getOldestLoadedMessageId() {
-                const firstBubble = messagesContainer?.querySelector('.message-bubble:not(.message-bubble--deleting)');
-                if (!firstBubble) return null;
-                const messageId = Number(firstBubble.dataset.messageId);
+                const firstItem = messagesContainer?.querySelector(CHAT_ITEM_SELECTOR);
+                if (!firstItem) return null;
+                const messageId = Number(firstItem.dataset.messageId);
                 return Number.isFinite(messageId) ? messageId : null;
             }
 
             function getNewestLoadedMessageId() {
-                const bubbles = messagesContainer?.querySelectorAll('.message-bubble:not(.message-bubble--deleting)');
-                if (!bubbles || !bubbles.length) return null;
-                const lastBubble = bubbles[bubbles.length - 1];
-                const messageId = Number(lastBubble.dataset.messageId);
+                const items = messagesContainer?.querySelectorAll(CHAT_ITEM_SELECTOR);
+                if (!items || !items.length) return null;
+                const lastItem = items[items.length - 1];
+                const messageId = Number(lastItem.dataset.messageId);
                 return Number.isFinite(messageId) ? messageId : null;
             }
 
@@ -1165,16 +1281,19 @@
             function highlightMessageBubble(messageId) {
                 const el = document.getElementById(`message-${messageId}`);
                 if (!el) return;
-                el.classList.remove('message-bubble--highlight');
+                const highlightClass = el.classList.contains('token-gift-event')
+                    ? 'token-gift-event--highlight'
+                    : 'message-bubble--highlight';
+                el.classList.remove('message-bubble--highlight', 'token-gift-event--highlight');
                 // 再適用でアニメーションを確実に開始
                 void el.offsetWidth;
-                el.classList.add('message-bubble--highlight');
-                setTimeout(() => el.classList.remove('message-bubble--highlight'), 1600);
+                el.classList.add(highlightClass);
+                setTimeout(() => el.classList.remove(highlightClass), 1600);
             }
 
             function clearMessageBubbles() {
                 if (!messagesContainer) return;
-                messagesContainer.querySelectorAll('.message-bubble').forEach((el) => el.remove());
+                messagesContainer.querySelectorAll('.message-bubble, .token-gift-event').forEach((el) => el.remove());
             }
 
             function replaceMessagesView(messagesPayload) {
@@ -1184,6 +1303,7 @@
                 messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
                 messageReactions = {};
                 messagesPayload.forEach(item => {
+                    if (isTokenGiftMessage(item.data)) return;
                     messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
@@ -1223,14 +1343,99 @@
                 highlightMessageBubble(targetId);
             }
 
+            function buildTokenGiftUserHtml(userId, userName, mainAccountTag, mainAccountName) {
+                const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
+                if (isBlockedUserId(userId)) {
+                    const blockedLabel = lang === 'ja' ? 'ブロック済みのユーザー' : 'Blocked user';
+                    return `<span class="token-gift-event__user token-gift-event__user--blocked">${blockedLabel}</span>`;
+                }
+                const name = escapeHtml(userName || guestName);
+                return `<button type="button" class="token-gift-event__user" data-user-id="${userId != null ? userId : ''}" data-user-name="${escapeHtml(userName || '')}" data-main-account-tag="${escapeHtml(mainAccountTag || '')}" data-main-account-name="${escapeHtml(mainAccountName || '')}">${name}</button>`;
+            }
+
+            function buildTokenGiftEventHtml(message) {
+                if (shouldHideTokenGift(message)) return '';
+                const amount = Number(message.gift_amount || 0);
+                const amountText = formatTokenAmount(amount);
+                const tier = message.gift_tier || '';
+                const isCommentDeleted = Boolean(message.is_comment_deleted);
+                const commentText = isCommentDeleted ? '' : (message.message || '');
+                const hasComment = Boolean(commentText);
+                const tierClass = tier ? ` token-gift-event--${tier}` : '';
+                const hasCommentClass = hasComment ? ' token-gift-event--has-comment' : '';
+                const giverHtml = buildTokenGiftUserHtml(
+                    message.user_id,
+                    message.user_name,
+                    message.user_main_account_tag,
+                    message.user_main_account_name
+                );
+                const recipientHtml = buildTokenGiftUserHtml(
+                    message.gift_recipient_user_id,
+                    message.gift_recipient_user_name,
+                    message.gift_recipient_main_account_tag,
+                    message.gift_recipient_main_account_name
+                );
+                const lineHtml = lang === 'ja'
+                    ? `${giverHtml}が${recipientHtml}に<b>${amountText}</b>トークンを贈りました`
+                    : `${giverHtml} gifted <b>${amountText}</b> tokens to ${recipientHtml}`;
+                let commentHtml = '';
+                if (isCommentDeleted) {
+                    commentHtml = `<p class="token-gift-event__comment token-gift-event__comment--deleted">${lang === 'ja' ? 'コメントは削除されました' : 'The comment was deleted'}</p>`;
+                } else if (hasComment) {
+                    commentHtml = `<p class="token-gift-event__comment"><span class="token-gift-event__comment-body">${formatMessageHtml(commentText)}</span></p>`;
+                }
+                return `
+                    <div class="token-gift-event${tierClass}${hasCommentClass}"
+                        id="message-${message.id}"
+                        data-message-id="${message.id}"
+                        data-message-type="token_gift"
+                        data-user-id="${message.user_id != null ? message.user_id : ''}"
+                        data-user-name="${escapeHtml(message.user_name || '')}"
+                        data-main-account-tag="${message.user_main_account_tag || ''}"
+                        data-main-account-name="${escapeHtml(message.user_main_account_name || '')}"
+                        data-recipient-user-id="${message.gift_recipient_user_id != null ? message.gift_recipient_user_id : ''}"
+                        data-gift-amount="${amount}"
+                        data-has-comment="${hasComment ? '1' : '0'}"
+                        data-comment-deleted="${isCommentDeleted ? '1' : '0'}"
+                        data-created-at="${message.created_at || ''}">
+                        <div class="token-gift-event__box">
+                            <p class="token-gift-event__line">${lineHtml}</p>
+                            ${commentHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            function applyTokenGiftCommentDeleted(messageId) {
+                const el = document.getElementById(`message-${messageId}`);
+                if (!el || !el.classList.contains('token-gift-event')) return;
+                el.dataset.hasComment = '0';
+                el.dataset.commentDeleted = '1';
+                el.classList.remove('token-gift-event--has-comment');
+                const deletedText = lang === 'ja' ? 'コメントは削除されました' : 'The comment was deleted';
+                const commentEl = el.querySelector('.token-gift-event__comment');
+                if (commentEl) {
+                    commentEl.className = 'token-gift-event__comment token-gift-event__comment--deleted';
+                    commentEl.textContent = deletedText;
+                } else {
+                    const box = el.querySelector('.token-gift-event__box');
+                    if (box) {
+                        box.insertAdjacentHTML('beforeend', `<p class="token-gift-event__comment token-gift-event__comment--deleted">${deletedText}</p>`);
+                    }
+                }
+            }
+
             function buildMessageBubbleHtml(message, { includeReactionPrompt = false } = {}) {
+                if (isTokenGiftMessage(message)) {
+                    return buildTokenGiftEventHtml(message);
+                }
                 const isSelf = message.user_id === currentUserId;
                 const bubbleClass = isSelf ? 'message-bubble message-bubble--self' : 'message-bubble';
                 const guestName = lang === 'ja' ? 'ゲスト' : 'Guest';
 
                 let authorIconHtml = '';
                 if (!isSelf) {
-                    const clickableClass = message.user_main_account_tag ? 'message-bubble__icon-wrapper--clickable' : '';
+                    const clickableClass = message.user_id ? 'message-bubble__icon-wrapper--clickable' : '';
                     const iconPath = message.user_icon_path || defaultPlayerIconPath;
                     authorIconHtml = `
                         <div class="message-bubble__icon-wrapper ${clickableClass}">
@@ -1290,7 +1495,7 @@
                 if (!messagesContainer || !messagesPayload.length) return;
 
                 const previousScrollHeight = messagesContainer.scrollHeight;
-                const insertionTarget = messagesContainer.querySelector('.message-bubble');
+                const insertionTarget = messagesContainer.querySelector(CHAT_ITEM_SELECTOR);
                 const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
 
                 if (insertionTarget) {
@@ -1300,6 +1505,7 @@
                 }
 
                 messagesPayload.forEach(item => {
+                    if (isTokenGiftMessage(item.data)) return;
                     messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
@@ -1313,6 +1519,7 @@
                 const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
                 messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
                 messagesPayload.forEach(item => {
+                    if (isTokenGiftMessage(item.data)) return;
                     messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
@@ -1419,7 +1626,7 @@
                     existingPrompt.remove();
                 }
 
-                const messageHtml = buildMessageBubbleHtml(message, { includeReactionPrompt: true });
+                const messageHtml = buildMessageBubbleHtml(message, { includeReactionPrompt: !isTokenGiftMessage(message) });
                 
                 messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
                 updateMessageGrouping();
@@ -1455,6 +1662,77 @@
                 hideMessageMenu();
             }
 
+            function setupAndShowGiftCommentMenu(targetElement, giftEvent) {
+                hideHostMenu();
+                hideThreadMenu();
+                hideReactionMenu();
+                hideMessageMenuChrome();
+                const messageId = giftEvent.dataset.messageId;
+                activeMessageId = messageId;
+                if (messageMenuEmojis) messageMenuEmojis.innerHTML = '';
+                messageMenuActions.innerHTML = '';
+
+                const giverUserId = giftEvent.dataset.userId ? parseInt(giftEvent.dataset.userId, 10) : null;
+                const isOwnGift = Boolean(currentUserId && giverUserId === currentUserId);
+
+                const copyButton = document.createElement('button');
+                copyButton.type = 'button';
+                copyButton.className = 'chat-menu__action-btn';
+                copyButton.style.color = '#111';
+                copyButton.textContent = lang === 'ja' ? 'メッセージをコピー' : 'Copy Message';
+                copyButton.onclick = () => copyGiftComment(giftEvent);
+                messageMenuActions.appendChild(copyButton);
+
+                if (isAdmin || isOwnGift) {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'chat-menu__action-btn';
+                    deleteButton.innerHTML = `<span style="color: #c90808;">${lang === 'ja' ? 'メッセージを削除' : 'Delete Message'}</span>`;
+                    deleteButton.onclick = () => handleDeleteGiftComment(messageId);
+                    messageMenuActions.appendChild(deleteButton);
+                } else if (currentUserId) {
+                    const reportButton = document.createElement('button');
+                    reportButton.className = 'chat-menu__action-btn';
+                    reportButton.innerHTML = `<span style="color: #9d0759;">${lang === 'ja' ? 'メッセージを通報' : 'Report Message'}</span>`;
+                    reportButton.onclick = () => { openReportModal(messageId); hideMessageMenu(); };
+                    messageMenuActions.appendChild(reportButton);
+                }
+
+                positionMenu(messageMenu, targetElement, { pinToVisibleMessageArea: true });
+            }
+
+            async function copyGiftComment(giftEvent) {
+                hideMessageMenu();
+                const bodyEl = giftEvent.querySelector('.token-gift-event__comment-body');
+                const text = bodyEl ? (bodyEl.innerText || bodyEl.textContent || '') : '';
+                try {
+                    await copyTextToClipboard(text);
+                } catch (error) {
+                    console.error('Failed to copy gift comment:', error);
+                }
+            }
+
+            async function handleDeleteGiftComment(messageId) {
+                const confirmDelete = confirm(
+                    lang === 'ja'
+                        ? 'このメッセージを本当に削除しますか？\nメッセージは削除されますが、トークンの進呈は取り消されません。'
+                        : 'Are you sure you want to delete this message?\nThe message will be deleted, but the token gift will not be undone.'
+                );
+                if (confirmDelete) {
+                    try {
+                        const response = await fetch(`/${lang}/boards/messages/${messageId}/token-gift-comment`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            throw new Error('Failed to delete gift comment');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting gift comment:', error);
+                        alert(lang === 'ja' ? 'メッセージの削除に失敗しました。' : 'Failed to delete message.');
+                    }
+                }
+                hideMessageMenu();
+            }
+
             // --- 通報モーダル制御 ---
             const openReportModal = (messageId) => {
                 reportModalOverlay.dataset.messageId = messageId;
@@ -1471,6 +1749,127 @@
                 reportModalOverlay.classList.remove('active');
                 delete reportModalOverlay.dataset.messageId;
             };
+
+            let tokenGiftRecipient = null;
+            let isSubmittingTokenGift = false;
+
+            function getAffordableGiftOptions() {
+                return Object.entries(tokenGiftOptions || {})
+                    .map(([amount, fee]) => [Number(amount), Number(fee)])
+                    .filter(([amount, fee]) => Number.isFinite(amount) && amount + fee <= currentUserTokens)
+                    .sort((a, b) => a[0] - b[0]);
+            }
+
+            function populateTokenGiftAmountSelect() {
+                if (!tokenGiftAmountSelect) return;
+                const affordable = getAffordableGiftOptions();
+                tokenGiftAmountSelect.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-';
+                tokenGiftAmountSelect.appendChild(placeholder);
+                affordable.forEach(([amount, fee]) => {
+                    const option = document.createElement('option');
+                    option.value = String(amount);
+                    option.textContent = lang === 'ja'
+                        ? `${amount} (+手数料${fee})`
+                        : `${amount} (+fee ${fee})`;
+                    tokenGiftAmountSelect.appendChild(option);
+                });
+                tokenGiftAmountSelect.value = '';
+                if (tokenGiftModalSubmitBtn) tokenGiftModalSubmitBtn.disabled = true;
+            }
+
+            function updateTokenGiftModalDescription(recipientName) {
+                if (!tokenGiftModalDescription) return;
+                const nameHtml = `<b>${escapeHtml(recipientName || '')}</b>`;
+                const tokensHtml = `<b>${formatTokenAmount(currentUserTokens)}</b>`;
+                if (currentUserTokens < 5) {
+                    tokenGiftModalDescription.innerHTML = lang === 'ja'
+                        ? `${nameHtml}さんに感謝の気持ちを込めてトークンを贈ることができます。<br>あなたは現在${tokensHtml}トークン持っています。トークンを贈るには、最低でも<b>5</b>トークンが必要です。トークンはアカウントタブからミッション等で獲得できます。`
+                        : `You can gift tokens to ${nameHtml} as a token of thanks.<br>You currently have ${tokensHtml} tokens. You need at least <b>5</b> tokens to send a gift. You can earn tokens from missions on the Account tab.`;
+                    return;
+                }
+                tokenGiftModalDescription.innerHTML = lang === 'ja'
+                    ? `${nameHtml}さんに感謝の気持ちを込めてトークンを贈ることができます。<br>あなたは現在${tokensHtml}トークン持っています。トークンはアカウントタブからミッション等で獲得できます。高額のトークンを贈る際はわずかに手数料が発生しますが、ブロンズ〜ブラックの豪華な演出で贈ることができます！`
+                    : `You can gift tokens to ${nameHtml} as a token of thanks.<br>You currently have ${tokensHtml} tokens. You can earn tokens from missions on the Account tab. Gifting larger amounts incurs a small fee, but comes with a luxurious bronze-to-black presentation!`;
+            }
+
+            function openTokenGiftModal(messageData) {
+                const recipientUserId = messageData.userId ? parseInt(messageData.userId, 10) : null;
+                if (!recipientUserId) return;
+                tokenGiftRecipient = {
+                    userId: recipientUserId,
+                    userName: messageData.userName || '',
+                };
+                if (tokenGiftCommentInput) tokenGiftCommentInput.value = '';
+                populateTokenGiftAmountSelect();
+                updateTokenGiftModalDescription(tokenGiftRecipient.userName);
+                hideHostMenu();
+                hideMessageMenu();
+                document.body.classList.add('modal-open');
+                tokenGiftModalOverlay.classList.add('active');
+            }
+
+            function closeTokenGiftModal() {
+                tokenGiftModalOverlay.classList.remove('active');
+                if (!reportModalOverlay.classList.contains('active')) {
+                    document.body.classList.remove('modal-open');
+                }
+                tokenGiftRecipient = null;
+                isSubmittingTokenGift = false;
+                if (tokenGiftModalSubmitBtn) tokenGiftModalSubmitBtn.disabled = true;
+            }
+
+            async function submitTokenGift() {
+                if (!tokenGiftRecipient || isSubmittingTokenGift || !tokenGiftAmountSelect?.value) return;
+                const amount = Number(tokenGiftAmountSelect.value);
+                const comment = tokenGiftCommentInput ? tokenGiftCommentInput.value : '';
+                isSubmittingTokenGift = true;
+                tokenGiftModalSubmitBtn.disabled = true;
+                try {
+                    const payload = {
+                        recipient_user_id: tokenGiftRecipient.userId,
+                        amount,
+                        comment: comment || null,
+                    };
+                    const validateResponse = await fetch(`/${lang}/boards/chat/${threadId}/token-gifts/validate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const validateData = await validateResponse.json().catch(() => ({}));
+                    if (!validateResponse.ok || !validateData.success) {
+                        alert(validateData.detail || (lang === 'ja' ? 'トークンを贈れませんでした。' : 'Could not gift tokens.'));
+                        return;
+                    }
+                    const confirmed = confirm(validateData.confirm_message || '');
+                    if (!confirmed) return;
+                    const createResponse = await fetch(`/${lang}/boards/chat/${threadId}/token-gifts`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const createData = await createResponse.json().catch(() => ({}));
+                    if (!createResponse.ok || !createData.success) {
+                        alert(createData.detail || (lang === 'ja' ? 'トークンを贈れませんでした。' : 'Could not gift tokens.'));
+                        return;
+                    }
+                    if (typeof createData.tokens === 'number') {
+                        currentUserTokens = createData.tokens;
+                    }
+                    alert(createData.message || '');
+                    closeTokenGiftModal();
+                } catch (error) {
+                    console.error('Error submitting token gift:', error);
+                    alert(lang === 'ja' ? 'トークンを贈れませんでした。' : 'Could not gift tokens.');
+                } finally {
+                    isSubmittingTokenGift = false;
+                    if (tokenGiftModalOverlay.classList.contains('active') && tokenGiftAmountSelect?.value) {
+                        tokenGiftModalSubmitBtn.disabled = false;
+                    }
+                }
+            }
 
             // --- メニューを非表示にする ---
             function hideMessageMenu() {
@@ -1623,6 +2022,7 @@
             function setupAndShowMenu(targetElement, messageId, messageUserId) {
                 hideHostMenu(); // もう片方のメニューは隠す
                 hideThreadMenu();
+                restoreMessageMenuChrome();
                 activeMessageId = messageId;
                 messageMenuEmojis.innerHTML = '';
                 // 自分のリアクション状態に応じてボタンの見た目を変える
@@ -1709,12 +2109,14 @@
             };
 
             // --- ホストメニューをセットアップ ---
-            function setupAndShowHostMenu(targetBubble) {
+            function setupAndShowHostMenu(positionTarget, dataset) {
                 hideMessageMenu(); // もう片方のメニューは隠す
                 hideThreadMenu();
-                const targetIcon = targetBubble.querySelector('.message-bubble__icon-wrapper');
-                const messageData = targetBubble.dataset;
+                const messageData = dataset || positionTarget?.closest('.message-bubble')?.dataset || {};
                 hostMenuActions.innerHTML = '';
+
+                const targetUserId = messageData.userId ? parseInt(messageData.userId, 10) : null;
+                const isSelfUser = Boolean(currentUserId && targetUserId === currentUserId);
 
                 let itemCount = 0;
                 // 1. プロフィールを見るメニュー
@@ -1734,8 +2136,50 @@
                     hostMenuActions.appendChild(profileLink);
                 }
 
-                // 2. グローバルブロックメニュー
-                if (messageData.userId) {
+                // 2. トークン進呈（自分・ゲスト以外は常設）
+                if (targetUserId && !isSelfUser) {
+                    if (itemCount > 0) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
+                    itemCount++;
+                    const giftButton = document.createElement('button');
+                    giftButton.type = 'button';
+                    giftButton.className = 'chat-menu__action-btn chat-menu__action-btn--gift';
+                    giftButton.textContent = lang === 'ja' ? 'このユーザーにトークンを贈る' : 'Gift tokens to this user';
+                    if (!currentUserId) {
+                        giftButton.classList.remove('chat-menu__action-btn--gift');
+                        giftButton.classList.add('chat-menu__action-btn--muted');
+                        giftButton.onclick = () => {
+                            hideHostMenu();
+                            alert(lang === 'ja'
+                                ? 'ログインすると、他のユーザーに感謝の気持ちを込めてトークンを贈ることができます。無料で利用できます。'
+                                : 'Once logged in, you can gift tokens to other users to show your appreciation. It is free to use.');
+                        };
+                    } else if (isProhibitPosting) {
+                        giftButton.classList.remove('chat-menu__action-btn--gift');
+                        giftButton.classList.add('chat-menu__action-btn--muted');
+                        giftButton.onclick = () => {
+                            hideHostMenu();
+                            alert(lang === 'ja'
+                                ? '現在投稿機能が制限されています。一時的なシステムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。'
+                                : 'Posting is currently restricted. Posting may be restricted during temporary system issues, or when posts that violate the Terms of Service are found.');
+                        };
+                    } else if (!isPermittedToChat) {
+                        giftButton.classList.remove('chat-menu__action-btn--gift');
+                        giftButton.classList.add('chat-menu__action-btn--muted');
+                        giftButton.onclick = () => {
+                            hideHostMenu();
+                            alert(lang === 'ja' ? 'このチャットに参加する権限がありません。' : 'You do not have permission to join this chat.');
+                        };
+                    } else {
+                        giftButton.onclick = () => {
+                            hideHostMenu();
+                            openTokenGiftModal(messageData);
+                        };
+                    }
+                    hostMenuActions.appendChild(giftButton);
+                }
+
+                // 3. グローバルブロックメニュー
+                if (targetUserId && !isSelfUser) {
                     if (itemCount > 0) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
                     itemCount++;
 
@@ -1750,10 +2194,9 @@
                     hostMenuActions.appendChild(globalBlockButton);
                 }
 
-                // 3. ホスト専用メニュー（招待リンク等がある投稿のみ。level 20 以下では個別許可は無意味なので非表示）
-                if (currentUserId === postHostId && messageData.userId && currentPostState.link && (currentPostState.chat_permission_level || 0) > 20) {
+                // 4. ホスト専用メニュー（招待リンク等がある投稿のみ。level 20 以下では個別許可は無意味なので非表示）
+                if (currentUserId === postHostId && targetUserId && !isSelfUser && currentPostState.link && (currentPostState.chat_permission_level || 0) > 20) {
                     // リンククリックの個別許可メニュー
-                    const targetUserId = parseInt(messageData.userId, 10);
                     const isPermitted = currentPostState.permitted_ids.includes(targetUserId);
                     const linkType = currentPostState.type === 'friend' ? (lang === 'ja' ? 'フレンドリンク' : 'friend link') : (lang === 'ja' ? '招待リンク' : 'invite link');
                     const permitButton = document.createElement('button');
@@ -1767,12 +2210,13 @@
                         permitButton.textContent = lang === 'ja' ? `このユーザーの${linkType}クリックを個別に許可` : `Individually permit this user to click the ${linkType}`;
                         permitButton.onclick = () => hostAction('permit', targetUserId, messageData.userName);
                     }
-                    if (itemCount > 0 && !hostMenuActions.querySelector('.chat-menu__separator')) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
-                    else if (itemCount > 1) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
+                    if (itemCount > 0) hostMenuActions.appendChild(document.createElement('div')).className = 'chat-menu__separator';
                     hostMenuActions.appendChild(permitButton);
+                    itemCount++;
                 }
-                
-                positionMenu(hostMenu, targetIcon);
+
+                if (!itemCount) return;
+                positionMenu(hostMenu, positionTarget);
             }
 
             // --- 絵文字クリック時のメイン処理 ---
@@ -1993,6 +2437,37 @@
                     return;
                 }
 
+                const giftUserEl = event.target.closest('.token-gift-event__user');
+                if (giftUserEl && event.currentTarget.contains(giftUserEl)) {
+                    if (!giftUserEl.classList.contains('token-gift-event__user--blocked')) {
+                        setupAndShowHostMenu(giftUserEl, giftUserEl.dataset);
+                    }
+                    return;
+                }
+
+                const giftBox = event.target.closest('.token-gift-event__box');
+                if (giftBox && event.currentTarget.contains(giftBox)) {
+                    const giftEvent = giftBox.closest('.token-gift-event');
+                    if (giftEvent && giftEvent.dataset.hasComment === '1') {
+                        const selection = window.getSelection();
+                        if (
+                            selection
+                            && !selection.isCollapsed
+                            && selection.toString().length > 0
+                            && giftBox.contains(selection.anchorNode)
+                        ) {
+                            return;
+                        }
+                        setupAndShowGiftCommentMenu(giftBox, giftEvent);
+                    } else {
+                        hideMessageMenu();
+                        hideHostMenu();
+                        hideReactionMenu();
+                        hideThreadMenu();
+                    }
+                    return;
+                }
+
                 const messageText = event.target.closest('.message-bubble__text');
                 const iconWrapper = event.target.closest('.message-bubble__icon-wrapper');
                 const reactionContainer = event.target.closest('.reactions__container');
@@ -2020,7 +2495,7 @@
                 if (iconWrapper && iconWrapper.classList.contains('message-bubble__icon-wrapper--clickable')) {
                     const messageBubble = iconWrapper.closest('.message-bubble');
                     if (messageBubble) {
-                        setupAndShowHostMenu(messageBubble);
+                        setupAndShowHostMenu(iconWrapper, messageBubble.dataset);
                     }
                     return;
                 }
@@ -2043,6 +2518,8 @@
                     && !reactionListMenu.contains(event.target)
                     && !threadMenu.contains(event.target)
                     && !event.target.closest('.message-bubble')
+                    && !event.target.closest('.token-gift-event__box')
+                    && !event.target.closest('.token-gift-event__user')
                     && !event.target.closest('.reactions__container')
                     && !event.target.closest('#chat-menu-button')
                 ) {
@@ -2108,7 +2585,9 @@
 
                     if (event.key === 'Escape') {
                         // 最初にアクティブなモーダルを閉じることを試みる
-                        if (reportModalOverlay.classList.contains('active')) {
+                        if (tokenGiftModalOverlay.classList.contains('active')) {
+                            closeTokenGiftModal();
+                        } else if (reportModalOverlay.classList.contains('active')) {
                             closeReportModal();
                         } 
                         // モーダルが開いていなければ、メッセージメニューを閉じる
@@ -2440,6 +2919,40 @@
             reportModalOverlay.addEventListener('click', (event) => {
                 if (event.target === reportModalOverlay) {
                     closeReportModal();
+                }
+            });
+
+            if (tokenGiftModalCancelBtn) {
+                tokenGiftModalCancelBtn.addEventListener('click', closeTokenGiftModal);
+            }
+            if (tokenGiftModalOverlay) {
+                tokenGiftModalOverlay.addEventListener('click', (event) => {
+                    if (event.target === tokenGiftModalOverlay) {
+                        closeTokenGiftModal();
+                    }
+                });
+            }
+            if (tokenGiftAmountSelect) {
+                tokenGiftAmountSelect.addEventListener('change', () => {
+                    if (tokenGiftModalSubmitBtn) {
+                        tokenGiftModalSubmitBtn.disabled = !tokenGiftAmountSelect.value || isSubmittingTokenGift;
+                    }
+                });
+            }
+            if (tokenGiftModalSubmitBtn) {
+                tokenGiftModalSubmitBtn.addEventListener('click', () => {
+                    submitTokenGift();
+                });
+            }
+            if (tokenGiftCommentInput) {
+                tokenGiftCommentInput.addEventListener('blur', () => {
+                    window.scrollTo(0, 0);
+                });
+            }
+            document.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') return;
+                if (tokenGiftModalOverlay.classList.contains('active')) {
+                    closeTokenGiftModal();
                 }
             });
         });

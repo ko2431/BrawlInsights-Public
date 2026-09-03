@@ -19,6 +19,7 @@ NOTIFICATION_TYPE_OWN_POST_MESSAGE = "own_post_message"
 NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE = "participated_thread_message"
 NOTIFICATION_TYPE_MESSAGE_REPLY = "message_reply"
 NOTIFICATION_TYPE_MESSAGE_REACTION = "message_reaction"
+NOTIFICATION_TYPE_TOKEN_GIFT = "token_gift"
 
 AGGREGATED_NOTIFICATION_TYPES = {
     NOTIFICATION_TYPE_POST_LIKE,
@@ -39,6 +40,7 @@ NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE: "notification_participated_thread_message_enabled",
     NOTIFICATION_TYPE_MESSAGE_REPLY: "notification_message_reply_enabled",
     NOTIFICATION_TYPE_MESSAGE_REACTION: "notification_message_reaction_enabled",
+    NOTIFICATION_TYPE_TOKEN_GIFT: "notification_token_gift_enabled",
 }
 
 VALID_NOTIFICATION_FILTERS = frozenset({"all", *NOTIFICATION_TYPE_SETTING_KEYS})
@@ -94,6 +96,7 @@ async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dic
                    notification_participated_thread_message_enabled,
                    notification_message_reply_enabled,
                    notification_message_reaction_enabled,
+                   notification_token_gift_enabled,
                    notifications_last_read_at
             FROM users
             WHERE id = $1
@@ -113,6 +116,7 @@ async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dic
         "notification_participated_thread_message_enabled": bool(row["notification_participated_thread_message_enabled"]),
         "notification_message_reply_enabled": bool(row["notification_message_reply_enabled"]),
         "notification_message_reaction_enabled": bool(row["notification_message_reaction_enabled"]),
+        "notification_token_gift_enabled": bool(row["notification_token_gift_enabled"]),
         "notifications_last_read_at": row["notifications_last_read_at"],
     }
     cache_value = settings.copy()
@@ -135,6 +139,7 @@ async def update_notification_setting(
         "notification_participated_thread_message_enabled",
         "notification_message_reply_enabled",
         "notification_message_reaction_enabled",
+        "notification_token_gift_enabled",
     }
     if setting_key not in allowed_keys:
         raise ValueError("Invalid notification setting key")
@@ -301,6 +306,7 @@ async def _create_brawler_guide_participated_recipient_ids(
                   AND user_id IS NOT NULL
                   AND is_deleted = FALSE
                   AND id < $2
+                  AND COALESCE(message_type, 'message') = 'message'
                 ORDER BY user_id, id DESC
             )
             SELECT lum.user_id
@@ -315,6 +321,7 @@ async def _create_brawler_guide_participated_recipient_ids(
                     AND m.user_id != lum.user_id
                     AND m.id > lum.last_user_msg_id
                     AND m.id <= $2
+                    AND COALESCE(m.message_type, 'message') = 'message'
               ) <= $4
             """,
             thread_id,
@@ -366,6 +373,10 @@ async def create_message_notifications(
     if not sender_user_id:
         return
 
+    source_message = await get_message(db, message_id, include_deleted_message=True)
+    if not source_message or source_message.message_type != "message":
+        return
+
     post = await get_post(db, thread_id)
     if not post or post.is_deleted:
         return
@@ -410,6 +421,7 @@ async def create_message_notifications(
                   AND user_id != $2
                   AND is_deleted = FALSE
                   AND id < $3
+                  AND COALESCE(message_type, 'message') = 'message'
                 """,
                 thread_id,
                 sender_user_id,
@@ -442,6 +454,8 @@ async def handle_message_reaction_notification(
 ) -> None:
     message = await get_message(db, message_id)
     if not message or message.is_deleted or not message.user_id:
+        return
+    if message.message_type != "message":
         return
 
     if is_added:
@@ -486,6 +500,24 @@ async def handle_message_reaction_notification(
 
     for row in rows:
         await invalidate_notification_cache(row["recipient_user_id"])
+
+
+async def create_token_gift_notification(
+    db: asyncpg.Connection,
+    *,
+    thread_id: int,
+    message_id: int,
+    giver_user_id: int,
+    recipient_user_id: int,
+) -> None:
+    await _create_notification(
+        db,
+        recipient_user_id=recipient_user_id,
+        notification_type=NOTIFICATION_TYPE_TOKEN_GIFT,
+        actor_user_id=giver_user_id,
+        post_id=thread_id,
+        message_id=message_id,
+    )
 
 
 def format_notification_ago(created_at: datetime.datetime, lang: str) -> str:
@@ -829,6 +861,28 @@ async def _aggregate_notification_rows(
             emoji_counts.sort(key=lambda item: EMOJIS.index(item[0]) if item[0] in EMOJIS else len(EMOJIS))
             reaction_summaries[message_id] = "・".join(f"{emoji}{count}" for emoji, count in emoji_counts)
 
+    gift_metas: dict[int, dict[str, Any]] = {}
+    if message_ids:
+        try:
+            gift_rows = await db.fetch(
+                """
+                SELECT message_id, amount, comment, is_comment_deleted
+                FROM token_gifts
+                WHERE message_id = ANY($1::int[])
+                """,
+                list(message_ids),
+            )
+        except asyncpg.PostgresError as e:
+            raise DataBaseError(e) from e
+        from app.services.token_gift_service import TOKEN_GIFT_TIER_BY_AMOUNT
+        for gift_row in gift_rows:
+            gift_metas[gift_row["message_id"]] = {
+                "amount": gift_row["amount"],
+                "comment": gift_row["comment"],
+                "is_comment_deleted": bool(gift_row["is_comment_deleted"]),
+                "tier": TOKEN_GIFT_TIER_BY_AMOUNT.get(int(gift_row["amount"])),
+            }
+
     notifications: list[dict[str, Any]] = []
     for key in ordered_keys:
         group_rows = sorted(grouped[key], key=lambda row: row["created_at"], reverse=True)
@@ -860,6 +914,8 @@ async def _aggregate_notification_rows(
             "thread_id": None,
             "message_id": None,
             "reaction_summary": "",
+            "target_is_empty": False,
+            "gift_tier": None,
         }
 
         if ntype == NOTIFICATION_TYPE_POST_LIKE:
@@ -902,6 +958,34 @@ async def _aggregate_notification_rows(
             item["thread_id"] = latest_row["post_id"]
             item["message_id"] = message_id
             item["reaction_summary"] = reaction_summaries.get(message_id, "")
+        elif ntype == NOTIFICATION_TYPE_TOKEN_GIFT:
+            message_id = latest_row["message_id"]
+            gift_meta = gift_metas.get(message_id)
+            if not message_id or not gift_meta:
+                continue
+            actor = actors[0]
+            amount_text = f"{int(gift_meta['amount']):,}"
+            if lang == "ja":
+                item["title_html"] = (
+                    f"<b>{actor['user_name']}</b>さんがあなたに<b>{amount_text}トークン</b>を贈りました"
+                )
+            else:
+                item["title_html"] = (
+                    f"<b>{actor['user_name']}</b> gifted you <b>{amount_text} tokens</b>"
+                )
+            if gift_meta["is_comment_deleted"]:
+                item["target_text"] = ""
+                item["target_is_empty"] = True
+            elif gift_meta["comment"]:
+                item["target_text"] = censor_filter(gift_meta["comment"])
+                item["target_is_empty"] = False
+            else:
+                item["target_text"] = ""
+                item["target_is_empty"] = True
+            item["target_kind"] = "chat"
+            item["thread_id"] = latest_row["post_id"]
+            item["message_id"] = message_id
+            item["gift_tier"] = gift_meta["tier"]
         else:
             continue
 

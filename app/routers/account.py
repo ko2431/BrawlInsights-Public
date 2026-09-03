@@ -1133,6 +1133,7 @@ async def update_notification_settings_process(
         "notification_participated_thread_message_enabled",
         "notification_message_reply_enabled",
         "notification_message_reaction_enabled",
+        "notification_token_gift_enabled",
     }
     if payload.setting_key not in allowed_keys:
         return JSONResponse(

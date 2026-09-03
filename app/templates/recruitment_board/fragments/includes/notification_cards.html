@@ -5,6 +5,8 @@
         <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="{% if lang == 'ja' %}いいね{% else %}Like{% endif %}" class="notification-type__icon">
         {% elif notification.notification_type == "message_reaction" %}
         <img src="{{ url_for('static', path='/images/spray/68000009.webp') }}" alt="{% if lang == 'ja' %}リアクション{% else %}Reaction{% endif %}" class="notification-type__icon">
+        {% elif notification.notification_type == "token_gift" %}
+        <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="{% if lang == 'ja' %}トークン進呈{% else %}Token gift{% endif %}" class="notification-type__icon">
         {% else %}
         <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}メッセージ{% else %}Message{% endif %}" class="notification-type__icon">
         {% endif %}
@@ -33,8 +35,12 @@
         {% else %}
         <a href="#" class="notification-target__link">
         {% endif %}
-            <div class="notification-target__container">
+            <div class="notification-target__container{% if notification.gift_tier %} notification-target__container--gift-{{ notification.gift_tier }}{% endif %}">
+                {% if notification.target_is_empty %}
+                <p class="notification-target__text notification-target__text--empty">{% if lang == 'ja' %}(コメントなし){% else %}(No comment){% endif %}</p>
+                {% else %}
                 <p class="notification-target__text">{{ notification.target_text }}</p>
+                {% endif %}
                 {% if notification.reaction_summary %}
                 <div class="notification-reactions__container">
                     <div class="notification-reactions__box">{{ notification.reaction_summary }}</div>

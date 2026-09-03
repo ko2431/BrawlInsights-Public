@@ -20,12 +20,24 @@ from app.services.notification_service import (
     VALID_NOTIFICATION_FILTERS,
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
     create_message_notifications,
+    create_token_gift_notification,
     empty_board_notification_context,
     get_board_notification_context,
     get_notifications_for_display,
     handle_message_reaction_notification,
     handle_post_like_notification,
     mark_all_notifications_as_read,
+)
+from app.services.token_gift_service import (
+    TOKEN_GIFT_COMMENT_MAX_LENGTH,
+    TOKEN_GIFT_MESSAGE_TYPE,
+    TOKEN_GIFT_OPTIONS,
+    TokenGiftError,
+    attach_token_gift_payloads,
+    create_token_gift,
+    delete_token_gift_comment,
+    format_token_amount,
+    validate_token_gift,
 )
 from app.utils.utils import get_icon_path, get_remote_ip
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
@@ -94,6 +106,21 @@ def get_ip(request: Request) -> str:
     return get_remote_ip(request)
 
 
+def _should_omit_chat_message(message, blocked_user_ids: list[int]) -> bool:
+    if message.is_deleted:
+        return True
+    if getattr(message, "message_type", None) == TOKEN_GIFT_MESSAGE_TYPE:
+        return False
+    return message.user_id in blocked_user_ids
+
+
+async def _payload_item_for_chat_message(db: asyncpg.Connection, message) -> dict:
+    reactions = []
+    if message.message_type != TOKEN_GIFT_MESSAGE_TYPE:
+        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+    return {"data": _censor_message_dict(message.to_dict()), "reactions": reactions}
+
+
 async def _fetch_chat_messages_payload(
     db: asyncpg.Connection,
     *,
@@ -126,14 +153,13 @@ async def _fetch_chat_messages_payload(
     messages_data.reverse()
 
     await attach_reply_to_previews(db, messages_data)
+    await attach_token_gift_payloads(db, messages_data)
 
     payload: list[dict] = []
     for message in messages_data:
-        if message.is_deleted or message.user_id in blocked_user_ids:
+        if _should_omit_chat_message(message, blocked_user_ids):
             continue
-        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
-        message_dict = _censor_message_dict(message.to_dict())
-        payload.append({"data": message_dict, "reactions": reactions})
+        payload.append(await _payload_item_for_chat_message(db, message))
 
     has_more_older = False
     has_more_newer = False
@@ -163,6 +189,8 @@ def _censor_message_dict(message_dict: dict) -> dict:
         reply_to = dict(reply_to)
         reply_to["message"] = censor_filter(reply_to["message"])
         message_dict["reply_to"] = reply_to
+    if message_dict.get("message_type") == TOKEN_GIFT_MESSAGE_TYPE:
+        message_dict.pop("user_ip", None)
     return message_dict
 
 
@@ -213,14 +241,13 @@ async def _fetch_chat_messages_around(
     messages_data = unique_messages
 
     await attach_reply_to_previews(db, messages_data)
+    await attach_token_gift_payloads(db, messages_data)
 
     payload: list[dict] = []
     for message in messages_data:
-        if message.is_deleted or message.user_id in blocked_user_ids:
+        if _should_omit_chat_message(message, blocked_user_ids):
             continue
-        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
-        message_dict = _censor_message_dict(message.to_dict())
-        payload.append({"data": message_dict, "reactions": reactions})
+        payload.append(await _payload_item_for_chat_message(db, message))
 
     has_more_older = False
     has_more_newer = False
@@ -395,6 +422,11 @@ class ReportCreateRequest(BaseModel):
 class MessageCreateRequest(BaseModel):
     message: str
     reply_to_message_id: int | None = None
+
+class TokenGiftCreateRequest(BaseModel):
+    recipient_user_id: int
+    amount: int
+    comment: str | None = Field(default=None, max_length=TOKEN_GIFT_COMMENT_MAX_LENGTH)
 
 class ReactionCreateRequest(BaseModel):
     emoji: str
@@ -1291,14 +1323,11 @@ async def chat_thread(
             if focus_message_id in latest_ids:
                 messages_data = list(reversed(latest_messages))
                 await attach_reply_to_previews(db, messages_data)
+                await attach_token_gift_payloads(db, messages_data)
                 for message in messages_data:
-                    if message.is_deleted or message.user_id in blocked_user_ids:
+                    if _should_omit_chat_message(message, blocked_user_ids):
                         continue
-                    reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
-                    messages[message.id] = {
-                        "data": _censor_message_dict(message.to_dict()),
-                        "reactions": reactions,
-                    }
+                    messages[message.id] = await _payload_item_for_chat_message(db, message)
                 has_more_older_messages = total_messages > len(messages_data)
                 has_more_newer_messages = False
             else:
@@ -1318,14 +1347,11 @@ async def chat_thread(
             )
             messages_data.reverse()
             await attach_reply_to_previews(db, messages_data)
+            await attach_token_gift_payloads(db, messages_data)
             for message in messages_data:
-                if message.is_deleted or message.user_id in blocked_user_ids:
+                if _should_omit_chat_message(message, blocked_user_ids):
                     continue
-                reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
-                messages[message.id] = {
-                    "data": _censor_message_dict(message.to_dict()),
-                    "reactions": reactions,
-                }
+                messages[message.id] = await _payload_item_for_chat_message(db, message)
             has_more_older_messages = total_messages > len(messages_data)
             has_more_newer_messages = False
     except DataBaseError as e:
@@ -1371,6 +1397,10 @@ async def chat_thread(
         "has_more_newer_messages": has_more_newer_messages,
         "focus_message_id": focus_message_id,
         "is_permitted_to_chat": is_permitted_to_chat,
+        "is_prohibit_posting": bool(user.is_prohibit_posting) if user else False,
+        "current_user_tokens": user.tokens if user else 0,
+        "token_gift_options": TOKEN_GIFT_OPTIONS,
+        "token_gift_comment_max_length": TOKEN_GIFT_COMMENT_MAX_LENGTH,
         "blocked_ids": blocked_ids,
         "current_page": chat_current_page,
         # チャットは下部入力欄があるため、AdMobバナーはヘッダー直下(上部)に出す
@@ -2039,6 +2069,181 @@ async def create_chat_message(
         logger.error(f"メッセージ作成中(スレッド:{thread_id})にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
 
+
+def _token_gift_error_response(exc: TokenGiftError, lang: str) -> JSONResponse:
+    status_code = 400
+    if exc.code in {"prohibit_posting", "permission", "forbidden"}:
+        status_code = 403
+    elif exc.code == "not_found":
+        status_code = 404
+    return JSONResponse(
+        status_code=status_code,
+        content={"success": False, "code": exc.code, "detail": exc.client_message(lang)},
+    )
+
+
+@router.post("/chat/{thread_id}/token-gifts/validate", name="validate_chat_token_gift")
+async def validate_chat_token_gift(
+    request: Request,
+    thread_id: int,
+    gift_data: TokenGiftCreateRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    lang = request.path_params.get("lang", "ja")
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    post = await get_post(db, thread_id, include_deleted_post=True)
+    if not post or post.is_deleted:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    try:
+        preview = await validate_token_gift(
+            db,
+            post=post,
+            giver=user,
+            recipient_user_id=gift_data.recipient_user_id,
+            amount=gift_data.amount,
+            comment=gift_data.comment,
+            giver_ip=get_ip(request),
+            lang=lang,
+        )
+    except TokenGiftError as e:
+        return _token_gift_error_response(e, lang)
+    except DataBaseError as e:
+        logger.error(f"トークン進呈判定中(スレッド:{thread_id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+    recipient_name = preview["recipient_name"]
+    amount_text = format_token_amount(preview["amount"])
+    confirm_message = (
+        f"{recipient_name}さんに{amount_text}トークンを贈りますか？"
+        if lang == "ja"
+        else f"Gift {amount_text} tokens to {recipient_name}?"
+    )
+    return {
+        "success": True,
+        "confirm_message": confirm_message,
+        "amount": preview["amount"],
+        "fee": preview["fee"],
+        "recipient_name": recipient_name,
+        "giver_tokens_before": preview["giver_tokens_before"],
+        "giver_tokens_after": preview["giver_tokens_after"],
+    }
+
+
+@router.post("/chat/{thread_id}/token-gifts", name="create_chat_token_gift")
+async def create_chat_token_gift(
+    request: Request,
+    thread_id: int,
+    gift_data: TokenGiftCreateRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    lang = request.path_params.get("lang", "ja")
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    post = await get_post(db, thread_id, include_deleted_post=True)
+    if not post or post.is_deleted:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    try:
+        result = await create_token_gift(
+            db,
+            post=post,
+            giver=user,
+            recipient_user_id=gift_data.recipient_user_id,
+            amount=gift_data.amount,
+            comment=gift_data.comment,
+            giver_ip=get_ip(request),
+            lang=lang,
+        )
+        new_message = await get_message(db, result["message_id"])
+        if new_message:
+            await attach_token_gift_payloads(db, [new_message])
+            broadcast_message_data = _censor_message_dict(new_message.to_dict())
+            await manager.broadcast(
+                thread_id,
+                {
+                    "type": "new_message",
+                    "data": {
+                        "message": broadcast_message_data,
+                        "reactions": [],
+                    },
+                },
+            )
+        try:
+            cache_key = f"message_count:{thread_id}"
+            await cache_module.adjust_cache_counter_if_exists(cache_key, delta=1, ttl=15)
+            await cache_module.delete_cache(f"post:{thread_id}")
+        except Exception as e:
+            logger.debug(f"キャッシュ更新に失敗しました (thread: {thread_id}): {e}")
+
+        await create_token_gift_notification(
+            db,
+            thread_id=thread_id,
+            message_id=result["message_id"],
+            giver_user_id=user.id,
+            recipient_user_id=result["recipient_user_id"],
+        )
+
+        amount_text = format_token_amount(result["amount"])
+        before_text = format_token_amount(result["giver_tokens_before"])
+        after_text = format_token_amount(result["giver_tokens_after"])
+        success_message = (
+            f"{result['recipient_name']}さんに{amount_text}トークンを贈りました。\n"
+            f"(自分のトークン数: {before_text} → {after_text})"
+            if lang == "ja"
+            else (
+                f"You gifted {amount_text} tokens to {result['recipient_name']}.\n"
+                f"(Your tokens: {before_text} → {after_text})"
+            )
+        )
+        return {
+            "success": True,
+            "message": success_message,
+            "message_id": result["message_id"],
+            "tokens": result["giver_tokens_after"],
+        }
+    except TokenGiftError as e:
+        return _token_gift_error_response(e, lang)
+    except DataBaseError as e:
+        logger.error(f"トークン進呈中(スレッド:{thread_id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
+@router.delete("/messages/{message_id}/token-gift-comment", name="delete_token_gift_comment")
+async def delete_token_gift_comment_endpoint(
+    request: Request,
+    message_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    lang = request.path_params.get("lang", "ja")
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    try:
+        thread_id = await delete_token_gift_comment(
+            db,
+            message_id=message_id,
+            actor=user,
+            lang=lang,
+        )
+        await manager.broadcast(
+            thread_id,
+            {"type": "token_gift_comment_deleted", "data": {"message_id": message_id}},
+        )
+        return {"success": True}
+    except TokenGiftError as e:
+        return _token_gift_error_response(e, lang)
+    except DataBaseError as e:
+        logger.error(f"トークン進呈コメント削除中(メッセージ:{message_id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
 @router.delete("/messages/{message_id}", name="delete_message")
 async def delete_message(
     request: Request,
@@ -2054,6 +2259,8 @@ async def delete_message(
     message = await get_message(db, id=message_id, include_deleted_message=True)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
+    if message.message_type == TOKEN_GIFT_MESSAGE_TYPE:
+        raise HTTPException(status_code=400, detail="Token gift comments must be deleted via the gift comment endpoint")
 
     # 権限チェック ---
     if not user.is_admin and message.user_id != user.id:
@@ -2096,6 +2303,17 @@ async def report_message(
     message = await get_message(db, id=message_id)
     if not message:
         return JSONResponse(status_code=404, content={"detail": "Message to report not found"}) # 例外をJSONResponseで返すように変更
+    if message.message_type == TOKEN_GIFT_MESSAGE_TYPE:
+        try:
+            gift_row = await db.fetchrow(
+                "SELECT comment, is_comment_deleted FROM token_gifts WHERE message_id = $1",
+                message_id,
+            )
+        except asyncpg.PostgresError as e:
+            logger.error(f"トークン進呈の通報前確認中にDBエラー (メッセージ:{message_id}): {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"detail": "Database error"})
+        if not gift_row or gift_row["is_comment_deleted"] or not (gift_row["comment"] or "").strip():
+            return JSONResponse(status_code=400, content={"detail": "This gift cannot be reported"})
         
     try:
         await create_report(
@@ -2131,6 +2349,8 @@ async def add_message_reaction(
     message = await get_message(db, id=message_id)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
+    if message.message_type != "message":
+        raise HTTPException(status_code=400, detail="Reactions are not allowed on this message")
 
     try:
         reaction_id = await add_reaction(db, message_id, user.id, reaction_data.emoji)

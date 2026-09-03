@@ -13,6 +13,7 @@
         'participated_thread_message',
         'message_reply',
         'message_reaction',
+        'token_gift',
     ]);
     const ITEMS_CONTAINER_SELECTOR = '.notifications__container';
 
