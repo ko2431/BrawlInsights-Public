@@ -314,6 +314,15 @@ body.has-top-banner .chat-ad-banner-spacer {
     word-break: break-word;
     color: var(--color-222);
 }
+.post-comment__host-name {
+    text-decoration: underline;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+}
 .post-comment__profile-link {
     text-decoration: underline;
     font-weight: normal;

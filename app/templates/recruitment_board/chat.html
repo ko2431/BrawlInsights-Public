@@ -235,7 +235,7 @@
             {% if post.type == "brawler_guide" %}
                 <p class="post-comment">{% if lang == "ja" %}このキャラクターについて、自由に発言や質問ができます！キャラクターに関係ない発言やスパム、ミッション達成目的の無意味な発言は禁止されています。そのような発言は利用制限の対象となることがあります。{% else %}Feel free to comment or ask questions about this brawler! Comments unrelated to the brawler, spam, and meaningless posts for mission completion are prohibited. Such posts may result in usage restrictions.{% endif %}</p>
             {% else %}
-                <p class="post-comment"><b>{% if lang == "ja" %}投稿者{% else %}Poster{% endif %}:</b> {{ post.host_user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}{%- if post.comment -%}<br><b>{% if lang == "ja" %}コメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}{%- else -%}<br><span style="color: #888;"><i>({% if lang == "ja" %}コメントはありません{% else %}No comment{% endif %})</i></span>{%- endif -%}{%- if post.type in ['team', 'friend', 'general'] and post.hostplayer -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=post.hostplayer.tag[1:]) }}" class="post-comment__profile-link">{{ post.hostplayer.name }} ({{ post.hostplayer.tag }})</a>{%- elif post.type == 'club' and host_main_account_tag and host_main_account_name -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=host_main_account_tag[1:]) }}" class="post-comment__profile-link">{{ host_main_account_name }} ({{ host_main_account_tag }})</a>{%- endif -%}</p>
+                <p class="post-comment"><b>{% if lang == "ja" %}投稿者{% else %}Poster{% endif %}:</b> {% if post.host_id %}<button type="button" class="post-comment__host-name" data-user-id="{{ post.host_id }}" data-user-name="{{ post.host_user_name or '' }}" data-main-account-tag="{{ host_main_account_tag or '' }}" data-main-account-name="{{ host_main_account_name or '' }}">{{ post.host_user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}</button>{% else %}{{ post.host_user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}{% endif %}{%- if post.comment -%}<br><b>{% if lang == "ja" %}コメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}{%- else -%}<br><span style="color: #888;"><i>({% if lang == "ja" %}コメントはありません{% else %}No comment{% endif %})</i></span>{%- endif -%}{%- if post.type in ['team', 'friend', 'general'] and post.hostplayer -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=post.hostplayer.tag[1:]) }}" class="post-comment__profile-link">{{ post.hostplayer.name }} ({{ post.hostplayer.tag }})</a>{%- elif post.type == 'club' and host_main_account_tag and host_main_account_name -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=host_main_account_tag[1:]) }}" class="post-comment__profile-link">{{ host_main_account_name }} ({{ host_main_account_tag }})</a>{%- endif -%}</p>
             {% endif %}
         </div>
         <div id="older-messages-loader" class="older-messages-loader" hidden aria-hidden="true">
@@ -2567,10 +2567,10 @@
                     return;
                 }
 
-                const giftUserEl = event.target.closest('.token-gift-event__user');
-                if (giftUserEl && event.currentTarget.contains(giftUserEl)) {
-                    if (!giftUserEl.classList.contains('token-gift-event__user--blocked')) {
-                        setupAndShowHostMenu(giftUserEl, giftUserEl.dataset);
+                const userMenuTrigger = event.target.closest('.token-gift-event__user, .post-comment__host-name');
+                if (userMenuTrigger && event.currentTarget.contains(userMenuTrigger)) {
+                    if (!userMenuTrigger.classList.contains('token-gift-event__user--blocked')) {
+                        setupAndShowHostMenu(userMenuTrigger, userMenuTrigger.dataset);
                     }
                     return;
                 }
@@ -2645,6 +2645,7 @@
                     && !event.target.closest('.message-bubble')
                     && !event.target.closest('.token-gift-event__box')
                     && !event.target.closest('.token-gift-event__user')
+                    && !event.target.closest('.post-comment__host-name')
                     && !event.target.closest('.reactions__container')
                     && !event.target.closest('#chat-menu-button')
                 ) {

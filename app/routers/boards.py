@@ -1372,7 +1372,7 @@ async def chat_thread(
 
     host_main_account_tag: str | None = None
     host_main_account_name: str | None = None
-    if post.type == "club" and post.host_id:
+    if post.host_id:
         try:
             host_user = await get_user(db, post.host_id)
             if host_user and host_user.main_account:
@@ -1380,7 +1380,7 @@ async def chat_thread(
                 host_main_account_name = await get_player_name(host_user.main_account, db)
         except Exception as e:
             logger.warning(
-                f"chat_thread: クラブ投稿者のメインアカウント取得に失敗: post_id={post.id}, error={e}"
+                f"chat_thread: 投稿者のメインアカウント取得に失敗: post_id={post.id}, error={e}"
             )
             host_main_account_tag = None
             host_main_account_name = None
