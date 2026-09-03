@@ -582,6 +582,7 @@
             const replyBarCancel = document.getElementById('reply-bar-cancel');
 
             const EMOJIS = ["❤️", "👀", "😄", "😲", "🥲", "😭", "😡"];
+            const REACTION_MORE_LABEL = lang === 'ja' ? '他' : '+';
             let activeMessageId = null;
             const typingUsers = {};
             let typingTimeout;
@@ -2327,7 +2328,33 @@
             }
 
             // --- リアクション集計表示を描画する関数 ---
-            function renderReactionSummary(messageId) {
+            function buildReactionSummaryHtml(items, visibleCount) {
+                let html = '';
+                for (let i = 0; i < visibleCount; i++) {
+                    const item = items[i];
+                    html += `
+                            <div class="reaction-summary">
+                                <span class="reaction-summary__emoji">${item.emoji}</span>
+                                <span class="reaction-summary__count">${item.count}</span>
+                            </div>
+                        `;
+                }
+                if (visibleCount < items.length) {
+                    let hiddenTotal = 0;
+                    for (let i = visibleCount; i < items.length; i++) {
+                        hiddenTotal += items[i].count;
+                    }
+                    html += `
+                            <div class="reaction-summary reaction-summary--more">
+                                <span class="reaction-summary__more-label">${REACTION_MORE_LABEL}</span>
+                                <span class="reaction-summary__count">${hiddenTotal}</span>
+                            </div>
+                        `;
+                }
+                return html;
+            }
+
+            function renderReactionSummary(messageId, isRetry = false) {
                 const container = document.getElementById(`reactions-for-${messageId}`);
                 if (!container) return;
                 
@@ -2335,33 +2362,94 @@
                 if (reactions.length === 0) {
                     container.innerHTML = '';
                     container.onclick = null;
+                    container.style.maxWidth = '';
                     updateCompactMarginForMessage(messageId);
                     return;
                 }
 
-                // 絵文字ごとにカウント
                 const counts = {};
                 reactions.forEach(r => {
                     counts[r.emoji] = (counts[r.emoji] || 0) + 1;
                 });
-                
-                let summaryHtml = '';
-                // EMOJISの順番で表示
+                const items = [];
                 EMOJIS.forEach(emoji => {
                     if (counts[emoji]) {
-                        const countText = reactions.length >= 1 ? `<span class="reaction-summary__count">${counts[emoji]}</span>` : ''; // リアクション総数が1以上の時、総数を表示(以前は2以上にしていたが変更、一応残しておく)
-                        summaryHtml += `
-                            <div class="reaction-summary">
-                                <span class="reaction-summary__emoji">${emoji}</span>
-                                ${countText}
-                            </div>
-                        `;
+                        items.push({ emoji, count: counts[emoji] });
                     }
                 });
 
-                container.innerHTML = summaryHtml;
+                const availableWidth = getReactionAvailableWidth(container);
+                if (availableWidth <= 0 && !isRetry) {
+                    requestAnimationFrame(() => renderReactionSummary(messageId, true));
+                    updateCompactMarginForMessage(messageId);
+                    return;
+                }
+                if (availableWidth > 0) {
+                    container.style.maxWidth = `${availableWidth}px`;
+                } else {
+                    container.style.maxWidth = '';
+                }
+
+                let visibleCount = items.length;
+                container.innerHTML = buildReactionSummaryHtml(items, visibleCount);
                 container.onclick = () => setupAndShowReactionMenu(container, messageId);
+
+                while (visibleCount > 0 && container.scrollWidth > container.clientWidth + 1) {
+                    visibleCount -= 1;
+                    container.innerHTML = buildReactionSummaryHtml(items, visibleCount);
+                }
+
                 updateCompactMarginForMessage(messageId);
+            }
+
+            function getReactionAvailableWidth(container) {
+                if (!messagesContainer) return 0;
+                const containerStyle = getComputedStyle(messagesContainer);
+                const messagesInnerWidth = messagesContainer.clientWidth
+                    - (parseFloat(containerStyle.paddingLeft) || 0)
+                    - (parseFloat(containerStyle.paddingRight) || 0);
+
+                const bubble = container.closest('.message-bubble');
+                if (bubble) {
+                    const maxBubbleWidth = messagesInnerWidth * 0.85;
+                    if (bubble.classList.contains('message-bubble--self')) {
+                        return maxBubbleWidth;
+                    }
+                    const icon = bubble.querySelector(':scope > .message-bubble__icon-wrapper');
+                    const bubbleStyle = getComputedStyle(bubble);
+                    const gap = parseFloat(bubbleStyle.columnGap || bubbleStyle.gap) || 0;
+                    const iconWidth = icon ? icon.offsetWidth : 0;
+                    return Math.max(0, maxBubbleWidth - iconWidth - gap);
+                }
+
+                const giftEvent = container.closest('.token-gift-event');
+                if (giftEvent) {
+                    return giftEvent.clientWidth * 0.86;
+                }
+                return messagesInnerWidth;
+            }
+
+            function renderAllVisibleReactionSummaries() {
+                if (!messagesContainer) return;
+                messagesContainer.querySelectorAll('.reactions__container[id^="reactions-for-"]').forEach(el => {
+                    const messageId = el.id.slice('reactions-for-'.length);
+                    if (messageId) renderReactionSummary(messageId);
+                });
+            }
+
+            if (messagesContainer && typeof ResizeObserver !== 'undefined') {
+                let lastMessagesContainerWidth = messagesContainer.clientWidth;
+                let reactionSummaryResizeTimer = null;
+                const reactionSummaryResizeObserver = new ResizeObserver(() => {
+                    const width = messagesContainer.clientWidth;
+                    if (width === lastMessagesContainerWidth) return;
+                    lastMessagesContainerWidth = width;
+                    if (reactionSummaryResizeTimer) clearTimeout(reactionSummaryResizeTimer);
+                    reactionSummaryResizeTimer = setTimeout(() => {
+                        renderAllVisibleReactionSummaries();
+                    }, 100);
+                });
+                reactionSummaryResizeObserver.observe(messagesContainer);
             }
 
             function setupAndShowReactionMenu(targetElement, messageId) {
