@@ -1503,7 +1503,7 @@
             }
 
             // --- メニューの位置を計算して配置 (共通関数) ---
-            function positionMenu(menuElement, targetElement) {
+            function positionMenu(menuElement, targetElement, options = {}) {
                 // 表示する際にアニメーションクラスを確実に削除
                 menuElement.classList.remove('chat-menu--hiding');
 
@@ -1524,7 +1524,7 @@
                 const menuRect = menuElement.getBoundingClientRect();
                 const targetRect = targetElement.getBoundingClientRect();
                 
-                // 3. 垂直位置(top)を計算 (ここは変更なし)
+                // 3. 垂直位置(top)を計算
                 let top = (targetRect.top > menuRect.height + 10) ? 
                     (window.scrollY + targetRect.top - menuRect.height - 5) : 
                     (window.scrollY + targetRect.bottom + 5);
@@ -1546,14 +1546,34 @@
                 }
 
                 // アプリ版 AdMob 上部バナー（ネイティブ描画で WebView より前面）と重なる場合は、バナー下へずらす
-                if (!isWebPlatform) {
-                    const bannerSpacer = document.querySelector('.chat-ad-banner-spacer');
-                    const bannerRect = bannerSpacer?.getBoundingClientRect();
-                    if (bannerRect && bannerRect.height > 0) {
-                        const minTopViewport = bannerRect.bottom + 5;
-                        if (top - window.scrollY < minTopViewport) {
-                            top = window.scrollY + minTopViewport;
+                const bannerSpacer = !isWebPlatform ? document.querySelector('.chat-ad-banner-spacer') : null;
+                const bannerRect = bannerSpacer?.getBoundingClientRect();
+                const bannerMinTopVp = (bannerRect && bannerRect.height > 0) ? (bannerRect.bottom + 5) : null;
+                if (bannerMinTopVp != null && top - window.scrollY < bannerMinTopVp) {
+                    top = window.scrollY + bannerMinTopVp;
+                }
+
+                // 吹き出しの上下どちらに出しても画面内に収まらない超長文は、
+                // ヘッダー／広告の下〜メッセージ領域内の上部へ重ねて出す
+                if (options.pinToVisibleMessageArea && messagesContainer) {
+                    const isMostlyOnScreen = (topVp) => {
+                        const visiblePx = Math.min(topVp + menuRect.height, window.innerHeight) - Math.max(topVp, 0);
+                        return visiblePx >= menuRect.height * 0.85;
+                    };
+                    const aboveTopVp = targetRect.top - menuRect.height - 5;
+                    const belowTopVp = targetRect.bottom + 5;
+                    if (!isMostlyOnScreen(aboveTopVp) && !isMostlyOnScreen(belowTopVp)) {
+                        const messagesRect = messagesContainer.getBoundingClientRect();
+                        const areaTopVp = Math.max(
+                            messagesRect.top + screenMargin,
+                            bannerMinTopVp ?? Number.NEGATIVE_INFINITY
+                        );
+                        const areaBottomVp = messagesRect.bottom - screenMargin;
+                        let pinnedTopVp = areaTopVp;
+                        if (pinnedTopVp + menuRect.height > areaBottomVp) {
+                            pinnedTopVp = Math.max(areaTopVp, areaBottomVp - menuRect.height);
                         }
+                        top = window.scrollY + pinnedTopVp;
                     }
                 }
                 
@@ -1650,7 +1670,7 @@
                 }
                 
                 // 共通関数を呼び出す
-                positionMenu(messageMenu, targetElement);
+                positionMenu(messageMenu, targetElement, { pinToVisibleMessageArea: true });
             }
 
             const handleGlobalBlockUser = async (targetUserId) => {
