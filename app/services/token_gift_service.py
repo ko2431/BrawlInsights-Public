@@ -60,6 +60,13 @@ def format_token_amount(amount: int) -> str:
     return f"{int(amount):,}"
 
 
+def format_token_gift_preview_label(amount: int | None, lang: str) -> str:
+    amount_text = format_token_amount(amount or 0)
+    if lang == "ja":
+        return f"{amount_text}トークンの進呈"
+    return f"Gift of {amount_text} tokens"
+
+
 def normalize_gift_comment(comment: str | None) -> str | None:
     if comment is None:
         return None

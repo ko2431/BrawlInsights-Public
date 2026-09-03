@@ -455,7 +455,7 @@ async def handle_message_reaction_notification(
     message = await get_message(db, message_id)
     if not message or message.is_deleted or not message.user_id:
         return
-    if message.message_type != "message":
+    if message.message_type not in ("message", "token_gift"):
         return
 
     if is_added:
@@ -874,7 +874,7 @@ async def _aggregate_notification_rows(
             )
         except asyncpg.PostgresError as e:
             raise DataBaseError(e) from e
-        from app.services.token_gift_service import TOKEN_GIFT_TIER_BY_AMOUNT
+        from app.services.token_gift_service import TOKEN_GIFT_TIER_BY_AMOUNT, format_token_gift_preview_label
         for gift_row in gift_rows:
             gift_metas[gift_row["message_id"]] = {
                 "amount": gift_row["amount"],
@@ -953,7 +953,15 @@ async def _aggregate_notification_rows(
             if not message_id or message_id not in message_texts:
                 continue
             item["title_html"] = _build_reaction_title(actors, lang)
-            item["target_text"] = message_texts[message_id] or ""
+            gift_meta = gift_metas.get(message_id)
+            if gift_meta:
+                if gift_meta["comment"] and not gift_meta["is_comment_deleted"]:
+                    item["target_text"] = censor_filter(gift_meta["comment"])
+                else:
+                    item["target_text"] = format_token_gift_preview_label(gift_meta["amount"], lang)
+                item["gift_tier"] = gift_meta["tier"]
+            else:
+                item["target_text"] = message_texts[message_id] or ""
             item["target_kind"] = "chat"
             item["thread_id"] = latest_row["post_id"]
             item["message_id"] = message_id

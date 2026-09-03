@@ -533,6 +533,10 @@ body.has-top-banner .chat-ad-banner-spacer {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
+.message-reply-preview[data-reply-deleted="1"],
+.message-reply-preview[data-reply-blocked="1"] {
+    cursor: default;
+}
 .dark .message-reply-preview {
     border-bottom-color: rgba(255, 255, 255, 0.12);
 }
@@ -608,6 +612,9 @@ body.has-top-banner .chat-ad-banner-spacer {
 .message-bubble--self .message-reply-preview__text {
     color: rgba(255, 255, 255, 0.78);
 }
+.message-reply-preview__text--gift {
+    font-style: italic;
+}
 .message-reply-preview__deleted {
     font-size: 12px;
     color: var(--color-888);
@@ -627,10 +634,16 @@ body.has-top-banner .chat-ad-banner-spacer {
 .token-gift-event {
     display: flex;
     justify-content: center;
-    margin: 4px 12px;
+    margin: 2px 12px;
+}
+.token-gift-event__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 86%;
 }
 .token-gift-event__box {
-    max-width: 86%;
+    max-width: 100%;
     border-radius: 14px;
     padding: 8px 14px;
     background-color: #f1f1f1;
@@ -639,6 +652,7 @@ body.has-top-banner .chat-ad-banner-spacer {
     line-height: 1.5;
     text-align: center;
     transition: box-shadow 0.45s ease;
+    cursor: pointer;
 }
 .dark .token-gift-event__box {
     background-color: #333;
@@ -661,9 +675,6 @@ body.has-top-banner .chat-ad-banner-spacer {
     font-weight: 400;
     text-decoration: none;
     cursor: default;
-}
-.token-gift-event--has-comment .token-gift-event__box {
-    cursor: pointer;
 }
 .token-gift-event__comment {
     margin: 4px 0 0;

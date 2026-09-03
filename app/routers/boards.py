@@ -115,9 +115,7 @@ def _should_omit_chat_message(message, blocked_user_ids: list[int]) -> bool:
 
 
 async def _payload_item_for_chat_message(db: asyncpg.Connection, message) -> dict:
-    reactions = []
-    if message.message_type != TOKEN_GIFT_MESSAGE_TYPE:
-        reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
+    reactions, _ = await get_reactions(db, per_page=1000, message_id=message.id)
     return {"data": _censor_message_dict(message.to_dict()), "reactions": reactions}
 
 
@@ -2349,7 +2347,7 @@ async def add_message_reaction(
     message = await get_message(db, id=message_id)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    if message.message_type != "message":
+    if message.message_type not in ("message", TOKEN_GIFT_MESSAGE_TYPE):
         raise HTTPException(status_code=400, detail="Reactions are not allowed on this message")
 
     try:

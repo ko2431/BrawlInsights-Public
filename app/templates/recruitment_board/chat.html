@@ -273,6 +273,7 @@
                     data-has-comment="{{ '1' if gift_has_comment else '0' }}"
                     data-comment-deleted="{{ '1' if message.is_comment_deleted else '0' }}"
                     data-created-at="{{ message.created_at }}">
+                    <div class="token-gift-event__inner">
                     <div class="token-gift-event__box">
                         <p class="token-gift-event__line">{% if lang == 'ja' %}{{ token_gift_user_name(message.user_id, message.user_name, message.user_main_account_tag, message.user_main_account_name, giver_blocked) }}が{{ token_gift_user_name(message.gift_recipient_user_id, message.gift_recipient_user_name, message.gift_recipient_main_account_tag, message.gift_recipient_main_account_name, recipient_blocked) }}に<b>{{ "{:,}".format(message.gift_amount or 0) }}</b>トークンを贈りました{% else %}{{ token_gift_user_name(message.user_id, message.user_name, message.user_main_account_tag, message.user_main_account_name, giver_blocked) }} gifted <b>{{ "{:,}".format(message.gift_amount or 0) }}</b> tokens to {{ token_gift_user_name(message.gift_recipient_user_id, message.gift_recipient_user_name, message.gift_recipient_main_account_tag, message.gift_recipient_main_account_name, recipient_blocked) }}{% endif %}</p>
                         {% if message.is_comment_deleted %}
@@ -280,6 +281,8 @@
                         {% elif message.message %}
                             <p class="token-gift-event__comment"><span class="token-gift-event__comment-body">{{ message.message|censor }}</span></p>
                         {% endif %}
+                    </div>
+                    <div class="reactions__container" id="reactions-for-{{ message.id }}"></div>
                     </div>
                 </div>
                 {% endif %}
@@ -307,6 +310,8 @@
                                     <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-deleted="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}削除されたメッセージ{% else %}Deleted message{% endif %}</span></div>
                             {%- elif message.reply_to.user_id and message.reply_to.user_id in blocked_ids.user_ids -%}
                                     <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-blocked="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}ブロックしたユーザーのメッセージ{% else %}Message from a blocked user{% endif %}</span></div>
+                            {%- elif message.reply_to.message_type == 'token_gift' -%}
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text message-reply-preview__text--gift">{% if lang == "ja" %}{{ "{:,}".format(message.reply_to.gift_amount or 0) }}トークンの進呈{% else %}Gift of {{ "{:,}".format(message.reply_to.gift_amount or 0) }} tokens{% endif %}</span></div></div></div>
                             {%- else -%}
                                     <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
                             {%- endif -%}
@@ -543,6 +548,10 @@
             }
             function formatTokenAmount(amount) {
                 return Number(amount || 0).toLocaleString('en-US');
+            }
+            function formatTokenGiftReplyPreviewText(amount) {
+                const amountText = formatTokenAmount(amount);
+                return lang === 'ja' ? `${amountText}トークンの進呈` : `Gift of ${amountText} tokens`;
             }
             function isTokenGiftMessage(message) {
                 return Boolean(message && (message.message_type === 'token_gift' || message.messageType === 'token_gift'));
@@ -1216,14 +1225,20 @@
                     ? `<span class="message-reply-preview__admin-badge">${lang === 'ja' ? '管理者' : 'Admin'}</span>`
                     : '';
                 const iconHtml = `<img src="${escapeHtml(replyTo.user_icon_path || defaultPlayerIconPath)}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='${defaultPlayerIconPath}';">`;
-                const previewText = escapeHtml(truncateReplyPreviewText(replyTo.message || ''));
+                const isGiftReply = replyTo.message_type === 'token_gift' || replyTo.messageType === 'token_gift';
+                const previewText = isGiftReply
+                    ? escapeHtml(formatTokenGiftReplyPreviewText(replyTo.gift_amount))
+                    : escapeHtml(truncateReplyPreviewText(replyTo.message || ''));
+                const previewTextClass = isGiftReply
+                    ? 'message-reply-preview__text message-reply-preview__text--gift'
+                    : 'message-reply-preview__text';
                 return `
                     <div class="message-reply-preview" data-reply-to-id="${replyTo.id}">
                         <div class="message-reply-preview__header">
                             ${iconHtml}
                             <div class="message-reply-preview__meta">
                                 <span class="message-reply-preview__name">${userName}${hostBadge}${adminBadge}</span>
-                                <span class="message-reply-preview__text">${previewText}</span>
+                                <span class="${previewTextClass}">${previewText}</span>
                             </div>
                         </div>
                     </div>
@@ -1303,7 +1318,6 @@
                 messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
                 messageReactions = {};
                 messagesPayload.forEach(item => {
-                    if (isTokenGiftMessage(item.data)) return;
                     messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
@@ -1398,9 +1412,12 @@
                         data-has-comment="${hasComment ? '1' : '0'}"
                         data-comment-deleted="${isCommentDeleted ? '1' : '0'}"
                         data-created-at="${message.created_at || ''}">
+                        <div class="token-gift-event__inner">
                         <div class="token-gift-event__box">
                             <p class="token-gift-event__line">${lineHtml}</p>
                             ${commentHtml}
+                        </div>
+                        <div class="reactions__container" id="reactions-for-${message.id}"></div>
                         </div>
                     </div>
                 `;
@@ -1505,7 +1522,6 @@
                 }
 
                 messagesPayload.forEach(item => {
-                    if (isTokenGiftMessage(item.data)) return;
                     messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
@@ -1519,7 +1535,6 @@
                 const messagesHtml = messagesPayload.map(item => buildMessageBubbleHtml(item.data)).join('');
                 messagesContainer.insertAdjacentHTML('beforeend', messagesHtml);
                 messagesPayload.forEach(item => {
-                    if (isTokenGiftMessage(item.data)) return;
                     messageReactions[item.data.id] = visibleReactions(item.reactions || []);
                     renderReactionSummary(item.data.id);
                 });
@@ -1666,35 +1681,62 @@
                 hideHostMenu();
                 hideThreadMenu();
                 hideReactionMenu();
-                hideMessageMenuChrome();
+                restoreMessageMenuChrome();
                 const messageId = giftEvent.dataset.messageId;
                 activeMessageId = messageId;
-                if (messageMenuEmojis) messageMenuEmojis.innerHTML = '';
+                messageMenuEmojis.innerHTML = '';
                 messageMenuActions.innerHTML = '';
 
-                const giverUserId = giftEvent.dataset.userId ? parseInt(giftEvent.dataset.userId, 10) : null;
-                const isOwnGift = Boolean(currentUserId && giverUserId === currentUserId);
+                const myReaction = messageReactions[messageId]?.find(r => r.user_id === currentUserId);
+                EMOJIS.forEach(emoji => {
+                    const button = document.createElement('button');
+                    button.className = 'chat-menu__emoji-btn';
+                    button.textContent = emoji;
+                    if (myReaction && myReaction.emoji === emoji) {
+                        button.classList.add('chat-menu__emoji-btn--selected');
+                    }
+                    button.onclick = () => handleEmojiClick(emoji, messageId, myReaction);
+                    messageMenuEmojis.appendChild(button);
+                });
 
-                const copyButton = document.createElement('button');
-                copyButton.type = 'button';
-                copyButton.className = 'chat-menu__action-btn';
-                copyButton.style.color = '#111';
-                copyButton.textContent = lang === 'ja' ? 'メッセージをコピー' : 'Copy Message';
-                copyButton.onclick = () => copyGiftComment(giftEvent);
-                messageMenuActions.appendChild(copyButton);
+                if (isPermittedToChat) {
+                    const replyButton = document.createElement('button');
+                    replyButton.className = 'chat-menu__action-btn chat-menu__action-btn--reply';
+                    replyButton.textContent = lang === 'ja' ? 'メッセージにリプライ' : 'Reply to Message';
+                    replyButton.onclick = () => startReplyToMessage(messageId);
+                    messageMenuActions.appendChild(replyButton);
+                }
 
-                if (isAdmin || isOwnGift) {
-                    const deleteButton = document.createElement('button');
-                    deleteButton.className = 'chat-menu__action-btn';
-                    deleteButton.innerHTML = `<span style="color: #c90808;">${lang === 'ja' ? 'メッセージを削除' : 'Delete Message'}</span>`;
-                    deleteButton.onclick = () => handleDeleteGiftComment(messageId);
-                    messageMenuActions.appendChild(deleteButton);
-                } else if (currentUserId) {
-                    const reportButton = document.createElement('button');
-                    reportButton.className = 'chat-menu__action-btn';
-                    reportButton.innerHTML = `<span style="color: #9d0759;">${lang === 'ja' ? 'メッセージを通報' : 'Report Message'}</span>`;
-                    reportButton.onclick = () => { openReportModal(messageId); hideMessageMenu(); };
-                    messageMenuActions.appendChild(reportButton);
+                const hasComment = giftEvent.dataset.hasComment === '1';
+                if (hasComment) {
+                    const giverUserId = giftEvent.dataset.userId ? parseInt(giftEvent.dataset.userId, 10) : null;
+                    const isOwnGift = Boolean(currentUserId && giverUserId === currentUserId);
+
+                    const copyButton = document.createElement('button');
+                    copyButton.type = 'button';
+                    copyButton.className = 'chat-menu__action-btn';
+                    copyButton.style.color = '#111';
+                    copyButton.textContent = lang === 'ja' ? 'メッセージをコピー' : 'Copy Message';
+                    copyButton.onclick = () => copyGiftComment(giftEvent);
+                    messageMenuActions.appendChild(copyButton);
+
+                    if (isAdmin || isOwnGift) {
+                        const deleteButton = document.createElement('button');
+                        deleteButton.className = 'chat-menu__action-btn';
+                        deleteButton.innerHTML = `<span style="color: #c90808;">${lang === 'ja' ? 'メッセージを削除' : 'Delete Message'}</span>`;
+                        deleteButton.onclick = () => handleDeleteGiftComment(messageId);
+                        messageMenuActions.appendChild(deleteButton);
+                    } else if (currentUserId) {
+                        const reportButton = document.createElement('button');
+                        reportButton.className = 'chat-menu__action-btn';
+                        reportButton.innerHTML = `<span style="color: #9d0759;">${lang === 'ja' ? 'メッセージを通報' : 'Report Message'}</span>`;
+                        reportButton.onclick = () => { openReportModal(messageId); hideMessageMenu(); };
+                        messageMenuActions.appendChild(reportButton);
+                    }
+                }
+
+                if (messageMenuSeparator) {
+                    messageMenuSeparator.style.display = messageMenuActions.childElementCount ? '' : 'none';
                 }
 
                 positionMenu(messageMenu, targetElement, { pinToVisibleMessageArea: true });
@@ -2448,7 +2490,7 @@
                 const giftBox = event.target.closest('.token-gift-event__box');
                 if (giftBox && event.currentTarget.contains(giftBox)) {
                     const giftEvent = giftBox.closest('.token-gift-event');
-                    if (giftEvent && giftEvent.dataset.hasComment === '1') {
+                    if (giftEvent) {
                         const selection = window.getSelection();
                         if (
                             selection
@@ -2459,11 +2501,6 @@
                             return;
                         }
                         setupAndShowGiftCommentMenu(giftBox, giftEvent);
-                    } else {
-                        hideMessageMenu();
-                        hideHostMenu();
-                        hideReactionMenu();
-                        hideThreadMenu();
                     }
                     return;
                 }
