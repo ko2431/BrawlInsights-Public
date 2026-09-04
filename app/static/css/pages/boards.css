@@ -35,11 +35,15 @@
     margin-top: -3px;
     margin-bottom: -3px;
 }
-.board-tab-nav__icon--friend,
-.board-tab-nav__icon--club {
+.board-tab-nav__icon--friend {
     height: 20px;
     margin-top: 1px;
     margin-bottom: 1px;
+}
+.board-tab-nav__icon--club {
+    height: 20px;
+    margin-top: 2px;
+    margin-bottom: 0;
 }
 .board-tab-nav__text {
     line-height: 1;
