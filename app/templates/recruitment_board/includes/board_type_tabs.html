@@ -1,0 +1,39 @@
+{# 掲示板種類選択タブ。呼び出し元で board_nav_active を team/friend/club/general/notifications のいずれかに設定する。 #}
+<nav class="tab-nav board-tab-nav">
+    <ul class="tab-nav__list">
+        <li class="tab-nav__item">
+            <a href="{% if board_nav_active == 'team' %}#{% else %}{{ url_for('team_recruitment_board', lang=lang) }}{% endif %}" class="tab-nav__link{% if board_nav_active == 'team' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/attack_diffuse.png') }}" alt="{% if lang == 'ja' %}チーム{% else %}Team{% endif %}" class="board-tab-nav__icon board-tab-nav__icon--team">
+                <span class="board-tab-nav__text">{% if lang == "ja" %}チーム{% else %}Team{% endif %}</span>
+            </a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if board_nav_active == 'friend' %}#{% else %}{{ url_for('friend_recruitment_board', lang=lang) }}{% endif %}" class="tab-nav__link{% if board_nav_active == 'friend' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/friends.png') }}" alt="{% if lang == 'ja' %}フレンド{% else %}Friend{% endif %}" class="board-tab-nav__icon board-tab-nav__icon--friend">
+                <span class="board-tab-nav__text">{% if lang == "ja" %}フレンド{% else %}Friend{% endif %}</span>
+            </a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if board_nav_active == 'club' %}#{% else %}{{ url_for('club_recruitment_board', lang=lang) }}{% endif %}" class="tab-nav__link{% if board_nav_active == 'club' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/club.webp') }}" alt="{% if lang == 'ja' %}クラブ{% else %}Club{% endif %}" class="board-tab-nav__icon board-tab-nav__icon--club">
+                <span class="board-tab-nav__text">{% if lang == "ja" %}クラブ{% else %}Club{% endif %}</span>
+            </a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if board_nav_active == 'general' %}#{% else %}{{ url_for('general_board', lang=lang) }}{% endif %}" class="tab-nav__link{% if board_nav_active == 'general' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/gameroom.png') }}" alt="{% if lang == 'ja' %}なんでも{% else %}General{% endif %}" class="board-tab-nav__icon board-tab-nav__icon--general">
+                <span class="board-tab-nav__text">{% if lang == "ja" %}なんでも{% else %}General{% endif %}</span>
+            </a>
+        </li>
+        <li class="tab-nav__item tab-nav__item--notifications">
+            <a href="{% if board_nav_active == 'notifications' %}#{% else %}{{ url_for('notifications', lang=lang) }}{% endif %}" class="tab-nav__link tab-nav__link--notifications{% if board_nav_active == 'notifications' %} tab-nav__link--active{% endif %}">
+                <span class="notifications-icon-wrapper">
+                    <img src="{{ url_for('static', path='/images/ui/inbox.png') }}" alt="{% if lang == 'ja' %}通知{% else %}Notifications{% endif %}" class="notifications-icon">
+                    {% if board_nav_active != 'notifications' and show_notification_badge %}
+                    <span class="notifications-badge">{{ notification_badge_text }}</span>
+                    {% endif %}
+                </span>
+            </a>
+        </li>
+    </ul>
+</nav>

@@ -16,32 +16,8 @@
     {% if platform == "web" %}<h1 class="page-title--main board-page-title--main">{% if lang == "ja" %}フレンド募集掲示板{% else %}Friend Recruitment Board{% endif %}</h1>{% endif %}
 
     {# 掲示板種類選択タブ #}
-    <nav class="tab-nav board-tab-nav">
-        <ul class="tab-nav__list">
-            <li class="tab-nav__item">
-                <a href="{{ url_for('team_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}チーム{% else %}Team{% endif %}</a>
-            </li>
-            <li class="tab-nav__item">
-                <a href="#" class="tab-nav__link tab-nav__link--active">{% if lang == "ja" %}フレンド{% else %}Friend{% endif %}</a>
-            </li>
-            <li class="tab-nav__item">
-                <a href="{{ url_for('club_recruitment_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}クラブ{% else %}Club{% endif %}</a>
-            </li>
-            <li class="tab-nav__item">
-                <a href="{{ url_for('general_board', lang=lang) }}" class="tab-nav__link">{% if lang == "ja" %}なんでも{% else %}General{% endif %}</a>
-            </li>
-            <li class="tab-nav__item tab-nav__item--notifications">
-                <a href="{{ url_for('notifications', lang=lang) }}" class="tab-nav__link tab-nav__link--notifications">
-                    <span class="notifications-icon-wrapper">
-                        <img src="{{ url_for('static', path='/images/ui/inbox.png') }}" alt="{% if lang == 'ja' %}通知{% else %}Notifications{% endif %}" class="notifications-icon">
-                        {% if show_notification_badge %}
-                        <span class="notifications-badge">{{ notification_badge_text }}</span>
-                        {% endif %}
-                    </span>
-                </a>
-            </li>
-        </ul>
-    </nav>
+    {% set board_nav_active = 'friend' %}
+    {% include "recruitment_board/includes/board_type_tabs.html" %}
 
     {# フィルター #}
     <div class="board-filters__container board-filters__container--friend">

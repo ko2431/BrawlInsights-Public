@@ -15,6 +15,36 @@
     width: 100%;
 }
 
+.board-tab-nav .tab-nav__link:not(.tab-nav__link--notifications) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+}
+.dark .board-tab-nav .tab-nav__link:not(.tab-nav__link--notifications) {
+    color: #ccc;
+}
+.board-tab-nav__icon {
+    height: 22px;
+    width: auto;
+    margin-right: 6px;
+}
+/* 見た目だけ調整。高さの増減は上下マージンで相殺し、タブ全体の高さは変えない */
+.board-tab-nav__icon--team {
+    height: 28px;
+    margin-top: -3px;
+    margin-bottom: -3px;
+}
+.board-tab-nav__icon--friend,
+.board-tab-nav__icon--club {
+    height: 20px;
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
+.board-tab-nav__text {
+    line-height: 1;
+}
+
 .tab-nav__list {
     width: 95%; /* 掲示板関連ページに限り幅を上書き */
 }
@@ -64,6 +94,70 @@
     }
     .tab-nav__link--notifications {
         padding: 7px 10px;
+    }
+    .board-tab-nav .tab-nav__link:not(.tab-nav__link--notifications) {
+        flex-direction: column;
+        font-size: 13px;
+        padding: 8px 5px;
+    }
+    .board-tab-nav__icon {
+        height: 28px;
+        margin-right: 0;
+        margin-top: 0;
+        margin-bottom: 5px;
+    }
+    .board-tab-nav__icon--team {
+        height: 34px;
+        margin-top: -3px;
+        margin-bottom: 2px;
+    }
+    .board-tab-nav__icon--friend,
+    .board-tab-nav__icon--club {
+        height: 26px;
+        margin-top: 1px;
+        margin-bottom: 6px;
+    }
+}
+@media (max-width: 679px) {
+    .board-tab-nav .tab-nav__link:not(.tab-nav__link--notifications) {
+        font-size: 12px;
+        padding: 7px 4px;
+    }
+    .board-tab-nav__icon {
+        height: 26px;
+        margin-bottom: 4.5px;
+    }
+    .board-tab-nav__icon--team {
+        height: 32px;
+        margin-top: -3px;
+        margin-bottom: 1.5px;
+    }
+    .board-tab-nav__icon--friend,
+    .board-tab-nav__icon--club {
+        height: 24px;
+        margin-top: 1px;
+        margin-bottom: 5.5px;
+    }
+}
+@media (max-width: 539px) {
+    .board-tab-nav .tab-nav__link:not(.tab-nav__link--notifications) {
+        font-size: 10px;
+        padding: 6px 3px;
+    }
+    .board-tab-nav__icon {
+        height: 24px;
+        margin-bottom: 4px;
+    }
+    .board-tab-nav__icon--team {
+        height: 30px;
+        margin-top: -3px;
+        margin-bottom: 1px;
+    }
+    .board-tab-nav__icon--friend,
+    .board-tab-nav__icon--club {
+        height: 22px;
+        margin-top: 1px;
+        margin-bottom: 5px;
     }
 }
 
