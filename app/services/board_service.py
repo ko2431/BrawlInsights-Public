@@ -1,6 +1,7 @@
 import asyncpg
 import asyncio
 import datetime
+import json
 import math
 import re
 import random
@@ -24,6 +25,24 @@ from app.services.admin_notification_service import (
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def get_theme_board_posts(
+    db: asyncpg.Connection,
+    *,
+    tab: str,
+    target_user_id: int | None = None,
+    blocked_user_ids: list[int] | None = None,
+) -> list[dict[str, Any]]:
+    """テーマ掲示板の投稿一覧を、最新の通常メッセージ順で返す。
+
+    Args:
+        db: データベース接続
+        tab: brawlers / participated / liked
+        target_user_id: 参加・いいね済みタブ用のユーザーID
+        blocked_user_ids: 最新メッセージから除外するユーザーID
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
 
 
 async def check_post_permitted(db: asyncpg.Connection, type: str, ip: str, user_id: int | None = None) -> tuple[bool, int]:

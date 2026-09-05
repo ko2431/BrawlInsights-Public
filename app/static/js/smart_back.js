@@ -43,7 +43,7 @@
                 return `/${lang}/tools`;
             case 'board': {
                 const defaultBoard = localStorage.getItem('bi_default_board') || 'team';
-                const board = ['team', 'friend', 'club', 'general'].includes(defaultBoard)
+                const board = ['team', 'friend', 'club', 'general', 'theme'].includes(defaultBoard)
                     ? defaultBoard
                     : 'team';
                 return `/${lang}/boards/${board}`;

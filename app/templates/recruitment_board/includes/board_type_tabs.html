@@ -1,4 +1,4 @@
-{# 掲示板種類選択タブ。呼び出し元で board_nav_active を team/friend/club/general/notifications のいずれかに設定する。 #}
+{# 掲示板種類選択タブ。呼び出し元で board_nav_active を team/friend/club/general/theme/notifications のいずれかに設定する。 #}
 <nav class="tab-nav board-tab-nav">
     <ul class="tab-nav__list">
         <li class="tab-nav__item">
@@ -23,6 +23,12 @@
             <a href="{% if board_nav_active == 'general' %}#{% else %}{{ url_for('general_board', lang=lang) }}{% endif %}" class="tab-nav__link{% if board_nav_active == 'general' %} tab-nav__link--active{% endif %}">
                 <img src="{{ url_for('static', path='/images/ui/gameroom.png') }}" alt="{% if lang == 'ja' %}なんでも{% else %}General{% endif %}" class="board-tab-nav__icon board-tab-nav__icon--general">
                 <span class="board-tab-nav__text">{% if lang == "ja" %}なんでも{% else %}General{% endif %}</span>
+            </a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if board_nav_active == 'theme' %}#{% else %}{{ url_for('theme_board', lang=lang) }}{% endif %}" class="tab-nav__link{% if board_nav_active == 'theme' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/brawlers.png') }}" alt="{% if lang == 'ja' %}テーマ{% else %}Theme{% endif %}" class="board-tab-nav__icon board-tab-nav__icon--theme">
+                <span class="board-tab-nav__text">{% if lang == "ja" %}テーマ{% else %}Theme{% endif %}</span>
             </a>
         </li>
         <li class="tab-nav__item tab-nav__item--notifications">

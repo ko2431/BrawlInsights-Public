@@ -1,0 +1,93 @@
+{# テーマ掲示板の投稿カード #}
+{% set rarity_colors = {
+    1: {'color1': '#d4f5f7', 'color2': '#c4f0f3'},
+    2: {'color1': '#d4f5d4', 'color2': '#c4f0c4'},
+    3: {'color1': '#d4e0f8', 'color2': '#c4d6f5'},
+    4: {'color1': '#f0d4fb', 'color2': '#eac4f8'},
+    5: {'color1': '#fad4d4', 'color2': '#f5c4c4'},
+    6: {'color1': '#f9f5d4', 'color2': '#f5f0c4'},
+    7: {'color1': '#faefd4', 'color2': '#f5e8c4'}
+} %}
+{% set default_rarity_colors = {'color1': '#e8e8e8', 'color2': '#dcdcdc'} %}
+{% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+{% set mystery_icon = url_for('static', path='/images/ui/mystery.png') %}
+{% for post in posts %}
+        {% set rarity_info = rarity_colors.get(post.brawler_rarity, default_rarity_colors) %}
+        {% set brawler_name = post.brawler_name_ja if lang == "ja" and post.brawler_name_ja else post.brawler_name_en %}
+            <div class="post-card-wrapper theme-board-card"
+                 data-name-en="{{ post.brawler_name_en }}"
+                 data-names-ja='{{ (post.brawler_names_ja or []) | tojson }}'>
+                <div class="card post-card post-card--theme post-card--tinted" style="--board-c1: {{ rarity_info.color1 }}; --board-c2: {{ rarity_info.color2 }};">
+                    <div class="post-card__header">
+                        <img src="{{ url_for('static', path='/images/brawler_pins/' + (post.brawler_id | string) + '.png') }}"
+                             alt="{{ brawler_name }}"
+                             class="post-card__player-icon post-card__player-icon--brawler"
+                             onerror="this.onerror=null; this.src='{{ mystery_icon }}';">
+                        <p class="post-card__title">{{ brawler_name }}</p>
+                        <div style="display: flex; flex: 1;"></div>
+                        <p class="post-card__ago-text" data-created-at="{{ post.activity_at }}">{{ post.ago_ja if lang == "ja" else post.ago_en }}</p>
+                    </div>
+                    <div class="post-card__info-and-conditions">
+                        <div class="post-card__host-info general-post-card__host-info" style="flex: 1; max-width: 100%;">
+                            {% if post.latest_message %}
+                            <p class="post-card__host-info-title general-post-card__author">
+                                <img src="{{ post.latest_message.user_icon_path or default_icon }}" alt="" class="general-post-card__author-icon" onerror="this.onerror=null;this.src='{{ default_icon }}';">
+                                <span class="general-post-card__author-name">{% if post.latest_message.user_name %}{{ post.latest_message.user_name }}{% else %}{{ 'ゲスト' if lang == "ja" else 'Guest' }}{% endif %}</span>
+                            </p>
+                            <div class="post-card__host-info-scroll-area" style="max-height: 110px;">
+                                <p class="post-card__comment-text">{{ post.latest_message.message|censor }}</p>
+                            </div>
+                            {% else %}
+                            <div class="post-card__host-info-scroll-area" style="max-height: 110px;">
+                                <p class="post-card__comment-empty theme-board-empty-prompt">{% if lang == "ja" %}新しいテーマの掲示板です。最初の発言をしてみましょう！{% else %}This is a new theme board. Be the first to post!{% endif %}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="post-card__link-container">
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=post.id) }}?from=theme" style="display: flex;">
+                            <div class="button post-card__chat-button">
+                                <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="チャット" class="post-card__link-button-icon">
+                                {{ post.message_count }}
+                            </div>
+                        </a>
+                        {% if current_user %}
+                        <div
+                            class="button post-card__good-button{% if post.is_up_voted_by_current_user %} active{% endif %}"
+                            data-post-id="{{ post.id }}"
+                        >
+                            <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="Good" class="post-card__link-button-icon post-card__good-button-icon">
+                            <span class="post-card__good-button-count">{{ post.up_vote_count or 0 }}</span>
+                        </div>
+                        {% else %}
+                        <div
+                            class="button post-card__good-button disabled"
+                            onclick='alert("{% if lang == "ja" %}この機能を利用するにはログインが必要です。アカウントタブより、メールアドレス不要でログインできます。{% else %}You need to log in to use this feature. You can log in from the Account tab without an email address.{% endif %}")'
+                        >
+                            <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="Good" class="post-card__link-button-icon post-card__good-button-icon">
+                            <span class="post-card__good-button-count">{{ post.up_vote_count or 0 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if current_user %}
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=post.id) }}?from=theme" style="display: flex; flex: 1;">
+                            <div class="button button--primary post-card__link-button">
+                                {% if lang == "ja" %}チャットに参加{% else %}Join Chat{% endif %}
+                            </div>
+                        </a>
+                        {% else %}
+                        <div class="button button--primary post-card__link-button disabled"
+                            onclick='
+                            {% if lang == "ja" %}
+                                alert("チャットに参加するにはログインが必要です。\nアカウントタブより、メールアドレス不要でログインできます。");
+                            {% else %}
+                                alert("You need to log in to join the chat.\nYou can log in from the Account tab without an email address.");
+                            {% endif %}
+                            '
+                        >
+                            {% if lang == "ja" %}ログインして参加{% else %}Log In to Join{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+{% endfor %}

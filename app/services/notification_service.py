@@ -6,7 +6,7 @@ from app.core.cache import delete_cache, get_cache, set_cache
 from app.core.logger import logger
 from app.core.templating import censor_filter
 from app.exceptions.custom_exceptions import DataBaseError
-from app.services.board_service import EMOJIS, get_message, get_post, get_player_icon_from_db
+from app.services.board_service import EMOJIS, get_message, get_post, get_player_icon_from_db, is_theme_post_type
 from app.services.user_service import get_blocked_ids, get_user
 from app.utils.utils import get_icon_path
 
@@ -56,6 +56,8 @@ POST_TYPE_LABELS_JA = {
     "friend": "フレンド募集",
     "club": "クラブ募集",
     "general": "なんでも掲示板",
+    "theme": "テーマ掲示板",
+    "brawler_guide": "テーマ掲示板",
 }
 
 POST_TYPE_LABELS_EN = {
@@ -63,6 +65,8 @@ POST_TYPE_LABELS_EN = {
     "friend": "friend recruitment",
     "club": "club recruitment",
     "general": "general board",
+    "theme": "theme board",
+    "brawler_guide": "theme board",
 }
 
 
@@ -399,7 +403,7 @@ async def create_message_notifications(
         ):
             add_candidate(reply_target.user_id, NOTIFICATION_TYPE_MESSAGE_REPLY)
 
-    if post.type == "brawler_guide":
+    if is_theme_post_type(post.type):
         for participant_id in await _create_brawler_guide_participated_recipient_ids(
             db,
             thread_id=thread_id,
@@ -618,10 +622,10 @@ def _build_message_title(
         if lang == "ja":
             return f"<b>{actor_name}</b>さんがあなたの{post_label_ja}の投稿に返信しました"
         return f"<b>{actor_name}</b> replied to your {post_label_en} post"
-    if post_type == "brawler_guide":
+    if is_theme_post_type(post_type):
         if lang == "ja":
-            return f"<b>{actor_name}</b>さんがあなたがメッセージを送ったキャラクター掲示板に返信しました"
-        return f"<b>{actor_name}</b> replied to the brawler guide board you messaged in"
+            return f"<b>{actor_name}</b>さんがあなたがメッセージを送ったテーマ掲示板に返信しました"
+        return f"<b>{actor_name}</b> replied to the theme board you messaged in"
     if lang == "ja":
         return f"<b>{actor_name}</b>さんがあなたがメッセージを送った{post_label_ja}の投稿に返信しました"
     return f"<b>{actor_name}</b> replied to a {post_label_en} post you messaged in"

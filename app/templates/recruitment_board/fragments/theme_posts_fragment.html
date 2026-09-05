@@ -1,0 +1,27 @@
+{# /app/templates/recruitment_board/fragments/theme_posts_fragment.html #}
+<div class="board-fragment__content" data-notification-badge data-show-notification-badge="{{ 'true' if fragment_show_notification_badge else 'false' }}" data-notification-badge-text="{{ fragment_notification_badge_text }}">
+    <div class="info-block" style="padding: 0;">
+        <p class="info-block__text">
+        {% if lang == "ja" %}
+            <b>キャラクター</b>など、特定のテーマに沿って雑談や質問ができるテーマ掲示板です。今後、<b>マップ</b>などのさらなるテーマが登場予定！
+        {% else %}
+            Chat and ask questions around a specific theme such as <b>Brawlers</b>. More themes such as <b>Maps</b> are planned!
+        {% endif %}
+        </p>
+    </div>
+
+    {% if posts %}
+    <div class="posts__container view-compact" id="themeBoardPosts">
+        {% include "recruitment_board/fragments/includes/theme_post_cards.html" %}
+        <p id="themeBoardNoResults" class="theme-board-no-results" hidden>
+            {% if lang == "ja" %}該当する掲示板は見つかりませんでした。{% else %}No matching boards were found.{% endif %}
+        </p>
+    </div>
+    {% elif tab == "liked" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在いいねしたテーマ掲示板はありません。掲示板をいいねして、いつでも見返したりチャットしたりできます。{% else %}No liked theme boards yet. Like boards to revisit them and chat anytime.{% endif %}</p>
+    {% elif tab == "participated" %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}チャットに参加したテーマ掲示板がここに表示されます。{% else %}Theme boards you join in chat will appear here.{% endif %}</p>
+    {% else %}
+    <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}現在表示できるテーマ掲示板はありません。{% else %}No theme boards are available yet.{% endif %}</p>
+    {% endif %}
+</div>

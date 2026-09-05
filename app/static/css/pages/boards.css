@@ -45,6 +45,11 @@
     margin-top: 2px;
     margin-bottom: 0;
 }
+.board-tab-nav__icon--theme {
+    height: 20px;
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
 .board-tab-nav__text {
     line-height: 1;
 }
@@ -89,6 +94,7 @@
     height: auto;
     max-height: 24px;
     width: auto;
+    min-width: 24px;
     max-width: 100%;
 }
 @media (max-width: 839px) {
@@ -101,8 +107,8 @@
     }
     .board-tab-nav .tab-nav__link:not(.tab-nav__link--notifications) {
         flex-direction: column;
-        font-size: 13px;
-        padding: 8px 5px;
+        font-size: 12px;
+        padding: 8px 3px;
     }
     .board-tab-nav__icon {
         height: 28px;
@@ -116,7 +122,8 @@
         margin-bottom: 2px;
     }
     .board-tab-nav__icon--friend,
-    .board-tab-nav__icon--club {
+    .board-tab-nav__icon--club,
+    .board-tab-nav__icon--theme {
         height: 26px;
         margin-top: 1px;
         margin-bottom: 6px;
@@ -137,7 +144,8 @@
         margin-bottom: 1.5px;
     }
     .board-tab-nav__icon--friend,
-    .board-tab-nav__icon--club {
+    .board-tab-nav__icon--club,
+    .board-tab-nav__icon--theme {
         height: 24px;
         margin-top: 1px;
         margin-bottom: 5.5px;
@@ -158,7 +166,8 @@
         margin-bottom: 1px;
     }
     .board-tab-nav__icon--friend,
-    .board-tab-nav__icon--club {
+    .board-tab-nav__icon--club,
+    .board-tab-nav__icon--theme {
         height: 22px;
         margin-top: 1px;
         margin-bottom: 5px;
@@ -689,6 +698,9 @@ body.modal-open {
 .post-card--general.post-card--tinted {
     --board-grad-angle: 135deg;
 }
+.post-card--theme.post-card--tinted {
+    --board-grad-angle: 135deg;
+}
 .dark .post-card--tinted {
     background: linear-gradient(
         var(--board-grad-angle),
@@ -706,6 +718,10 @@ body.modal-open {
     height: 16px;
     width: auto;
     flex-shrink: 0;
+}
+.post-card__player-icon--brawler {
+    height: 22px;
+    width: auto;
 }
 .post-card__title {
     font-weight: bold;
@@ -1230,7 +1246,7 @@ body.modal-open {
     flex-direction: column;
 }
 .general-post-card__host-info {
-    min-height: 50px;
+    min-height: 30px;
     height: auto !important;
     max-height: 110px;
 }
@@ -1687,4 +1703,32 @@ body.modal-open {
     opacity: 0.55;
     cursor: wait;
     pointer-events: none;
+}
+
+/* --- テーマ掲示板 --- */
+.theme-board-search-form {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+}
+.theme-board-search-input {
+    flex: 1;
+    min-width: 0;
+    border-radius: 10px;
+    height: 32px;
+    padding: 4px 12px;
+    box-sizing: border-box;
+}
+.theme-board-empty-prompt {
+    color: #888;
+    font-style: italic;
+    line-height: 1.35;
+}
+.theme-board-no-results {
+    margin-top: 20px;
+    font-size: 15px;
+    font-weight: bold;
+    text-align: center;
 }

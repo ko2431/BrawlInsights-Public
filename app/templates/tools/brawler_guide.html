@@ -40,7 +40,9 @@
     <nav class="brawler-guide-toc">
         <div class="brawler-guide-toc__title">{% if lang == "ja" %}目次{% else %}Contents{% endif %}</div>
         <ol class="brawler-guide-toc__list">
+            {% if brawler_thread_id %}
             <li><a href="#section-chat">{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</a></li>
+            {% endif %}
             <li><a href="#section-status">{% if lang == "ja" %}ステータス{% else %}Status{% endif %}</a></li>
             <li><a href="#section-gadgets">{% if lang == "ja" %}ガジェット{% else %}Gadgets{% endif %}</a></li>
             <li><a href="#section-starpowers">{% if lang == "ja" %}スターパワー{% else %}Star Powers{% endif %}</a></li>
@@ -53,6 +55,7 @@
     </nav>
 
     {# ^ 1. チャットスレッド #}
+    {% if brawler_thread_id %}
     <section id="section-chat" class="brawler-guide-section" x-data="{ open: true }">
         <h2 class="section-title tools-page__section-title" @click="open = !open">
             <span>{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</span>
@@ -102,6 +105,7 @@
             </div>
         </div>
     </section>
+    {% endif %}
 
     {# ^ 2. ステータス #}
     <section id="section-status" class="brawler-guide-section" x-data="brawlerStatusManager()">

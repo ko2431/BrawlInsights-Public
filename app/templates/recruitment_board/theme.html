@@ -1,0 +1,117 @@
+{# /app/templates/recruitment_board/general.html - シェル（即時表示、投稿フラグメントはクライアントで取得） を参考にしたテーマ掲示板シェル #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】テーマ掲示板{% else %}Theme Board{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}キャラクターなど、ブロスタの特定のテーマに沿って雑談や質問ができるテーマ掲示板です。{% else %}A theme board to chat and ask questions around a specific theme such as Brawlers in Brawl Stars.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/boards.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="board-page__container">
+    {% include "components/update_request.html" %}
+
+    {% if platform == "web" %}<h1 class="page-title--main board-page-title--main">{% if lang == "ja" %}テーマ掲示板{% else %}Theme Board{% endif %}</h1>{% endif %}
+
+    {% set board_nav_active = 'theme' %}
+    {% include "recruitment_board/includes/board_type_tabs.html" %}
+
+    <div class="board-filters__container board-filters__container--theme">
+        <nav class="sub-tab-nav">
+            <ul class="sub-tab-nav__list">
+                <li class="sub-tab-nav__item">
+                    <a href="?tab=brawlers" data-board-tab="brawlers" class="sub-tab-nav__link {% if tab == 'brawlers' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/brawlers.png') }}" alt="{% if lang == 'ja' %}キャラクター{% else %}Brawlers{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}キャラクター{% else %}Brawlers{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="?tab=participated" data-board-tab="participated" class="sub-tab-nav__link {% if tab == 'participated' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}自分が参加{% else %}Joined{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}自分が参加{% else %}Joined{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="?tab=liked" data-board-tab="liked" class="sub-tab-nav__link {% if tab == 'liked' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="{% if lang == 'ja' %}いいね済み{% else %}Liked{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}いいね済み{% else %}Liked{% endif %}</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <div class="board-filters__filter-row" style="margin-top: 10px;">
+            <form method="get" id="themeSearchForm" class="filter-form theme-board-search-form" onsubmit="return false;" style="margin-top: 0;">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                <label for="themeSearchInput" class="filter-form__label">{% if lang == "ja" %}検索:{% else %}Search:{% endif %}</label>
+                <input type="search"
+                       id="themeSearchInput"
+                       class="form-input theme-board-search-input"
+                       placeholder="{% if tab == 'brawlers' %}{% if lang == 'ja' %}キャラクター名で検索...{% else %}Search by brawler name...{% endif %}{% else %}{% if lang == 'ja' %}掲示板名で検索...{% else %}Search by board name...{% endif %}{% endif %}"
+                       autocomplete="off">
+            </form>
+            <div class="reload-button__container">
+                <p>{% if lang == "ja" %}更新{% else %}Reload{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="board-shell__posts" id="theme-board-posts-root"
+         x-data="themeBoardFragmentLoader({
+            fragmentBaseUrl: '{{ url_for('theme_board_fragment', lang=lang) }}',
+            lang: '{{ lang }}',
+            tab: '{{ tab }}'
+         })"
+         x-init="init()">
+        <template x-if="isLoading">
+            <div class="board-shell__loading">
+                <div class="board-shell__spinner"></div>
+                <p class="board-shell__loading-text">{% if lang == "ja" %}投稿を読み込み中...{% else %}Loading posts...{% endif %}</p>
+            </div>
+        </template>
+        <template x-if="hasError">
+            <div class="board-shell__error">
+                <p>{% if lang == "ja" %}投稿の読み込みに失敗しました。上の「更新」ボタンで再試行できます。{% else %}Failed to load posts. Use the Reload button above to try again.{% endif %}</p>
+            </div>
+        </template>
+        <div x-show="!isLoading && !hasError" x-ref="content"></div>
+    </div>
+
+    <section class="about-section">
+        <h1 class="page-title--sub">{% if lang == "ja" %}テーマ掲示板について{% else %}About the Theme Board{% endif %}</h1>
+        {% if lang == "ja" %}
+        <p>
+            <b>キャラクター</b>など、ブロスタの特定のテーマに沿って雑談や質問ができるテーマ掲示板です。今後、<b>マップ</b>などのさらなるテーマが登場予定！
+        </p>
+        {% else %}
+        <p>
+            Chat and ask questions around a specific theme such as <b>Brawlers</b> in Brawl Stars. More themes such as <b>Maps</b> are planned!
+        </p>
+        {% endif %}
+    </section>
+
+    {% include "components/ad_banner.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/theme_board.js') }}?v={{ app_version }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const lang = '{{ lang }}';
+        initThemeBoardShell({ lang });
+
+        document.querySelectorAll('.tab-nav__link--notifications').forEach(link => {
+            link.addEventListener('click', (e) => {
+                {% if not current_user %}
+                e.preventDefault();
+                alert(lang === 'ja'
+                    ? '通知機能を利用するにはログインが必要です。アカウントタブからログイン、またはアカウントを作成できます。'
+                    : 'You must be logged in to use notifications. Log in or create an account from the account tab.');
+                {% endif %}
+            });
+        });
+    });
+    </script>
+{% endblock %}

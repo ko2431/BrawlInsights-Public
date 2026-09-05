@@ -442,6 +442,7 @@ th {
 .admin-badge--general_discord { background: #4752c4; color: #eef2ff; }
 .admin-badge--general_youtube { background: #ffd4d4; color: #7f1d1d; }
 .admin-badge--general_tiktok { background: #ffd4ef; color: #9d174d; }
+.admin-badge--theme_brawler { background: #ffe7d4; color: #9a3412; }
 .dark .admin-badge--team_ranked { background: #7f1d1d; color: #fecaca; }
 .dark .admin-badge--team_friendly { background: #78350f; color: #fde68a; }
 .dark .admin-badge--team_event { background: #9d174d; color: #fbcfe8; }
@@ -463,6 +464,7 @@ th {
 .dark .admin-badge--general_discord { background: #312e81; color: #c7d2fe; }
 .dark .admin-badge--general_youtube { background: #7f1d1d; color: #fecaca; }
 .dark .admin-badge--general_tiktok { background: #9d174d; color: #fbcfe8; }
+.dark .admin-badge--theme_brawler { background: #7c2d12; color: #fed7aa; }
 
 .feedback-table th.sortable-header {
     cursor: pointer;

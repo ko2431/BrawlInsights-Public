@@ -14,7 +14,7 @@ from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block, try_progress_tutorial_board
-from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS
+from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS, get_theme_board_posts, is_theme_post_type
 from app.services.notification_service import (
     NOTIFICATION_PAGE_SIZE,
     VALID_NOTIFICATION_FILTERS,
@@ -1256,6 +1256,114 @@ async def general_board(
 
 
 #* /---*---*---*---*---*---*---*---*/
+#* テーマ掲示板タブ
+#* /---*---*---*---*---*---*---*---*/
+THEME_BOARD_TABS = frozenset({"brawlers", "participated", "liked"})
+THEME_BOARD_DEFAULT_TAB = "brawlers"
+
+
+def _normalize_theme_board_tab(tab: str) -> str:
+    return tab if tab in THEME_BOARD_TABS else THEME_BOARD_DEFAULT_TAB
+
+
+async def _fetch_theme_board_posts(
+    db: asyncpg.Connection,
+    request: Request,
+    *,
+    tab: str,
+) -> list[dict]:
+    """テーマ掲示板の投稿一覧を取得する。"""
+    user: User | None = getattr(request.state, "current_user", None)
+    blocker_user_id = user.id if user else None
+    blocker_anonymous_id = request.cookies.get("brawlanonid") if not user else None
+
+    if blocker_user_id or blocker_anonymous_id:
+        blocked_ids = await get_blocked_ids(
+            db,
+            blocker_user_id=blocker_user_id,
+            blocker_anonymous_id=blocker_anonymous_id,
+        )
+    else:
+        blocked_ids = {"user_ids": [], "anonymous_ids": []}
+
+    try:
+        posts = await get_theme_board_posts(
+            db,
+            tab=tab,
+            target_user_id=user.id if user else None,
+            blocked_user_ids=blocked_ids["user_ids"],
+        )
+    except DataBaseError as e:
+        logger.error(f"テーマ掲示板の投稿取得中にデータベースエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from e
+
+    vote_summary = await get_general_post_vote_summary(
+        db,
+        [post["id"] for post in posts],
+        user_id=user.id if user else None,
+    )
+    for post in posts:
+        summary = vote_summary.get(post["id"])
+        if summary:
+            post["up_vote_count"] = int(summary.get("up_vote_count", 0))
+            post["is_up_voted_by_current_user"] = bool(summary.get("is_up_voted_by_current_user", False))
+    return posts
+
+
+@router.get("/theme/fragment", name="theme_board_fragment")
+async def theme_board_fragment(
+    request: Request,
+    lang: str,
+    tab: str = Query(THEME_BOARD_DEFAULT_TAB, description="表示タブ(brawlers/participated/liked)"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    tab = _normalize_theme_board_tab(tab)
+    posts = await _fetch_theme_board_posts(db, request, tab=tab)
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "tab": tab,
+        "posts": posts,
+    }
+    await _attach_fragment_notification_badge(context, db, user, page=1)
+
+    try:
+        return templates.TemplateResponse("recruitment_board/fragments/theme_posts_fragment.html", context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page") from render_err
+
+
+@router.get("/theme", name="theme_board")
+async def theme_board(
+    request: Request,
+    lang: str,
+    tab: str = Query(THEME_BOARD_DEFAULT_TAB, description="表示タブ(brawlers/participated/liked)"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    user: User | None = getattr(request.state, "current_user", None)
+    tab = _normalize_theme_board_tab(tab)
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "tab": tab,
+        "current_page": "board",
+        "hide_navigation_controls": True,
+    }
+    await _append_board_notification_context(context, db, user)
+    await try_progress_tutorial_board(user, db, "theme")
+
+    try:
+        return templates.TemplateResponse("recruitment_board/theme.html", context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+#* /---*---*---*---*---*---*---*---*/
 #* チャット画面
 #* /---*---*---*---*---*---*---*---*/
 @router.get("/chat/{thread_id}", name="chat_thread")
@@ -1264,6 +1372,7 @@ async def chat_thread(
     lang: str,
     thread_id: int,
     message_id: int | None = Query(None, ge=1, description="フォーカスするメッセージID"),
+    from_source: str | None = Query(None, alias="from", description="遷移元(theme なら掲示板タブ所属)"),
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     # 投稿情報を取得
@@ -1357,11 +1466,12 @@ async def chat_thread(
         raise HTTPException(status_code=500, detail="Error rendering page")
     
     # テンプレートに渡すコンテキスト
-    # brawler_guide型の場合はキャラクター情報を取得し、current_pageをtoolsに変更する
+    # テーマ掲示板（旧キャラクター図鑑スレッド含む）は、テーマ掲示板からの遷移時のみ掲示板タブ所属
     brawler_for_chat = None
     chat_current_page = "board"
-    if post.type == "brawler_guide":
-        chat_current_page = "tools"
+    from_theme_board = from_source == "theme"
+    if is_theme_post_type(post.type):
+        chat_current_page = "board" if from_theme_board else "tools"
         brawler_id_for_chat = post.custom_settings.get("brawler_id") if post.custom_settings else None
         if brawler_id_for_chat:
             try:
@@ -1405,6 +1515,7 @@ async def chat_thread(
         "admob_banner_position": "top",
         "hide_navigation_controls": True,
         "brawler": brawler_for_chat,
+        "from_theme_board": from_theme_board,
         "host_main_account_tag": host_main_account_tag,
         "host_main_account_name": host_main_account_name,
     }
@@ -2022,7 +2133,7 @@ async def create_chat_message(
         if user:
             if post.type == "general":
                 await user.check_and_claim_advance_mission(db, "chat_general")
-            elif post.type == "brawler_guide":
+            elif is_theme_post_type(post.type):
                 await user.check_and_claim_advance_mission(db, "chat_brawler")
         
         # WebSocketで新しいメッセージをブロードキャスト

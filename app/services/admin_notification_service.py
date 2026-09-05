@@ -25,6 +25,8 @@ POST_TYPE_LABELS_JA = {
     "friend": "フレンド募集",
     "club": "クラブ募集",
     "general": "なんでも掲示板",
+    "theme": "テーマ掲示板",
+    "brawler_guide": "テーマ掲示板",
 }
 
 ADMIN_PATH_SLUG_TO_CATEGORY = {

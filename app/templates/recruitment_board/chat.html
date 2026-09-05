@@ -10,6 +10,8 @@
 {% endblock %}
 
 {% block content %}
+{% set is_theme_post = post.type in ['theme', 'brawler_guide'] %}
+{% set from_theme_board = from_theme_board|default(false) %}
 {% if post.type == "team" %}
     {% set image_fallbacks = [] %}
     {% if post.category == "ranked" %}
@@ -125,7 +127,7 @@
         {% set color2 = "#ffd4e6" %}
         {% set dark = false %}
     {% endif %}
-{% elif post.type == "brawler_guide" %}
+{% elif is_theme_post %}
     {# キャラクター図鑑用: レアリティ別カラーのグラジェント #}
     {% set brawler_rarity = brawler.rarity if brawler else 0 %}
     {% if brawler_rarity == 1 %}
@@ -150,7 +152,7 @@
     {# ヘッダー部分 (スレッド情報) #}
     <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}{% if color1 is defined %} chat-header--tinted{% endif %}{% if dark %} chat-header--brand-dark{% endif %}"{% if color1 is defined %} style="--board-c1: {{ color1 }}; --board-c2: {{ color2 }};"{% endif %}>
         <div class="chat-header__content">
-            {% if post.type == "brawler_guide" %}
+            {% if is_theme_post %}
             {# キャラクター図鑑用ヘッダー #}
             {% set brawler_pin_path = "/images/brawler_pins/" + (brawler.id | string) + ".png" if brawler else "/images/ui/mystery.png" %}
             <img src="{{ url_for('static', path=brawler_pin_path) }}"
@@ -184,7 +186,9 @@
             <div class="chat-header__actions">
                 {% if platform != "web" %}
                 {# タブ跨ぎ時の戻る先（親ページ） #}
-                {% if post.type == "brawler_guide" and brawler %}
+                {% if is_theme_post and from_theme_board %}
+                    {% set chat_back_fallback = url_for('theme_board', lang=lang) %}
+                {% elif is_theme_post and brawler %}
                     {% set chat_back_fallback = url_for('brawler_guide', lang=lang, brawler_id=brawler.id) %}
                 {% elif post.type == "friend" %}
                     {% set chat_back_fallback = url_for('friend_recruitment_board', lang=lang) %}
@@ -222,7 +226,7 @@
     <main class="messages__container" id="messages-container">
         {# 説明文 #}
         <div class="chat-description">
-            {% if post.type == "brawler_guide" %}
+            {% if is_theme_post %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.{% endif %}</p>
             {% elif current_user and current_user.id == post.host_id and post.link and post.chat_permission_level > 20 %}
                 <p>{% if lang == "ja" %}ユーザーのアイコンをタップすると、その人の<b>メインアカウント</b>のプロフィールを見ることができます。<br>また、ユーザーのアイコンをタップして<b>リンククリックを個別に許可</b>を選択すると、この募集の条件にかかわらず、その人にリンククリックをできるようにさせることが可能です。{% else %}When you tap a user's icon, you can view that person's <b>main account</b> profile.<br>Additionally, by tapping the user's icon and selecting <b>Individually Allow Link Clicks</b>, you can enable link clicking for that person regardless of the conditions of this recruitment.{% endif %}</p>
@@ -232,7 +236,7 @@
         </div>
         {# まず、Postのコメントを表示 #}
         <div class="post-comment__container">
-            {% if post.type == "brawler_guide" %}
+            {% if is_theme_post %}
                 <p class="post-comment">{% if lang == "ja" %}このキャラクターについて、自由に発言や質問ができます！キャラクターに関係ない発言やスパム、ミッション達成目的の無意味な発言は禁止されています。そのような発言は利用制限の対象となることがあります。{% else %}Feel free to comment or ask questions about this brawler! Comments unrelated to the brawler, spam, and meaningless posts for mission completion are prohibited. Such posts may result in usage restrictions.{% endif %}</p>
             {% else %}
                 <p class="post-comment"><b>{% if lang == "ja" %}投稿者{% else %}Poster{% endif %}:</b> {% if post.host_id %}<button type="button" class="post-comment__host-name" data-user-id="{{ post.host_id }}" data-user-name="{{ post.host_user_name or '' }}" data-main-account-tag="{{ host_main_account_tag or '' }}" data-main-account-name="{{ host_main_account_name or '' }}">{{ post.host_user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}</button>{% else %}{{ post.host_user_name or ('ゲスト' if lang == 'ja' else 'Guest') }}{% endif %}{%- if post.comment -%}<br><b>{% if lang == "ja" %}コメント{% else %}Comment{% endif %}:</b> {{ post.comment|censor }}{%- else -%}<br><span style="color: #888;"><i>({% if lang == "ja" %}コメントはありません{% else %}No comment{% endif %})</i></span>{%- endif -%}{%- if post.type in ['team', 'friend', 'general'] and post.hostplayer -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=post.hostplayer.tag[1:]) }}" class="post-comment__profile-link">{{ post.hostplayer.name }} ({{ post.hostplayer.tag }})</a>{%- elif post.type == 'club' and host_main_account_tag and host_main_account_name -%}<br><b>{% if lang == "ja" %}投稿者のプロフィール{% else %}Profile{% endif %}: </b> <a href="{{ url_for('get_player_profile', lang=lang, tag=host_main_account_tag[1:]) }}" class="post-comment__profile-link">{{ host_main_account_name }} ({{ host_main_account_tag }})</a>{%- endif -%}</p>
@@ -1626,7 +1630,7 @@
                 if (!isAtLiveTip) {
                     // 最新端未到達時は DOM にギャップを作らない
                     if (isSelf) {
-                        window.location.href = `/${lang}/boards/chat/${threadId}`;
+                        window.location.href = `/${lang}/boards/chat/${threadId}${window.location.search}`;
                     } else {
                         showNewMessagesIndicator();
                     }
@@ -2671,7 +2675,7 @@
                 newMessagesIndicator.addEventListener('click', () => {
                     hideNewMessagesIndicator();
                     if (!isAtLiveTip) {
-                        window.location.href = `/${lang}/boards/chat/${threadId}`;
+                        window.location.href = `/${lang}/boards/chat/${threadId}${window.location.search}`;
                         return;
                     }
                     scrollMessagesToBottom();

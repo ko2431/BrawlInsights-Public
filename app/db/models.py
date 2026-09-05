@@ -810,7 +810,7 @@ class Post(Base):
     __tablename__ = 'posts'
 
     id = Column(Integer, primary_key=True)
-    type = Column(Text, nullable=False) # "team", "friend", "club" など
+    type = Column(Text, nullable=False) # "team", "friend", "club", "general", "theme" など
     host_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     host_ip = Column(INET, nullable=False)
     host_anonymous_id = Column(Text, nullable=True)
@@ -857,6 +857,15 @@ class Post(Base):
             'host_id',
             desc('created_at'),
             postgresql_where=text('host_id IS NOT NULL'),
+        ),
+        Index('idx_posts_type_category', 'type', 'category'),
+        Index(
+            'uq_posts_theme_brawler_id',
+            text("(custom_settings->>'brawler_id')"),
+            unique=True,
+            postgresql_where=text(
+                "type = 'theme' AND category = 'brawler' AND is_deleted = FALSE"
+            ),
         ),
     )
 
