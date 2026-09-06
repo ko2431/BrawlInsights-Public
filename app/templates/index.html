@@ -15,7 +15,7 @@
     {% include "components/update_request.html" %}
 
     {# バナー広告の削除 #} {# 要検討。現在は仮のバナーのみ設置 #}
-    {% if platform == 'ios' and (app_client_version and app_client_version >= "13.5") %}
+    {% if platform == 'ios' and version_at_least(app_client_version, "13.5") %}
     <div x-data="adRemovalButton()" x-show="isReady" style="display: none;" x-cloak>
         
         {# パターンA: ボタン表示 (有効期限切れ or 未視聴) #}

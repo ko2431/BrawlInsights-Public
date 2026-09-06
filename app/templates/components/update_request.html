@@ -1,5 +1,5 @@
 {# /app/templates/components/update_request.html #}
-{% if platform == "ios" and (not app_client_version or app_client_version < "14.0") %}
+{% if platform == "ios" and not version_at_least(app_client_version, "14.0") %}
 <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer">
     <div class="update-info-box">
         <p class="update-info-text">

@@ -212,14 +212,14 @@
 
     {% if platform == 'web' %}
     {# Web版: 独自スポンサーバナー（ヘッダー直下）。広告非表示ユーザーは ad_banner=None で描画されない #}
-    <div class="chat-web-ad-banner">
+    <div class="chat-web-featured-slot">
         {% with ad_banner_overlay_label=true %}
         {% include "components/ad_banner.html" %}
         {% endwith %}
     </div>
     {% else %}
     {# アプリ版 AdMob 上部バナー用スペーサー（has-top-banner 時のみ高さが付く） #}
-    <div class="chat-ad-banner-spacer" aria-hidden="true"></div>
+    <div class="chat-featured-spacer" aria-hidden="true"></div>
     {% endif %}
 
     {# メッセージ表示部分 #}
@@ -1992,7 +1992,7 @@
                 }
 
                 // アプリ版 AdMob 上部バナー（ネイティブ描画で WebView より前面）と重なる場合は、バナー下へずらす
-                const bannerSpacer = !isWebPlatform ? document.querySelector('.chat-ad-banner-spacer') : null;
+                const bannerSpacer = !isWebPlatform ? document.querySelector('.chat-featured-spacer') : null;
                 const bannerRect = bannerSpacer?.getBoundingClientRect();
                 const bannerMinTopVp = (bannerRect && bannerRect.height > 0) ? (bannerRect.bottom + 5) : null;
                 if (bannerMinTopVp != null && top - window.scrollY < bannerMinTopVp) {

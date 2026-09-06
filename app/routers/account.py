@@ -721,6 +721,12 @@ async def claim_rewarded_token_process(
     """
     lang = request.path_params.get("lang", "ja")
 
+    platform = getattr(request.state, "platform", "web")
+    if platform not in ("ios", "android"):
+        logger.warning(f"報酬トークン付与を非アプリから拒否 (platform: {platform}, user: {current_user.id})")
+        message = "この報酬はアプリ版でのみ利用できます。" if lang == "ja" else "This reward is available only in the app."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_403_FORBIDDEN)
+
     try:
         # Userクラスのclaim_tokensメソッドを呼び出す (claimed=15, daily_limit=5)
         success = await current_user.claim_tokens(db, claimed=15, daily_limit=5)
@@ -756,6 +762,12 @@ async def claim_rewarded_ticket_process(
 ):
     """報酬付き動画広告の視聴完了後にチケットを付与するエンドポイント。"""
     lang = request.path_params.get("lang", "ja")
+
+    platform = getattr(request.state, "platform", "web")
+    if platform not in ("ios", "android"):
+        logger.warning(f"報酬チケット付与を非アプリから拒否 (platform: {platform}, user: {current_user.id})")
+        message = "この報酬はアプリ版でのみ利用できます。" if lang == "ja" else "This reward is available only in the app."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_403_FORBIDDEN)
 
     try:
         before_ticket_balance = current_user.ad_skip_tickets

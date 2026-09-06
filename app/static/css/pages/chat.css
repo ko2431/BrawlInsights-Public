@@ -154,7 +154,7 @@
 
 
 /* アプリ版 AdMob 上部バナー用スペーサー（messages__container をその分縮める） */
-.chat-ad-banner-spacer {
+.chat-featured-spacer {
     flex-shrink: 0;
     width: 100%;
     height: 0;
@@ -170,30 +170,30 @@
         --banner-ad-height-top: 90px;
     }
 }
-.chat-page__container--reserve-top-banner .chat-ad-banner-spacer,
-body.has-top-banner .chat-ad-banner-spacer {
+.chat-page__container--reserve-top-banner .chat-featured-spacer,
+body.has-top-banner .chat-featured-spacer {
     height: var(--banner-ad-height-top, 55px);
 }
 
-/* Web版: ヘッダー直下の独自スポンサーバナー（角丸なし・横幅上限あり） */
-.chat-web-ad-banner {
+/* Web版: ヘッダー直下の独自掲載枠（角丸なし・横幅上限あり） */
+.chat-web-featured-slot {
     flex-shrink: 0;
     width: 100%;
 }
-.chat-web-ad-banner:not(:has(.ad-banner-wrap)) {
-    display: none; /* 広告なし（広告削除ユーザー等）のとき余白を残さない */
+.chat-web-featured-slot:not(:has(.bi-featured-slot)) {
+    display: none; /* 掲載なし（広告削除ユーザー等）のとき余白を残さない */
 }
-.chat-web-ad-banner .ad-banner-wrap {
+.chat-web-featured-slot .bi-featured-slot {
     margin: 0;
     display: flex;
     justify-content: center;
 }
 /* バナー本体を中央揃え。ラベルは frame 内左上に重ねる */
-.chat-web-ad-banner .ad-banner__frame {
+.chat-web-featured-slot .bi-featured-slot__frame {
     position: relative;
     width: 100%;
 }
-.chat-web-ad-banner .ad-banner__label {
+.chat-web-featured-slot .bi-featured-slot__label {
     position: absolute;
     top: 4px;
     left: 6px;
@@ -209,17 +209,17 @@ body.has-top-banner .chat-ad-banner-spacer {
     pointer-events: none;
     border-radius: 5px;
 }
-.dark .chat-web-ad-banner .ad-banner__label {
+.dark .chat-web-featured-slot .bi-featured-slot__label {
     color: #fff;
     background-color: rgba(0, 0, 0, 0.55);
 }
-.chat-web-ad-banner .ad-banner__link {
+.chat-web-featured-slot .bi-featured-slot__link {
     display: block;
     width: 100%;
     max-width: none;
     margin: 0;
 }
-.chat-web-ad-banner .ad-banner__img {
+.chat-web-featured-slot .bi-featured-slot__img {
     display: block;
     width: 100%;
     max-width: none;

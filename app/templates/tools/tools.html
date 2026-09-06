@@ -50,7 +50,7 @@
                 <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
             </h2>
             <div class="tools-page__contents-box" x-show="open" x-transition>
-                {% if (platform == "ios" and app_client_version and app_client_version >= "14.0") or (platform == "android" and app_client_version and app_client_version >= "14.0") or platform == "web" %}
+                {% if (platform == "ios" and version_at_least(app_client_version, "14.0")) or (platform == "android" and version_at_least(app_client_version, "14.0")) or platform == "web" %}
                 <a href="{{ url_for('profile_image_tool', lang=lang) }}">
                     <div class="tools-page__content">
                         <img src="{{ url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %}" class="tools-page__content-image">

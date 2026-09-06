@@ -888,14 +888,14 @@
 }
 
 /* ============================================================
-   バナー広告 (.ad-banner-*)
+   独自掲載枠 (.bi-featured-slot*)
    ============================================================ */
 
-.ad-banner-wrap {
+.bi-featured-slot {
     margin: 12px 0;   /* 縦マージンのみ。横は0（呼び出し元で追加可能）*/
 }
 
-.ad-banner__label {
+.bi-featured-slot__label {
     font-size: 11px;
     color: #999;
     width: 100%;
@@ -903,18 +903,18 @@
     margin: 0 auto 2px;
     line-height: 1;
 }
-.dark .ad-banner__label {
+.dark .bi-featured-slot__label {
     color: #666;
 }
 
-.ad-banner__link {
+.bi-featured-slot__link {
     display: block;
     margin: auto;
     width: 100%;
     max-width: 600px;
 }
 
-.ad-banner__img {
+.bi-featured-slot__img {
     display: block;
     margin: auto;
     width: 100%;
@@ -926,10 +926,10 @@
     transition: opacity .15s;
     border: 0.5px solid #bbb;
 }
-.dark .ad-banner__img {
+.dark .bi-featured-slot__img {
     background-color: #333;        /* ダークモード：濃い灰色 */
     border-color: #444;
 }
-.ad-banner__link:hover .ad-banner__img {
+.bi-featured-slot__link:hover .bi-featured-slot__img {
     opacity: .9;
 }

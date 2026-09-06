@@ -346,13 +346,13 @@
                         <div x-data="{ _adHidden: false }"
                              x-init="(() => { try { _adHidden = localStorage.getItem('bi_guest_remove_ads') === 'true'; } catch(_e) {} })()"
                              x-show="!_adHidden">
-                            <p class="ad-banner__label" style="color: #fff;">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
+                            <p class="bi-featured-slot__label" style="color: #fff;">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
                             {% if ad_banner.click_url %}
-                            <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
+                            <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="bi-featured-slot__link">
                             {% endif %}
                             <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
                                  alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
-                                 class="ad-banner__img"
+                                 class="bi-featured-slot__img"
                                  loading="lazy">
                             {% if ad_banner.click_url %}
                             </a>

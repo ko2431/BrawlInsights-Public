@@ -17,7 +17,7 @@
 #}
 {% if ad_banner %}
 {% set _overlay_label = ad_banner_overlay_label|default(false) %}
-<div class="ad-banner-wrap{% if _overlay_label %} ad-banner-wrap--overlay-label{% endif %}"
+<div class="bi-featured-slot{% if _overlay_label %} bi-featured-slot--overlay-label{% endif %}"
      x-data="{ _adVisible: true }"
      x-init="(() => {
          try {
@@ -27,30 +27,30 @@
      x-show="_adVisible"
      style="display: none;">
     {% if _overlay_label %}
-    <div class="ad-banner__frame">
-        <p class="ad-banner__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
+    <div class="bi-featured-slot__frame">
+        <p class="bi-featured-slot__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
         {% if ad_banner.click_url %}
-        <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
+        <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="bi-featured-slot__link">
             <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
                  alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
-                 class="ad-banner__img"
+                 class="bi-featured-slot__img"
                  loading="lazy">
         </a>
         {% else %}
         <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
              alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
-             class="ad-banner__img"
+             class="bi-featured-slot__img"
              loading="lazy">
         {% endif %}
     </div>
     {% else %}
-    <p class="ad-banner__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
+    <p class="bi-featured-slot__label">{% if lang == "ja" %}スポンサー{% else %}Sponsor{% endif %}</p>
     {% if ad_banner.click_url %}
-    <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="ad-banner__link">
+    <a href="{{ ad_banner.click_url }}" target="_blank" rel="noopener noreferrer sponsored" class="bi-featured-slot__link">
     {% endif %}
         <img src="{{ ad_banner.image_url }}?v={{ app_version }}"
              alt="{% if lang == 'ja' %}スポンサー広告{% else %}Sponsored Ad{% endif %}"
-             class="ad-banner__img"
+             class="bi-featured-slot__img"
              loading="lazy">
     {% if ad_banner.click_url %}
     </a>

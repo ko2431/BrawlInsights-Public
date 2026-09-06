@@ -10,7 +10,7 @@ from pathlib import Path
 
 # --- 定数 ---
 AD_BANNER_DIR = Path(__file__).resolve().parent.parent / "static" / "images" / "ad_banners"
-AD_BANNER_STATIC_PREFIX = "/static/images/ad_banners"
+AD_BANNER_STATIC_PREFIX = "/static/images/featured_media"
 AD_BANNER_MAX_SPONSORS = 10   # スポンサー上限人数。これ未満のときself広告も候補に入る
 BANNER_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}
 

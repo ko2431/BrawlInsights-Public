@@ -33,10 +33,41 @@ templates = Jinja2Templates(
     ],  # type: ignore
 )
 
+def parse_app_version(value: str | None) -> tuple[int, ...]:
+    """'14.0' や '13.5' を整数タプルにする。数字以外が来た区間で打ち切る。"""
+    if not value:
+        return ()
+    parts: list[int] = []
+    for raw in str(value).split("."):
+        digits: list[str] = []
+        for ch in raw:
+            if ch.isdigit():
+                digits.append(ch)
+            else:
+                break
+        if not digits:
+            break
+        parts.append(int("".join(digits)))
+    return tuple(parts)
+
+
+def version_at_least(current: str | None, minimum: str) -> bool:
+    """アプリ版数を数値比較する。未設定や不正な値は False。"""
+    current_tuple = parse_app_version(current)
+    if not current_tuple:
+        return False
+    minimum_tuple = parse_app_version(minimum)
+    length = max(len(current_tuple), len(minimum_tuple), 1)
+    current_padded = current_tuple + (0,) * (length - len(current_tuple))
+    minimum_padded = minimum_tuple + (0,) * (length - len(minimum_tuple))
+    return current_padded >= minimum_padded
+
+
 # カスタムグローバル関数を登録
 templates.env.globals['format_display_datetime'] = format_display_datetime
 templates.env.globals['format_last_played_time'] = format_last_played_time
 templates.env.globals['mode_icon_candidates'] = mode_icon_candidates
+templates.env.globals['version_at_least'] = version_at_least
 
 NG_WORDS = [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています]
 def censor_filter(text: str) -> str:
