@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import re
 from typing import Any, NamedTuple
 
@@ -17,7 +18,9 @@ ADMIN_NOTIFICATION_LEVELS_TTL = 60
 ADMIN_NOTIFICATION_LEVELS = frozenset({0, 10, 20, 30})
 BADGE_CACHE_PREFIX = "admin_notification_badge_count:"
 BADGE_EPOCH_REDIS_KEY = "admin_notification_badge_epoch"
-EVENT_LEVELS_CACHE_KEY = "admin_notification_event_levels"
+EVENT_LEVELS_CACHE_PREFIX = "admin_notification_event_levels:"
+EVENT_LEVELS_EPOCH_REDIS_KEY = "admin_notification_event_levels_epoch"
+EVENT_LEVELS_LEGACY_CACHE_KEY = "admin_notification_event_levels"
 SCHEDULE_GRACE = datetime.timedelta(hours=6)
 
 POST_TYPE_LABELS_JA = {
@@ -140,6 +143,9 @@ EVENT_CATALOG: tuple[AdminNotificationEvent, ...] = (
 )
 
 EVENT_BY_KEY: dict[str, AdminNotificationEvent] = {event.key: event for event in EVENT_CATALOG}
+EVENT_CATALOG_CACHE_TAG = hashlib.sha1(
+    "\n".join(event.key for event in EVENT_CATALOG).encode("utf-8")
+).hexdigest()[:12]
 
 CATEGORY_LABELS: dict[str, str] = {
     "logs": "ログ確認",
@@ -219,12 +225,16 @@ def _badge_cache_key(user_id: int, epoch: int = 0) -> str:
     return f"{BADGE_CACHE_PREFIX}{epoch}:{user_id}"
 
 
-async def _read_badge_epoch() -> int:
+def _event_levels_cache_key(epoch: int) -> str:
+    return f"{EVENT_LEVELS_CACHE_PREFIX}{epoch}:{EVENT_CATALOG_CACHE_TAG}"
+
+
+async def _read_int_redis_key(key: str) -> int:
     r = get_redis()
     if not r:
         return 0
     try:
-        raw = await r.get(BADGE_EPOCH_REDIS_KEY)
+        raw = await r.get(key)
         if raw is None:
             return 0
         if isinstance(raw, (bytes, bytearray)):
@@ -232,6 +242,37 @@ async def _read_badge_epoch() -> int:
         return int(raw)
     except Exception:
         return 0
+
+
+async def _read_badge_epoch() -> int:
+    return await _read_int_redis_key(BADGE_EPOCH_REDIS_KEY)
+
+
+async def _read_event_levels_epoch() -> int:
+    return await _read_int_redis_key(EVENT_LEVELS_EPOCH_REDIS_KEY)
+
+
+def _parse_complete_cached_event_levels(cached: Any) -> dict[str, int] | None:
+    """カタログの全キーが揃ったキャッシュだけを採用する。欠けは初期値で埋めない。"""
+    if not isinstance(cached, dict):
+        return None
+    levels: dict[str, int] = {}
+    for event in EVENT_CATALOG:
+        raw = cached.get(event.key)
+        if raw is None:
+            return None
+        try:
+            level = int(raw)
+        except (TypeError, ValueError):
+            return None
+        if level not in ADMIN_NOTIFICATION_LEVELS:
+            return None
+        levels[event.key] = level
+    return levels
+
+
+def _default_event_levels() -> dict[str, int]:
+    return {event.key: event.default_level for event in EVENT_CATALOG}
 
 
 def _log_internal(message: str, exc: BaseException | None = None) -> None:
@@ -289,20 +330,24 @@ async def invalidate_admin_notification_badge_cache() -> None:
         _log_internal(f"管理者通知バッジキャッシュの無効化に失敗しました: {e}", e)
 
 
-async def get_event_levels(db: asyncpg.Connection) -> dict[str, int]:
-    cached = await get_cache(EVENT_LEVELS_CACHE_KEY)
-    if isinstance(cached, dict):
-        levels = {event.key: event.default_level for event in EVENT_CATALOG}
-        for key, value in cached.items():
-            try:
-                level = int(value)
-            except (TypeError, ValueError):
-                continue
-            if key in EVENT_BY_KEY and level in ADMIN_NOTIFICATION_LEVELS:
-                levels[key] = level
-        return levels
+async def invalidate_event_levels_cache() -> None:
+    """通知レベルキャッシュを世代番号で無効化する。旧キーは削除し、古いプロセスの書き込みと混ざらないようにする。"""
+    r = get_redis()
+    if r:
+        try:
+            await r.incr(EVENT_LEVELS_EPOCH_REDIS_KEY)
+        except Exception as e:
+            _log_internal(f"管理者通知レベルキャッシュの無効化に失敗しました: {e}", e)
+    await delete_cache(EVENT_LEVELS_LEGACY_CACHE_KEY)
 
-    levels = {event.key: event.default_level for event in EVENT_CATALOG}
+
+async def get_event_levels(db: asyncpg.Connection) -> dict[str, int]:
+    cache_key = _event_levels_cache_key(await _read_event_levels_epoch())
+    parsed = _parse_complete_cached_event_levels(await get_cache(cache_key))
+    if parsed is not None:
+        return parsed
+
+    levels = _default_event_levels()
     try:
         rows = await db.fetch("SELECT event_key, level FROM admin_notification_event_settings")
     except asyncpg.PostgresError as e:
@@ -315,7 +360,7 @@ async def get_event_levels(db: asyncpg.Connection) -> dict[str, int]:
         if key in EVENT_BY_KEY and level in ADMIN_NOTIFICATION_LEVELS:
             levels[key] = level
 
-    await set_cache(EVENT_LEVELS_CACHE_KEY, levels, ttl=ADMIN_NOTIFICATION_LEVELS_TTL)
+    await set_cache(cache_key, levels, ttl=ADMIN_NOTIFICATION_LEVELS_TTL)
     return levels
 
 
@@ -333,7 +378,7 @@ async def ensure_event_settings(db: asyncpg.Connection) -> dict[str, int]:
     except asyncpg.PostgresError as e:
         _log_internal(f"管理者通知レベル設定の初期化に失敗しました: {e}", e)
         return levels
-    await delete_cache(EVENT_LEVELS_CACHE_KEY)
+    await invalidate_event_levels_cache()
     return await get_event_levels(db)
 
 
@@ -364,7 +409,7 @@ async def save_event_levels(db: asyncpg.Connection, updates: dict[str, int]) -> 
         except asyncpg.PostgresError as e:
             _log_internal(f"管理者通知レベル設定の保存に失敗しました: {e}", e)
             raise
-        await delete_cache(EVENT_LEVELS_CACHE_KEY)
+        await invalidate_event_levels_cache()
         await invalidate_admin_notification_badge_cache()
     return await get_event_levels(db)
 
