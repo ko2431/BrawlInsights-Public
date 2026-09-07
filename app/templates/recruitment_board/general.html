@@ -212,7 +212,7 @@
             {# 2. コメント #}
             <div class="post-modal-section">
                 <p class="post-modal-section-title">2. {% if lang == "ja" %}コメント{% else %}Comment{% endif %}</p>
-                <textarea id="comment-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}コメントを入力{% else %}Enter your comment{% endif %}"></textarea>
+                <textarea id="comment-form" class="form-input post-modal-section-form-input" rows="3" placeholder="{% if lang == 'ja' %}コメントを入力{% else %}Enter your comment{% endif %}"></textarea> {# 改行して注意事項を追加する場合は&#10;を使用 #}
                 <div id="comment-status" class="form-field-status" style="font-size: 0.8em;"></div>
             </div>
 
