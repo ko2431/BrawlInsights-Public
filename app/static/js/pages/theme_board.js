@@ -137,6 +137,14 @@
         return searchParams.toString();
     }
 
+    function waitForPaint() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
+    }
+
     window.themeBoardFragmentLoader = function themeBoardFragmentLoader(config) {
         const {
             fragmentBaseUrl,
@@ -146,6 +154,7 @@
 
         let abortController = null;
         let agoIntervalId = null;
+        let loadId = 0;
 
         const stopAgoUpdater = () => {
             if (agoIntervalId) {
@@ -201,6 +210,7 @@
                 if (abortController) abortController.abort();
                 abortController = new AbortController();
                 const signal = abortController.signal;
+                const currentLoadId = ++loadId;
 
                 this.isLoading = true;
                 this.hasError = false;
@@ -211,11 +221,17 @@
                     history.pushState({ themeBoard: this.getQueryParams() }, '', this.buildShellUrl());
                 }
 
+                // Alpine の x-init は x-show / x-if より先に走る。テーマ掲示板は fragment が速く、
+                // 待たないと初回ペイント時点で isLoading が false になりインジケーターが出ない。
+                await waitForPaint();
+                if (currentLoadId !== loadId) return;
+
                 const contentRoot = this.$refs?.content;
                 try {
                     const response = await fetch(this.buildFragmentUrl(), { signal });
                     if (!response.ok) throw new Error('fragment fetch failed');
                     const html = await response.text();
+                    if (currentLoadId !== loadId) return;
                     if (contentRoot) {
                         contentRoot.innerHTML = html;
                         injectFragmentScripts(contentRoot);
@@ -224,12 +240,14 @@
                     applyThemeBoardSearchFilter();
                     this.hasError = false;
                 } catch (error) {
-                    if (error?.name === 'AbortError') return;
+                    if (error?.name === 'AbortError' || currentLoadId !== loadId) return;
                     this.hasError = true;
                     if (contentRoot) contentRoot.innerHTML = '';
                     stopAgoUpdater();
                 } finally {
-                    this.isLoading = false;
+                    if (currentLoadId === loadId) {
+                        this.isLoading = false;
+                    }
                 }
             },
 

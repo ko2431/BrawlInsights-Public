@@ -63,12 +63,11 @@
             tab: '{{ tab }}'
          })"
          x-init="init()">
-        <template x-if="isLoading">
-            <div class="board-shell__loading">
-                <div class="board-shell__spinner"></div>
-                <p class="board-shell__loading-text">{% if lang == "ja" %}投稿を読み込み中...{% else %}Loading posts...{% endif %}</p>
-            </div>
-        </template>
+        {# 初回は Alpine の x-if フラッシュより fetch が先に終わることがあるため、読み込み表示は最初から DOM に置く #}
+        <div class="board-shell__loading" x-show="isLoading">
+            <div class="board-shell__spinner"></div>
+            <p class="board-shell__loading-text">{% if lang == "ja" %}投稿を読み込み中...{% else %}Loading posts...{% endif %}</p>
+        </div>
         <template x-if="hasError">
             <div class="board-shell__error">
                 <p>{% if lang == "ja" %}投稿の読み込みに失敗しました。上の「更新」ボタンで再試行できます。{% else %}Failed to load posts. Use the Reload button above to try again.{% endif %}</p>
