@@ -3,6 +3,7 @@ import asyncpg
 import datetime
 import json
 import math
+import re
 from typing import Any, TypedDict
 import bcrypt
 

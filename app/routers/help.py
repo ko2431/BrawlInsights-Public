@@ -4,7 +4,7 @@ import asyncpg
 from app.core.logger import logger
 from app.core.templating import templates
 from app.services.brawl_service import calc_num_of_available_brawlers
-from app.services.user_service import get_announcements
+from app.services.user_service import get_announcements, select_announcements_for_display
 from app.exceptions.custom_exceptions import DataBaseError
 from app.db.db import get_shared_db
 
@@ -26,12 +26,7 @@ async def announcements(
     except DataBaseError as e:
         logger.error(f"アナウンス一覧取得中にデータベースエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="データベースエラー")
-    announcements = []
-    for a in all_announcements:
-        if a.id.lower().startswith("web") and platform != "web" or a.id.lower().startswith("ios") and platform != "ios" or \
-            a.id.lower().startswith("android") and platform != "android" or a.id.lower().startswith("app") and platform not in ["ios", "android"]:
-                continue
-        announcements.append(a)
+    announcements = select_announcements_for_display(all_announcements, platform)
     
     # テンプレートに渡すコンテキスト
     context = {

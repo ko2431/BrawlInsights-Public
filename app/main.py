@@ -140,14 +140,7 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
     except DataBaseError as e:
         logger.error(f"アナウンス一覧取得中にデータベースエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="データベースエラー")
-    announcements = []
-    for a in all_announcements:
-        if a.id.lower().startswith("web") and platform != "web" or a.id.lower().startswith("ios") and platform != "ios" or \
-            a.id.lower().startswith("android") and platform != "android" or a.id.lower().startswith("app") and platform not in ["ios", "android"]:
-                continue
-        announcements.append(a)
-        if len(announcements) >= 3:
-            break
+    announcements = select_announcements_for_display(all_announcements, platform, limit=3)
     
     current_login_user: User | None = getattr(request.state, "current_user", None)
     
