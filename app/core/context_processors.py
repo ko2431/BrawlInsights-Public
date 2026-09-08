@@ -21,10 +21,13 @@ def ip_processor(request: Request) -> dict:
     #TODO: Play 未公開の間は Android は常にテスト広告にする。公開後にこの固定を外す。
     if platform == "android":
         use_admob_test_ads = True
+    # TODO: AdMob 本番審査中は Android の AdMob を停止。承認後にこの固定を外す。
+    pause_android_admob = platform == "android"
     return {
         "client_ip": client_ip,
         "is_test_ip": is_test_ip,
         "use_admob_test_ads": use_admob_test_ads,
+        "pause_android_admob": pause_android_admob,
     }
 
 
