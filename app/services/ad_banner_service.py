@@ -8,11 +8,60 @@ import json
 import random
 from pathlib import Path
 
+from app.core.logger import logger
+
 # --- 定数 ---
-AD_BANNER_DIR = Path(__file__).resolve().parent.parent / "static" / "images" / "featured_media"
+_IMAGES_ROOT = Path(__file__).resolve().parent.parent / "static" / "images"
+_BANNER_DIR_CANDIDATES: tuple[Path, ...] = (
+    _IMAGES_ROOT / "featured_media",
+    _IMAGES_ROOT / "ad_banners",
+)
+# nginx は親ディスクを直読みする。抽選側が旧フォルダに落ちても公開 URL は新パスに揃える。
 AD_BANNER_STATIC_PREFIX = "/static/images/featured_media"
 AD_BANNER_MAX_SPONSORS = 10   # スポンサー上限人数。これ未満のときself広告も候補に入る
 BANNER_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}
+
+_logged_missing_banner_dir = False
+_logged_legacy_banner_dir = False
+
+
+def _banner_dir_usable(directory: Path) -> bool:
+    """空フォルダや README だけのディレクトリは使わない。"""
+    if not directory.is_dir():
+        return False
+    try:
+        return any(
+            p.is_dir() and (p.name.startswith("sponsor_") or p.name.startswith("self_"))
+            for p in directory.iterdir()
+        )
+    except OSError:
+        return False
+
+
+def _resolve_banner_storage() -> Path:
+    """
+    抽選は各 uvicorn のローカルディスクを見る。HTML の大半は子サーバが生成する。
+    git mv 後に featured_media が無い・空だと、以前はログも出さずバナー全体が消えていた。
+    """
+    global _logged_missing_banner_dir, _logged_legacy_banner_dir
+    for directory in _BANNER_DIR_CANDIDATES:
+        if not _banner_dir_usable(directory):
+            continue
+        if directory.name == "ad_banners" and not _logged_legacy_banner_dir:
+            logger.warning(
+                "独自バナーを旧フォルダ ad_banners から読みます。"
+                "親・子の両方で git pull し、featured_media があることを確認してください: %s",
+                directory,
+            )
+            _logged_legacy_banner_dir = True
+        return directory
+    if not _logged_missing_banner_dir:
+        logger.error(
+            "独自バナー用ディレクトリが見つかりません。探したパス: %s",
+            ", ".join(str(path) for path in _BANNER_DIR_CANDIDATES),
+        )
+        _logged_missing_banner_dir = True
+    return _BANNER_DIR_CANDIDATES[0]
 
 
 def get_random_ad_banner(lang: str, platform: str) -> dict | None:
@@ -30,19 +79,20 @@ def get_random_ad_banner(lang: str, platform: str) -> dict | None:
     Returns:
         { "image_url": str, "click_url": str | None } または None（バナーなし）
     """
-    if not AD_BANNER_DIR.exists():
+    banner_dir = _resolve_banner_storage()
+    if not _banner_dir_usable(banner_dir):
         return None
 
     # sponsor_* フォルダを取得（存在するもののみ）
     sponsor_folders: list[Path] = sorted(
-        p for p in AD_BANNER_DIR.iterdir()
+        p for p in banner_dir.iterdir()
         if p.is_dir() and p.name.startswith("sponsor_")
     )
     sponsor_count = len(sponsor_folders)
 
     # self フォルダをプラットフォームに応じて選択
     self_folder_name = "self_web" if platform == "web" else "self_ios" if platform == "ios" else "self_android"
-    self_folder = AD_BANNER_DIR / self_folder_name
+    self_folder = banner_dir / self_folder_name
 
     # 候補フォルダを決定
     candidate_folders: list[Path] = list(sponsor_folders)
