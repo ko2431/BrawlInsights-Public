@@ -1084,13 +1084,13 @@ async def start_play(
     """参加費を消費して未開封の抽選結果を作成する。"""
     await auto_complete_ended_campaign_pending_plays(db, user, lang=lang)
     if method not in {"ad", "token"}:
-        raise ValueError(_message(lang, "参加方法が不正です。", "Invalid play method."))
+        raise ValueError(_message(lang, "参加方法が不正です。", "Invalid entry method."))
     if method == "ad" and platform not in {"ios", "android"}:
         raise ValueError(
             _message(lang, "広告参加はアプリでのみ利用できます。", "Ad plays are available only in the app.")
         )
     if require_tickets and method != "ad":
-        raise ValueError(_message(lang, "参加方法が不正です。", "Invalid play method."))
+        raise ValueError(_message(lang, "参加方法が不正です。", "Invalid entry method."))
     async with db.transaction():
         campaign_row = await db.fetchrow(
             """SELECT * FROM minigame_campaigns WHERE NOT is_invalid
@@ -1108,8 +1108,8 @@ async def start_play(
             raise ValueError(
                 _message(
                     lang,
-                    "未完了のミニゲームがあります。先に完了してください。",
-                    "Please finish your pending minigame first.",
+                    "未完了の参加があります。先に完了してください。",
+                    "Please finish your pending entry first.",
                 )
             )
         campaign = _record(campaign_row)
