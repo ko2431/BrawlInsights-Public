@@ -67,6 +67,11 @@
             }
         },
         resumePending(play) {
+            this.singlePickConsumed = false;
+            if (this.completeTimer) {
+                window.clearTimeout(this.completeTimer);
+                this.completeTimer = null;
+            }
             this.currentPlay = play;
             this.info.pending = play;
             this.currentPayload = play.animation_payload;
@@ -179,11 +184,24 @@
                 alert(this.lang === 'ja' ? '上部のプレイボタンからゲームを開始できます。' : 'You can start the game using the play button at the top.');
                 return;
             }
-            if (this.state !== 'revealing' || this.cards[index].flipped) return;
-            this.cards[index].flipped = true;
+            if (this.state !== 'revealing' || !this.cards[index]) return;
             const interaction = this.currentPayload?.interaction;
-            if (interaction === 'single_pick' || this.cards.every(card => card.flipped)) {
-                window.setTimeout(() => this.completePlay(), 550);
+            // カードめくり（シングル）は結果表示までの間も含め、1枚だけめくれる
+            if (interaction === 'single_pick') {
+                if (this.singlePickConsumed) {
+                    if (!this.completeTimer) this.completePlay();
+                    return;
+                }
+                this.singlePickConsumed = true;
+            } else if (this.cards[index].flipped) {
+                return;
+            }
+            this.cards[index].flipped = true;
+            if (interaction === 'single_pick' || this.cards.every((item) => item.flipped)) {
+                this.completeTimer = window.setTimeout(() => {
+                    this.completeTimer = null;
+                    this.completePlay();
+                }, 550);
             }
         },
         reloadKeepingCurrentSubTab() {
