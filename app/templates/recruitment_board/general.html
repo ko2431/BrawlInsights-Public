@@ -62,7 +62,7 @@
                 <input type="hidden" name="eliminate_duplicates" value="{{ eliminate_duplicates }}">
                 <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
                 <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
-                    <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示（オフトピック含む）{% else %}Show All (incl. Off Topic){% endif %}</option>
+                    <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
                     <option value="all_except_offtopic" {% if filter == "all_except_offtopic" %}selected{% endif %}>{% if lang == "ja" %}すべて表示（オフトピック除く）{% else %}Show All (excl. Off Topic){% endif %}</option>
                     <option value="chat" {% if filter == "chat" %}selected{% endif %}>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</option>
                     <option value="question" {% if filter == "question" %}selected{% endif %}>{% if lang == "ja" %}質問{% else %}Question{% endif %}</option>
