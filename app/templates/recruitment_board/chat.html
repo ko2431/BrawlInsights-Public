@@ -153,14 +153,14 @@
     <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}{% if color1 is defined %} chat-header--tinted{% endif %}{% if dark %} chat-header--brand-dark{% endif %}"{% if color1 is defined %} style="--board-c1: {{ color1 }}; --board-c2: {{ color2 }};"{% endif %}>
         <div class="chat-header__content">
             {% if is_theme_post %}
-            {# キャラクター図鑑用ヘッダー #}
+            {# テーマ掲示板チャット用ヘッダー #}
             {% set brawler_pin_path = "/images/brawler_pins/" + (brawler.id | string) + ".png" if brawler else "/images/ui/mystery.png" %}
             <img src="{{ url_for('static', path=brawler_pin_path) }}"
                  onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}';"
                  alt="Brawler Icon" class="chat-header__host-icon chat-header__host-icon--brawler">
             <div class="chat-header__details">
                 <p class="chat-header__host-name">{{ (brawler.name_ja if lang == 'ja' else brawler.name_en) if brawler else '???' }}</p>
-                <p class="chat-header__comment">{% if lang == "ja" %}掲示板{% else %}Chat{% endif %}</p>
+                <p class="chat-header__comment">{% if lang == "ja" %}テーマ掲示板{% else %}Theme Board{% endif %}</p>
             </div>
             {% elif post.hostplayer %}
             <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
