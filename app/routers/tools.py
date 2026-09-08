@@ -30,7 +30,7 @@ from app.services.image_generation_service import (
     get_image_job_priority,
     get_latest_cached_image_generation_job,
 )
-from app.services.user_service import User, try_claim_tutorial_mission
+from app.services.user_service import User, try_claim_tutorial_mission, sanitize_faq_item_for_ios
 from app.services.board_service import get_or_create_theme_brawler_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
@@ -562,6 +562,7 @@ async def app_faq(
     lang: str,
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
+    platform = getattr(request.state, "platform", "unknown")
     try:
         rows = await db.fetch(
             "SELECT * FROM faqs WHERE is_deleted = FALSE ORDER BY priority ASC, id ASC"
@@ -579,6 +580,8 @@ async def app_faq(
     for row in rows:
         cat = row[category_key]
         faq_item = dict(row)
+        if platform == "ios":
+            faq_item = sanitize_faq_item_for_ios(faq_item)
         if cat not in categories_map:
             categories_map[cat] = []
             category_min_priority[cat] = row['priority']
