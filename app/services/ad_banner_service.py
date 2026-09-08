@@ -1,7 +1,7 @@
 """
 ad_banner_service.py
 バナー広告の抽選ロジック。
-ファイルシステムから ad_banners/ フォルダを走査し、config.json に基づいて
+ファイルシステムから featured_media/ フォルダを走査し、config.json に基づいて
 言語・プラットフォームを考慮した2段階ランダム抽選を行う。
 """
 import json
@@ -9,7 +9,7 @@ import random
 from pathlib import Path
 
 # --- 定数 ---
-AD_BANNER_DIR = Path(__file__).resolve().parent.parent / "static" / "images" / "ad_banners"
+AD_BANNER_DIR = Path(__file__).resolve().parent.parent / "static" / "images" / "featured_media"
 AD_BANNER_STATIC_PREFIX = "/static/images/featured_media"
 AD_BANNER_MAX_SPONSORS = 10   # スポンサー上限人数。これ未満のときself広告も候補に入る
 BANNER_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}
