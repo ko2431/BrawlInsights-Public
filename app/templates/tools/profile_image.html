@@ -683,7 +683,7 @@
                         }
 
                         // ジョブ投入後に広告を表示することで、広告再生中もサーバー側の生成処理を進める
-                        if ((this.platform === 'ios' || this.platform === 'android') && !this.isDeleteAds && !useTicket && !window.biAndroidAdMobPaused) {
+                        if ((this.platform === 'ios' || this.platform === 'android') && !this.isDeleteAds && !useTicket) {
                             try {
                                 if (window.Capacitor?.Plugins?.AdMob) {
                                     const isTesting = this.isTestIp;

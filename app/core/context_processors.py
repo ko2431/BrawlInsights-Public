@@ -16,18 +16,11 @@ def ip_processor(request: Request) -> dict:
     is_test_ip = (client_ip == settings.HOME_IP) if settings.HOME_IP else False
     # [この部分は公開用リポジトリでは非公開にされています]
     current_user = getattr(request.state, "current_user", None)
-    platform = getattr(request.state, "platform", "web")
     use_admob_test_ads = is_test_ip or bool(current_user and current_user.is_admin)
-    #TODO: Play 未公開の間は Android は常にテスト広告にする。公開後にこの固定を外す。
-    if platform == "android":
-        use_admob_test_ads = True
-    # TODO: AdMob 本番審査中は Android の AdMob を停止。承認後にこの固定を外す。
-    pause_android_admob = platform == "android"
     return {
         "client_ip": client_ip,
         "is_test_ip": is_test_ip,
         "use_admob_test_ads": use_admob_test_ads,
-        "pause_android_admob": pause_android_admob,
     }
 
 
