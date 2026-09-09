@@ -321,8 +321,7 @@
                     </template>
                     <template x-if="platform === 'web' && isAppOnlySelectedType">
                         <div style="display: contents;">
-                            {# TODO: Android版アプリリリース後、以下のhrefは"{{ app_store_url }}"に置き換える #}
-                            <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="profile-image-tool__gen-btn--primary" style="display: flex; justify-content: center; align-items: center; text-decoration: none;">
+                            <a href="{{ app_store_url }}" target="_blank" rel="noopener noreferrer" class="profile-image-tool__gen-btn--primary" style="display: flex; justify-content: center; align-items: center; text-decoration: none;">
                                 <span x-text="lang === 'ja' ? 'アプリで生成する' : 'Generate on the App'"></span>
                             </a>
                             <p class="profile-image-tool__gen-ticket-info">
