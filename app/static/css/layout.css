@@ -544,15 +544,23 @@ body {
     filter:invert(90%)
 }
 
-.main-footer__app-store-link {
+.main-footer__store-badges {
     display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-top: 2px;
     margin-bottom: 30px;
+}
+.main-footer__app-store-link {
+    display: flex;
+    flex-shrink: 0;
 }
 .main-footer__app-store-banner {
     height: 50px;
     width: auto;
-    margin: 0 auto;
+    margin: 0;
 }
 
 /* モバイル用の調整 */

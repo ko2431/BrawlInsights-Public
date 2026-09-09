@@ -109,6 +109,10 @@
     text-decoration: none;
     text-decoration-line: underline;
 }
+.about-section .main-footer__store-badges {
+    justify-content: flex-start;
+    margin-top: 0;
+}
 
 .support-app-button {
     display: flex;

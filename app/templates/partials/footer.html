@@ -17,12 +17,16 @@
         </nav>
         {% if platform == "web" %}
             {% if lang == "ja" %}
-                <p class="main-footer__text">iOS向けアプリもあります。</p>
+                <p class="main-footer__text">アプリもあります。</p>
             {% else %}
-                <p class="main-footer__text">An iOS app version is also available.</p>
+                <p class="main-footer__text">App versions are also available.</p>
             {% endif %}
             {% set country_code = "JP" if lang == "ja" else "US" %}
-            <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_' + country_code + '.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+            {% set play_badge_lang = "ja" if lang == "ja" else "en" %}
+            <div class="main-footer__store-badges">
+                <a href="{{ ios_app_store_url }}" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_' + country_code + '.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+                <a href="{{ android_play_store_url }}" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/GetItOnGooglePlay_' + play_badge_lang + '.svg') }}" alt="{% if lang == 'ja' %}Google Play で手に入れよう{% else %}Get it on Google Play{% endif %}" class="main-footer__app-store-banner"></a>
+            </div>
         {% endif %}
         {% if lang == "ja" %}
             <p class="main-footer__text">この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}で提供している各種統計データやコンテンツ、またはこの{% if platform == "web" %}サイト{% else %}アプリ{% endif %}自体について、X(旧Twitter)、YouTube、TikTokなどのSNSに自由に投稿、または利用していただけます。</p>

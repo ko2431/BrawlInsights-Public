@@ -626,18 +626,24 @@
             <p>Brawl Insights<span class="tight"> は</span>、ブロスタの戦績確認アプリです。<br>プレイヤーの名前検索、絞り込みとグラフ付きのバトル履歴、ピック提案ツール、キャラクター図鑑、マップ周期など、高度な分析機能やツールを提供しています。</p>
             <p>この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}で提供している各種統計データやコンテンツ、またはこの{% if platform == "web" %}サイト{% else %}アプリ{% endif %}自体について、X(旧Twitter)、YouTube、TikTokなどのSNSに自由に投稿、または利用していただけます。</p>
             {% if platform == "web" %}
-                <p>iOS向けの<b>アプリ版</b>も提供しています。</p>
-                <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link" style="margin-bottom: 20px;"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_JP.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
-                <p>AndroidやPCをお使いの方、またはアプリのダウンロードなしで使いたい方は、ブラウザに<b>ブックマーク</b>するとより便利にご利用いただけます。</p>
+                <p>iOS・Android向けの<b>アプリ版</b>も提供しています。</p>
+                <div class="main-footer__store-badges" style="margin-bottom: 20px;">
+                    <a href="{{ ios_app_store_url }}" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_JP.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+                    <a href="{{ android_play_store_url }}" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/GetItOnGooglePlay_ja.svg') }}" alt="Google Play で手に入れよう" class="main-footer__app-store-banner"></a>
+                </div>
+                <p>PCをお使いの方、またはアプリのダウンロードなしで使いたい方は、ブラウザに<b>ブックマーク</b>するとより便利にご利用いただけます。</p>
             {% endif %}
             <p>お問い合わせなどは、<a href="https://x.com/BrawlInsights" target="_blank" rel="noopener noreferrer">公式X(旧Twitter)</a>までお願いします！</p>
         {% else %}
             <p>Brawl Insights is {% if platform == "web" %}a web-based platform{% else %}the app{% endif %} for analyzing Brawl Stars player data.<br>It offers powerful features such as player search by name, viewing name and club history, checking battle logs by type (Trophies / Ranked / Friendly), battle breakdowns by brawler, and visualizing player progress with timeline graphs.</p>
             <p>You are welcome to freely share the various statistics, content, or even the {% if platform == "web" %}website{% else %}app{% endif %} itself provided here on social media platforms such as X (formerly Twitter), YouTube, TikTok, and others.</p>
             {% if platform == "web" %}
-                <p>We also offer an <b>iOS app</b> version.</p>
-                <a href="https://apps.apple.com/app/id6751238098" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link" style="margin-bottom: 20px;"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_US.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
-                <p>If you are using <b>Android</b> or <b>PC</b>, or prefer to use it without downloading the app, you can simply <b>bookmark</b> this site in your browser for quick access.</p>
+                <p>We also offer <b>iOS and Android app</b> versions.</p>
+                <div class="main-footer__store-badges" style="margin-bottom: 20px;">
+                    <a href="{{ ios_app_store_url }}" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/Download_on_the_App_Store_US.svg') }}" alt="Download on the App Store" class="main-footer__app-store-banner"></a>
+                    <a href="{{ android_play_store_url }}" target="_blank" rel="noopener noreferrer" class="main-footer__app-store-link"><img src="{{ url_for('static', path='/images/ui/GetItOnGooglePlay_en.svg') }}" alt="Get it on Google Play" class="main-footer__app-store-banner"></a>
+                </div>
+                <p>If you are using a <b>PC</b>, or prefer to use it without downloading the app, you can simply <b>bookmark</b> this site in your browser for quick access.</p>
             {% endif %}
             <p>For inquiries or feedback, please contact the developer on <a href="https://x.com/BrawlInsights" target="_blank" rel="noopener noreferrer">X (formerly Twitter)</a>.</p>
         {% endif %}
