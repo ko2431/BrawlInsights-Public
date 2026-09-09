@@ -31,7 +31,7 @@
         {% if notification.target_kind == "general_own_posts" %}
         <a href="{{ url_for('general_board', lang=lang) }}?tab=own" class="notification-target__link">
         {% elif notification.target_kind == "chat" %}
-        <a href="{{ url_for('chat_thread', lang=lang, thread_id=notification.thread_id) }}{% if notification.message_id %}?message_id={{ notification.message_id }}{% endif %}" class="notification-target__link">
+        <a href="{{ url_for('chat_thread', lang=lang, thread_id=notification.thread_id) }}?from=notifications{% if notification.message_id %}&message_id={{ notification.message_id }}{% endif %}" class="notification-target__link">
         {% else %}
         <a href="#" class="notification-target__link">
         {% endif %}

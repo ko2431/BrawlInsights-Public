@@ -1373,7 +1373,7 @@ async def chat_thread(
     lang: str,
     thread_id: int,
     message_id: int | None = Query(None, ge=1, description="フォーカスするメッセージID"),
-    from_source: str | None = Query(None, alias="from", description="遷移元(theme なら掲示板タブ所属)"),
+    from_source: str | None = Query(None, alias="from", description="遷移元(theme / notifications なら掲示板タブ所属)"),
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     # 投稿情報を取得
@@ -1467,12 +1467,13 @@ async def chat_thread(
         raise HTTPException(status_code=500, detail="Error rendering page")
     
     # テンプレートに渡すコンテキスト
-    # テーマ掲示板（旧キャラクター図鑑スレッド含む）は、テーマ掲示板からの遷移時のみ掲示板タブ所属
+    # テーマ掲示板（旧キャラクター図鑑スレッド含む）は、テーマ掲示板・通知画面からの遷移時のみ掲示板タブ所属
     brawler_for_chat = None
     chat_current_page = "board"
     from_theme_board = from_source == "theme"
+    from_notifications = from_source == "notifications"
     if is_theme_post_type(post.type):
-        chat_current_page = "board" if from_theme_board else "tools"
+        chat_current_page = "board" if from_theme_board or from_notifications else "tools"
         brawler_id_for_chat = post.custom_settings.get("brawler_id") if post.custom_settings else None
         if brawler_id_for_chat:
             try:
@@ -1522,6 +1523,7 @@ async def chat_thread(
         "hide_navigation_controls": True,
         "brawler": brawler_for_chat,
         "from_theme_board": from_theme_board,
+        "from_notifications": from_notifications,
         "host_main_account_tag": host_main_account_tag,
         "host_main_account_name": host_main_account_name,
     }

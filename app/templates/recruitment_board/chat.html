@@ -12,6 +12,7 @@
 {% block content %}
 {% set is_theme_post = post.type in ['theme', 'brawler_guide'] %}
 {% set from_theme_board = from_theme_board|default(false) %}
+{% set from_notifications = from_notifications|default(false) %}
 {% if post.type == "team" %}
     {% set image_fallbacks = [] %}
     {% if post.category == "ranked" %}
@@ -186,7 +187,9 @@
             <div class="chat-header__actions">
                 {% if platform != "web" %}
                 {# タブ跨ぎ時の戻る先（親ページ） #}
-                {% if is_theme_post and from_theme_board %}
+                {% if from_notifications %}
+                    {% set chat_back_fallback = url_for('notifications', lang=lang) %}
+                {% elif is_theme_post and from_theme_board %}
                     {% set chat_back_fallback = url_for('theme_board', lang=lang) %}
                 {% elif is_theme_post and brawler %}
                     {% set chat_back_fallback = url_for('brawler_guide', lang=lang, brawler_id=brawler.id) %}
