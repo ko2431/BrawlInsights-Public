@@ -38,6 +38,12 @@ async def _clear_user_caches(user_id: int) -> None:
     await delete_cache(f"user_include_invalid:{user_id}")
 
 
+APP_LOGIN_MISSION_REWARD = 100
+APP_LOGIN_MISSION_COLUMNS = {
+    "ios": "is_ios_app_login_cleared",
+    "android": "is_android_app_login_cleared",
+}
+
 TICKET_SELL_TOKEN_RATE = 6
 _TICKET_SELL_PRESETS = (1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30)
 ELIXIR_SELL_DIVISOR = 3

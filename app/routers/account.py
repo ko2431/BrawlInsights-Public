@@ -11,7 +11,7 @@ from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission
+from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
 from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
 from app.services import minigame_service
 from app.services.minigame_service import (
@@ -1294,6 +1294,63 @@ async def claim_bonus_mission(
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": "エラーが発生しました。時間を置いて再度お試しください。" if lang == "ja" else "An error occurred. Please try again later."}
+        )
+
+
+@router.post("/special-mission/app-login", response_class=JSONResponse, name="account_claim_app_login_mission")
+async def claim_app_login_mission(
+    request: Request,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    platform = getattr(request.state, "platform", "web")
+    if platform not in ("ios", "android"):
+        logger.warning(
+            f"アプリ版ログインミッション達成を非アプリから拒否 (platform: {platform}, user: {current_user.id})"
+        )
+        message = (
+            "このミッションはアプリ版でのみ達成できます。"
+            if lang == "ja"
+            else "This mission can only be completed in the app."
+        )
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_403_FORBIDDEN)
+
+    try:
+        result = await current_user.claim_app_login_mission(db, platform)
+        if result == "success":
+            message = (
+                f"ミッションを達成しました。{APP_LOGIN_MISSION_REWARD}トークンを獲得しました。"
+                if lang == "ja"
+                else f"Mission completed. You earned {APP_LOGIN_MISSION_REWARD} tokens."
+            )
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"success": True, "message": message})
+        if result == "already_cleared":
+            message = (
+                "このミッションは既にクリア済みです。"
+                if lang == "ja"
+                else "This mission has already been cleared."
+            )
+            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"success": False, "message": message})
+        message = (
+            "所持上限に達しているためトークンを受け取れません。"
+            if lang == "ja"
+            else "Cannot claim tokens because you have reached the maximum limit."
+        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"success": False, "message": message})
+    except Exception as e:
+        logger.error(
+            f"アプリ版ログインミッション・クリア処理でエラー (platform: {platform}, user: {current_user.id}): {e}",
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "message": "エラーが発生しました。時間を置いて再度お試しください。"
+                if lang == "ja"
+                else "An error occurred. Please try again later.",
+            },
         )
 
 
