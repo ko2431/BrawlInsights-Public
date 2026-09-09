@@ -18,7 +18,6 @@ from app.utils.utils import get_normalized_ip
 
 TOKEN_GIFT_MESSAGE_TYPE = "token_gift"
 TOKEN_GIFT_COMMENT_MAX_LENGTH = 200
-TOKEN_GIFT_DAILY_LIMIT = 30
 TOKEN_GIFT_COOLDOWN_SECONDS = 3
 TOKEN_GIFT_OPTIONS: dict[int, int] = {
     5: 0,
@@ -36,203 +35,6 @@ TOKEN_GIFT_TIER_BY_AMOUNT: dict[int, str] = {
     75: "platinum",
     100: "black",
 }
-
-
-class TokenGiftError(Exception):
-    def __init__(self, code: str, message_ja: str, message_en: str) -> None:
-        super().__init__(message_ja)
-        self.code = code
-        self.message_ja = message_ja
-        self.message_en = message_en
-
-    def client_message(self, lang: str) -> str:
-        return self.message_ja if lang == "ja" else self.message_en
-
-
-def gift_tier_class(amount: int | None) -> str:
-    if not amount:
-        return ""
-    tier = TOKEN_GIFT_TIER_BY_AMOUNT.get(int(amount))
-    return f"token-gift-event--{tier}" if tier else ""
-
-
-def format_token_amount(amount: int) -> str:
-    return f"{int(amount):,}"
-
-
-def format_token_gift_preview_label(amount: int | None, lang: str) -> str:
-    amount_text = format_token_amount(amount or 0)
-    if lang == "ja":
-        return f"{amount_text}トークンの進呈"
-    return f"Gift of {amount_text} tokens"
-
-
-def normalize_gift_comment(comment: str | None) -> str | None:
-    if comment is None:
-        return None
-    text = str(comment).replace("\r\n", "\n").replace("\r", "\n")
-    if len(text) > TOKEN_GIFT_COMMENT_MAX_LENGTH:
-        raise TokenGiftError(
-            "invalid_comment",
-            f"コメントは{TOKEN_GIFT_COMMENT_MAX_LENGTH}文字以内で入力してください。",
-            f"Comments must be {TOKEN_GIFT_COMMENT_MAX_LENGTH} characters or fewer.",
-        )
-    stripped = text.strip()
-    return stripped or None
-
-
-def _gift_error_messages(lang: str) -> dict[str, str]:
-    if lang == "ja":
-        return {
-            "recipient_at_limit": "相手のトークンが所持上限に達しているため、トークンを贈ることができません。",
-            "multi_account": "複数アカウントを作成してトークンを贈り合う自演行為は固く禁止されています。不正行為が発覚した場合、利用制限の対象となることがあります。",
-            "insufficient_tokens": "トークンが足りません。",
-            "permission": "このチャットに参加する権限がありません。",
-            "prohibit_posting": "現在投稿機能が制限されています。一時的なシステムの障害時、または利用規約に違反する投稿が確認された場合、投稿機能が制限されることがあります。",
-            "blocked": "このユーザーにはトークンを贈ることができません。",
-            "cooldown": "連続した進呈はできません。少し時間をおいてから再度お試しください。",
-            "daily_limit": "1日に贈れる回数の上限に達しています。",
-            "invalid_amount": "無効な数量です。",
-            "invalid_recipient": "このユーザーにはトークンを贈ることができません。",
-            "not_found": "対象の進呈が見つかりません。",
-            "forbidden": "この操作を行う権限がありません。",
-        }
-    return {
-        "recipient_at_limit": "You cannot gift tokens because the recipient has reached the holding limit.",
-        "multi_account": "Creating multiple accounts to gift tokens to each other is strictly prohibited. Confirmed abuse may result in usage restrictions.",
-        "insufficient_tokens": "You do not have enough tokens.",
-        "permission": "You do not have permission to join this chat.",
-        "prohibit_posting": "Posting is currently restricted. Posting may be restricted during temporary system issues, or when posts that violate the Terms of Service are found.",
-        "blocked": "You cannot gift tokens to this user.",
-        "cooldown": "Please wait a moment before gifting again.",
-        "daily_limit": "You have reached the daily gift limit.",
-        "invalid_amount": "That gift amount is invalid.",
-        "invalid_recipient": "You cannot gift tokens to this user.",
-        "not_found": "The gift was not found.",
-        "forbidden": "You do not have permission to perform this action.",
-    }
-
-
-def token_gift_error(code: str, lang: str) -> TokenGiftError:
-    ja_messages = _gift_error_messages("ja")
-    en_messages = _gift_error_messages("en")
-    ja_text = ja_messages.get(code, ja_messages["invalid_recipient"])
-    en_text = en_messages.get(code, en_messages["invalid_recipient"])
-    return TokenGiftError(code, ja_text, en_text)
-
-
-async def _clear_user_token_caches(user_id: int) -> None:
-    await delete_cache(f"user:{user_id}")
-    await delete_cache(f"user_include_invalid:{user_id}")
-
-
-async def attach_token_gift_payloads(db: asyncpg.Connection, messages: list[Any]) -> None:
-    """token_gift メッセージに進呈メタデータを付与する。"""
-    gift_messages = [m for m in messages if getattr(m, "message_type", None) == TOKEN_GIFT_MESSAGE_TYPE]
-    if not gift_messages:
-        return
-
-    message_ids = [m.id for m in gift_messages]
-    try:
-        rows = await db.fetch(
-            """
-            SELECT message_id, amount, fee, recipient_user_id, is_comment_deleted, comment
-            FROM token_gifts
-            WHERE message_id = ANY($1::int[])
-            """,
-            message_ids,
-        )
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e
-
-    gifts_by_message = {row["message_id"]: row for row in rows}
-    recipient_ids = {row["recipient_user_id"] for row in rows if row["recipient_user_id"]}
-    recipient_profiles: dict[int, dict[str, Any]] = {}
-    for recipient_id in recipient_ids:
-        user = await get_user(db, recipient_id)
-        if not user:
-            continue
-        main_account_name = None
-        if user.main_account:
-            try:
-                main_account_name = await get_player_name(user.main_account, db)
-            except Exception as e:
-                logger.debug(f"進呈先メインアカウント名の取得に失敗: user_id={recipient_id}, error={e}")
-        recipient_profiles[recipient_id] = {
-            "user_name": user.name,
-            "main_account_tag": user.main_account,
-            "main_account_name": main_account_name,
-        }
-
-    for message in gift_messages:
-        row = gifts_by_message.get(message.id)
-        if not row:
-            continue
-        recipient_id = row["recipient_user_id"]
-        profile = recipient_profiles.get(recipient_id) if recipient_id else None
-        message.gift_amount = row["amount"]
-        message.gift_fee = row["fee"]
-        message.gift_recipient_user_id = recipient_id
-        message.gift_recipient_user_name = profile["user_name"] if profile else None
-        message.gift_recipient_main_account_tag = profile["main_account_tag"] if profile else None
-        message.gift_recipient_main_account_name = profile["main_account_name"] if profile else None
-        message.is_comment_deleted = bool(row["is_comment_deleted"])
-        if message.is_comment_deleted:
-            message.message = ""
-
-
-async def _are_users_blocked(db: asyncpg.Connection, user_id_a: int, user_id_b: int) -> bool:
-    try:
-        row = await db.fetchrow(
-            """
-            SELECT 1
-            FROM user_blocks
-            WHERE (blocker_user_id = $1 AND blocked_user_id = $2)
-               OR (blocker_user_id = $2 AND blocked_user_id = $1)
-            LIMIT 1
-            """,
-            user_id_a,
-            user_id_b,
-        )
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e
-    return row is not None
-
-
-async def _giver_recent_gift_row(db: asyncpg.Connection, giver_user_id: int) -> asyncpg.Record | None:
-    try:
-        return await db.fetchrow(
-            """
-            SELECT created_at
-            FROM token_gifts
-            WHERE giver_user_id = $1
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            giver_user_id,
-        )
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e
-
-
-async def _giver_daily_gift_count(db: asyncpg.Connection, giver_user_id: int, now: datetime.datetime) -> int:
-    day_start = datetime.datetime(now.year, now.month, now.day, tzinfo=datetime.timezone.utc)
-    try:
-        count = await db.fetchval(
-            """
-            SELECT COUNT(*)::int
-            FROM token_gifts
-            WHERE giver_user_id = $1
-              AND created_at >= $2
-            """,
-            giver_user_id,
-            day_start,
-        )
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e
-    return int(count or 0)
-
-
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
@@ -279,6 +81,8 @@ async def validate_token_gift(
     recipient_limit = recipient.token_limit
     if recipient_limit is not None and recipient.tokens + amount > recipient_limit:
         raise token_gift_error("recipient_at_limit", lang)
+    if recipient.tokens < 0:
+        raise token_gift_error("recipient_negative_tokens", lang)
 
     now = datetime.datetime.now(datetime.timezone.utc)
     latest_gift = await _giver_recent_gift_row(db, giver.id)
@@ -290,9 +94,15 @@ async def validate_token_gift(
         if elapsed < TOKEN_GIFT_COOLDOWN_SECONDS:
             raise token_gift_error("cooldown", lang)
 
+    give_limit, _ = get_token_gift_daily_limits(giver.registration_datetime, giver.pv_count, now)
     daily_count = await _giver_daily_gift_count(db, giver.id, now)
-    if daily_count >= TOKEN_GIFT_DAILY_LIMIT:
-        raise token_gift_error("daily_limit", lang)
+    _raise_if_give_limit_reached(daily_count, give_limit, lang)
+
+    _, receive_limit = get_token_gift_daily_limits(
+        recipient.registration_datetime, recipient.pv_count, now
+    )
+    receive_count = await _recipient_daily_gift_count(db, recipient.id, now)
+    _raise_if_receive_limit_reached(receive_count, receive_limit, lang)
 
     return {
         "amount": amount,
@@ -339,7 +149,8 @@ async def create_token_gift(
         try:
             locked_rows = await db.fetch(
                 """
-                SELECT id, tokens, token_limit, main_account, is_prohibit_posting, is_invalid
+                SELECT id, tokens, token_limit, main_account, is_prohibit_posting, is_invalid,
+                       registration_datetime, pv_count
                 FROM users
                 WHERE id = ANY($1::int[])
                 FOR UPDATE
@@ -363,6 +174,8 @@ async def create_token_gift(
         recipient_limit = recipient_row["token_limit"]
         if recipient_limit is not None and recipient_row["tokens"] + amount > recipient_limit:
             raise token_gift_error("recipient_at_limit", lang)
+        if recipient_row["tokens"] < 0:
+            raise token_gift_error("recipient_negative_tokens", lang)
 
         # [この部分は公開用リポジトリでは非公開にされています]
 
@@ -374,9 +187,16 @@ async def create_token_gift(
                 created_at = created_at.replace(tzinfo=datetime.timezone.utc)
             if (now - created_at).total_seconds() < TOKEN_GIFT_COOLDOWN_SECONDS:
                 raise token_gift_error("cooldown", lang)
+        give_limit, _ = get_token_gift_daily_limits(
+            giver_row["registration_datetime"], giver_row["pv_count"], now
+        )
         daily_count = await _giver_daily_gift_count(db, giver.id, now)
-        if daily_count >= TOKEN_GIFT_DAILY_LIMIT:
-            raise token_gift_error("daily_limit", lang)
+        _raise_if_give_limit_reached(daily_count, give_limit, lang)
+        _, receive_limit = get_token_gift_daily_limits(
+            recipient_row["registration_datetime"], recipient_row["pv_count"], now
+        )
+        receive_count = await _recipient_daily_gift_count(db, recipient_user_id, now)
+        _raise_if_receive_limit_reached(receive_count, receive_limit, lang)
 
         giver_tokens_before = int(giver_row["tokens"])
         giver_tokens_after = giver_tokens_before - total_cost

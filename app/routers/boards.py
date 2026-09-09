@@ -37,6 +37,7 @@ from app.services.token_gift_service import (
     create_token_gift,
     delete_token_gift_comment,
     format_token_amount,
+    get_remaining_give_count,
     validate_token_gift,
 )
 from app.utils.utils import get_icon_path, get_remote_ip
@@ -1495,6 +1496,10 @@ async def chat_thread(
             host_main_account_tag = None
             host_main_account_name = None
 
+    token_gift_remaining_give_count = 0
+    if user:
+        token_gift_remaining_give_count = await get_remaining_give_count(db, user)
+
     context = {
         "request": request,
         "lang": lang,
@@ -1509,6 +1514,7 @@ async def chat_thread(
         "current_user_tokens": user.tokens if user else 0,
         "token_gift_options": TOKEN_GIFT_OPTIONS,
         "token_gift_comment_max_length": TOKEN_GIFT_COMMENT_MAX_LENGTH,
+        "token_gift_remaining_give_count": token_gift_remaining_give_count,
         "blocked_ids": blocked_ids,
         "current_page": chat_current_page,
         # チャットは下部入力欄があるため、AdMobバナーはヘッダー直下(上部)に出す

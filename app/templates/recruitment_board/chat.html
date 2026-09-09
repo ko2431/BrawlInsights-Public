@@ -529,6 +529,7 @@
             const threadId = {{ post.id }};
             const defaultPlayerIconPath = "{{ url_for('static', path='/images/player_icon/0.png') }}";
             let currentUserTokens = {{ current_user_tokens | tojson }};
+            let tokenGiftRemainingGiveCount = {{ token_gift_remaining_give_count | tojson }};
             const tokenGiftOptions = {{ token_gift_options | tojson }};
             const tokenGiftCommentMaxLength = {{ token_gift_comment_max_length | tojson }};
             const tokenGiftModalOverlay = document.getElementById('token-gift-modal-overlay');
@@ -1827,19 +1828,27 @@
                 if (tokenGiftModalSubmitBtn) tokenGiftModalSubmitBtn.disabled = true;
             }
 
+            function remainingGiveCountNoteHtml() {
+                const remainingHtml = `<b>${Number(tokenGiftRemainingGiveCount).toLocaleString()}</b>`;
+                return lang === 'ja'
+                    ? `※今日はあと${remainingHtml}回贈れます。（朝9時更新）`
+                    : `※You can gift ${remainingHtml} more times today. (Resets at 00:00 UTC)`;
+            }
+
             function updateTokenGiftModalDescription(recipientName) {
                 if (!tokenGiftModalDescription) return;
                 const nameHtml = `<b>${escapeHtml(recipientName || '')}</b>`;
                 const tokensHtml = `<b>${formatTokenAmount(currentUserTokens)}</b>`;
+                const remainingNote = remainingGiveCountNoteHtml();
                 if (currentUserTokens < 5) {
                     tokenGiftModalDescription.innerHTML = lang === 'ja'
-                        ? `${nameHtml}さんに感謝の気持ちを込めてトークンを贈ることができます。<br>あなたは現在${tokensHtml}トークン持っています。トークンを贈るには、最低でも<b>5</b>トークンが必要です。トークンはアカウントタブからミッション等で獲得できます。`
-                        : `You can gift tokens to ${nameHtml} as a token of thanks.<br>You currently have ${tokensHtml} tokens. You need at least <b>5</b> tokens to send a gift. You can earn tokens from missions on the Account tab.`;
+                        ? `${nameHtml}さんに感謝の気持ちを込めてトークンを贈ることができます。<br>あなたは現在${tokensHtml}トークン持っています。トークンを贈るには、最低でも<b>5</b>トークンが必要です。トークンはアカウントタブからミッション等で獲得できます。<br>${remainingNote}`
+                        : `You can gift tokens to ${nameHtml} as a token of thanks.<br>You currently have ${tokensHtml} tokens. You need at least <b>5</b> tokens to send a gift. You can earn tokens from missions on the Account tab.<br>${remainingNote}`;
                     return;
                 }
                 tokenGiftModalDescription.innerHTML = lang === 'ja'
-                    ? `${nameHtml}さんに感謝の気持ちを込めてトークンを贈ることができます。<br>あなたは現在${tokensHtml}トークン持っています。トークンはアカウントタブからミッション等で獲得できます。高額のトークンを贈る際はわずかに手数料が発生しますが、ブロンズ〜ブラックの豪華な演出で贈ることができます！`
-                    : `You can gift tokens to ${nameHtml} as a token of thanks.<br>You currently have ${tokensHtml} tokens. You can earn tokens from missions on the Account tab. Gifting larger amounts incurs a small fee, but comes with a luxurious bronze-to-black presentation!`;
+                    ? `${nameHtml}さんに感謝の気持ちを込めてトークンを贈ることができます。<br>あなたは現在${tokensHtml}トークン持っています。トークンはアカウントタブからミッション等で獲得できます。高額のトークンを贈る際はわずかに手数料が発生しますが、ブロンズ〜ブラックの豪華な演出で贈ることができます！<br>${remainingNote}`
+                    : `You can gift tokens to ${nameHtml} as a token of thanks.<br>You currently have ${tokensHtml} tokens. You can earn tokens from missions on the Account tab. Gifting larger amounts incurs a small fee, but comes with a luxurious bronze-to-black presentation!<br>${remainingNote}`;
             }
 
             function openTokenGiftModal(messageData) {
@@ -1905,6 +1914,7 @@
                     if (typeof createData.tokens === 'number') {
                         currentUserTokens = createData.tokens;
                     }
+                    tokenGiftRemainingGiveCount = Math.max(0, Number(tokenGiftRemainingGiveCount) - 1);
                     alert(createData.message || '');
                     closeTokenGiftModal();
                 } catch (error) {
