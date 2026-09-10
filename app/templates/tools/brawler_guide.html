@@ -774,7 +774,7 @@
                          x-show="showSkin({{ 'true' if skin.is_limited else 'false' }})">
                         {# 画像 #}
                         <div class="skin-card__img-wrapper">
-                            <img src="{{ url_for('static', path='/images/skins/' + brawler.id|string + '/' + skin.id|string + '.webp') }}"
+                            <img src="{{ url_for('static', path='/images/skins/' + skin.id|string + '.webp') }}"
                                  alt="{{ skin_display_name or ('（通常スキン）' if lang == 'ja' else 'Default Skin') }}"
                                  class="skin-card__img"
                                  onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}'; this.style.objectFit='contain'; this.style.padding='10px';">

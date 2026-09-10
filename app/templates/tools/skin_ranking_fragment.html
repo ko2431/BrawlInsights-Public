@@ -58,7 +58,7 @@
         {# 画像（ランクバッジ付き） #}
         <div class="skin-card__img-wrapper skin-card__img-wrapper--ranked">
             <span class="skin-card__rank-badge">#{{ loop.index }}</span>
-            <img src="{{ url_for('static', path='/images/skins/' + (skin.brawler_id or 0)|string + '/' + skin.id|string + '.webp') }}"
+            <img src="{{ url_for('static', path='/images/skins/' + skin.id|string + '.webp') }}"
                  alt="{{ skin_display_name or ('（通常スキン）' if lang == 'ja' else 'Default Skin') }}"
                  class="skin-card__img"
                  onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/ui/mystery.png') }}'; this.style.objectFit='contain'; this.style.padding='10px';">
