@@ -10,8 +10,8 @@
             <span class="section-toggle-icon" x-text="filtersOpen ? '△' : '▽'">▽</span>
         </div>
         <div class="admin-filters__actions">
-            <button type="button" class="button button--primary admin-filters__submit-button" @click="submitAdminFilters()" :disabled="!canSubmitFilters">絞り込む</button>
-            <button type="button" class="button button--secondary admin-filters__reset-button" @click="resetFilters()" :disabled="!canResetFilters">リセット</button>
+            <button type="button" class="button button--primary admin-filters__submit-button" @click="submitAdminFilters()" :disabled="!canSubmitFilters">絞り込む<span class="admin-filters__shortcut" x-text="filterSubmitShortcutLabel"></span></button>
+            <button type="button" class="button button--secondary admin-filters__reset-button" @click="resetFilters()" :disabled="!canResetFilters">リセット<span class="admin-filters__shortcut" x-text="filterResetShortcutLabel"></span></button>
         </div>
     </div>
     <div x-show="filtersOpen" x-transition class="admin-filters__body" x-cloak style="display: none;">
