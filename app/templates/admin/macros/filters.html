@@ -1,22 +1,21 @@
 {% macro admin_filters_wrapper(extra_class='') %}
 <div class="admin-filters__container{% if extra_class %} {{ extra_class }}{% endif %}">
-    <span class="admin-filters__toggle"
-          @click="filtersOpen = !filtersOpen"
-          :aria-expanded="filtersOpen"
-          role="button"
-          tabindex="0">
-        <span>フィルター</span>
-        <span class="section-toggle-icon" x-text="filtersOpen ? '△' : '▽'">▽</span>
-    </span>
+    <div class="admin-filters__header">
+        <div class="admin-filters__toggle"
+             @click="filtersOpen = !filtersOpen"
+             :aria-expanded="filtersOpen"
+             role="button"
+             tabindex="0">
+            <span>フィルター</span>
+            <span class="section-toggle-icon" x-text="filtersOpen ? '△' : '▽'">▽</span>
+        </div>
+        <div class="admin-filters__actions">
+            <button type="button" class="button button--primary admin-filters__submit-button" @click="submitAdminFilters()" :disabled="!canSubmitFilters">絞り込む</button>
+            <button type="button" class="button button--secondary admin-filters__reset-button" @click="resetFilters()" :disabled="!canResetFilters">リセット</button>
+        </div>
+    </div>
     <div x-show="filtersOpen" x-transition class="admin-filters__body" x-cloak style="display: none;">
         {{ caller() }}
     </div>
-</div>
-{% endmacro %}
-
-{% macro admin_filters_actions() %}
-<div class="admin-filters__actions">
-    <button type="submit" class="button button--primary admin-filters__submit-button" :disabled="!canSubmitFilters">絞り込む</button>
-    <button type="button" class="button button--secondary admin-filters__reset-button" @click="resetFilters()" :disabled="!canResetFilters">リセット</button>
 </div>
 {% endmacro %}

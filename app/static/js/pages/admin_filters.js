@@ -38,6 +38,15 @@ function withAdminFilterCollapse(component, pageKey) {
                 || serializedFilters.call(this, this.applied) !== defaults;
         },
     });
+    component.submitAdminFilters = function submitAdminFilters() {
+        if (typeof this.submitFilters === "function") {
+            this.submitFilters();
+            return;
+        }
+        if (typeof this.applyFilters === "function") {
+            this.applyFilters();
+        }
+    };
     component.resetFilters = function resetFilters() {
         if (!this.filterDefaults) {
             return;
@@ -47,13 +56,7 @@ function withAdminFilterCollapse(component, pageKey) {
         if (serializedFilters.call(this, this.applied) === defaults) {
             return;
         }
-        if (typeof this.submitFilters === "function") {
-            this.submitFilters();
-            return;
-        }
-        if (typeof this.applyFilters === "function") {
-            this.applyFilters();
-        }
+        this.submitAdminFilters();
     };
     component.init = function init() {
         if (typeof originalInit === "function") {
