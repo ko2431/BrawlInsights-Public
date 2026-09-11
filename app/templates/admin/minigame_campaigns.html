@@ -18,7 +18,7 @@
         <button type="button" class="button button--secondary" x-show="form.id" @click="reset()">新規作成に戻る</button>
     </div>
     <form @submit.prevent="save()" class="admin-filters__container">
-        <div class="form-grid">
+        <div class="admin-filters__columns">
             <label>企画名（日本語）<input class="form-input" required x-model.trim="form.name_ja"></label>
             <label>企画名（英語）<input class="form-input" required x-model.trim="form.name_en"></label>
             <label>ゲーム種別
@@ -32,10 +32,12 @@
             <label>トークン参加価格（空欄=標準値）<input class="form-input" type="number" min="1" x-model="form.price_token_tokens"></label>
             <label>広告参加の1日上限（空欄=標準値）<input class="form-input" type="number" min="1" x-model="form.ad_daily_limit"></label>
             <label>想定総参加数（空欄=未設定）<input class="form-input" type="number" min="1" x-model="form.expected_total_plays"></label>
+        </div>
+        <div class="minigame-admin__terms">
             <label>追加規約（日本語）<textarea class="form-input" rows="3" x-model="form.terms_extra_ja"></textarea></label>
             <label>追加規約（英語）<textarea class="form-input" rows="3" x-model="form.terms_extra_en"></textarea></label>
-            <label x-show="form.id"><input type="checkbox" x-model="form.is_invalid"> 無効化する</label>
         </div>
+        <label class="minigame-admin__invalid" x-show="form.id"><input type="checkbox" x-model="form.is_invalid"> 無効化する</label>
         <section class="save-changes-block" style="display:block" :class="{ 'minigame-admin--locked': started }">
             <h2 class="block-title">景品設定（2～8等）</h2>
             <p x-show="started">開始済みのため景品設定はロックされています。</p>
@@ -43,30 +45,42 @@
             <template x-for="(tier, index) in form.prizes.tiers" :key="index">
                 <fieldset class="admin-filters__container">
                     <legend x-text="`${index + 1}等`"></legend>
-                    <label>配分 <select class="form-input" x-model="tier.allocation" :disabled="started"><option value="stock">在庫</option><option value="weight">重み</option></select></label>
-                    <label>
-                        <span x-text="tier.allocation === 'stock' ? '在庫数' : '重み'"></span>
-                        <input class="form-input" type="number"
-                            :min="tier.allocation === 'stock' ? 1 : 0.001"
-                            :step="tier.allocation === 'stock' ? 1 : 'any'"
-                            x-model.number="tier.quantity" :disabled="started">
-                    </label>
-                    <label x-show="tier.allocation === 'stock'">
-                        最大確率（%、空欄=制限なし）
-                        <input class="form-input" type="number" min="0" max="100" step="0.001"
-                            :value="tier.max_probability == null ? '' : (tier.max_probability * 100)"
-                            @input="tier.max_probability = $event.target.value === '' ? null : Number($event.target.value) / 100"
-                            :disabled="started">
-                    </label>
-                    <label>景品種別 <select class="form-input" x-model="tier.item.type" :disabled="started"><option value="none">なし</option><option value="token">トークン</option><option value="ad_skip_ticket">広告スキップチケット</option><option value="auto_track_elixir">自動追跡エリクサー</option><option value="token_and_ticket">トークン＋チケット</option><option value="token_and_elixir">トークン＋エリクサー</option><option value="ticket_and_elixir">チケット＋エリクサー</option><option value="token_and_ticket_and_elixir">トークン＋チケット＋エリクサー</option><option value="auto_track_extend">自動追跡延長</option><option value="battle_log_retention">バトル履歴保存</option><option value="gift">ギフト</option></select></label>
-                    <template x-if="['token','ad_skip_ticket','auto_track_elixir'].includes(tier.item.type)"><label>数量<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></template>
-                    <template x-if="tier.item.type === 'token_and_ticket'"><div><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label></div></template>
-                    <template x-if="tier.item.type === 'token_and_elixir'"><div><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label><label>エリクサー<input class="form-input" type="number" min="1" x-model.number="tier.item.elixir_amount" :disabled="started"></label></div></template>
-                    <template x-if="tier.item.type === 'ticket_and_elixir'"><div><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label><label>エリクサー<input class="form-input" type="number" min="1" x-model.number="tier.item.elixir_amount" :disabled="started"></label></div></template>
-                    <template x-if="tier.item.type === 'token_and_ticket_and_elixir'"><div><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label><label>エリクサー<input class="form-input" type="number" min="1" x-model.number="tier.item.elixir_amount" :disabled="started"></label></div></template>
-                    <template x-if="tier.item.type === 'auto_track_extend'"><div><label>日数<input class="form-input" type="number" min="0" x-model.number="tier.item.days" :disabled="started"></label><label>時間<input class="form-input" type="number" min="0" max="23" x-model.number="tier.item.hours" :disabled="started"></label></div></template>
-                    <template x-if="tier.item.type === 'battle_log_retention'"><label>月数<input class="form-input" type="number" min="1" x-model.number="tier.item.months" :disabled="started"></label></template>
-                    <template x-if="tier.item.type === 'gift'"><div><label>景品名（日本語）<input class="form-input" x-model="tier.item.name_ja" :disabled="started"></label><label>景品名（英語）<input class="form-input" x-model="tier.item.name_en" :disabled="started"></label><label>数量（任意）<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></div></template>
+                    <div class="admin-filters__columns">
+                        <label>配分 <select class="form-input" x-model="tier.allocation" :disabled="started"><option value="stock">在庫</option><option value="weight">重み</option></select></label>
+                        <label>
+                            <span x-text="tier.allocation === 'stock' ? '在庫数' : '重み'"></span>
+                            <input class="form-input" type="number"
+                                :min="tier.allocation === 'stock' ? 1 : 0.001"
+                                :step="tier.allocation === 'stock' ? 1 : 'any'"
+                                x-model.number="tier.quantity" :disabled="started">
+                        </label>
+                        <template x-if="tier.allocation === 'stock'">
+                            <label>
+                                最大確率（%、空欄=制限なし）
+                                <input class="form-input" type="number" min="0" max="100" step="0.001"
+                                    :value="tier.max_probability == null ? '' : (tier.max_probability * 100)"
+                                    @input="tier.max_probability = $event.target.value === '' ? null : Number($event.target.value) / 100"
+                                    :disabled="started">
+                            </label>
+                        </template>
+                        <label>景品種別 <select class="form-input" x-model="tier.item.type" :disabled="started"><option value="none">なし</option><option value="token">トークン</option><option value="ad_skip_ticket">広告スキップチケット</option><option value="auto_track_elixir">自動追跡エリクサー</option><option value="token_and_ticket">トークン＋チケット</option><option value="token_and_elixir">トークン＋エリクサー</option><option value="ticket_and_elixir">チケット＋エリクサー</option><option value="token_and_ticket_and_elixir">トークン＋チケット＋エリクサー</option><option value="auto_track_extend">自動追跡延長</option><option value="battle_log_retention">バトル履歴保存</option><option value="gift">ギフト</option></select></label>
+                        <template x-if="['token','ad_skip_ticket','auto_track_elixir'].includes(tier.item.type)"><label>数量<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_ticket'"><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_ticket'"><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_elixir'"><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_elixir'"><label>エリクサー<input class="form-input" type="number" min="1" x-model.number="tier.item.elixir_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'ticket_and_elixir'"><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'ticket_and_elixir'"><label>エリクサー<input class="form-input" type="number" min="1" x-model.number="tier.item.elixir_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_ticket_and_elixir'"><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_ticket_and_elixir'"><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'token_and_ticket_and_elixir'"><label>エリクサー<input class="form-input" type="number" min="1" x-model.number="tier.item.elixir_amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'auto_track_extend'"><label>日数<input class="form-input" type="number" min="0" x-model.number="tier.item.days" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'auto_track_extend'"><label>時間<input class="form-input" type="number" min="0" max="23" x-model.number="tier.item.hours" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'battle_log_retention'"><label>月数<input class="form-input" type="number" min="1" x-model.number="tier.item.months" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'gift'"><label>景品名（日本語）<input class="form-input" x-model="tier.item.name_ja" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'gift'"><label>景品名（英語）<input class="form-input" x-model="tier.item.name_en" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'gift'"><label>数量（任意）<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></template>
+                    </div>
                 </fieldset>
             </template>
         </section>

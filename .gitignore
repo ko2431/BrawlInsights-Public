@@ -46,3 +46,6 @@ yarn-error.log*
 
 # 生成された画像
 generated/
+
+# ゴミファイル
+_filter_preview_shots/
