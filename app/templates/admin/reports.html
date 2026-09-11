@@ -148,7 +148,7 @@
             <input class="form-input admin-filters__input" x-model="draft.message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('message_id')">
         </label>
         <label>
-            <span class="admin-filters__label-text">ターゲット内容</span>
+            <span class="admin-filters__label-text">ターゲット内容（部分一致）</span>
             <input class="form-input admin-filters__input" x-model="draft.target_content" maxlength="200" :disabled="!!draft.target_content_regex.trim()">
         </label>
         <label>
@@ -165,7 +165,7 @@
             </select>
         </label>
         <label>
-            <span class="admin-filters__label-text">本文</span>
+            <span class="admin-filters__label-text">本文（部分一致）</span>
             <input class="form-input admin-filters__input" x-model="draft.comment_text" maxlength="200" :disabled="!!draft.comment_regex.trim()">
         </label>
         <label>

@@ -151,11 +151,11 @@
             </select>
         </label>
         <label>
-            <span class="admin-filters__label-text">コメント部分一致</span>
+            <span class="admin-filters__label-text">コメント（部分一致）</span>
             <input class="form-input admin-filters__input" x-model="draft.comment_text" maxlength="200" :disabled="!!draft.comment_regex.trim()">
         </label>
         <label>
-            <span class="admin-filters__label-text">コメント正規表現</span>
+            <span class="admin-filters__label-text">コメント（正規表現）</span>
             <input class="form-input admin-filters__input" x-model="draft.comment_regex" maxlength="200" :disabled="!!draft.comment_text.trim()">
         </label>
         <label>

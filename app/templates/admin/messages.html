@@ -121,7 +121,7 @@
             <input class="form-input admin-filters__input" x-model="draft.reply_to_message_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeReplyToMessageId()">
         </label>
         <label>
-            <span class="admin-filters__label-text">メッセージ</span>
+            <span class="admin-filters__label-text">メッセージ（部分一致）</span>
             <input class="form-input admin-filters__input" x-model="draft.message_text" maxlength="200" :disabled="!!draft.message_regex.trim()">
         </label>
         <label>

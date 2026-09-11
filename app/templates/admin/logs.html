@@ -100,7 +100,7 @@
             <input class="form-input admin-filters__input" x-model="draft.location" maxlength="200" placeholder="main.py または main.py:123">
         </label>
         <label>
-            <span class="admin-filters__label-text">内容</span>
+            <span class="admin-filters__label-text">内容（部分一致）</span>
             <input class="form-input admin-filters__input" x-model="draft.content" maxlength="200" :disabled="!!draft.content_regex.trim()">
         </label>
         <label>
