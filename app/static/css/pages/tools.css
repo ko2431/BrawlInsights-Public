@@ -603,6 +603,8 @@
 .drop-box-slot__icon--boltbox { height: 50px; margin: -5px 0; }
 .drop-box-slot__icon--noribox { height: 45px; margin: -2.5px 0; }
 .drop-box-slot__icon--wendybox { height: 45px; margin: -2.5px 0; }
+.drop-box-slot__icon--cosmobox { height: 45px; margin: -2.5px 0; }
+.drop-box-slot__icon--vincebox { height: 45px; margin: -2.5px 0; }
 .drop-box-slot__icon--smalltrophybox { height: 35px; margin: 2.5px 0; }
 .drop-box-slot__icon--bigtrophybox { height: 35px; margin: 2.5px 0; }
 .drop-box-slot__icon--megatrophybox { height: 35px; margin: 2.5px 0; }
@@ -926,6 +928,8 @@
     .drop-box-slot__icon--boltbox { height: 34px; margin: -3px 0; }
     .drop-box-slot__icon--noribox { height: 31px; margin: -1.5px 0; }
     .drop-box-slot__icon--wendybox { height: 31px; margin: -1.5px 0; }
+    .drop-box-slot__icon--cosmobox { height: 31px; margin: -1.5px 0; }
+    .drop-box-slot__icon--vincebox { height: 31px; margin: -1.5px 0; }
     .drop-box-slot__icon--smalltrophybox { height: 25px; margin: 1.5px 0; }
     .drop-box-slot__icon--bigtrophybox { height: 25px; margin: 1.5px 0; }
     .drop-box-slot__icon--megatrophybox { height: 25px; margin: 1.5px 0; }
