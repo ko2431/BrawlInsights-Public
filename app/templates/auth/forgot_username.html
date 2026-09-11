@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", function() {
         checkBtn.disabled = true;
         revealBtn.disabled = true;
         verificationPanel.style.display = "block";
-        setMessage(`{% if lang == "ja" %}指示アイコンを取得中...{% else %}Requesting instruction icon...{% endif %}`, "");
+        setMessage(`{% if lang == "ja" %}認証用アイコンを準備中...{% else %}Preparing verification icon...{% endif %}`, "");
 
         try {
             const response = await fetch(`/${currentLang}/account/request-verification`, {

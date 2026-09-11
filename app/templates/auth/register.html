@@ -150,8 +150,9 @@
         </p>
 
         {# --- アカウント作成ボタン --- #}
-        <button type="submit" class="button button--primary auth-button" :disabled="!isFormValid" style="margin-top: 15px;">
-            {% if lang == "ja" %}アカウントを作成{% else %}Create Account{% endif %}
+        <button type="submit" class="button button--primary auth-button" :disabled="!isFormValid || isSubmitting" style="margin-top: 15px;">
+            <span x-show="!isSubmitting">{% if lang == "ja" %}アカウントを作成{% else %}Create Account{% endif %}</span>
+            <span x-show="isSubmitting">{% if lang == "ja" %}作成中...{% else %}Creating...{% endif %}</span>
         </button>
     </form>
 
@@ -197,6 +198,7 @@
             canRequestVerification: false, // 「次へ」ボタンの有効化フラグ (isMainAccountTagValid と連動)
             canPressVerifyButton: true,    // 「認証」ボタンのクールダウン用
             isMainAccountVerified: false,  // 最終的な認証成功フラグ (アカウント作成ボタンの有効化条件に使う)
+            isSubmitting: false,  // 送信中フラグ（連打による二重POST防止）
             serverErrorMessage: "{{ error_message | default('') }}", // FastAPIからのエラーメッセージ
 
             togglePassVisibility() {
@@ -393,7 +395,7 @@
                 if (!this.isMainAccountTagValid || this.isVerifyingMainAccount) return;
 
                 this.isVerifyingMainAccount = true; // 「次へ」ボタンも一時的に無効化する意味合い
-                this.verificationStatusMessage = '{% if lang=="ja" %}指示アイコンを取得中...{% else %}Requesting verification icon...{% endif %}';
+                this.verificationStatusMessage = '{% if lang=="ja" %}認証用アイコンを準備中...{% else %}Preparing verification icon...{% endif %}';
                 this.mainAccountVerificationStep = 'awaiting_icon_change'; // アイコン変更待ち状態へ
                 this.instructedIconPath = ''; // 古いアイコンパスをクリア
                 this.isMainAccountVerified = false; // 新しい認証が開始されたら、前の認証成功状態は無効
@@ -471,11 +473,13 @@
 
             // フォーム送信処理 (Alpine.js で @submit.prevent="submitForm" を使う場合)
             async submitForm(event) {
+                if (this.isSubmitting) return;
                 if (!this.isFormValid) {
                     // 必要であれば、ここでさらに詳細なエラー表示やフォーカス移動を行う
                     this.serverErrorMessage = '{% if lang=="ja"%}入力内容を確認してください。{%else%}Please check your input.{%endif%}';
                     return;
                 }
+                this.isSubmitting = true;
                 // 実際のフォーム送信ロジック (Fetch API を使うか、デフォルトのフォーム送信を許可する)
                 // event.target は <form> 要素
                 // ここでは、最終バリデーションのためにサーバーに任せるため、デフォルトの送信を許可する
