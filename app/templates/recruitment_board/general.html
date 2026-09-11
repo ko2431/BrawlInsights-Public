@@ -558,20 +558,31 @@
 
         postBtn.addEventListener('click', async () => {
             const postedCategory = postState.selectedCategory;
+            const allowsConditions = LINK_CATEGORIES.includes(postedCategory);
             const payload = {
                 type: 'general',
                 category: postedCategory,
                 comment: commentForm.value.trim(),
-                link: (LINK_CATEGORIES.includes(postedCategory) && linkForm.value.trim())
+                link: (allowsConditions && linkForm.value.trim())
                     ? (postState.link || (linkForm.value.trim().startsWith('http') ? linkForm.value.trim() : 'https://' + linkForm.value.trim()))
                     : null,
                 host_player_tag: {% if main_account %}'{{ main_account.tag }}'{% else %}null{% endif %},
                 chat_permission_level: 30,
-                required_ranked_highest_rank: document.getElementById('required-ranked-highest-rank')?.value || null,
-                required_ranked_current_rank: document.getElementById('required-ranked-current-rank')?.value || null,
-                required_solo_pl_rank: document.getElementById('required-solo-pl-rank')?.value || null,
-                required_highest_trophies: document.getElementById('required-highest-trophies')?.value || null,
-                conditions_application_type: document.getElementById('conditions-application-type')?.value || 'and'
+                required_ranked_highest_rank: allowsConditions
+                    ? (document.getElementById('required-ranked-highest-rank')?.value || null)
+                    : null,
+                required_ranked_current_rank: allowsConditions
+                    ? (document.getElementById('required-ranked-current-rank')?.value || null)
+                    : null,
+                required_solo_pl_rank: allowsConditions
+                    ? (document.getElementById('required-solo-pl-rank')?.value || null)
+                    : null,
+                required_highest_trophies: allowsConditions
+                    ? (document.getElementById('required-highest-trophies')?.value || null)
+                    : null,
+                conditions_application_type: allowsConditions
+                    ? (document.getElementById('conditions-application-type')?.value || 'and')
+                    : 'and'
             };
             try {
                 postBtn.disabled = true;
