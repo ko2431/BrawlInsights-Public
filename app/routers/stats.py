@@ -14,6 +14,12 @@ from app.services.brawl_service import (get_prestige_borders, get_available_braw
     get_ban_suggestions, get_current_ranked_pool, get_brawler_analysis, get_pick_suggestions, predict_win_rate, get_japanese_mode_name,
     get_japanese_map_name, get_brawler, get_play_time_ranking, get_all_skins, get_all_pins, get_all_player_icons, get_all_titles, get_all_frames,
     get_player, get_player_from_db)
+from app.services.trophy_stats_service import (
+    get_trophy_filter_pool,
+    get_trophy_stats,
+    parse_map_id_param,
+    parse_mode_id_param,
+)
 from app.services.user_service import get_all_regions
 from app.utils.utils import get_first_thursdays, format_utc_date, get_icon_path, calc_ranked_season
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError

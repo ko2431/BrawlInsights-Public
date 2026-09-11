@@ -1,0 +1,105 @@
+{# /app/templates/stats/fragments/multiplayer_tier_body.html #}
+{% if not brawler_stats %}
+<div class="info-block" style="padding: 0; margin-top: 1em;">
+    <p class="info-block__text">
+        {% if empty_stats_message %}
+            {{ empty_stats_message }}
+        {% elif lang == "ja" %}この条件の統計データはまだありません。
+        {% else %}No stats are available for this selection yet.
+        {% endif %}
+    </p>
+</div>
+{% elif not use_table and not current_sort %}
+<div class="brawler-tier-list">
+    {% for group in grouped_brawler_stats %}
+    <div class="tier-row">
+        <div class="tier-rank-label brawler-card__rank-grade--{{ group.rank_grade }}">
+            <p>{{ group.rank_grade }}</p>
+        </div>
+        <div class="brawler-grid">
+            {% for brawler in group.brawlers %}
+            <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}{% if brawler_guide_tab_query %}?{{ brawler_guide_tab_query }}{% endif %}">
+                <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
+                    {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+                    <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.brawler_id|string + '.png') }}"
+                        alt="キャラクターアイコン"
+                        class="brawler-card__brawler-portrait"
+                        onerror="this.onerror=null; this.src='{{ default_icon }}';">
+                    <div class="brawler-card__score">{{ "%.1f"|format(brawler.strength_score) }}</div>
+                    <div class="brawler-card__rank-grade brawler-card__rank-grade--{{ brawler.rank_grade }}"><p>{{ brawler.rank_grade }}</p></div>
+                    <div class="brawler-card__name">{{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% elif not use_table %}
+<div class="brawler-grid">
+    {% for brawler in brawler_stats %}
+    <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}{% if brawler_guide_tab_query %}?{{ brawler_guide_tab_query }}{% endif %}">
+        <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
+            {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
+            <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.brawler_id|string + '.png') }}"
+                alt="キャラクターアイコン"
+                class="brawler-card__brawler-portrait"
+                onerror="this.onerror=null; this.src='{{ default_icon }}';">
+            {% if current_sort not in ["use_rate", "win_rate", "star_player_rate"] %}
+            <div class="brawler-card__score">{{ "%.1f"|format(brawler.strength_score) }}</div>
+            <div class="brawler-card__rank-grade brawler-card__rank-grade--{{ brawler.rank_grade }}"><p>{{ brawler.rank_grade }}</p></div>
+            {% else %}
+            <div class="brawler-card__value">{{ "%.2f"|format(brawler.use_rate if current_sort == "use_rate" else brawler.win_rate if current_sort == "win_rate" else brawler.star_player_rate) }}%</div>
+            {% endif %}
+            <div class="brawler-card__name">{{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}</div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="table-wrapper" style="margin-top: 1em;">
+    <table class="data-table">
+        <thead>
+            <th style="cursor: default;">キャラ名</th>
+            <th style="cursor: default;">ランク</th>
+            <th style="cursor: default;">スコア</th>
+            <th style="cursor: default;">プレイ数</th>
+            <th style="cursor: default;">使用率 (%)</th>
+            <th style="cursor: default;">wins</th>
+            <th style="cursor: default;">draws</th>
+            <th style="cursor: default;">losses</th>
+            <th style="cursor: default;">inclusive勝率 (%)</th>
+            <th style="cursor: default;">decisive勝率 (%)</th>
+            <th style="cursor: default;">使用勝率</th>
+            <th style="cursor: default;">MVP率 (%)</th>
+            <th style="cursor: default;">star_opp</th>
+            <th style="cursor: default;">profile</th>
+        </thead>
+        <tbody>
+            {% for b in brawler_stats %}
+            <tr>
+                <td>{{ b.name_ja }}</td>
+                <td>{{ b.rank_grade }}</td>
+                <td>{{ "%.2f"|format(b.strength_score) }}</td>
+                <td>{{ "%.2f"|format(b.games_played) }}</td>
+                <td>{{ "%.2f"|format(b.use_rate) }}</td>
+                <td>{{ "%.2f"|format(b.wins) }}</td>
+                <td>{{ "%.2f"|format(b.draws) }}</td>
+                <td>{{ "%.2f"|format(b.losses) }}</td>
+                <td>{{ "%.2f"|format(b.win_rate_inclusive) }}</td>
+                <td>{{ "%.2f"|format(b.win_rate_decisive) }}</td>
+                <td>{{ "decisive" if b.used_decisive_win_rate else "inclusive" }}</td>
+                <td>{{ "%.2f"|format(b.star_player_rate) }}</td>
+                <td>{{ "%.2f"|format(b.star_player_opportunities) }}</td>
+                <td>{{ b.profile_name }}</td>
+            </tr>
+            {% endfor %}
+            {% if not brawler_stats %}
+            <tr>
+                <td colspan="14" style="text-align: center; color: #777;">データはありません。</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endif %}

@@ -1104,6 +1104,36 @@ class RankedStatsComposition(Base):
     )
 
 
+class TrophyStatsBrawler(Base):
+    """
+    マルチプレイ（トロフィー帯）のキャラクターごとの日次集計。
+    trophy_band: 0-12 は現行トロフィー帯、13-99 は将来の分割用、100 は大会、101 はトロフィーなし。
+    """
+    __tablename__ = 'trophy_stats_brawler'
+
+    date = Column(Date, nullable=False)
+    mode_id = Column(Integer, nullable=False)
+    map_id = Column(Integer, nullable=False)
+    trophy_band = Column(SmallInteger, nullable=False)
+    brawler_id = Column(Integer, nullable=False)
+
+    games_played = Column(Integer, nullable=False)
+    wins = Column(Integer, nullable=False)
+    draws = Column(Integer, nullable=False)
+    star_player_count = Column(Integer, nullable=False)
+    star_player_opportunities = Column(Integer, nullable=False)
+
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            'date', 'mode_id', 'map_id', 'trophy_band', 'brawler_id',
+            name='trophy_stats_brawler_pkey',
+        ),
+        Index('idx_trophy_stats_brawler_mode_map_date', 'mode_id', 'map_id', 'date'),
+    )
+
+
 class BoardNotification(Base):
     """
     掲示板の通知イベントを格納するテーブル。

@@ -699,6 +699,11 @@
     color: #fff;
 }
 
+.filter-form__select--maps {
+    min-width: 180px;
+    max-width: min(100%, 420px);
+}
+
 .tight {
     margin-left: -0.27em;
 }

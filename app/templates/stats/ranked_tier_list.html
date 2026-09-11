@@ -35,7 +35,7 @@
             {% if not use_cache %}<input type="hidden" name="use_cache" value="False">{% endif %} {# デフォルト値と逆の場合のみ手動で設定する #}
             <label for="modeSelect" class="filter-form__label">{% if lang == "ja" %}モード:{% else %}Mode:{% endif %}</label>
             <select name="mode" id="modeSelect" class="filter-form__select" onchange="document.getElementById('modeFilterForm').submit();">
-                <option value="" {% if not mode %}selected{% endif %}>{% if lang == "ja" %}指定なし (総合){% else %}No Mode Specified{% endif %}</option>
+                <option value="" {% if not mode %}selected{% endif %}>{% if lang == "ja" %}指定なし（総合）{% else %}No Mode Specified{% endif %}</option>
                 {% for m in pool_data %}
                     <option value="{{ m.mode }}" {% if mode == m.mode %}selected{% endif %}>{{ m.mode_ja if m.mode_ja and lang == "ja" else m.mode_en }}</option>
                 {% endfor %}
@@ -52,7 +52,7 @@
             {% if not use_cache %}<input type="hidden" name="use_cache" value="False">{% endif %} {# デフォルト値と逆の場合のみ手動で設定する #}
             <label for="mapSelect" class="filter-form__label">{% if lang == "ja" %}マップ:{% else %}Map:{% endif %}</label>
             <select name="map" id="mapSelect" class="filter-form__select" onchange="document.getElementById('mapFilterForm').submit();">
-                <option value="" {% if not map %}selected{% endif %}>{% if lang == "ja" %}指定なし (総合){% else %}No Map Specified{% endif %}</option>
+                <option value="" {% if not map %}selected{% endif %}>{% if lang == "ja" %}指定なし（総合）{% else %}No Map Specified{% endif %}</option>
                 {% if mode %}
                     {% for mode_data in pool_data %}
                         {% if mode == mode_data.mode %}
@@ -77,7 +77,7 @@
             {% if not use_cache %}<input type="hidden" name="use_cache" value="False">{% endif %} {# デフォルト値と逆の場合のみ手動で設定する #}
             <label for="rankTierSelect" class="filter-form__label">{% if lang == "ja" %}ランク帯:{% else %}Rank:{% endif %}</label>
             <select name="rank_tier" id="rankTierSelect" class="filter-form__select" onchange="document.getElementById('rankTierFilterForm').submit();">
-                <option value="-1" {% if not rank_tier %}selected{% endif %}>{% if lang == "ja" %}指定なし (総合){% else %}No Rank Specified{% endif %}</option>
+                <option value="-1" {% if not rank_tier %}selected{% endif %}>{% if lang == "ja" %}指定なし（総合）{% else %}No Rank Specified{% endif %}</option>
                 <option value="15" {% if rank_tier == 15 %}selected{% endif %}>{% if lang == "ja" %}エリート Ⅲ以下{% else %}Below Mythic{% endif %}</option>
                 <option value="16" {% if rank_tier == 16 %}selected{% endif %}>{% if lang == "ja" %}レジェンド Ⅰ{% else %}Legendary Ⅰ{% endif %}</option>
                 <option value="17" {% if rank_tier == 17 %}selected{% endif %}>{% if lang == "ja" %}レジェンド Ⅱ{% else %}Legendary Ⅱ{% endif %}</option>

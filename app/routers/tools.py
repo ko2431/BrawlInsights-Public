@@ -35,6 +35,7 @@ from app.services.board_service import get_or_create_theme_brawler_post, get_mes
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
 from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id
+from app.services.trophy_stats_service import get_trophy_stats
 
 router = APIRouter(
     prefix="/{lang}/tools",
@@ -622,23 +623,68 @@ async def get_map(
     lang: str,
     id: int,
     is_tools_tab: bool = False,
+    is_stats_tab: bool = Query(False),
+    sort: str | None = Query(None),
+    use_table: bool = Query(False),
+    use_cache: bool = Query(True),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     name = str(id)
+    map_info = None
+    brawler_stats = []
+    grouped_brawler_stats = None
+    sort = sort or None
+    # TODO: マルチプレイTier表の正式リリース時に、この管理者限定を外す
+    current_user = getattr(request.state, "current_user", None) #TODO この行ごと削除
+    show_multiplayer_tier = bool(current_user and current_user.is_admin) #TODO この行ごと削除
     try:
         await ensure_catalog(db)
         map_info = get_map_by_id(id)
         if map_info:
             name = map_info.ja if lang == "ja" and map_info.ja else (map_info.en or str(id))
+            if map_info.mode_id and show_multiplayer_tier: #TODO and show_multiplayer_tier を削除
+                brawler_stats = await get_trophy_stats(
+                    db,
+                    mode_id=map_info.mode_id,
+                    map_id=id,
+                    use_cache=use_cache,
+                )
+                if not sort:
+                    grouped_brawler_stats = [
+                        {"rank_grade": rank, "brawlers": list(brawlers)}
+                        for rank, brawlers in groupby(brawler_stats, key=lambda b: b.rank_grade)
+                    ]
+                elif sort == "use_rate":
+                    brawler_stats.sort(key=lambda b: -b.use_rate)
+                elif sort == "brawler_id":
+                    brawler_stats.sort(key=lambda b: b.brawler_id)
+                elif sort == "name":
+                    brawler_stats.sort(key=lambda b: b.name_ja if lang == "ja" else b.name_en)
+                elif sort == "rarity_asc":
+                    brawler_stats.sort(key=lambda b: (b.rarity is None, b.rarity, b.brawler_id))
+                elif sort == "rarity_desc":
+                    brawler_stats.sort(key=lambda b: (b.rarity is None, b.rarity, -b.brawler_id), reverse=True)
     except Exception as e:
-        logger.error(f"マップ名のカタログ取得中にエラー (id={id}): {e}", exc_info=True)
+        logger.error(f"マップページの統計取得中にエラー (id={id}): {e}", exc_info=True)
 
     context = {
         "request": request,
         "lang": lang,
         "id": id,
         "name": name,
-        "current_page": "tools" if is_tools_tab else None
+        "brawler_stats": brawler_stats,
+        "grouped_brawler_stats": grouped_brawler_stats,
+        "current_sort": sort,
+        "use_table": use_table,
+        "use_cache": use_cache,
+        "brawler_guide_tab_query": "is_stats_tab=True" if is_stats_tab else "",
+        "is_tools_tab": is_tools_tab,
+        "is_stats_tab": is_stats_tab,
+        "empty_stats_message": (
+            "このマップの統計データはまだありません。" if lang == "ja"
+            else "Stats for this map are not available yet."
+        ),
+        "current_page": "stats" if is_stats_tab else ("tools" if is_tools_tab else None),
     }
 
     try:
