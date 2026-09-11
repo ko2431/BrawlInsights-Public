@@ -261,7 +261,11 @@
             <tbody>
                 {% for post in posts %}
                 <tr x-data="postRow" x-init='initData({{ {"id": post.id, "is_deleted": post.is_deleted, "is_closed": post.is_closed, "can_delete": post.can_delete, "can_close": post.can_close} | tojson }})' :class="{ 'changed': isDirty() }">
-                    <td>{{ post.id }}</td>
+                    <td>
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=post.id) }}"
+                           class="admin-thread-link"
+                           {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ post.id }}</a>
+                    </td>
                     <td>{{ post.created_at_text }}</td>
                     <td>{{ admin_badge(post.type_label, post.type_badge_color) }}</td>
                     <td>{{ admin_badge(post.category_label, post.category_badge_color) }}</td>
