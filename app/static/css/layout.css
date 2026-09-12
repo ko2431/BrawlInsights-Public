@@ -208,7 +208,7 @@
     padding: 4px 10px;       /* 内側の余白 */
     background-color: #fff; /* ボタン背景色 */
     border: 1px solid #ccc;  /* 枠線 (灰色) */
-    border-radius: 6px;     /* 角丸 */
+    border-radius: 8px;     /* 角丸 */
     cursor: pointer;
     font-size: inherit;     /* 文字サイズを継承 */
     line-height: 1;         /* 行の高さを詰める */
@@ -247,13 +247,14 @@
     right: 0; /* 右端に合わせる */
     background-color: #fff;
     border: 1px solid #ccc;
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     list-style: none;
     margin: 0;
-    padding: 5px 0; /* 上下のパディング */
+    padding: 0;
     min-width: 130px; /* メニューの最小幅 */
     z-index: 1001; /* ヘッダーより手前に */
+    overflow: hidden;
 }
 .dark .lang-switcher__menu {
     background-color: #222;

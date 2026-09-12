@@ -1,4 +1,8 @@
 /* /app/static/css/pages/admin.css */
+:root {
+    --admin-radius-panel: 14px;
+}
+
 .admin-page__container {
     width: 90%;
     max-width: 2000px;
@@ -15,7 +19,7 @@
     grid-template-columns: repeat(auto-fill, minmax(min(110px, 100% / 5), 1fr));
     background-color: var(--bg-fdfdfd);
     border: 1px solid #f0f0f0;
-    border-radius: 16px;
+    border-radius: var(--admin-radius-panel);
     overflow: hidden;
 }
 .dark .admin-home-grid {
@@ -130,7 +134,7 @@ a.admin-home-grid__item:hover {
     margin: 10px 0; /* 上下マージン */
     padding: 7px 10px 10px;
     background-color: #f9f9f9;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
     border: 1px solid #eee;
 }
 .admin-filters__container label {
@@ -336,7 +340,7 @@ th {
     padding: 10px;
     background-color: var(--bg-f8f8f8);
     border: 1px solid var(--color-ddd);
-    border-radius: 8px;
+    border-radius: var(--admin-radius-panel);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -655,7 +659,7 @@ th {
 .admin-log-scan-warning {
     margin: 10px 0 15px;
     padding: 12px 14px;
-    border-radius: 8px;
+    border-radius: var(--admin-radius-panel);
     border: 1px solid #ffcc80;
     background-color: #fff3e0;
     color: #e65100;
@@ -666,6 +670,20 @@ th {
     border-color: #ef6c00;
     background-color: #3e2723;
     color: #ffb74d;
+}
+
+.admin-info-panel {
+    padding: 15px;
+    margin-top: 10px;
+    border-radius: var(--admin-radius-panel);
+}
+.admin-info-panel--empty {
+    background-color: #e3f2fd;
+    border: 1px solid #bbdefb;
+}
+.admin-info-panel--missing {
+    background-color: #fff8e1;
+    border: 1px solid #ffecb3;
 }
 
 
@@ -878,7 +896,7 @@ th {
     padding: 12px 14px 12px 12px;
     background-color: var(--bg-fdfdfd);
     border: 1px solid #f0f0f0;
-    border-radius: 12px;
+    border-radius: var(--admin-radius-panel);
     border-left: 4px solid #d4d4d4;
     color: inherit;
     text-decoration: none;
@@ -945,7 +963,7 @@ a.admin-notification-card--unread:hover {
     margin: 10px auto 8px;
     padding: 4px 20px;
     border: 2px dashed var(--color-888, #888);
-    border-radius: 10px;
+    border-radius: var(--admin-radius-panel);
     background: transparent;
     color: var(--color-888, #888);
     font-size: 15px;
@@ -1045,7 +1063,7 @@ a.admin-notification-card--unread:hover {
 .worker-task-card {
     background: var(--bg-fdfdfd);
     border: 1px solid #eee;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
     padding: 12px 14px 14px;
     display: flex;
     flex-direction: column;
@@ -1130,7 +1148,7 @@ a.admin-notification-card--unread:hover {
     margin: 12px 0;
     padding: 10px 12px;
     background-color: #f9f9f9;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
     border: 1px solid #eee;
 }
 @media (max-width: 520px) {
@@ -1193,7 +1211,7 @@ a.admin-notification-card--unread:hover {
     min-width: 0;
     padding: 12px 12px 14px;
     background-color: #f9f9f9;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
     border: 1px solid #eee;
 }
 .dark .sub-admin-panel {
@@ -1221,7 +1239,7 @@ a.admin-notification-card--unread:hover {
     margin: 0 0 6px;
     padding: 8px 10px;
     border: 1px solid #eee;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
     background: var(--bg-fdfdfd);
     color: var(--color-333);
     font: inherit;
@@ -1279,7 +1297,7 @@ a.admin-notification-card--unread:hover {
     padding: 10px 12px 12px;
     background: var(--bg-fdfdfd);
     border: 1px solid #eee;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
 }
 .dark .sub-admin-group {
     border-color: #080808;
@@ -1340,7 +1358,7 @@ a.admin-notification-card--unread:hover {
     padding: 12px 14px 12px 12px;
     background-color: var(--bg-fdfdfd);
     border: 1px solid #f0f0f0;
-    border-radius: 14px;
+    border-radius: var(--admin-radius-panel);
     border-left: 4px solid #d4d4d4;
 }
 .dark .audit-log-card {

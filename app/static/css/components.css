@@ -11,7 +11,7 @@
     justify-content: center;
     padding: 8px 15px; /* 上下左右のパディング */
     border: 1px solid transparent; /* デフォルトでは枠線なし */
-    border-radius: 7px; /* 角丸 */
+    border-radius: 9px; /* 角丸 */
     font-size: 16px; /* 基本のフォントサイズ */
     font-weight: 500; /* 文字の太さ */
     line-height: 1.5;

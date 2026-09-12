@@ -185,7 +185,7 @@
             走査上限（200,000行／サーバー）に達したため、さらに一致するログがある可能性があります。条件を絞り込んで再検索してください。
         </div>
         {% endif %}
-        <div class="info-block" style="background-color: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; border-radius: 8px; margin-top: 10px;">
+        <div class="info-block admin-info-panel admin-info-panel--empty">
             <p class="info-block__text">
                 {% if filters_active %}
                 条件に一致するログはありませんでした。
@@ -198,7 +198,7 @@
         <p class="admin-page__description">
             ファイル: <b>{{ log_file_name }}</b>
         </p>
-        <div class="info-block" style="background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 8px; margin-top: 10px;">
+        <div class="info-block admin-info-panel admin-info-panel--missing">
             <p class="info-block__text">
                 ログファイル <b>{{ log_file_name }}</b> は見つかりませんでした。
             </p>
