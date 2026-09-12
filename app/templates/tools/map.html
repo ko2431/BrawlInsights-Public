@@ -23,7 +23,10 @@
 
     <h1 class="page-title--main">{{ name }}</h1>
 
-    <img src="https://cdn.brawlify.com/maps/regular/{{ id }}.png" class="map_image">
+    <img src="https://cdn.bsinfox.com/maps/{{ id }}.png"
+         alt="{{ name }}"
+         class="map_image"
+         onerror="this.onerror=null;this.src='https://cdn.brawlify.com/maps/regular/{{ id }}.png';">
 
     <h2 class="page-title--sub" style="margin-top: 1.5em;">{% if lang == "ja" %}このマップのTier表{% else %}Tier List for This Map{% endif %}</h2>
 
