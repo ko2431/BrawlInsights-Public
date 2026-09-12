@@ -19,6 +19,7 @@ from app.services.trophy_stats_service import (
     get_trophy_stats,
     parse_map_id_param,
     parse_mode_id_param,
+    resolve_trophy_filter_ids,
 )
 from app.services.user_service import get_all_regions
 from app.utils.utils import get_first_thursdays, format_utc_date, get_icon_path, calc_ranked_season

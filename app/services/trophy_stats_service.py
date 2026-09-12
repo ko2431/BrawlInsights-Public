@@ -42,6 +42,8 @@ KNOWN_INCLUDED_BATTLE_TYPES = frozenset({
 SHOWDOWN_SLUGS = frozenset({"soloShowdown", "duoShowdown", "trioShowdown"})
 DUELS_SLUG = "duels"
 MAP_ALL_SENTINEL_PREFIX = "m"
+PG_INT4_MIN = -2_147_483_648
+PG_INT4_MAX = 2_147_483_647
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
@@ -134,13 +136,21 @@ class TrophyBrawlerStat:
         return instance
 
 
-def parse_mode_id_param(value: str | int | None) -> int | None:
-    if value is None or value == "":
+def _parse_positive_int4(value: str | int | None) -> int | None:
+    """クエリ値を PostgreSQL INTEGER に収まる正の整数へ正規化する。"""
+    if value is None or value == "" or isinstance(value, bool):
         return None
     try:
-        return int(value)
+        parsed = value if isinstance(value, int) else int(str(value).strip())
     except (TypeError, ValueError):
         return None
+    if parsed <= 0 or parsed < PG_INT4_MIN or parsed > PG_INT4_MAX:
+        return None
+    return parsed
+
+
+def parse_mode_id_param(value: str | int | None) -> int | None:
+    return _parse_positive_int4(value)
 
 
 def parse_map_id_param(value: str | int | None) -> tuple[int | None, int | None]:
@@ -148,15 +158,42 @@ def parse_map_id_param(value: str | int | None) -> tuple[int | None, int | None]
     if value is None or value == "":
         return None, None
     if isinstance(value, int):
-        return None, value
+        return None, _parse_positive_int4(value)
     raw = str(value).strip()
     if not raw:
         return None, None
-    if raw.startswith(MAP_ALL_SENTINEL_PREFIX) and raw[1:].isdigit():
-        return int(raw[1:]), None
-    if raw.isdigit():
-        return None, int(raw)
-    return None, None
+    if raw.startswith(MAP_ALL_SENTINEL_PREFIX):
+        return _parse_positive_int4(raw[1:]), None
+    return None, _parse_positive_int4(raw)
+
+
+def resolve_trophy_filter_ids(
+    mode_id: int | None,
+    map_id: int | None,
+    pool: list[dict[str, Any]],
+) -> tuple[int | None, int | None]:
+    """直打ちされたモード/マップを、フィルター候補にある値だけに落とす。"""
+    mode_id = _parse_positive_int4(mode_id)
+    map_id = _parse_positive_int4(map_id)
+    modes = {item["mode_id"] for item in pool}
+    map_to_mode: dict[int, int] = {}
+    for item in pool:
+        owner_mode_id = item["mode_id"]
+        for map_data in item.get("maps") or []:
+            map_to_mode[map_data["map_id"]] = owner_mode_id
+
+    if map_id is not None:
+        owner_mode_id = map_to_mode.get(map_id)
+        if owner_mode_id is None:
+            map_id = None
+        else:
+            mode_id = owner_mode_id
+
+    if mode_id is not None and mode_id not in modes:
+        mode_id = None
+        map_id = None
+
+    return mode_id, map_id
 
 
 # [この部分は公開用リポジトリでは非公開にされています]

@@ -45,6 +45,8 @@ router = APIRouter(
 DROP_BOXES_PATH = Path(__file__).resolve().parent.parent / "data" / "drop_boxes.json"
 TROPHY_REWARDS_PATH = Path(__file__).resolve().parent.parent / "data" / "trophy_rewards.json"
 LANDSCAPE_ONLY_PROFILE_IMAGE_TYPES: set[str] = {"equipment_skins"}
+DEFAULT_BRAWLER_GUIDE_ID = 16000000
+_PG_INT4_MAX = 2_147_483_647
 
 
 def load_drop_boxes_data() -> dict:
