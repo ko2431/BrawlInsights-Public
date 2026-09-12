@@ -3,6 +3,11 @@
 /* ページ全体のレイアウト                           */
 /* =============================================== */
 
+:root {
+    /* iPad Split View 等で別アプリのキーボードが visual viewport をずらしたときの補正 */
+    --vv-offset-top: 0px;
+}
+
 /* --- メインコンテンツエリア --- */
 .main-content {
     /* ページの主要なコンテンツ部分のコンテナ */
@@ -324,6 +329,8 @@
     display: flex; /* タブアイテムを横並びにする（デフォルトで表示） */
     /* box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1); /* 必要なら影 */
     height: calc(85px + env(safe-area-inset-bottom));
+    /* iOS が visual viewport をずらしても、見た目上は画面下端に留め置く */
+    transform: translate3d(0, var(--vv-offset-top, 0px), 0);
 }
 .dark .footer-mobile-nav {
     background-color: #333;

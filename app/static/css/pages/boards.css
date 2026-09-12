@@ -422,23 +422,24 @@
     border: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     cursor: pointer;
-    transition: background-color 0.35s ease, transform 0.2s ease, opacity 0.35s ease;
+    transition: background-color 0.35s ease, opacity 0.35s ease;
     right: 30px; /* PC版 右からの距離 */
     bottom: calc(30px + var(--banner-ad-height, 0px) + env(safe-area-inset-bottom)); /* PC版 下からの距離 */
     z-index: 1000;
+    transform: translate3d(0, var(--vv-offset-top, 0px), 0);
 }
 .dark .fab {
     border: 1px solid #fff;
 }
 .fab:hover {
-    transform: scale(1.025);
+    transform: translate3d(0, var(--vv-offset-top, 0px), 0) scale(1.025);
 }
 .fab.disabled {
     background-color: #aaa;
     cursor: not-allowed;
 }
 .fab.disabled:hover {
-    transform: none;
+    transform: translate3d(0, var(--vv-offset-top, 0px), 0);
 }
 .fab-icon {
     height: 26px;
@@ -1414,7 +1415,7 @@ body.modal-open {
     cursor: not-allowed;
 }
 .fab--grayed-out:hover {
-    transform: none;
+    transform: translate3d(0, var(--vv-offset-top, 0px), 0);
 }
 
 /* カテゴリーアイコン個別サイズ調整 */
