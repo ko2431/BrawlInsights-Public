@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="tools-page__container"{% if is_stats_tab %} data-back-fallback="{{ url_for('multiplayer_tier_list', lang=lang) }}"{% endif %}>
+<div class="tools-page__container"{% if back_fallback_url %} data-back-fallback="{{ back_fallback_url }}"{% endif %}>
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -31,8 +31,9 @@
     <h2 class="page-title--sub" style="margin-top: 1.5em;">{% if lang == "ja" %}このマップのTier表{% else %}Tier List for This Map{% endif %}</h2>
 
     <form method="get" id="mapTierSortForm" class="filters__container">
-        {% if is_tools_tab %}<input type="hidden" name="is_tools_tab" value="{{ is_tools_tab }}">{% endif %}
-        {% if is_stats_tab %}<input type="hidden" name="is_stats_tab" value="True">{% endif %}
+        {% for field_name, field_value in (nav_hidden_fields or {}).items() %}
+        <input type="hidden" name="{{ field_name }}" value="{{ field_value }}">
+        {% endfor %}
         {% if use_table %}<input type="hidden" name="use_table" value="True">{% endif %}
         {% if not use_cache %}<input type="hidden" name="use_cache" value="False">{% endif %}
         <div class="filter-form">

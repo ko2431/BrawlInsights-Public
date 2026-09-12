@@ -23,6 +23,7 @@ from app.services.trophy_stats_service import (
 )
 from app.services.user_service import get_all_regions
 from app.utils.utils import get_first_thursdays, format_utc_date, get_icon_path, calc_ranked_season
+from app.utils.nav_context import build_nav_query
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.map_mode_catalog import mode_icon_candidates
 

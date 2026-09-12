@@ -4,6 +4,8 @@
 (function () {
     'use strict';
 
+    const VALID_TABS = new Set(['home', 'stats', 'tools', 'board', 'account']);
+
     const TAB_PATH_SEGMENT = {
         stats: 'stats',
         tools: 'tools',
@@ -14,6 +16,20 @@
         club: 'home',
         help: 'home',
     };
+
+    function isTruthyQueryFlag(value) {
+        if (value == null) return false;
+        const normalized = String(value).trim().toLowerCase();
+        return normalized !== '' && normalized !== 'false' && normalized !== '0';
+    }
+
+    function getTabIdFromSearchParams(searchParams) {
+        const tab = (searchParams.get('tab') || '').trim().toLowerCase();
+        if (VALID_TABS.has(tab)) return tab;
+        if (isTruthyQueryFlag(searchParams.get('is_stats_tab'))) return 'stats';
+        if (isTruthyQueryFlag(searchParams.get('is_tools_tab'))) return 'tools';
+        return '';
+    }
 
     function getLangFromPath(pathname) {
         const parts = pathname.split('/').filter(Boolean);
@@ -78,7 +94,8 @@
         }
         if (refUrl.origin !== window.location.origin) return false;
 
-        const referrerTab = getTabIdFromPath(refUrl.pathname);
+        const queryTab = getTabIdFromSearchParams(refUrl.searchParams);
+        const referrerTab = queryTab || getTabIdFromPath(refUrl.pathname);
         const currentTab = getCurrentTabId();
         return referrerTab !== currentTab;
     }

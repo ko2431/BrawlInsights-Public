@@ -77,7 +77,7 @@
     <div class="brawler-grid" id="brawlerGrid">
         {% for brawler in brawlers %}
         <a class="brawler-card-link"
-           href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.id) }}"
+           href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.id) }}?tab=tools&from=guide_menu"
            data-name-en="{{ brawler.name_en }}"
            data-names-ja='{{ (brawler.names_ja or []) | tojson }}'>
             <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">

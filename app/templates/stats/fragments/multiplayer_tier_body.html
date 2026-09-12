@@ -18,7 +18,7 @@
         </div>
         <div class="brawler-grid">
             {% for brawler in group.brawlers %}
-            <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}{% if brawler_guide_tab_query %}?{{ brawler_guide_tab_query }}{% endif %}">
+            <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}{% if brawler_guide_nav_query %}?{{ brawler_guide_nav_query }}{% endif %}">
                 <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
                     {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
                     <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.brawler_id|string + '.png') }}"
@@ -38,7 +38,7 @@
 {% elif not use_table %}
 <div class="brawler-grid">
     {% for brawler in brawler_stats %}
-    <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}{% if brawler_guide_tab_query %}?{{ brawler_guide_tab_query }}{% endif %}">
+    <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}{% if brawler_guide_nav_query %}?{{ brawler_guide_nav_query }}{% endif %}">
         <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
             {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
             <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + brawler.brawler_id|string + '.png') }}"

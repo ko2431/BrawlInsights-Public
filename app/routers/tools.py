@@ -34,6 +34,7 @@ from app.services.user_service import User, try_claim_tutorial_mission, sanitize
 from app.services.board_service import get_or_create_theme_brawler_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
+from app.utils.nav_context import nav_template_vars, resolve_nav_context
 from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id
 from app.services.trophy_stats_service import get_trophy_stats
 
@@ -87,10 +88,21 @@ def build_static_url(request: Request, path: str | None) -> str:
         "start_date": format_utc_date(start_date) if start_date else None,
         "end_date": format_utc_date(end_date) if end_date else None,
         "use_cache": use_cache,
-        "current_page": "tools" if not is_stats_tab else "stats",
         "brawler_thread_id": brawler_thread_id,
         "brawler_preview_messages": brawler_preview_messages,
     }
+    nav_ctx = resolve_nav_context(
+        lang=lang,
+        page_kind="brawler_guide",
+        tab=tab,
+        from_source=from_source,
+        is_stats_tab=is_stats_tab,
+        is_tools_tab=is_tools_tab,
+        player=player,
+        battles_tab=battles_tab,
+        map_id=map_id,
+    )
+    context.update(nav_template_vars(nav_ctx))
     await try_claim_tutorial_mission(user, db, "view_brawler_guide")
 
     try:
@@ -624,7 +636,11 @@ async def get_map(
     request: Request,
     lang: str,
     id: int,
-    is_tools_tab: bool = False,
+    tab: str | None = Query(None),
+    from_source: str | None = Query(None, alias="from"),
+    player: str | None = Query(None),
+    battles_tab: str | None = Query(None),
+    is_tools_tab: bool = Query(False),
     is_stats_tab: bool = Query(False),
     sort: str | None = Query(None),
     use_table: bool = Query(False),
@@ -679,15 +695,23 @@ async def get_map(
         "current_sort": sort,
         "use_table": use_table,
         "use_cache": use_cache,
-        "brawler_guide_tab_query": "is_stats_tab=True" if is_stats_tab else "",
-        "is_tools_tab": is_tools_tab,
-        "is_stats_tab": is_stats_tab,
         "empty_stats_message": (
             "このマップの統計データはまだありません。" if lang == "ja"
             else "Stats for this map are not available yet."
         ),
-        "current_page": "stats" if is_stats_tab else ("tools" if is_tools_tab else None),
     }
+    nav_ctx = resolve_nav_context(
+        lang=lang,
+        page_kind="map",
+        tab=tab,
+        from_source=from_source,
+        is_stats_tab=is_stats_tab,
+        is_tools_tab=is_tools_tab,
+        player=player,
+        battles_tab=battles_tab,
+        current_map_id=id,
+    )
+    context.update(nav_template_vars(nav_ctx))
 
     try:
         return templates.TemplateResponse("tools/map.html", context)

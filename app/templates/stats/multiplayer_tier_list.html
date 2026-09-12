@@ -70,8 +70,8 @@
             {% else %}This is a multiplayer tier list where brawlers are ranked by their <b>strength score</b>, which is calculated from over 80 million match results, taking into account metrics like use rate, win rate, and star player rate. The data is automatically updated daily. Click on a brawler to go to their <b>brawler's guide page</b>. For more details on how we calculate these stats, please see the bottom of this page.
             {% endif %}
             {% if map_id %}
-                <br>{% if lang == "ja" %}このマップのマップ画像は<a href="{{ url_for('get_map', lang=lang, id=map_id) }}?is_stats_tab=True" style="font-weight: bold; text-decoration: underline;">こちら</a>。
-                {% else %}View this map image <a href="{{ url_for('get_map', lang=lang, id=map_id) }}?is_stats_tab=True" style="font-weight: bold; text-decoration: underline;">here</a>.
+                <br>{% if lang == "ja" %}このマップのマップ画像は<a href="{{ url_for('get_map', lang=lang, id=map_id) }}?tab=stats&from=multiplayer_tier" style="font-weight: bold; text-decoration: underline;">こちら</a>。
+                {% else %}View this map image <a href="{{ url_for('get_map', lang=lang, id=map_id) }}?tab=stats&from=multiplayer_tier" style="font-weight: bold; text-decoration: underline;">here</a>.
                 {% endif %}
             {% endif %}
         </p>

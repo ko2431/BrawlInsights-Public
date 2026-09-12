@@ -132,7 +132,7 @@
             {# 右側にそのランクのキャラクターグリッドを配置 #}
             <div class="brawler-grid">
                 {% for brawler in group.brawlers %}
-                <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}?is_stats_tab=True">
+                <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}?tab=stats&from=ranked_tier">
                     <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
                         {# アイコン #}
                         {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
@@ -156,7 +156,7 @@
     {# ^ 5. キャラクターリスト (use_tableはオフだが、並び順がデフォルトの総合スコア順ではない場合のみ表示) #}
     <div class="brawler-grid">
         {% for brawler in brawler_stats %}
-        <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}?is_stats_tab=True">
+        <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}?tab=stats&from=ranked_tier">
             <div class="brawler-card brawler-card--rarity-{{ brawler.rarity }}">
                 {# ^ 5-1. アイコン #}
                 {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
