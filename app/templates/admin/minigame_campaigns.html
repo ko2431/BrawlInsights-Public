@@ -86,7 +86,7 @@
             </template>
         </section>
         <p x-show="message" :style="success ? 'color:green' : 'color:#b91c1c'" x-text="message"></p>
-        <button class="button button--primary" type="submit" :disabled="saving" x-text="saving ? '保存中...' : '保存'"></button>
+        <button class="button button--primary admin-save-button" type="submit" :disabled="saving"><span x-text="saving ? '保存中...' : '保存'"></span><span class="admin-filters__shortcut admin-save-shortcut" aria-hidden="true"></span></button>
     </form>
     {% endif %}
     <h2 class="block-title">企画一覧</h2>
@@ -103,7 +103,9 @@
     {% endif %}
 </div>
 {% endblock %}
-{% block scripts %}{{ super() }}<script>
+{% block scripts %}{{ super() }}
+<script src="{{ url_for('static', path='/js/pages/admin_save_shortcut.js') }}?v={{ app_version }}"></script>
+<script>
 function minigameCampaignAdmin() {
  const editing = {{ edit_campaign | tojson | safe if edit_campaign else 'null' }};
  const clone = (value) => JSON.parse(JSON.stringify(value));

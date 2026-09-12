@@ -177,7 +177,7 @@
     {% if can_save %}
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
-        <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
+        <button type="button" class="button button--primary admin-save-button" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存<span class="admin-filters__shortcut admin-save-shortcut" aria-hidden="true"></span></button>
     </div>
     {% endif %}
 
@@ -264,6 +264,7 @@
 {% block scripts %}
     {{ super() }}
     <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', path='/js/pages/admin_save_shortcut.js') }}?v={{ app_version }}"></script>
     <script>
         function handleAdminThreadLinkClick(event, el) {
             if (!event.altKey) {

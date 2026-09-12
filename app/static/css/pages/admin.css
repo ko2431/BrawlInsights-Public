@@ -192,6 +192,10 @@ a.admin-home-grid__item:hover {
     line-height: 1.5;
     opacity: 0.78;
 }
+.admin-save-button {
+    align-items: baseline;
+    gap: 6px;
+}
 .admin-filters__submit-button:disabled,
 .admin-filters__reset-button:disabled {
     cursor: not-allowed;
