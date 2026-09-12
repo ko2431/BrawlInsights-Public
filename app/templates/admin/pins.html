@@ -49,7 +49,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="pinAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="pinAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -75,10 +75,13 @@
         </select>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -124,7 +127,7 @@
                         <td x-text="pin.id" style="text-align: center;"></td>
                         
                         {# キャラID #}
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{
                                 'changed': isDirtyField('brawler_id'),
                                 'invalid': isDirtyField('brawler_id') && !isValidField('brawler_id'),
@@ -150,7 +153,7 @@
                         </template>
 
                         {# レアリティ #}
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{
                                 'changed': isDirtyField('rarity'),
                                 'invalid': isDirtyField('rarity') && !isValidField('rarity'),
@@ -168,7 +171,7 @@
                         <td style="text-align: right;" x-text="formatRate(pin.equip_rate)"></td>
 
                         {# 英語説明 #}
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                         :class="{
                             'changed': isDirtyField('description_en'),
                             'show-placeholder': isEmptyField('description_en') && !focusedField['description_en']
@@ -182,7 +185,7 @@
                         </td>
 
                         {# 日本語説明 #}
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                         :class="{
                             'changed': isDirtyField('description_ja'),
                             'show-placeholder': isEmptyField('description_ja') && !focusedField['description_ja']
@@ -205,10 +208,13 @@
         </table>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-top: -5px;">

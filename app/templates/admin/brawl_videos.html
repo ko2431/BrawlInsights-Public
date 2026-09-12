@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="brawlVideoAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="brawlVideoAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -28,6 +28,7 @@
     </p>
 
     {# --- 新規追加フォーム --- #}
+    {% if can_edit %}
     <div class="add-new-item-form">
         <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しい動画を追加</h2>
         <div class="form-grid">
@@ -79,12 +80,17 @@
              x-text="addStatus.message" style="margin-top: 5px;">
         </div>
     </div>
+    {% endif %}
+
 
     {# --- 既存動画編集テーブル --- #}
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 25px;">
         <p>既存の動画を編集できます。変更を保存するには <b>保存</b> ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSave()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -108,19 +114,19 @@
                 <template x-for="item in videosData" :key="item.id">
                     <tr x-data="brawlVideoRow(item)" x-init="init()">
                         <td x-text="item.id" style="white-space: nowrap;"></td>
-                        <td><input type="number" class="form-input" :class="{ 'changed': isDirtyField('display_order') }" x-model.number="display_order" min="0" style="width: 60px; padding: 2px;"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('title_ja'), 'invalid': !title_ja.trim() }" x-model="title_ja" style="min-width: 150px;"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('title_en') }" x-model="title_en" style="min-width: 120px;"></td>
+                        <td><input type="number" class="form-input" :class="{ 'changed': isDirtyField('display_order') }" x-model.number="display_order" min="0" style="width: 60px; padding: 2px;"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('title_ja'), 'invalid': !title_ja.trim() }" x-model="title_ja" style="min-width: 150px;"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('title_en') }" x-model="title_en" style="min-width: 120px;"{% if not can_edit %} disabled{% endif %}></td>
                         <td>
-                            <select class="form-input" :class="{ 'changed': isDirtyField('platform') }" x-model="platform" style="padding: 2px; font-size: 12px;">
+                            <select class="form-input" :class="{ 'changed': isDirtyField('platform') }" x-model="platform" style="padding: 2px; font-size: 12px;"{% if not can_edit %} disabled{% endif %}>
                                 <option value="youtube">YT</option>
                                 <option value="tiktok">TT</option>
                             </select>
                         </td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('video_id'), 'invalid': !video_id.trim() }" x-model="video_id" style="min-width: 110px;"></td>
-                        <td style="text-align: center;"><input type="checkbox" x-model="is_sponsored" :class="{ 'changed': isDirtyField('is_sponsored') }" style="width: 16px; height: 16px;"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('sponsor_name') }" x-model="sponsor_name" style="min-width: 100px;" :disabled="!is_sponsored"></td>
-                        <td style="text-align: center;"><input type="checkbox" x-model="is_active" :class="{ 'changed': isDirtyField('is_active') }" style="width: 16px; height: 16px;"></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('video_id'), 'invalid': !video_id.trim() }" x-model="video_id" style="min-width: 110px;"{% if not can_edit %} disabled{% endif %}></td>
+                        <td style="text-align: center;"><input type="checkbox" x-model="is_sponsored" :class="{ 'changed': isDirtyField('is_sponsored') }" style="width: 16px; height: 16px;"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isDirtyField('sponsor_name') }" x-model="sponsor_name" style="min-width: 100px;" :disabled="!is_sponsored{% if not can_edit %} || true{% endif %}"></td>
+                        <td style="text-align: center;"><input type="checkbox" x-model="is_active" :class="{ 'changed': isDirtyField('is_active') }" style="width: 16px; height: 16px;"{% if not can_edit %} disabled{% endif %}></td>
                         <td style="text-align: center; white-space: nowrap;">
                             <button type="button" class="button button--danger button--small" @click="$dispatch('confirm-delete', { id: item.id })">削除</button>
                         </td>

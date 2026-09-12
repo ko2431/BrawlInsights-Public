@@ -72,7 +72,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="postAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+<div class="admin-page__container{% if not can_save %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="postAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     {# 戻るボタン #}
     {% if platform != "web" %}
     <div class="back-button__container"
@@ -230,10 +230,13 @@
 
     {{ render_pagination(pagination, post_id, post_type, post_category, status_filter, close_status_filter, user_type, user_name, user_id, host_ip, entity_name, entity_tag, comment_text, comment_regex, min_comment_count, min_like_count, created_after, created_before, current_sort) }}
 
+    {% if can_save %}
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">

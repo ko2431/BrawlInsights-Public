@@ -58,7 +58,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="skinAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="skinAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -83,10 +83,13 @@
         </select>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -150,7 +153,7 @@
                         <td x-text="skin.brawler_name_ja"></td>
                         {# 英語名 (デフォルトスキン以外のみ編集可能) #}
                         <template x-if="!is_default_skin">
-                            <td contenteditable="true" class="is-editable"
+                            <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                                 :class="{
                                     'changed': isDirtyField('name_en'),
                                     'show-placeholder': isEmptyField('name_en') && !focusedField['name_en']
@@ -170,7 +173,7 @@
                         
                         {# 日本語名 (デフォルトスキン以外のみ編集可能) #}
                         <template x-if="!is_default_skin">
-                            <td contenteditable="true" class="is-editable"
+                            <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                                 :class="{
                                     'changed': isDirtyField('name_ja'),
                                     'show-placeholder': isEmptyField('name_ja') && !focusedField['name_ja']
@@ -190,7 +193,7 @@
 
                         {# レアリティ (デフォルトスキンは非表示・編集不可) #}
                         <template x-if="!is_default_skin">
-                            <td contenteditable="true" class="is-editable"
+                            <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                                 :class="{
                                     'changed': isDirtyField('rarity'),
                                     'invalid': isDirtyField('rarity') && !isValidField('rarity'),
@@ -211,7 +214,7 @@
                         {# 限定フラグ (デフォルトスキンは非表示・編集不可) #}
                         <template x-if="!is_default_skin">
                             <td class="checkbox-cell" :class="{'changed': isDirtyField('is_limited')}">
-                                <input type="checkbox" x-model="currentValues['is_limited']" @change="_recalcState(); $dispatch('statusinputchanged')">
+                                <input type="checkbox" x-model="currentValues['is_limited']" @change="_recalcState(); $dispatch('statusinputchanged')"{% if not can_edit %} disabled{% endif %}>
                             </td>
                         </template>
                         <template x-if="is_default_skin">
@@ -225,7 +228,7 @@
 
                         {# 英語説明 (デフォルトスキン以外のみ編集可能) #}
                         <template x-if="!is_default_skin">
-                            <td contenteditable="true" class="is-editable"
+                            <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{
                                 'changed': isDirtyField('description_en'),
                                 'show-placeholder': isEmptyField('description_en') && !focusedField['description_en']
@@ -244,7 +247,7 @@
 
                         {# 日本語説明 (デフォルトスキン以外のみ編集可能) #}
                         <template x-if="!is_default_skin">
-                            <td contenteditable="true" class="is-editable"
+                            <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{
                                 'changed': isDirtyField('description_ja'),
                                 'show-placeholder': isEmptyField('description_ja') && !focusedField['description_ja']
@@ -269,10 +272,13 @@
         </table>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!canSave" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-top: -5px;">

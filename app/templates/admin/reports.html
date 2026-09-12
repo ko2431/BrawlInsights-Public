@@ -73,7 +73,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="reportAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="reportAdmin()" x-init='initFilters({{ applied_filters | tojson }})'>
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -205,10 +205,13 @@
 
     {{ render_pagination(pagination, report_id, status_filter, user_type, user_name, user_id, user_ip, target_type, target_user_name, target_user_id, target_user_ip, post_id, message_id, target_content, target_content_regex, category, comment_text, comment_regex, created_after, created_before) }}
 
+    {% if can_edit %}
     <div class="save-changes-block">
         <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -295,7 +298,7 @@
                         <div class="col-message-content">{{ report.text if report.text else "(なし)" }}</div>
                     </td>
                     <td class="form-checkbox-cell cell-center">
-                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_checked">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_checked"{% if not can_edit %} disabled{% endif %}>
                     </td>
                 </tr>
                 {% else %}
@@ -307,10 +310,13 @@
         </table>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>チェック状況を反映するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-top: -5px;">

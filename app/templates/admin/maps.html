@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="mapAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="mapAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -29,12 +29,14 @@
         日次同期では BSInfo API の名前を優先して上書きします。英語名・日本語名をここで保存すると手動フラグが立ち、以降の自動同期では上書きされません。codename / theme / 所属モード / disabled は同期のたびに BSInfo で更新されます。
     </p>
 
+    {% if can_edit %}
     <div class="catalog-toolbar">
         <button type="button" class="button" @click="syncFromBsinfo()" :disabled="syncStatus.running">BSInfoから再同期</button>
         <span class="form-field-status server-response"
               :class="{ 'success': syncStatus.success, 'error': !syncStatus.success && syncStatus.message }"
               x-text="syncStatus.message"></span>
     </div>
+    {% endif %}
     {% if catalog_gaps %}
     <p class="catalog-gaps">
         slug未設定モード: <b>{{ catalog_gaps.modes_without_slug|length }}</b> /
@@ -45,10 +47,13 @@
     </p>
     {% endif %}
 
+    {% if can_edit %}
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -71,14 +76,14 @@
                 <template x-for="row in rows" :key="row.id">
                     <tr :class="{ 'is-nameless': !row.en && !row.ja, 'changed': isDirty(row) }">
                         <td x-text="row.id"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.en" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.ja" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.en" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.ja" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
                         <td x-text="manualLabel(row)"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.codename" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.theme" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.mode_id" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.codename" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.theme" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.mode_id" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
                         <td x-text="row.mode_ja || row.mode_en || row.mode_slug || ''"></td>
-                        <td><input type="checkbox" x-model="row.disabled" @change="markDirty()"></td>
+                        <td><input type="checkbox" x-model="row.disabled" @change="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
                     </tr>
                 </template>
                 <template x-if="rows.length === 0">
@@ -90,10 +95,13 @@
         </table>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
         x-text="saveStatus.message" style="margin-top: -5px;">

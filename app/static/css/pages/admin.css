@@ -761,9 +761,35 @@ th {
     vertical-align: middle;
     text-align: center;
 }
+.form-input:disabled,
+.catalog-input:disabled,
+select.form-input:disabled,
+textarea.form-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
 .form-checkbox:disabled {
     cursor: not-allowed;
     opacity: 0.4;
+}
+.admin-readonly .data-table input,
+.admin-readonly .data-table textarea,
+.admin-readonly .data-table select,
+.admin-readonly .data-table [contenteditable="true"] {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+.admin-readonly .data-table .form-checkbox {
+    opacity: 0.4;
+}
+.admin-readonly .data-table [contenteditable="true"] {
+    border-color: transparent;
+    background: transparent;
+}
+.admin-readonly .data-table .button--danger,
+.admin-readonly .data-table button.button--small {
+    display: none;
 }
 
 

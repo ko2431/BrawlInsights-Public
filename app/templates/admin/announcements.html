@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="announcementAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="announcementAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -43,6 +43,7 @@
     </div>
 
     {# --- 新規追加フォーム --- #}
+    {% if can_edit %}
     <div class="add-new-item-form">
         <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しいアナウンスを追加</h2>
         <div class="form-grid">
@@ -105,12 +106,17 @@
              x-text="addStatus.message" style="margin-top: 5px;">
         </div>
     </div>
+    {% endif %}
+
 
     {# --- 既存アナウンス編集テーブル --- #}
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 25px;">
         <p>既存のアナウンスを編集・削除できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          style="margin-bottom: 10px;">
@@ -131,10 +137,10 @@
             <tbody>
                 <template x-for="item in filteredAnnouncements" :key="item.id">
                     <tr x-data="announcementRow(item)" x-init="init()">
-                        <td><input type="datetime-local" class="form-input" :class="{ 'changed': isDatetimeDirty }" x-model="datetime" style="font-size: 13px; padding: 2px;"></td>
+                        <td><input type="datetime-local" class="form-input" :class="{ 'changed': isDatetimeDirty }" x-model="datetime" style="font-size: 13px; padding: 2px;"{% if not can_edit %} disabled{% endif %}></td>
                         <td x-text="item.id"></td>
                         <td>
-                            <select class="form-input" :class="{ 'changed': isCategoryDirty }" x-model="category" style="font-size: 13px; padding: 2px;">
+                            <select class="form-input" :class="{ 'changed': isCategoryDirty }" x-model="category" style="font-size: 13px; padding: 2px;"{% if not can_edit %} disabled{% endif %}>
                                 <option value="">なし</option>
                                 <option value="1">緊急のお知らせ</option>
                                 <option value="2">お知らせ</option>
@@ -143,10 +149,10 @@
                                 <option value="5">当選発表</option>
                             </select>
                         </td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isEnTitleDirty, 'invalid': !isEnTitleValid }" x-model="en_title"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isJaTitleDirty }" x-model="ja_title"></td>
-                        <td><textarea class="form-input" :class="{ 'changed': isEnTextDirty, 'invalid': !isEnTextValid }" x-model="en_text" rows="3"></textarea></td>
-                        <td><textarea class="form-input" :class="{ 'changed': isJaTextDirty }" x-model="ja_text" rows="3"></textarea></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isEnTitleDirty, 'invalid': !isEnTitleValid }" x-model="en_title"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isJaTitleDirty }" x-model="ja_title"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isEnTextDirty, 'invalid': !isEnTextValid }" x-model="en_text" rows="3"{% if not can_edit %} disabled{% endif %}></textarea></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isJaTextDirty }" x-model="ja_text" rows="3"{% if not can_edit %} disabled{% endif %}></textarea></td>
                         <td style="text-align: center;"><button type="button" class="button button--danger button--small" @click="$dispatch('confirm-delete', { id: item.id })">削除</button></td>
                     </tr>
                 </template>

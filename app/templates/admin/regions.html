@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="regionAdmin()"> {# ページ全体のコンテナ #}
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="regionAdmin()"> {# ページ全体のコンテナ #}
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -27,6 +27,7 @@
     </p>
 
     {# --- 新規追加フォーム --- #}
+    {% if can_edit %}
     <div class="add-new-item-form">
         <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 10px 0;">新しい地域を追加</h2>
         <div class="form-grid">
@@ -54,13 +55,18 @@
              x-text="addStatus.message" style="margin-top: 5px;">
         </div>
     </div>
+    {% endif %}
+
 
 
     {# --- 既存の地域編集テーブル --- #}
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 25px;">
         <p>既存の地域情報を編集できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          style="margin-bottom: 10px;">
@@ -91,21 +97,21 @@
                 <template x-for="region_item in regionsData" :key="region_item.id">
                     <tr x-data="regionRow(region_item)" x-init="initComponent()" :key="id">
                         <td x-text="region_item.id" style="text-align: center;"></td>
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{ 'changed': isCodeDirty, 'invalid': !isCodeValid && isCodeDirty }"
                             @focus="handleFocus($el, 'code')"
                             @blur="isFocused.code = false; handleInputOrBlur($el, 'code')"
                             @input.debounce.200ms="handleInputOrBlur($el, 'code')"
                             x-text="currentCode">
                         </td>
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{ 'changed': isEnDirty, 'invalid': !isEnValid && isEnDirty }"
                             @focus="handleFocus($el, 'en')"
                             @blur="isFocused.en = false; handleInputOrBlur($el, 'en')"
                             @input.debounce.200ms="handleInputOrBlur($el, 'en')"
                             x-text="currentEn">
                         </td>
-                        <td contenteditable="true" class="is-editable"
+                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
                             :class="{ 'changed': isJaDirty, 'invalid': !isJaValid && isJaDirty }"
                             @focus="handleFocus($el, 'ja')"
                             @blur="isFocused.ja = false; handleInputOrBlur($el, 'ja')"
@@ -127,10 +133,13 @@
         </table>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
         x-text="saveStatus.message" style="margin-top: -5px;">

@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="faqAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="faqAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -32,6 +32,7 @@
     </p>
 
     {# --- 新規追加フォーム --- #}
+    {% if can_edit %}
     <div class="add-new-item-form">
         <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しいFAQを追加</h2>
         <div class="form-grid">
@@ -77,12 +78,17 @@
              x-text="addStatus.message" style="margin-top: 5px;">
         </div>
     </div>
+    {% endif %}
+
 
     {# --- 既存FAQ編集テーブル --- #}
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 25px;">
         <p>既存のFAQを編集できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -105,13 +111,13 @@
                 <template x-for="item in faqsData" :key="item.id">
                     <tr x-data="faqRow(item)" x-init="init()" :class="{ 'row-deleted': item.is_deleted }">
                         <td x-text="item.id" style="text-align: center;"></td>
-                        <td><input type="number" class="form-input" :class="{ 'changed': isPriorityDirty }" x-model.number="priority" style="width: 90px;"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isCategoryJaDirty }" x-model="category_ja"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isCategoryEnDirty }" x-model="category_en"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isTitleJaDirty }" x-model="title_ja"></td>
-                        <td><input type="text" class="form-input" :class="{ 'changed': isTitleEnDirty }" x-model="title_en"></td>
-                        <td><textarea class="form-input" :class="{ 'changed': isBodyJaDirty }" x-model="body_ja" rows="3"></textarea></td>
-                        <td><textarea class="form-input" :class="{ 'changed': isBodyEnDirty }" x-model="body_en" rows="3"></textarea></td>
+                        <td><input type="number" class="form-input" :class="{ 'changed': isPriorityDirty }" x-model.number="priority" style="width: 90px;"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isCategoryJaDirty }" x-model="category_ja"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isCategoryEnDirty }" x-model="category_en"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isTitleJaDirty }" x-model="title_ja"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="text" class="form-input" :class="{ 'changed': isTitleEnDirty }" x-model="title_en"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isBodyJaDirty }" x-model="body_ja" rows="3"{% if not can_edit %} disabled{% endif %}></textarea></td>
+                        <td><textarea class="form-input" :class="{ 'changed': isBodyEnDirty }" x-model="body_en" rows="3"{% if not can_edit %} disabled{% endif %}></textarea></td>
                         <td style="text-align: center;">
                             <button type="button" 
                                     class="button button--small" 

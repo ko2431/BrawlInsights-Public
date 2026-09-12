@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="modeAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="modeAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -30,7 +30,9 @@
     </p>
 
     <div class="catalog-toolbar">
+        {% if can_edit %}
         <button type="button" class="button" @click="syncFromBsinfo()" :disabled="syncStatus.running">BSInfoから再同期</button>
+        {% endif %}
         <label class="catalog-filter"><input type="checkbox" x-model="showNamelessOnly"> 名前なしのみ</label>
         <span class="form-field-status server-response"
               :class="{ 'success': syncStatus.success, 'error': !syncStatus.success && syncStatus.message }"
@@ -45,10 +47,13 @@
     </p>
     {% endif %}
 
+    {% if can_edit %}
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          x-text="saveStatus.message" style="margin-bottom: 10px;">
@@ -88,37 +93,37 @@
                 <template x-for="row in visibleRows" :key="row.id">
                     <tr :class="{ 'is-nameless': !row.en && !row.ja, 'changed': isDirty(row) }">
                         <td x-text="row.id"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.slug" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.en" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.ja" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.slug" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.en" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.ja" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
                         <td x-text="manualLabel(row)"></td>
-                        <td><input type="checkbox" x-model="row.disabled" @change="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.desc_ja" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.desc_en" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.desc2_ja" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.desc2_en" @input="markDirty()"></td>
+                        <td><input type="checkbox" x-model="row.disabled" @change="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc_ja" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc_en" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc2_ja" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.desc2_en" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
                         <td>
-                            <select class="catalog-input" x-model="row.overtime" @change="markDirty()">
+                            <select class="catalog-input" x-model="row.overtime" @change="markDirty()"{% if not can_edit %} disabled{% endif %}>
                                 <option value="">未設定</option>
                                 <option value="true">true</option>
                                 <option value="false">false</option>
                             </select>
                         </td>
-                        <td><input class="catalog-input" type="text" x-model="row.overtime_text_ja" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.overtime_text_en" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.format_ja" @input="markDirty()"></td>
-                        <td><input class="catalog-input" type="text" x-model="row.format_en" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.color" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.bg_color" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.battle_time" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.respawn_time" @input="markDirty()"></td>
-                        <td><input type="checkbox" x-model="row.is_boss_fight" @change="markDirty()"></td>
-                        <td><input type="checkbox" x-model="row.is_special_event" @change="markDirty()"></td>
-                        <td><input type="checkbox" x-model="row.is_not_rewarding_trophies" @change="markDirty()"></td>
-                        <td><input type="checkbox" x-model="row.is_trophy_mode" @change="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.rounds" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.team_size" @input="markDirty()"></td>
-                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.team_count" @input="markDirty()"></td>
+                        <td><input class="catalog-input" type="text" x-model="row.overtime_text_ja" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.overtime_text_en" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.format_ja" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input" type="text" x-model="row.format_en" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.color" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.bg_color" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.battle_time" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.respawn_time" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="checkbox" x-model="row.is_boss_fight" @change="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="checkbox" x-model="row.is_special_event" @change="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="checkbox" x-model="row.is_not_rewarding_trophies" @change="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="checkbox" x-model="row.is_trophy_mode" @change="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.rounds" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.team_size" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input class="catalog-input catalog-input--narrow" type="text" x-model="row.team_count" @input="markDirty()"{% if not can_edit %} disabled{% endif %}></td>
                     </tr>
                 </template>
                 <template x-if="visibleRows.length === 0">
@@ -130,10 +135,13 @@
         </table>
     </div>
 
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 0;">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
         :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
         x-text="saveStatus.message" style="margin-top: -5px;">

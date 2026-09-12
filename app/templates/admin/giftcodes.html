@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-page__container" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="giftcodeAdmin()">
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="giftcodeAdmin()">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -84,6 +84,7 @@
     </div>
 
     {# 新規追加フォーム #}
+    {% if can_edit %}
     <div class="add-new-item-form">
         <h2 class="block-title" style="text-align: left; font-size: 20px; margin: 20px 0 10px;">新しいギフトコードを追加</h2>
         <div class="form-grid">
@@ -126,12 +127,17 @@
              x-text="addStatus.message" style="margin-top: 5px;">
         </div>
     </div>
+    {% endif %}
+
 
     {# 既存コード編集テーブル #}
+    {% if can_edit %}
     <div class="save-changes-block" style="margin-top: 25px;">
         <p>既存のギフトコードを編集できます。変更を保存するには、<b>保存</b>ボタンを押してください。</p>
         <button type="button" class="button button--primary" @click="confirmSaveChanges()" :disabled="!hasUnsavedChanges" style="margin-left: 5px;">保存</button>
     </div>
+    {% endif %}
+
     <div x-show="saveStatus.message" class="form-field-status server-response"
          :class="{ 'success': saveStatus.success, 'error': !saveStatus.success && saveStatus.message }"
          style="margin-bottom: 10px;">
@@ -155,15 +161,15 @@
                 <template x-for="gc in giftcodesData" :key="gc.code">
                     <tr x-data="giftcodeRow(gc)" x-init="init()">
                         <td x-text="gc.code"></td>
-                        <td><textarea class="form-input" x-model="currentRow.reward_str" :class="{ 'changed': isRewardDirty, 'invalid': !isRewardValid && isRewardDirty }" @input="validateReward(); updateAndNotify()"></textarea></td>
-                        <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_admin_only" @change="updateAndNotify()"></td>
+                        <td><textarea class="form-input" x-model="currentRow.reward_str" :class="{ 'changed': isRewardDirty, 'invalid': !isRewardValid && isRewardDirty }" @input="validateReward(); updateAndNotify()"{% if not can_edit %} disabled{% endif %}></textarea></td>
+                        <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_admin_only" @change="updateAndNotify()"{% if not can_edit %} disabled{% endif %}></td>
                         <td x-text="gc.num_of_uses" class="cell-right"></td>
                         <td class="cell-usage-log"><div class="usage-log-container" x-text="gc.usage_log.join(', ')"></div></td>
-                        <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_per_user" :class="{ 'changed': isLimitUserDirty }" @input.debounce.300ms="updateAndNotify()"></td>
-                        <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_total" :class="{ 'changed': isLimitTotalDirty }" @input.debounce.300ms="updateAndNotify()"></td>
-                        <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_invalid" @change="updateAndNotify()"></td>
-                        <td><input type="datetime-local" class="form-input" x-model="currentRow.start_datetime" :class="{ 'changed': isStartDirty }" @change="updateAndNotify()"></td>
-                        <td><input type="datetime-local" class="form-input" x-model="currentRow.expiration_datetime" :class="{ 'changed': isExpirationDirty }" @change="updateAndNotify()"></td>
+                        <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_per_user" :class="{ 'changed': isLimitUserDirty }" @input.debounce.300ms="updateAndNotify()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td class="cell-center"><input type="number" class="form-input" min="1" x-model.number="currentRow.usage_limit_total" :class="{ 'changed': isLimitTotalDirty }" @input.debounce.300ms="updateAndNotify()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td class="cell-center"><input type="checkbox" class="form-checkbox" x-model="currentRow.is_invalid" @change="updateAndNotify()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="datetime-local" class="form-input" x-model="currentRow.start_datetime" :class="{ 'changed': isStartDirty }" @change="updateAndNotify()"{% if not can_edit %} disabled{% endif %}></td>
+                        <td><input type="datetime-local" class="form-input" x-model="currentRow.expiration_datetime" :class="{ 'changed': isExpirationDirty }" @change="updateAndNotify()"{% if not can_edit %} disabled{% endif %}></td>
                     </tr>
                 </template>
             </tbody>
