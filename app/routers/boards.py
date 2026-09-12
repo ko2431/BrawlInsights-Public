@@ -1865,10 +1865,10 @@ async def delete_post(
         raise HTTPException(status_code=404, detail="Post not found")
         
     # 権限チェック ---
-    is_admin = user.is_admin if user else False
+    is_staff_delete = bool(user and user.has_perm("board.delete_posts"))
     is_host = (user and post.host_id == user.id) or (post.host_ip == get_ip(request))
 
-    if not is_admin and not is_host:
+    if not is_staff_delete and not is_host:
         raise HTTPException(status_code=403, detail="You do not have permission to delete this post")
         
     try:
@@ -2380,7 +2380,7 @@ async def delete_message(
         raise HTTPException(status_code=400, detail="Token gift comments must be deleted via the gift comment endpoint")
 
     # 権限チェック ---
-    if not user.is_admin and message.user_id != user.id:
+    if not user.has_perm("chat.delete_messages") and message.user_id != user.id:
         raise HTTPException(status_code=403, detail="You do not have permission to delete this message")
         
     try:
@@ -2525,7 +2525,7 @@ async def delete_reaction(
     reaction = await Reaction.from_db(row, db)
 
     # 権限チェック ---
-    if not user.is_admin and reaction.user_id != user.id:
+    if not user.has_perm("chat.delete_messages") and reaction.user_id != user.id:
         raise HTTPException(status_code=403, detail="You do not have permission to delete this reaction")
 
     try:

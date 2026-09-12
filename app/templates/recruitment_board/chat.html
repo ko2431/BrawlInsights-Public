@@ -309,7 +309,7 @@
                         {% if not (current_user and message.user_id == current_user.id) %}
                             {% set display_name = message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') %}
                             {% set host_badge %}{% if message.user_id and message.user_id == post.host_id %}<span class="message-bubble__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% endset %}
-                            {% set admin_badge %}{% if message.user_is_admin %}<span class="message-bubble__admin-badge">{% if lang == "ja" %}Brawl Insights 管理者{% else %}Brawl Insights Admin{% endif %}</span>{% endif %}{% endset %}
+                            {% set admin_badge %}{% if message.user_is_admin %}<span class="message-bubble__admin-badge">{% if lang == "ja" %}Brawl Insights 管理者{% else %}Brawl Insights Admin{% endif %}</span>{% elif message.user_is_sub_admin %}<span class="message-bubble__sub-admin-badge">{% if lang == "ja" %}Brawl Insights 副管理者{% else %}Brawl Insights Moderator{% endif %}</span>{% endif %}{% endset %}
                             <span class="message-bubble__user-name">{{ display_name }}{{ host_badge }}{{ admin_badge }}</span>
                         {% endif %}
                         <div class="message-bubble__content">{%- if message.reply_to -%}
@@ -318,9 +318,9 @@
                             {%- elif message.reply_to.user_id and message.reply_to.user_id in blocked_ids.user_ids -%}
                                     <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id or '' }}" data-reply-blocked="1"><span class="message-reply-preview__deleted">{% if lang == "ja" %}ブロックしたユーザーのメッセージ{% else %}Message from a blocked user{% endif %}</span></div>
                             {%- elif message.reply_to.message_type == 'token_gift' -%}
-                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text message-reply-preview__text--gift">{% if lang == "ja" %}{{ "{:,}".format(message.reply_to.gift_amount or 0) }}トークンの進呈{% else %}Gift of {{ "{:,}".format(message.reply_to.gift_amount or 0) }} tokens{% endif %}</span></div></div></div>
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% elif message.reply_to.user_is_sub_admin %}<span class="message-reply-preview__sub-admin-badge">{% if lang == "ja" %}副管理者{% else %}Mod{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text message-reply-preview__text--gift">{% if lang == "ja" %}{{ "{:,}".format(message.reply_to.gift_amount or 0) }}トークンの進呈{% else %}Gift of {{ "{:,}".format(message.reply_to.gift_amount or 0) }} tokens{% endif %}</span></div></div></div>
                             {%- else -%}
-                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
+                                    <div class="message-reply-preview" data-reply-to-id="{{ message.reply_to.id }}"><div class="message-reply-preview__header"><img src="{{ message.reply_to.user_icon_path or url_for('static', path='/images/player_icon/0.png') }}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"><div class="message-reply-preview__meta"><span class="message-reply-preview__name">{{ message.reply_to.user_name or ('Guest' if lang == 'en' else 'ゲスト') }}{% if message.reply_to.user_id and message.reply_to.user_id == post.host_id %}<span class="message-reply-preview__host-badge">{% if lang == "ja" %}スレッド主{% else %}OP{% endif %}</span>{% endif %}{% if message.reply_to.user_is_admin %}<span class="message-reply-preview__admin-badge">{% if lang == "ja" %}管理者{% else %}Admin{% endif %}</span>{% elif message.reply_to.user_is_sub_admin %}<span class="message-reply-preview__sub-admin-badge">{% if lang == "ja" %}副管理者{% else %}Mod{% endif %}</span>{% endif %}</span><span class="message-reply-preview__text">{{ message.reply_to.message or '' }}</span></div></div></div>
                             {%- endif -%}
                             {%- endif -%}<div class="message-bubble__text">{{ message.message|censor }}</div></div>
                         {# リアクション表示エリア (JSで実装) #}
@@ -524,7 +524,7 @@
             const currentUserId = {{ current_user.id if current_user else 'null' }};
             const isPermittedToChat = {{ 'true' if is_permitted_to_chat else 'false' }};
             const isProhibitPosting = {{ 'true' if is_prohibit_posting else 'false' }};
-            const isAdmin = {{ 'true' if current_user and current_user.is_admin else 'false' }};
+            const canDeleteMessages = {{ 'true' if current_user and current_user.has_perm('chat.delete_messages') else 'false' }};
             const postHostId = {{ post.host_id if post.host_id else 'null' }};
             const lang = "{{ lang }}";
             const platform = "{{ platform }}";
@@ -1232,7 +1232,9 @@
                     : '';
                 const adminBadge = replyTo.user_is_admin
                     ? `<span class="message-reply-preview__admin-badge">${lang === 'ja' ? '管理者' : 'Admin'}</span>`
-                    : '';
+                    : (replyTo.user_is_sub_admin
+                        ? `<span class="message-reply-preview__sub-admin-badge">${lang === 'ja' ? '副管理者' : 'Mod'}</span>`
+                        : '');
                 const iconHtml = `<img src="${escapeHtml(replyTo.user_icon_path || defaultPlayerIconPath)}" alt="" class="message-reply-preview__icon" onerror="this.onerror=null;this.src='${defaultPlayerIconPath}';">`;
                 const isGiftReply = replyTo.message_type === 'token_gift' || replyTo.messageType === 'token_gift';
                 const previewText = isGiftReply
@@ -1478,7 +1480,9 @@
                         : '';
                     const adminBadgeHtml = message.user_is_admin
                         ? `<span class="message-bubble__admin-badge">${lang === 'ja' ? 'Brawl Insights 管理者' : 'Brawl Insights Admin'}</span>`
-                        : '';
+                        : (message.user_is_sub_admin
+                            ? `<span class="message-bubble__sub-admin-badge">${lang === 'ja' ? 'Brawl Insights 副管理者' : 'Brawl Insights Moderator'}</span>`
+                            : '');
                     userNameHtml = `<span class="message-bubble__user-name">${userName}${hostBadgeHtml}${adminBadgeHtml}</span>`;
                 }
 
@@ -1729,7 +1733,7 @@
                     copyButton.onclick = () => copyGiftComment(giftEvent);
                     messageMenuActions.appendChild(copyButton);
 
-                    if (isAdmin || isOwnGift) {
+                    if (canDeleteMessages || isOwnGift) {
                         const deleteButton = document.createElement('button');
                         deleteButton.className = 'chat-menu__action-btn';
                         deleteButton.innerHTML = `<span style="color: #c90808;">${lang === 'ja' ? 'メッセージを削除' : 'Delete Message'}</span>`;
@@ -2115,7 +2119,7 @@
                 copyButton.onclick = () => copyMessageText(messageId);
                 messageMenuActions.appendChild(copyButton);
 
-                if (isAdmin || isOwnMessage) {
+                if (canDeleteMessages || isOwnMessage) {
                     const deleteButton = document.createElement('button');
                     deleteButton.className = 'chat-menu__action-btn';
                     deleteButton.innerHTML = `<span style="color: #c90808;">${lang === 'ja' ? 'メッセージを削除' : 'Delete Message'}</span>`;

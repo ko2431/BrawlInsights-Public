@@ -1,6 +1,7 @@
 from fastapi import Request
 from app.core.logger import logger
 from app.core.config import settings
+from app.core.admin_permissions import is_admin_url_path, is_staff
 from app.services.ad_banner_service import get_random_ad_banner
 
 IOS_APP_STORE_URL = "https:// [この部分は公開用リポジトリでは非公開にされています]
@@ -21,6 +22,7 @@ def ip_processor(request: Request) -> dict:
         "client_ip": client_ip,
         "is_test_ip": is_test_ip,
         "use_admob_test_ads": use_admob_test_ads,
+        "is_admin_section": is_admin_url_path(request.url.path),
     }
 
 
@@ -34,6 +36,9 @@ def ad_banner_processor(request: Request) -> dict:
     platform = getattr(request.state, "platform", "web")
     # パスパラメータから lang を取得（/{lang}/ を含むルートのみ。ない場合は 'ja' をデフォルト）
     lang = request.path_params.get("lang", "ja")
+
+    if is_admin_url_path(request.url.path):
+        return {"ad_banner": None}
 
     # 広告削除ユーザー（管理者を除く）にはバナーを返さない
     if current_user and current_user.is_delete_ads and not current_user.is_admin:
@@ -86,7 +91,7 @@ def admin_notification_processor(request: Request) -> dict:
         "admin_notification_badge_text": "",
     }
     current_user = getattr(request.state, "current_user", None)
-    if not current_user or not getattr(current_user, "is_admin", False):
+    if not current_user or not is_staff(current_user):
         return empty
 
     context = getattr(request.state, "admin_notification_context", None)

@@ -115,10 +115,12 @@
             <span class="admin-filters__label-text">ユーザーID</span>
             <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('user_id')">
         </label>
+        {% if can_view_ip %}
         <label>
             <span class="admin-filters__label-text">IPアドレス</span>
             <input class="form-input admin-filters__input" x-model="draft.user_ip" maxlength="45">
         </label>
+        {% endif %}
         <label>
             <span class="admin-filters__label-text">ターゲット種別</span>
             <select class="form-input admin-filters__select" x-model="draft.target_type">
@@ -135,10 +137,12 @@
             <span class="admin-filters__label-text">ターゲットユーザーID</span>
             <input class="form-input admin-filters__input" x-model="draft.target_user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('target_user_id')">
         </label>
+        {% if can_view_ip %}
         <label>
             <span class="admin-filters__label-text">ターゲットIPアドレス</span>
             <input class="form-input admin-filters__input" x-model="draft.target_user_ip" maxlength="45">
         </label>
+        {% endif %}
         <label>
             <span class="admin-filters__label-text">投稿ID</span>
             <input class="form-input admin-filters__input" x-model="draft.post_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('post_id')">
@@ -240,8 +244,10 @@
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ report.user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.user_id }}</a>
-                        {% else %}
+                        {% elif can_view_ip %}
                             {{ report.user_ip }}
+                        {% else %}
+                            (なし)
                         {% endif %}
                     </td>
                     <td>
@@ -256,7 +262,7 @@
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ report.target_user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.target_user_id }}</a>
-                        {% elif report.target_user_ip %}
+                        {% elif can_view_ip and report.target_user_ip %}
                             {{ report.target_user_ip }}
                         {% endif %}
                     </td>

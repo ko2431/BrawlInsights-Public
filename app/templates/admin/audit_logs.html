@@ -1,0 +1,90 @@
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+<script>
+function auditLogViewer() {
+    const emptyFilters = { actorUserId: '', actionKey: '', text: '', createdAfter: '', createdBefore: '' };
+    return withAdminFilterCollapse({
+        items: [],
+        hasMore: false,
+        totalCount: null,
+        loading: false,
+        errorMessage: '',
+        draft: { ...emptyFilters },
+        applied: { ...emptyFilters },
+        filterDefaults: { ...emptyFilters },
+        init() {
+            this.load(true);
+        },
+        normalizeFilters(filters) {
+            return {
+                actorUserId: (filters.actorUserId || '').trim(),
+                actionKey: (filters.actionKey || '').trim(),
+                text: (filters.text || '').trim(),
+                createdAfter: (filters.createdAfter || '').trim(),
+                createdBefore: (filters.createdBefore || '').trim(),
+            };
+        },
+        get canSubmitFilters() {
+            return JSON.stringify(this.normalizeFilters(this.draft))
+                !== JSON.stringify(this.normalizeFilters(this.applied));
+        },
+        applyFilters() {
+            this.applied = { ...this.draft };
+            this.load(true);
+        },
+        queryParams(beforeId) {
+            const params = new URLSearchParams();
+            const filter = this.normalizeFilters(this.applied);
+            if (filter.actorUserId) params.set('actor_user_id', filter.actorUserId);
+            if (filter.actionKey) params.set('action_key', filter.actionKey);
+            if (filter.text) params.set('text', filter.text);
+            if (filter.createdAfter) params.set('created_after', filter.createdAfter);
+            if (filter.createdBefore) params.set('created_before', filter.createdBefore);
+            if (beforeId) params.set('before_id', beforeId);
+            return params.toString();
+        },
+        async load(reset) {
+            this.loading = true;
+            this.errorMessage = '';
+            try {
+                const beforeId = reset || this.items.length === 0 ? null : this.items[this.items.length - 1].id;
+                const res = await fetch(`{{ url_for('admin_audit_logs_api', lang=lang) }}?${this.queryParams(beforeId)}`);
+                const data = await res.json();
+                if (reset) this.items = data.items || [];
+                else this.items = this.items.concat(data.items || []);
+                this.hasMore = !!data.has_more;
+                if (reset) this.totalCount = data.total_count;
+            } catch (e) {
+                this.errorMessage = '監査ログの取得に失敗しました。';
+            } finally {
+                this.loading = false;
+            }
+        },
+        loadMore() { this.load(false); },
+        payloadEntries(payload) {
+            if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
+            return Object.entries(payload).flatMap(([key, value]) => {
+                if (value == null || value === '') return [];
+                if (Array.isArray(value) && value.length === 0) return [];
+                if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return [];
+                let text;
+                if (Array.isArray(value)) text = value.join(', ');
+                else if (typeof value === 'object') text = JSON.stringify(value);
+                else text = String(value);
+                return [{ key, text }];
+            });
+        },
+        formatTime(value) {
+            if (!value) return '-';
+            const dt = new Date(value);
+            if (Number.isNaN(dt.getTime())) return value;
+            return dt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+        },
+    }, 'audit_logs');
+}
+</script>
+{% endblock %}

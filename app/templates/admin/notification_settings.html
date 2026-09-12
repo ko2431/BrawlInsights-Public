@@ -15,7 +15,7 @@ function notificationSettingsPage() {
             this.saving = true;
             this.message = "";
             try {
-                const response = await fetch("{{ url_for('admin_update_notification_settings', lang=lang) }}", {
+                const response = await fetch("{{ url_for('admin_update_my_notification_settings' if is_personal_settings | default(false) else 'admin_update_notification_settings', lang=lang) }}", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "Accept": "application/json" },
                     body: JSON.stringify({ levels: this.levels }),

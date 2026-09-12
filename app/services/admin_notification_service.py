@@ -10,6 +10,7 @@ import asyncpg
 
 from app.core.cache import delete_cache, get_cache, get_redis, set_cache
 from app.core.logger import logger
+from app.core.admin_permissions import visible_notification_categories
 from app.db.db import get_db_connection_for_bg_task
 
 ADMIN_NOTIFICATION_PAGE_SIZE = 20
@@ -60,6 +61,8 @@ ADMIN_PATH_SLUG_TO_CATEGORY = {
     "pins": "pins",
     "regions": "regions",
     "secretquestions": "secretquestions",
+    "sub-admins": "sub_admins",
+    "audit-logs": "audit_logs",
     # [この部分は公開用リポジトリでは非公開にされています]
 }
 
@@ -139,6 +142,9 @@ EVENT_CATALOG: tuple[AdminNotificationEvent, ...] = (
     AdminNotificationEvent("region_updated", "regions", "地域情報変更", 10, "/admin/regions"),
     AdminNotificationEvent("secretquestion_created", "secretquestions", "秘密の質問追加", 10, "/admin/secretquestions"),
     AdminNotificationEvent("secretquestion_updated", "secretquestions", "秘密の質問変更", 10, "/admin/secretquestions"),
+    AdminNotificationEvent("sub_admin_granted", "sub_admins", "副管理者の追加", 20, "/admin/sub-admins"),
+    AdminNotificationEvent("sub_admin_revoked", "sub_admins", "副管理者の解除", 20, "/admin/sub-admins"),
+    AdminNotificationEvent("sub_admin_permissions_updated", "sub_admins", "副管理者の権限変更", 10, "/admin/sub-admins"),
     # [この部分は公開用リポジトリでは非公開にされています]
 )
 
@@ -176,6 +182,8 @@ CATEGORY_LABELS: dict[str, str] = {
     "regions": "地域情報管理",
     "secretquestions": "秘密の質問管理",
     # [この部分は公開用リポジトリでは非公開にされています]
+    "sub_admins": "副管理者管理",
+    "audit_logs": "監査ログ",
 }
 
 
@@ -414,6 +422,77 @@ async def save_event_levels(db: asyncpg.Connection, updates: dict[str, int]) -> 
     return await get_event_levels(db)
 
 
+async def get_user_event_level_overrides(db: asyncpg.Connection, user_id: int) -> dict[str, int]:
+    try:
+        rows = await db.fetch(
+            "SELECT event_key, level FROM admin_notification_user_settings WHERE user_id = $1",
+            user_id,
+        )
+    except asyncpg.PostgresError as e:
+        _log_internal(f"個人通知レベルの取得に失敗しました (user={user_id}): {e}", e)
+        return {}
+    levels: dict[str, int] = {}
+    for row in rows:
+        key = row["event_key"]
+        level = int(row["level"])
+        if key in EVENT_BY_KEY and level in ADMIN_NOTIFICATION_LEVELS:
+            levels[key] = level
+    return levels
+
+
+async def get_effective_display_levels(db: asyncpg.Connection, user_id: int) -> dict[str, int]:
+    """総合レベルが0なら必ず0。それ以外は個人設定があればそれを、なければ総合レベル。"""
+    global_levels = await get_event_levels(db)
+    personal = await get_user_event_level_overrides(db, user_id)
+    result: dict[str, int] = {}
+    for key, global_level in global_levels.items():
+        if global_level <= 0:
+            result[key] = 0
+        elif key in personal:
+            result[key] = personal[key]
+        else:
+            result[key] = global_level
+    return result
+
+
+async def save_user_event_levels(
+    db: asyncpg.Connection,
+    user_id: int,
+    updates: dict[str, int],
+) -> dict[str, int]:
+    global_levels = await get_event_levels(db)
+    rows: list[tuple[int, str, int]] = []
+    for key, raw_level in updates.items():
+        if key not in EVENT_BY_KEY:
+            continue
+        try:
+            level = int(raw_level)
+        except (TypeError, ValueError):
+            continue
+        if level not in ADMIN_NOTIFICATION_LEVELS:
+            continue
+        if global_levels.get(key, 0) <= 0:
+            level = 0
+        rows.append((user_id, key, level))
+    if rows:
+        try:
+            await db.executemany(
+                """
+                INSERT INTO admin_notification_user_settings (user_id, event_key, level, updated_at)
+                VALUES ($1, $2, $3, NOW())
+                ON CONFLICT (user_id, event_key) DO UPDATE SET
+                    level = EXCLUDED.level,
+                    updated_at = NOW()
+                """,
+                rows,
+            )
+        except asyncpg.PostgresError as e:
+            _log_internal(f"個人通知レベルの保存に失敗しました (user={user_id}): {e}", e)
+            raise
+        await delete_cache(_badge_cache_key(user_id, await _read_badge_epoch()))
+    return await get_effective_display_levels(db, user_id)
+
+
 async def emit_admin_notification(
     db: asyncpg.Connection | None,
     event_key: str,
@@ -556,33 +635,53 @@ async def apply_admin_page_visit(db: asyncpg.Connection, admin_user_id: int, pat
         await mark_category_visited(db, admin_user_id, visit)
 
 
-async def count_unread_admin_notifications(db: asyncpg.Connection, admin_user_id: int) -> int:
+async def count_unread_admin_notifications(db: asyncpg.Connection, admin_user: Any) -> int:
+    user_id = getattr(admin_user, "id", None)
+    if not user_id:
+        return 0
+    levels = await get_effective_display_levels(db, user_id)
+    allowed_categories = visible_notification_categories(admin_user)
+    event_keys: list[str] = []
+    event_levels: list[int] = []
+    for key, level in levels.items():
+        event = EVENT_BY_KEY.get(key)
+        if not event or level < 20 or event.category not in allowed_categories:
+            continue
+        event_keys.append(key)
+        event_levels.append(level)
+    if not event_keys:
+        return 0
     try:
         count = await db.fetchval(
             """
             SELECT COUNT(*)::int
             FROM admin_notifications n
+            JOIN unnest($2::text[], $3::int[]) AS el(event_key, level)
+              ON el.event_key = n.event_key
             LEFT JOIN admin_notification_category_reads r
               ON r.admin_user_id = $1 AND r.category = n.category
             JOIN users u ON u.id = $1
-            WHERE n.level >= 20
+            WHERE el.level >= 20
               AND (
-                (n.level = 20 AND n.created_at > COALESCE(u.admin_notifications_dashboard_read_at, '-infinity'::timestamptz))
-                OR (n.level >= 30 AND n.created_at > COALESCE(r.visited_at, '-infinity'::timestamptz))
+                (el.level = 20 AND n.created_at > COALESCE(u.admin_notifications_dashboard_read_at, '-infinity'::timestamptz))
+                OR (el.level >= 30 AND n.created_at > COALESCE(r.visited_at, '-infinity'::timestamptz))
               )
             """,
-            admin_user_id,
+            user_id,
+            event_keys,
+            event_levels,
         )
         return int(count or 0)
     except asyncpg.PostgresError as e:
-        _log_internal(f"管理者通知の未読件数取得に失敗しました (user={admin_user_id}): {e}", e)
+        _log_internal(f"管理者通知の未読件数取得に失敗しました (user={user_id}): {e}", e)
         return 0
 
 
 async def get_admin_notification_badge_context(
     db: asyncpg.Connection,
-    user_id: int | None,
+    user: Any,
 ) -> dict[str, Any]:
+    user_id = getattr(user, "id", None) if user is not None else None
     if not user_id:
         return empty_admin_notification_badge_context()
 
@@ -591,7 +690,7 @@ async def get_admin_notification_badge_context(
     if isinstance(cached, int):
         count = cached
     else:
-        count = await count_unread_admin_notifications(db, user_id)
+        count = await count_unread_admin_notifications(db, user)
         await set_cache(cache_key, count, ttl=ADMIN_NOTIFICATION_BADGE_TTL)
 
     show_badge = count > 0
@@ -621,7 +720,7 @@ def _parse_filter_datetime(value: str | None) -> datetime.datetime | None:
 async def list_admin_notifications(
     db: asyncpg.Connection,
     *,
-    admin_user_id: int,
+    admin_user: Any,
     lang: str = "ja",
     level: str | None = None,
     category: str | None = None,
@@ -632,8 +731,26 @@ async def list_admin_notifications(
     limit: int = ADMIN_NOTIFICATION_PAGE_SIZE,
 ) -> dict[str, Any]:
     page_size = max(1, min(int(limit or ADMIN_NOTIFICATION_PAGE_SIZE), 50))
-    where = ["TRUE"]
-    params: list[Any] = []
+    user_id = getattr(admin_user, "id", None)
+    if not user_id:
+        return {"items": [], "has_more": False, "total_count": 0}
+
+    display_levels = await get_effective_display_levels(db, user_id)
+    allowed_categories = visible_notification_categories(admin_user)
+    event_keys: list[str] = []
+    event_levels: list[int] = []
+    for key, display_level in display_levels.items():
+        event = EVENT_BY_KEY.get(key)
+        if not event or display_level <= 0 or event.category not in allowed_categories:
+            continue
+        event_keys.append(key)
+        event_levels.append(display_level)
+    if not event_keys:
+        return {"items": [], "has_more": False, "total_count": 0}
+
+    where = ["n.event_key = el.event_key"]
+    params: list[Any] = [event_keys, event_levels]
+    join_sql = "JOIN unnest($1::text[], $2::int[]) AS el(event_key, level) ON el.event_key = n.event_key"
 
     if level and level != "all":
         try:
@@ -642,9 +759,9 @@ async def list_admin_notifications(
             level_int = None
         if level_int in {10, 20, 30}:
             params.append(level_int)
-            where.append(f"n.level = ${len(params)}")
+            where.append(f"el.level = ${len(params)}")
 
-    if category and category != "all" and category in CATEGORY_LABELS:
+    if category and category != "all" and category in allowed_categories:
         params.append(category)
         where.append(f"n.category = ${len(params)}")
 
@@ -667,7 +784,10 @@ async def list_admin_notifications(
 
     total_count: int | None = None
     if before_id is None:
-        count_sql = f"SELECT COUNT(*)::int FROM admin_notifications n WHERE {' AND '.join(where)}"
+        count_sql = (
+            f"SELECT COUNT(*)::int FROM admin_notifications n {join_sql} "
+            f"WHERE {' AND '.join(where)}"
+        )
         try:
             total_count = int(await db.fetchval(count_sql, *params) or 0)
         except asyncpg.PostgresError as e:
@@ -678,19 +798,20 @@ async def list_admin_notifications(
         params.append(int(before_id))
         where.append(f"n.id < ${len(params)}")
 
-    params.append(admin_user_id)
+    params.append(user_id)
     admin_id_placeholder = f"${len(params)}"
     params.append(page_size + 1)
     limit_placeholder = f"${len(params)}"
 
     sql = f"""
-        SELECT n.id, n.created_at, n.category, n.event_key, n.level, n.title, n.summary, n.target_path,
+        SELECT n.id, n.created_at, n.category, n.event_key, el.level, n.title, n.summary, n.target_path,
                CASE
-                 WHEN n.level >= 30 THEN n.created_at > COALESCE(r.visited_at, '-infinity'::timestamptz)
-                 WHEN n.level = 20 THEN n.created_at > COALESCE(u.admin_notifications_dashboard_read_at, '-infinity'::timestamptz)
+                 WHEN el.level >= 30 THEN n.created_at > COALESCE(r.visited_at, '-infinity'::timestamptz)
+                 WHEN el.level = 20 THEN n.created_at > COALESCE(u.admin_notifications_dashboard_read_at, '-infinity'::timestamptz)
                  ELSE FALSE
                END AS unread
         FROM admin_notifications n
+        {join_sql}
         JOIN users u ON u.id = {admin_id_placeholder}
         LEFT JOIN admin_notification_category_reads r
           ON r.admin_user_id = {admin_id_placeholder} AND r.category = n.category

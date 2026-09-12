@@ -318,7 +318,7 @@ async def delete_token_gift_comment(
         raise token_gift_error("not_found", lang)
     if row["is_comment_deleted"]:
         raise token_gift_error("not_found", lang)
-    if not actor.is_admin and row["giver_user_id"] != actor.id:
+    if not actor.has_perm("chat.delete_messages") and row["giver_user_id"] != actor.id:
         raise token_gift_error("forbidden", lang)
 
     try:

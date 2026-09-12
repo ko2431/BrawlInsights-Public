@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, invalid_filter, prohibit_posting_filter) %}
+{% macro render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, sub_admin_filter, invalid_filter, prohibit_posting_filter) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="ページネーション">
             <ul class="pagination-list">
@@ -27,6 +27,7 @@
                 {% if main_account_tag %}{% set _ = base_query_parts.append("main_account_tag=" + (main_account_tag | urlencode)) %}{% endif %}
                 {% if ads_filter != 'all' %}{% set _ = base_query_parts.append("ads_filter=" + ads_filter) %}{% endif %}
                 {% if admin_filter != 'all' %}{% set _ = base_query_parts.append("admin_filter=" + admin_filter) %}{% endif %}
+                {% if sub_admin_filter != 'all' %}{% set _ = base_query_parts.append("sub_admin_filter=" + sub_admin_filter) %}{% endif %}
                 {% if invalid_filter != 'all' %}{% set _ = base_query_parts.append("invalid_filter=" + invalid_filter) %}{% endif %}
                 {% if prohibit_posting_filter != 'all' %}{% set _ = base_query_parts.append("prohibit_posting_filter=" + prohibit_posting_filter) %}{% endif %}
                 {% if current_sort != 'id_asc' %}{% set _ = base_query_parts.append("sort=" + current_sort) %}{% endif %}
@@ -135,6 +136,14 @@
             </select>
         </label>
         <label>
+            <span class="admin-filters__label-text">副管理者</span>
+            <select class="form-input admin-filters__select" x-model="draft.sub_admin_filter">
+                <option value="all">絞り込まない</option>
+                <option value="sub_admin">副管理者</option>
+                <option value="non_sub_admin">非副管理者</option>
+            </select>
+        </label>
+        <label>
             <span class="admin-filters__label-text">無効</span>
             <select class="form-input admin-filters__select" x-model="draft.invalid_filter">
                 <option value="all">絞り込まない</option>
@@ -157,7 +166,7 @@
         表示件数: <b>{{ '{:,}'.format(pagination.total_items) }}</b> 件（最大100件／ページ）
     </p>
 
-    {{ render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, invalid_filter, prohibit_posting_filter) }}
+    {{ render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, sub_admin_filter, invalid_filter, prohibit_posting_filter) }}
 
     <div class="save-changes-block">
         <p>変更を保存するには、<b>保存</b>ボタンを押してください。</p>
@@ -192,7 +201,10 @@
                     <th class="col-list">クラブ閲覧履歴</th>
                     <th @click="sortBy('viewed_clubs_limit')" class="col-limit sortable-header"><span>上限</span><span x-show="sortColumn === 'viewed_clubs_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('is_delete_ads')" class="col-checkbox sortable-header"><span>広告非表示</span><span x-show="sortColumn === 'is_delete_ads'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    {% if can_edit_admin_flag %}
                     <th @click="sortBy('is_admin')" class="col-checkbox sortable-header"><span>管理者</span><span x-show="sortColumn === 'is_admin'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
+                    {% endif %}
+                    <th class="col-checkbox">副管理者</th>
                     <th @click="sortBy('is_invalid')" class="col-checkbox sortable-header"><span>無効</span><span x-show="sortColumn === 'is_invalid'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('is_prohibit_posting')" class="col-checkbox sortable-header"><span>投稿禁止</span><span x-show="sortColumn === 'is_prohibit_posting'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th class="col-json">カスタム設定</th>
@@ -201,7 +213,9 @@
                     <th class="col-date">トークン最終受取日</th>
                     <th class="col-numeric">チケット受け取り回数</th>
                     <th class="col-date">チケット最終受取日</th>
+                    {% if can_view_secret %}
                     <th class="col-list">秘密の質問</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -230,61 +244,68 @@
                         {% endif %}
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('tokens')}" x-model.number="tokens" step="1">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('tokens')}" x-model.number="tokens" step="1" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('ad_skip_tickets')}" x-model.number="ad_skip_tickets" step="1">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('ad_skip_tickets')}" x-model.number="ad_skip_tickets" step="1" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('auto_track_elixirs')}" x-model.number="auto_track_elixirs" step="1">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('auto_track_elixirs')}" x-model.number="auto_track_elixirs" step="1" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-list">
                         <div class="col-list-content" x-html="getJoinedTagsHtml('saved_accounts')"></div>
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('saved_accounts_limit')}" x-model.number="saved_accounts_limit" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('saved_accounts_limit')}" x-model.number="saved_accounts_limit" min="0" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-list">
                          <div class="col-list-content" x-html="getJoinedTagsHtml('viewed_accounts')"></div>
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('viewed_accounts_limit')}" x-model.number="viewed_accounts_limit" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('viewed_accounts_limit')}" x-model.number="viewed_accounts_limit" min="0" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-list">
                         <div class="col-list-content" x-html="getJoinedTagsHtml('saved_clubs', 'club')"></div>
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('saved_clubs_limit')}" x-model.number="saved_clubs_limit" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('saved_clubs_limit')}" x-model.number="saved_clubs_limit" min="0" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-list">
                         <div class="col-list-content" x-html="getJoinedTagsHtml('viewed_clubs', 'club')"></div>
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('viewed_clubs_limit')}" x-model.number="viewed_clubs_limit" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('viewed_clubs_limit')}" x-model.number="viewed_clubs_limit" min="0" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="form-checkbox-cell">
-                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_delete_ads')}" x-model="is_delete_ads">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_delete_ads')}" x-model="is_delete_ads" :disabled="!canEditAds || isProtectedStaff()">
                     </td>
+                    {% if can_edit_admin_flag %}
                     <td class="form-checkbox-cell">
                         <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_admin')}" x-model="is_admin" :disabled="id === {{ current_user.id }}">
                     </td>
+                    {% endif %}
                     <td class="form-checkbox-cell">
-                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_invalid')}" x-model="is_invalid" :disabled="is_admin">
+                        <input type="checkbox" class="form-checkbox" x-model="is_sub_admin" disabled>
                     </td>
                     <td class="form-checkbox-cell">
-                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_prohibit_posting')}" x-model="is_prohibit_posting">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_invalid')}" x-model="is_invalid" :disabled="is_admin || id === {{ current_user.id }} || !canEditInvalid || isProtectedStaff()">
+                    </td>
+                    <td class="form-checkbox-cell">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isFieldDirty('is_prohibit_posting')}" x-model="is_prohibit_posting" :disabled="!canEditProhibit || isProtectedStaff()">
                     </td>
                     <td class="col-json">
-                        <textarea class="form-input is-editable" :class="{'changed-field': isFieldDirty('custom_settings_str'), 'invalid': !isCustomSettingsValid}" x-model="custom_settings_str" @input="validateCustomSettings()"></textarea>
+                        <textarea class="form-input is-editable" :class="{'changed-field': isFieldDirty('custom_settings_str'), 'invalid': !isCustomSettingsValid}" x-model="custom_settings_str" @input="validateCustomSettings()" :disabled="!canEditCustom || isProtectedStaff()"></textarea>
                     </td>
                     <td class="col-limit">
-                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('token_limit')}" x-model.number="token_limit" min="0">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('token_limit')}" x-model.number="token_limit" min="0" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-numeric" x-text="token_claim_count"></td>
                     <td class="col-date" x-text="last_claim_date ? last_claim_date.substring(0, 10) : ''"></td>
                     <td class="col-numeric" x-text="ticket_claim_count"></td>
                     <td class="col-date" x-text="last_ticket_claim_date ? last_ticket_claim_date.substring(0, 10) : ''"></td>
+                    {% if can_view_secret %}
                     <td class="col-list"><div class="col-list-content" x-text="formatSecretQuestions(secret_questions)"></div></td>
+                    {% endif %}
                 </tr>
                 {% else %}
                 <tr>
@@ -295,7 +316,7 @@
         </table>
     </div>
 
-    {{ render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, invalid_filter, prohibit_posting_filter) }}
+    {{ render_pagination(pagination, current_sort, user_id, user_name, lang_filter, min_pv, min_tokens, min_tickets, main_account_name, main_account_tag, ads_filter, admin_filter, sub_admin_filter, invalid_filter, prohibit_posting_filter) }}
 
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -314,6 +335,13 @@
     <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
     <script>
         const isWebPlatform = {{ 'true' if platform == 'web' else 'false' }};
+        const canEditStaff = {{ 'true' if can_edit_staff else 'false' }};
+        const canEditAdminFlag = {{ 'true' if can_edit_admin_flag else 'false' }};
+        const canEditInvalid = {{ 'true' if can_edit_invalid else 'false' }};
+        const canEditProhibit = {{ 'true' if can_edit_prohibit else 'false' }};
+        const canEditAds = {{ 'true' if can_edit_ads else 'false' }};
+        const canEditEconomy = {{ 'true' if can_edit_economy else 'false' }};
+        const canEditCustom = {{ 'true' if can_edit_custom else 'false' }};
 
         document.addEventListener('alpine:init', () => {
             Alpine.data('userAdmin', () => withAdminFilterCollapse({
@@ -333,6 +361,7 @@
                     main_account_tag: '',
                     ads_filter: 'all',
                     admin_filter: 'all',
+                    sub_admin_filter: 'all',
                     invalid_filter: 'all',
                     prohibit_posting_filter: 'all',
                 },
@@ -347,6 +376,7 @@
                     main_account_tag: '',
                     ads_filter: 'all',
                     admin_filter: 'all',
+                    sub_admin_filter: 'all',
                     invalid_filter: 'all',
                     prohibit_posting_filter: 'all',
                 },
@@ -389,6 +419,7 @@
                         main_account_tag: (filters.main_account_tag || '').trim(),
                         ads_filter: filters.ads_filter || 'all',
                         admin_filter: filters.admin_filter || 'all',
+                        sub_admin_filter: filters.sub_admin_filter || 'all',
                         invalid_filter: filters.invalid_filter || 'all',
                         prohibit_posting_filter: filters.prohibit_posting_filter || 'all',
                     };
@@ -492,10 +523,20 @@
                 id: null, name: '', lang: '', registration_datetime: '', last_viewd_datetime: '', main_account: '',
                 saved_accounts: [], saved_accounts_limit: 0, viewed_accounts: [], viewed_accounts_limit: 0,
                 saved_clubs: [], saved_clubs_limit: 0, viewed_clubs: [], viewed_clubs_limit: 0,
-                is_delete_ads: false, is_admin: false, is_invalid: false, is_prohibit_posting: false,
+                is_delete_ads: false, is_admin: false, is_sub_admin: false, is_invalid: false, is_prohibit_posting: false,
                 custom_settings_str: '{}', pv_count: 0, tokens: 0, ad_skip_tickets: 0, auto_track_elixirs: 0, token_limit: null, token_claim_count: 0,
                 last_claim_date: '', ticket_claim_count: 0, last_ticket_claim_date: '', secret_questions: {},
                 isCustomSettingsValid: true,
+                canEditEconomy,
+                canEditAds,
+                canEditAdminFlag,
+                canEditInvalid,
+                canEditProhibit,
+                canEditCustom,
+
+                isProtectedStaff() {
+                    return !canEditStaff && (this.is_admin || this.is_sub_admin);
+                },
 
                 initData(initialData) {
                     this.initial = JSON.parse(JSON.stringify(initialData));

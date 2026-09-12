@@ -9,6 +9,7 @@
         document.addEventListener('alpine:init', () => {
             Alpine.data('workerTaskAdmin', () => withAdminFilterCollapse({
                 tasks: {{ task_summaries | tojson }},
+                canRunWorker: {{ 'true' if can_run_worker else 'false' }},
                 runMessage: '',
                 runSuccess: true,
                 runningKey: null,

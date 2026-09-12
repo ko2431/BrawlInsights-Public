@@ -171,7 +171,7 @@
             {# 1. カテゴリー選択 #}
             <div class="post-modal-section">
                 <p class="post-modal-section-title">1. {% if lang == "ja" %}カテゴリー{% else %}Category{% endif %}</p>
-                <div class="general-board-category-grid{% if current_user.is_admin %} general-board-category-grid--admin{% endif %}">
+                <div class="general-board-category-grid{% if current_user.has_perm('board.post_brawl_info') %} general-board-category-grid--admin{% endif %}">
                     <div class="general-board-category-item" data-category="chat" style="--board-c1: #d4e6ff; --board-c2: #d4f0ff;">
                         <img src="{{ url_for('static', path='/images/ui/family_friendly.png') }}" alt="雑談" class="general-icon--chat">
                         <span>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</span>
@@ -184,7 +184,7 @@
                         <img src="{{ url_for('static', path='/images/ui/gameroom.png') }}" alt="{% if lang == 'ja' %}オフトピック{% else %}Off Topic{% endif %}" class="general-icon--offtopic">
                         <span>{% if lang == "ja" %}オフトピック{% else %}Off Topic{% endif %}</span>
                     </div>
-                    {% if current_user.is_admin %}
+                    {% if current_user.has_perm('board.post_brawl_info') %}
                     <div class="general-board-category-item" data-category="brawl_info" style="--board-c1: #d8f7cb; --board-c2: #c5f2b1;">
                         <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="ブロスタ情報" class="general-icon--brawl-info">
                         <span>{% if lang == "ja" %}情報{% else %}Info{% endif %}</span>

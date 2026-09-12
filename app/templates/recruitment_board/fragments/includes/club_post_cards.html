@@ -170,7 +170,7 @@
                             </div>
                         </a>
                         {% endif %}
-                        {% if current_user and (current_user.id == post.data.host_id or current_user.is_admin) or ip == post.data.host_ip %}
+                        {% if current_user and (current_user.id == post.data.host_id or current_user.has_perm('board.delete_posts')) or ip == post.data.host_ip %}
                             <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
                                 {% if lang == "ja" %}削除{% else %}Delete{% endif %}
                             </div>

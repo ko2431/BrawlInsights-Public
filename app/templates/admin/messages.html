@@ -109,10 +109,12 @@
             <span class="admin-filters__label-text">ユーザーID</span>
             <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeUserId()">
         </label>
+        {% if can_view_ip %}
         <label>
             <span class="admin-filters__label-text">IPアドレス</span>
             <input class="form-input admin-filters__input" x-model="draft.user_ip" maxlength="45">
         </label>
+        {% endif %}
         <label>
             <span class="admin-filters__label-text">スレッドID</span>
             <input class="form-input admin-filters__input" x-model="draft.thread_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeThreadId()">
@@ -189,7 +191,7 @@
                     <th>日時 (JST)</th>
                     <th>ユーザー</th>
                     <th>ユーザーID</th>
-                    <th>IPアドレス</th>
+                    {% if can_view_ip %}<th>IPアドレス</th>{% endif %}
                     <th>スレッドID</th>
                     <th>リプライ先ID</th>
                     <th>メッセージ</th>
@@ -211,7 +213,7 @@
                             (なし)
                         {% endif %}
                     </td>
-                    <td>{{ message.user_ip }}</td>
+                    {% if can_view_ip %}<td>{{ message.user_ip }}</td>{% endif %}
                     <td>
                         <a href="{{ url_for('chat_thread', lang=lang, thread_id=message.thread_id) }}"
                            class="admin-thread-link"
@@ -230,7 +232,7 @@
                         <div class="col-message-content">{{ message.message }}</div>
                     </td>
                     <td class="form-checkbox-cell">
-                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_deleted">
+                        <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_deleted"{% if not can_edit_deleted %} disabled{% endif %}>
                     </td>
                 </tr>
                 {% else %}
@@ -484,7 +486,7 @@
                 },
 
                 isDirty() {
-                    return this.initial.is_deleted !== this.is_deleted;
+                    return {{ 'true' if can_edit_deleted else 'false' }} && this.initial.is_deleted !== this.is_deleted;
                 },
 
                 getCurrentData() {

@@ -171,10 +171,12 @@
             <span class="admin-filters__label-text">ユーザーID</span>
             <input class="form-input admin-filters__input" x-model="draft.user_id" inputmode="numeric" pattern="[0-9]*" maxlength="20" @input="sanitizeNumericField('user_id')">
         </label>
+        {% if can_view_ip %}
         <label>
             <span class="admin-filters__label-text">IPアドレス</span>
             <input class="form-input admin-filters__input" x-model="draft.host_ip" maxlength="45">
         </label>
+        {% endif %}
         <label>
             <span class="admin-filters__label-text">プレイヤー/クラブ名</span>
             <input class="form-input admin-filters__input" x-model="draft.entity_name" maxlength="100">
@@ -247,7 +249,7 @@
                     <th>カテゴリー</th>
                     <th>ユーザー</th>
                     <th>ユーザーID</th>
-                    <th>IPアドレス</th>
+                    {% if can_view_ip %}<th>IPアドレス</th>{% endif %}
                     <th>地域</th>
                     <th>プレイヤー/クラブ名</th>
                     <th>プレイヤー/クラブタグ</th>
@@ -279,7 +281,7 @@
                             (なし)
                         {% endif %}
                     </td>
-                    <td>{{ post.host_ip }}</td>
+                    {% if can_view_ip %}<td>{{ post.host_ip }}</td>{% endif %}
                     <td>{{ admin_badge(post.region, {"JP": "red", "EN": "blue"}.get(post.region, "gray")) }}</td>
                     <td>{{ post.entity_name }}</td>
                     <td>

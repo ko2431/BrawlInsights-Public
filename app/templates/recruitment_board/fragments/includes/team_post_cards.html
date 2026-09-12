@@ -262,7 +262,7 @@
                         {% endif %}
                         {% set is_host = (current_user and current_user.id == post.data.host_id) or (ip == post.data.host_ip) %}
                         {% set is_effectively_closed = post.data.is_effectively_closed %}
-                        {% if current_user and current_user.is_admin and not is_host %}
+                        {% if current_user and current_user.has_perm('board.delete_posts') and not is_host %}
                             <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
                                 {% if lang == "ja" %}削除{% else %}Delete{% endif %}
                             </div>
@@ -297,7 +297,7 @@
                         </div>
                         {% elif post.data.is_later_recruitment %}
                             {% set has_conditions = post.data.required_highest_trophies or post.data.required_ranked_highest_rank or post.data.required_solo_pl_rank or post.data.required_prestige or post.data.required_current_trophies or post.data.required_ranked_current_rank or post.data.required_ranked_highest_score or post.data.required_ranked_current_score or post.data.required_max_power_brawlers %}
-                            {% if post.is_permitted_to_chat or is_host or (current_user and current_user.is_admin) %}
+                            {% if post.is_permitted_to_chat or is_host or (current_user and current_user.has_perm('chat.delete_messages')) %}
                             <a href="{{ url_for('chat_thread', lang=lang, thread_id=id) }}" style="display: flex; flex: 1;">
                                 <div class="button button--primary post-card__link-button">
                                     {% if lang == "ja" %}チャットに参加{% else %}Join Chat{% endif %}

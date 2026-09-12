@@ -1121,3 +1121,283 @@ a.admin-notification-card--unread:hover {
 .dark .worker-task-message--ng {
     color: #fca5a5;
 }
+
+.sub-admin-add {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    align-items: center;
+    margin: 12px 0;
+    padding: 10px 12px;
+    background-color: #f9f9f9;
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+@media (max-width: 520px) {
+    .sub-admin-add {
+        flex-wrap: wrap;
+    }
+}
+.dark .sub-admin-add {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+.sub-admin-add .form-input {
+    min-width: 0;
+    flex: 1;
+    height: 35px;
+    min-height: 35px;
+    margin: 0;
+}
+.sub-admin-compact-btn {
+    height: 35px;
+    min-height: 35px;
+    padding: 4px 12px;
+    border-radius: 9px;
+    font-size: 15px;
+    line-height: 1.2;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+.sub-admin-compact-btn.button--primary:disabled,
+.sub-admin-compact-btn.button--primary:disabled:hover {
+    background-color: #333;
+    border-color: #333;
+    color: #fff;
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.dark .sub-admin-compact-btn.button--primary:disabled,
+.dark .sub-admin-compact-btn.button--primary:disabled:hover {
+    background-color: #fff;
+    border-color: #ccc;
+    color: #333;
+    opacity: 0.55;
+}
+.sub-admin-add + .form-field-status {
+    margin: 0 0 14px;
+}
+.sub-admin-layout {
+    display: grid;
+    grid-template-columns: minmax(180px, 260px) 1fr;
+    gap: 14px;
+    align-items: start;
+}
+@media (max-width: 800px) {
+    .sub-admin-layout {
+        grid-template-columns: 1fr;
+    }
+}
+.sub-admin-panel {
+    min-width: 0;
+    padding: 12px 12px 14px;
+    background-color: #f9f9f9;
+    border-radius: 14px;
+    border: 1px solid #eee;
+}
+.dark .sub-admin-panel {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+.sub-admin-panel__title {
+    margin: 0 0 10px;
+    font-size: 17px;
+}
+.sub-admin-panel__empty {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-555);
+    line-height: 1.5;
+}
+.sub-admin-list__item {
+    appearance: none;
+    -webkit-appearance: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0 0 6px;
+    padding: 8px 10px;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    background: var(--bg-fdfdfd);
+    color: var(--color-333);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.sub-admin-list__item:last-child {
+    margin-bottom: 0;
+}
+.dark .sub-admin-list__item {
+    border-color: #080808;
+    background: var(--bg-fdfdfd);
+}
+.sub-admin-list__item:hover {
+    background-color: var(--bg-f8f8f8);
+}
+.sub-admin-list__item.is-selected {
+    border-color: #e67e22;
+    background: #fff7f0;
+}
+.dark .sub-admin-list__item.is-selected {
+    border-color: #e67e22;
+    background: #3a2a1c;
+}
+.sub-admin-list__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 700;
+}
+.sub-admin-list__meta {
+    flex-shrink: 0;
+    color: var(--color-777);
+    font-size: 12px;
+}
+.sub-admin-editor__meta {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--color-555);
+}
+.sub-admin-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 14px;
+}
+.sub-admin-presets .form-input {
+    flex: 1;
+    min-width: min(100%, 180px);
+    height: 35px;
+    margin: 0;
+}
+.sub-admin-group {
+    margin-bottom: 10px;
+    padding: 10px 12px 12px;
+    background: var(--bg-fdfdfd);
+    border: 1px solid #eee;
+    border-radius: 14px;
+}
+.dark .sub-admin-group {
+    border-color: #080808;
+}
+.sub-admin-group-title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-333);
+}
+.sub-admin-perm-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px 12px;
+}
+.sub-admin-perm {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--color-333);
+}
+.sub-admin-perm input {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.sub-admin-editor__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+}
+.sub-admin-editor--empty {
+    min-height: 88px;
+}
+.audit-log-card--admin {
+    border-left-color: #e53935;
+}
+.audit-log-card--sub {
+    border-left-color: #e67e22;
+}
+.dark .audit-log-card--admin {
+    border-left-color: #ff6b6b;
+}
+.dark .audit-log-card--sub {
+    border-left-color: #e67e22;
+}
+.audit-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+.audit-log-card {
+    display: block;
+    padding: 12px 14px 12px 12px;
+    background-color: var(--bg-fdfdfd);
+    border: 1px solid #f0f0f0;
+    border-radius: 14px;
+    border-left: 4px solid #d4d4d4;
+}
+.dark .audit-log-card {
+    background-color: var(--bg-fdfdfd);
+    border-color: #080808;
+    border-left-color: #555;
+}
+.audit-log-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: var(--color-777);
+}
+.audit-log-card__summary {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--color-333);
+}
+.audit-log-card__target {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--color-555);
+}
+.audit-log-card__payload {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f6f6f6;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.dark .audit-log-card__payload {
+    background: #1f1f1f;
+}
+.audit-log-card__payload-row {
+    display: grid;
+    grid-template-columns: minmax(88px, max-content) 1fr;
+    gap: 8px 12px;
+    align-items: start;
+}
+.audit-log-card__payload-key {
+    color: var(--color-777);
+    font-weight: 600;
+}
+.audit-log-card__payload-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-333);
+}

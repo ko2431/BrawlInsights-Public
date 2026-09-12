@@ -5,7 +5,7 @@ import asyncpg
 import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status, Depends, HTTPException
-from fastapi.responses import RedirectResponse, Response, PlainTextResponse
+from fastapi.responses import RedirectResponse, Response, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -376,6 +376,38 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
                 return RedirectResponse(url=fallback_login_url, status_code=status.HTTP_303_SEE_OTHER)
             except Exception:
                 return RedirectResponse(url=f"/{lang}", status_code=status.HTTP_303_SEE_OTHER)
+
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
+        path = request.url.path
+        is_admin_path = "/admin" in path
+        wants_json = (
+            request.method != "GET"
+            or "/api/" in path
+            or "application/json" in (request.headers.get("accept") or "")
+        )
+        logger.info(f"HTTPクライアントエラー: Code: 403, Path: {path}, Detail: {exc.detail}")
+        if is_admin_path and wants_json:
+            return JSONResponse(
+                {"success": False, "detail": exc.detail, "message": exc.detail},
+                status_code=403,
+            )
+        if is_admin_path:
+            return templates.TemplateResponse(
+                "admin/forbidden.html",
+                {
+                    "request": request,
+                    "lang": lang,
+                    "current_page": "account",
+                    "error_detail": exc.detail,
+                    "is_error_page": True,
+                },
+                status_code=403,
+            )
+        return templates.TemplateResponse(
+            "error/server_error.html",
+            {"request": request, "lang": lang, "error_code": 403, "error_detail": exc.detail, "is_error_page": True},
+            status_code=403,
+        )
 
     elif exc.status_code == 404:
         logger.debug(f"404エラーが発生しました: Path: {request.url.path}, Detail: {exc.detail}")

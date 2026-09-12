@@ -1,0 +1,197 @@
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PRESETS = {{ presets | tojson }};
+const PARENTS = {{ permission_groups | tojson }};
+function parentMap() {
+    const map = {};
+    PARENTS.forEach(group => (group.entries || []).forEach(item => { map[item.key] = item.parent || null; }));
+    return map;
+}
+function sortedPerms(perms) {
+    return [...(perms || [])].sort();
+}
+function subAdminManager() {
+    const parents = parentMap();
+    const initialDeputies = {{ deputies | tojson }};
+    const savedPermissions = {};
+    initialDeputies.forEach(deputy => {
+        savedPermissions[deputy.id] = sortedPerms(deputy.permissions);
+    });
+    return {
+        deputies: initialDeputies,
+        selectedId: initialDeputies.length ? initialDeputies[0].id : null,
+        addQuery: '',
+        adding: false,
+        saving: false,
+        presetKey: '',
+        addStatus: { message: '', success: null },
+        saveStatus: { message: '', success: null },
+        savedPermissions,
+        get selected() {
+            return this.deputies.find(d => d.id === this.selectedId) || null;
+        },
+        get copySources() {
+            return this.deputies.filter(d => d.id !== this.selectedId);
+        },
+        get isDirty() {
+            if (!this.selected) return false;
+            const saved = this.savedPermissions[this.selected.id] || [];
+            return JSON.stringify(sortedPerms(this.selected.permissions)) !== JSON.stringify(saved);
+        },
+        presetPermissions() {
+            if (!this.presetKey) return null;
+            if (this.presetKey === 'empty') return [];
+            if (this.presetKey.startsWith('copy:')) {
+                const sourceId = Number(this.presetKey.slice(5));
+                const source = this.deputies.find(d => d.id === sourceId);
+                return source ? [...source.permissions] : [];
+            }
+            const preset = PRESETS.find(p => p.key === this.presetKey);
+            return preset ? [...preset.permissions] : [];
+        },
+        get canApplyPreset() {
+            if (!this.selected || !this.presetKey) return false;
+            const next = this.presetPermissions();
+            if (!next) return false;
+            return JSON.stringify(sortedPerms(next)) !== JSON.stringify(sortedPerms(this.selected.permissions));
+        },
+        snapshotSaved(deputy) {
+            if (!deputy) return;
+            this.savedPermissions[deputy.id] = sortedPerms(deputy.permissions);
+        },
+        revertCurrent() {
+            if (!this.selected) return;
+            const saved = this.savedPermissions[this.selected.id];
+            this.selected.permissions = saved ? [...saved] : [];
+        },
+        selectDeputy(id) {
+            if (id === this.selectedId) return;
+            if (this.isDirty && !window.confirm('保存していない権限の変更があります。破棄して移動しますか？')) {
+                return;
+            }
+            this.revertCurrent();
+            this.selectedId = id;
+            this.saveStatus = { message: '', success: null };
+            this.presetKey = '';
+        },
+        hasPerm(key) {
+            return !!(this.selected && this.selected.permissions.includes(key));
+        },
+        parentDisabled(parent) {
+            if (!parent) return false;
+            return !this.hasPerm(parent);
+        },
+        togglePerm(key, checked) {
+            if (!this.selected) return;
+            const set = new Set(this.selected.permissions);
+            if (checked) {
+                set.add(key);
+                let parent = parents[key];
+                while (parent) {
+                    set.add(parent);
+                    parent = parents[parent];
+                }
+            } else {
+                set.delete(key);
+                Object.keys(parents).forEach(child => {
+                    if (parents[child] === key) set.delete(child);
+                });
+            }
+            this.selected.permissions = Array.from(set);
+        },
+        applyPreset() {
+            if (!this.canApplyPreset) return;
+            const next = this.presetPermissions();
+            this.selected.permissions = next ? [...next] : [];
+        },
+        async addDeputy() {
+            const query = (this.addQuery || '').trim();
+            if (!query || this.adding) return;
+            const label = /^\d+$/.test(query) ? `ID ${query}` : query;
+            if (!window.confirm(`${label} を副管理者に追加しますか？`)) return;
+            this.adding = true;
+            this.addStatus = { message: '', success: null };
+            const payload = /^\d+$/.test(query) ? { user_id: Number(query) } : { user_name: query };
+            try {
+                const res = await fetch('{{ url_for("admin_add_sub_admin", lang=lang) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                this.addStatus = { message: data.message || '', success: !!data.success };
+                if (data.success) {
+                    const deputy = {
+                        id: data.user_id,
+                        name: data.name,
+                        last_viewd_datetime: '-',
+                        permissions: [],
+                    };
+                    this.deputies.push(deputy);
+                    this.snapshotSaved(deputy);
+                    this.selectedId = data.user_id;
+                    this.presetKey = '';
+                    this.addQuery = '';
+                    this.saveStatus = { message: '', success: null };
+                }
+            } catch (e) {
+                this.addStatus = { message: '追加に失敗しました。', success: false };
+            } finally {
+                this.adding = false;
+            }
+        },
+        async removeDeputy() {
+            if (!this.selected) return;
+            if (!window.confirm(`${this.selected.name} の副管理者指定を解除しますか？\n権限はすべて失われ、この操作はすぐに反映されます。`)) {
+                return;
+            }
+            const res = await fetch('{{ url_for("admin_remove_sub_admin", lang=lang) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: this.selected.id }),
+            });
+            const data = await res.json();
+            this.saveStatus = { message: data.message || '', success: !!data.success };
+            if (data.success) {
+                const removedId = this.selectedId;
+                delete this.savedPermissions[removedId];
+                this.deputies = this.deputies.filter(d => d.id !== removedId);
+                this.selectedId = this.deputies[0] ? this.deputies[0].id : null;
+                this.presetKey = '';
+            }
+        },
+        async savePermissions() {
+            if (!this.selected || this.saving || !this.isDirty) return;
+            if (!window.confirm(`${this.selected.name} の権限変更を保存しますか？`)) return;
+            this.saving = true;
+            this.saveStatus = { message: '', success: null };
+            try {
+                const res = await fetch('{{ url_for("admin_update_sub_admin_permissions", lang=lang) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: this.selected.id,
+                        permissions: this.selected.permissions,
+                    }),
+                });
+                const data = await res.json();
+                this.saveStatus = { message: data.message || '', success: !!data.success };
+                if (data.success) {
+                    if (data.permissions) this.selected.permissions = data.permissions;
+                    this.snapshotSaved(this.selected);
+                    this.presetKey = '';
+                }
+            } catch (e) {
+                this.saveStatus = { message: '保存に失敗しました。', success: false };
+            } finally {
+                this.saving = false;
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

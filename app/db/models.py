@@ -50,6 +50,8 @@ class User(Base):
     last_bonus_mission_date = Column(Date, nullable=True)
     is_delete_ads = Column(Boolean, nullable=False, server_default='False')
     is_admin = Column(Boolean, nullable=False, server_default='False')
+    is_sub_admin = Column(Boolean, nullable=False, server_default='False')
+    admin_permissions = Column(JSONB, nullable=False, server_default='[]')
     is_invalid = Column(Boolean, nullable=False, server_default='False')
     is_prohibit_posting = Column(Boolean, nullable=False, server_default='False')
     saved_accounts_limit = Column(Integer, nullable=False, server_default='0')
@@ -80,6 +82,13 @@ class User(Base):
     notification_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
     notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
     admin_notifications_dashboard_read_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            'NOT (is_admin AND is_sub_admin)',
+            name='ck_users_not_admin_and_sub_admin',
+        ),
+    )
 
     # リレーションシップ
     player = relationship("Player", back_populates="users", foreign_keys=[main_account])
@@ -1375,6 +1384,49 @@ class AdminNotification(Base):
             unique=True,
             postgresql_where=text('dedupe_key IS NOT NULL'),
         ),
+    )
+
+
+class AdminNotificationUserSetting(Base):
+    """
+    管理者・副管理者ごとの通知表示レベル。
+    総合レベルが0のイベントは記録されないため、ここでも0以外は保存しない。
+    """
+    __tablename__ = 'admin_notification_user_settings'
+
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    event_key = Column(Text, primary_key=True)
+    level = Column(SmallInteger, nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint('level IN (0, 10, 20, 30)', name='ck_admin_notification_user_settings_level'),
+        Index('idx_admin_notification_user_settings_user_id', 'user_id'),
+    )
+
+
+class AdminAuditLog(Base):
+    """
+    管理者・副管理者の変更操作の監査ログ。ページ閲覧は記録しない。
+    """
+    __tablename__ = 'admin_audit_logs'
+
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    actor_name = Column(Text, nullable=False, server_default='')
+    actor_is_admin = Column(Boolean, nullable=False, server_default='False')
+    action_key = Column(Text, nullable=False)
+    target_type = Column(Text, nullable=True)
+    target_id = Column(Text, nullable=True)
+    summary = Column(Text, nullable=False, server_default='')
+    payload = Column(JSONB, nullable=False, server_default='{}')
+    ip = Column(INET, nullable=True)
+
+    __table_args__ = (
+        Index('idx_admin_audit_logs_created_at', desc('created_at')),
+        Index('idx_admin_audit_logs_actor_created_at', 'actor_user_id', desc('created_at')),
+        Index('idx_admin_audit_logs_action_created_at', 'action_key', desc('created_at')),
     )
 
 
