@@ -25,8 +25,6 @@
 
     <img src="https://cdn.brawlify.com/maps/regular/{{ id }}.png" class="map_image">
 
-    {# TODO: マルチプレイTier表の正式リリース時に、この管理者限定の条件を外す #}
-    {% if current_user and current_user.is_admin %}
     <h2 class="page-title--sub" style="margin-top: 1.5em;">{% if lang == "ja" %}このマップのTier表{% else %}Tier List for This Map{% endif %}</h2>
 
     <form method="get" id="mapTierSortForm" class="filters__container">
@@ -57,7 +55,6 @@
     </div>
 
     {% include "stats/fragments/multiplayer_tier_body.html" %}
-    {% endif %} {# TODO #}
 
     {% include "components/ad_banner.html" %}
 </div>

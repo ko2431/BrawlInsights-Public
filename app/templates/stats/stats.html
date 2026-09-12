@@ -16,8 +16,8 @@
     <h1 class="page-title--main">{% if lang == "ja" %}統計データ{% else %}Statistics{% endif %}</h1>
 
     <p class="stats-page__description">
-        {% if lang == "ja" %}このタブでは、Tier表やランキングなどのブロスタのさまざまな統計データを閲覧できます。<br><b>【New】</b>新コンテンツ、<b>プレイヤー各種データ分布</b>が登場しました！
-        {% else %}On this tab, you can view a variety of Brawl Stars statistics, including Tier lists and leaderboards.<br><b>【New】</b>New content, <b>Player Stats Distribution</b>, is now available!
+        {% if lang == "ja" %}このタブでは、Tier表やランキングなどのブロスタのさまざまな統計データを閲覧できます。<br><b>【New】</b>新コンテンツ、8000万件以上の勝敗データをもとに毎日更新される<b>マルチプレイTier表</b>が登場しました！
+        {% else %}On this tab, you can view a variety of Brawl Stars statistics, including Tier lists and leaderboards.<br><b>【New】</b>New content, <b>Multiplayer Tier List</b>, is now available!
         {% endif %}
     </p>
     
@@ -56,14 +56,11 @@
                 <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
             </h2>
             <div class="stats-page__contents-box" x-show="open" x-transition>
-                {# TODO: マルチプレイTier表の正式リリース時に、この管理者限定の条件を外す #}
-                {% if current_user and current_user.is_admin %}
                 <a href="{{ url_for('multiplayer_tier_list', lang=lang) }}">
                     <div class="stats-page__content">
                         <img src="{{ url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}" class="stats-page__content-image">
                     </div>
                 </a>
-                {% endif %}
                 <a href="{{ url_for('skin_ranking', lang=lang) }}">
                     <div class="stats-page__content">
                         <img src="{{ url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png') }}" alt="スキン使用率ランキング" class="stats-page__content-image">
