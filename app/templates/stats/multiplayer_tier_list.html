@@ -119,6 +119,7 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/select_optgroup_filter.js') }}?v={{ app_version }}"></script>
     <script>
         (function () {
             const form = document.getElementById('multiplayerTierFilterForm');
@@ -129,21 +130,7 @@
             }
 
             function filterMapOptionsByMode() {
-                const selectedMode = modeSelect.value;
-                mapSelect.querySelectorAll('optgroup').forEach((group) => {
-                    const groupMode = group.dataset.modeId || '';
-                    const showGroup = !selectedMode || groupMode === selectedMode;
-                    group.hidden = !showGroup;
-                    group.disabled = !showGroup;
-                    group.querySelectorAll('option').forEach((option) => {
-                        option.hidden = !showGroup;
-                        option.disabled = !showGroup;
-                    });
-                });
-                const selectedOption = mapSelect.selectedOptions[0];
-                if (selectedOption && selectedOption.dataset.modeId && selectedMode && selectedOption.dataset.modeId !== selectedMode) {
-                    mapSelect.value = '';
-                }
+                filterMapOptgroupsByMode(modeSelect, mapSelect);
             }
 
             function omitEmptyFields() {
