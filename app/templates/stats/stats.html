@@ -60,7 +60,7 @@
                 {% if current_user and current_user.is_admin %}
                 <a href="{{ url_for('multiplayer_tier_list', lang=lang) }}">
                     <div class="stats-page__content">
-                        <img src="{{ url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}" class="stats-page__content-image">
+                        <img src="{{ url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}" class="stats-page__content-image">
                     </div>
                 </a>
                 {% endif %}
