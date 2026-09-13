@@ -1083,6 +1083,10 @@ body.has-top-banner .chat-featured-spacer {
     gap: 8px;
     color: inherit;
 }
+a.chat-menu__action-btn {
+    text-decoration: none;
+    box-sizing: border-box;
+}
 .chat-menu__action-btn:hover {
     background-color: #e0e0e0;
 }
