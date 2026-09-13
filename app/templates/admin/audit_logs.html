@@ -6,7 +6,15 @@
 <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
 <script>
 function auditLogViewer() {
-    const emptyFilters = { actorUserId: '', actionKey: '', text: '', createdAfter: '', createdBefore: '' };
+    const emptyFilters = {
+        actorType: 'sub',
+        actorUserId: '',
+        actorName: '',
+        actionKey: '',
+        text: '',
+        createdAfter: '',
+        createdBefore: '',
+    };
     return withAdminFilterCollapse({
         items: [],
         hasMore: false,
@@ -21,7 +29,9 @@ function auditLogViewer() {
         },
         normalizeFilters(filters) {
             return {
+                actorType: filters.actorType || 'all',
                 actorUserId: (filters.actorUserId || '').trim(),
+                actorName: (filters.actorName || '').trim(),
                 actionKey: (filters.actionKey || '').trim(),
                 text: (filters.text || '').trim(),
                 createdAfter: (filters.createdAfter || '').trim(),
@@ -36,10 +46,22 @@ function auditLogViewer() {
             this.applied = { ...this.draft };
             this.load(true);
         },
+        isAppliedActionKey(actionKey) {
+            return this.normalizeFilters(this.applied).actionKey === String(actionKey || '').trim();
+        },
+        filterByActionKey(actionKey) {
+            const next = String(actionKey || '').trim();
+            if (!next || this.isAppliedActionKey(next)) return;
+            this.applied = { ...this.applied, actionKey: next };
+            this.draft.actionKey = next;
+            this.load(true);
+        },
         queryParams(beforeId) {
             const params = new URLSearchParams();
             const filter = this.normalizeFilters(this.applied);
+            if (filter.actorType && filter.actorType !== 'all') params.set('actor_type', filter.actorType);
             if (filter.actorUserId) params.set('actor_user_id', filter.actorUserId);
+            if (filter.actorName) params.set('actor_name', filter.actorName);
             if (filter.actionKey) params.set('action_key', filter.actionKey);
             if (filter.text) params.set('text', filter.text);
             if (filter.createdAfter) params.set('created_after', filter.createdAfter);

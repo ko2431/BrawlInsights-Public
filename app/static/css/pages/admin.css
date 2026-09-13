@@ -1405,6 +1405,12 @@ a.admin-notification-card--unread:hover {
     font-size: 12px;
     color: var(--color-777);
 }
+.audit-log-card .admin-badge--cyan {
+    cursor: pointer;
+}
+.audit-log-card .admin-badge--cyan.is-current-filter {
+    cursor: default;
+}
 .audit-log-card__summary {
     font-size: 15px;
     font-weight: 700;
