@@ -28,6 +28,13 @@
 
 .announcement-item {
     margin-bottom: 30px;
+    scroll-margin-top: calc(12px + var(--banner-ad-height-top, 0px) + env(safe-area-inset-top));
+}
+
+@media (min-width: 840px) {
+    .announcement-item {
+        scroll-margin-top: calc(56px + var(--banner-ad-height-top, 0px) + env(safe-area-inset-top));
+    }
 }
 
 .announcements-page__text {

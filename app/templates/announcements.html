@@ -27,7 +27,10 @@
         <div class="filters__container" style="margin-bottom: 20px;">
             <div class="filter-form" style="width: 100%;">
                 <label for="categoryFilter" class="filter-form__label">{% if lang == "ja" %}カテゴリー:{% else %}Category:{% endif %}</label>
-                <select id="categoryFilter" class="filter-form__select" x-model="categoryFilter">
+                <select id="categoryFilter"
+                        class="filter-form__select"
+                        :value="categoryFilter"
+                        @change="categoryFilter = $event.target.value">
                     <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
                     <option value="1">{% if lang == "ja" %}緊急のお知らせ{% else %}Urgent Notice{% endif %}</option>
                     <option value="2">{% if lang == "ja" %}お知らせ{% else %}Notice{% endif %}</option>
@@ -43,7 +46,7 @@
             {# 各お知らせをdivで囲み、Alpine.jsのスコープを設定。id属性を追加。 #}
             <div x-data="{ open: true }" 
                  x-show="categoryFilter === 'all' || categoryFilter === '{{ announcement.category or 'none' }}'"
-                 id="{{ announcement.id }}" class="announcement-item">
+                 id="{{ announcement.id }}" class="announcement-item" data-category="{{ announcement.category or 'none' }}">
                 {# タイトル部分をクリック可能にし、アイコンを追加 #}
                 <h2 class="section-title announcements-page__section-title" @click="open = !open">
                     {{ announcement.ja_title|safe if lang == "ja" and announcement.ja_title else announcement.en_title|safe }}
@@ -76,26 +79,5 @@
 
 {% block scripts %}
     {{ super() }}
-    
-    <script>
-        // Alpine.jsのコンポーネントロジック
-        function announcements() {
-            return {
-                categoryFilter: 'all'
-            }
-        }
-
-        // ページ読み込み完了後にアンカーへのスクロールを実行
-        document.addEventListener('DOMContentLoaded', (event) => {
-            if (window.location.hash) {
-                const element = document.querySelector(window.location.hash);
-                if (element) {
-                    // 少し遅延させてからスクロールすると、より確実
-                    setTimeout(() => {
-                        element.scrollIntoView({ behavior: 'smooth' });
-                    }, 100);
-                }
-            }
-        });
-    </script>
+    <script src="{{ url_for('static', path='/js/pages/announcements.js') }}?v={{ app_version }}"></script>
 {% endblock %}
