@@ -73,7 +73,10 @@ from app.core.admin_permissions import (
     is_staff,
     presets_for_ui,
     resolve_admin_route_permission,
+    restricted_users_view_cutoff,
     user_has_perm,
+    user_has_restricted_users_scope,
+    user_is_within_restricted_users_window,
     visible_notification_categories,
 )
 from app.services.admin_audit_service import list_admin_audit_logs, record_admin_audit
