@@ -341,7 +341,7 @@
                             </div>
                             {% endif %}
                         {% elif post.is_permitted_to_click_link or is_host %}
-                        <a href="{{ post.data.link }}" style="display: flex; flex: 1;" {% if platform != 'web' %}target="_blank"{% endif %}>
+                        <a href="{{ post.data.link }}" style="display: flex; flex: 1;"> {# アプリ版で招待リンクを新規タブで開かせる場合は、Jinja2のif platform != 'web' で target="_blank" を設定 #}
                             <div class="button button--primary post-card__link-button">
                                 {% if is_host %}
                                     {% if lang == "ja" %}あなたの投稿です{% else %}Your Post{% endif %}

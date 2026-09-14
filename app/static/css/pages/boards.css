@@ -1482,6 +1482,12 @@ body.modal-open {
     max-width: 100%;
     box-sizing: border-box;
 }
+.notification--warning {
+    background-color: #fdecea;
+}
+.dark .notification--warning {
+    background-color: #3a1a18;
+}
 .notification-type {
     display: flex;
     min-width: 40px;

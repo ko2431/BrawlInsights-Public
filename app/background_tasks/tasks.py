@@ -66,6 +66,9 @@ from app.utils.utils import parse_utc_datetime
                 # [この部分は公開用リポジトリでは非公開にされています]
 
 
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
 async def check_new_maps_and_modes_task(db: asyncpg.Connection, ctx=None) -> None:
     """BSInfoからマップ/モードを同期する。旧キー maps_modes_and_rankings では続けてランキング追加も行う。"""
     logger.info("マップ/モード同期タスクを開始します")

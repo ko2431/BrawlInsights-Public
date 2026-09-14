@@ -204,6 +204,7 @@ a.admin-home-grid__item:hover {
 }
 .admin-thread-link {
     text-decoration: underline;
+    white-space: nowrap;
 }
 .admin-filters__select,
 .admin-filters__input {
@@ -388,6 +389,10 @@ th {
     white-space: pre-wrap; /* HTML内の改行を維持しつつ、必要に応じて折り返す */
     word-break: break-all; /* 長い単語やURLの途中でも強制的に改行する */
     padding-right: 5px; /* スクロールバーとテキストの間に余白を設ける */
+}
+.report-table .col-action {
+    white-space: nowrap;
+    width: 1%;
 }
 
 /* 管理画面共通バッジ（色トークン） */
@@ -1454,4 +1459,56 @@ a.admin-notification-card--unread:hover {
     min-width: 0;
     overflow-wrap: anywhere;
     color: var(--color-333);
+}
+.penalty-section-title {
+    margin: 16px 0 8px;
+    font-size: 18px;
+    font-weight: 700;
+}
+.penalty-apply-card {
+    margin: 8px 0 16px;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--bg-f8f8f8, #f8f8f8);
+}
+.dark .penalty-apply-card {
+    background: #1f1f1f;
+}
+.penalty-apply-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.penalty-user-summary,
+.penalty-check-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+    margin: 6px 0 10px;
+    font-size: 13px;
+}
+.penalty-warning-label {
+    display: block;
+    margin: 8px 0 10px;
+}
+.penalty-warning-text {
+    width: 100%;
+    min-height: 140px;
+    white-space: pre-wrap;
+}
+.penalty-apply-card .form-field-status.error {
+    color: #c0392b;
+    font-weight: 600;
+}
+.penalty-apply-card .form-field-status.success {
+    color: #1e7a3a;
+    font-weight: 600;
+}
+.dark .penalty-apply-card .form-field-status.error {
+    color: #ff8a80;
+}
+.dark .penalty-apply-card .form-field-status.success {
+    color: #81c784;
 }

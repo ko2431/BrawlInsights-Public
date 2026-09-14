@@ -49,6 +49,8 @@ from app.core.admin_permissions import (
     PERM_MINIGAME_PLAYS_EDIT,
     PERM_MODES_EDIT,
     PERM_PINS_EDIT,
+    PERM_PENALTIES_APPLY,
+    PERM_PENALTIES_VIEW,
     PERM_POSTS_EDIT_CLOSED,
     PERM_POSTS_EDIT_DELETED,
     PERM_POSTS_VIEW_IP,
@@ -75,6 +77,7 @@ from app.core.admin_permissions import (
     visible_notification_categories,
 )
 from app.services.admin_audit_service import list_admin_audit_logs, record_admin_audit
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services.minigame_service import (
     GAME_TYPES,
     create_campaign,

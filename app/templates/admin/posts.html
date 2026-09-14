@@ -280,8 +280,18 @@
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ post.host_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ post.host_id }}</a>
+                            {% if can_view_penalties %}
+                            <a href="{{ url_for('admin_penalties', lang=lang) }}?user_id={{ post.host_id }}&target_type=post&target_id={{ post.id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>ペナルティ</a>
+                            {% endif %}
                         {% else %}
                             (なし)
+                            {% if can_view_penalties %}
+                            <a href="{{ url_for('admin_penalties', lang=lang) }}?target_type=post&target_id={{ post.id }}"
+                               class="admin-thread-link"
+                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>ペナルティ</a>
+                            {% endif %}
                         {% endif %}
                     </td>
                     {% if can_view_ip %}<td>{{ post.host_ip }}</td>{% endif %}

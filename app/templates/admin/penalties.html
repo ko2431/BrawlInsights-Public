@@ -1,0 +1,298 @@
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+<script>
+function penaltyAdmin() {
+    const catalog = {{ catalog | tojson }};
+    const initialForm = {{ initial_form | tojson }};
+    const initialSummary = {{ user_summary | tojson }};
+    const emptyFilters = {
+        user_id: String(initialForm.user_id || ''),
+        actor_user_id: '',
+        reason: '',
+        action_kind: '',
+        created_after: '',
+        created_before: '',
+    };
+    return withAdminFilterCollapse({
+        catalog,
+        canApply: {{ 'true' if can_apply else 'false' }},
+        maxResultLevel: {{ max_result_level | tojson }},
+        isGuestTarget: {{ 'true' if initial_form.is_guest_target else 'false' }},
+        userSummary: initialSummary,
+        form: {
+            user_id: String(initialForm.user_id || ''),
+            target_type: initialForm.target_type || '',
+            target_id: String(initialForm.target_id || ''),
+            report_id: String(initialForm.report_id || ''),
+            target_content: initialForm.target_content || '',
+            reason: initialForm.reason || '',
+            other_text: '',
+            level_delta: 0,
+            token_delta: 0,
+            prohibit_posting: false,
+            prohibit_giveaway: false,
+            invalidate: false,
+            send_warning: true,
+            delete_target: false,
+            warning_lang: (initialSummary && initialSummary.lang === 'en') ? 'en' : 'ja',
+            part1_key: '',
+            warning_text: '',
+            confirm_duplicate: false,
+        },
+        applying: false,
+        applyError: '',
+        applySuccess: '',
+        items: [],
+        hasMore: false,
+        totalCount: null,
+        loading: false,
+        historyError: '',
+        page: 1,
+        draft: { ...emptyFilters },
+        applied: { ...emptyFilters },
+        filterDefaults: { user_id: '', actor_user_id: '', reason: '', action_kind: '', created_after: '', created_before: '' },
+        init() {
+            if (this.canApply) {
+                if (this.form.reason) this.onReasonChange();
+                else this.syncRestrictions();
+                this.rebuildWarning();
+            }
+            this.load(true);
+        },
+        currentLevel() {
+            return this.userSummary ? Number(this.userSummary.penalty_level || 0) : 0;
+        },
+        resultLevel() {
+            const next = this.currentLevel() + Number(this.form.level_delta || 0);
+            return Math.max(0, Math.min(80, Math.floor(next / 10) * 10));
+        },
+        tokensAfter() {
+            const tokens = this.userSummary ? Number(this.userSummary.tokens || 0) : 0;
+            return tokens - Math.max(0, Number(this.form.token_delta || 0));
+        },
+        canSelectDelta(delta) {
+            if (this.isGuestTarget && Number(delta) !== 0) return false;
+            if (Number(delta) === 0) return true;
+            return this.currentLevel() + Number(delta) <= this.maxResultLevel;
+        },
+        restrictionLocked() {
+            return false;
+        },
+        canEditProhibitBoxes() {
+            return this.maxResultLevel >= 50;
+        },
+        canEditInvalidateBox() {
+            return this.maxResultLevel >= 70;
+        },
+        part1Options() {
+            const reason = this.form.reason;
+            if (!reason) return [];
+            return (this.catalog.part1_options || []).filter((opt) => opt.reason === reason);
+        },
+        onReasonChange() {
+            const reason = this.catalog.reasons.find((item) => item.value === this.form.reason);
+            if (reason && this.canSelectDelta(reason.default_delta)) {
+                this.form.level_delta = reason.default_delta;
+            } else if (!this.canSelectDelta(this.form.level_delta)) {
+                this.form.level_delta = 0;
+            }
+            const opts = this.part1Options();
+            this.form.part1_key = opts.length ? opts[0].key : '';
+            this.onLevelDeltaChange();
+        },
+        onLevelDeltaChange() {
+            if (!this.canSelectDelta(this.form.level_delta)) this.form.level_delta = 0;
+            const key = String(this.form.level_delta);
+            if (this.catalog.token_delta_by_increment && key in this.catalog.token_delta_by_increment) {
+                this.form.token_delta = Math.abs(Number(this.catalog.token_delta_by_increment[key] || 0));
+            }
+            this.syncRestrictions();
+            this.rebuildWarning();
+        },
+        syncRestrictions() {
+            if (Number(this.form.level_delta || 0) === 0 && this.userSummary) {
+                this.form.prohibit_posting = Boolean(this.userSummary.is_prohibit_posting);
+                this.form.prohibit_giveaway = Boolean(this.userSummary.is_prohibit_giveaway);
+                this.form.invalidate = Boolean(this.userSummary.is_invalid);
+                return;
+            }
+            const level = this.resultLevel();
+            this.form.prohibit_posting = level >= 50;
+            this.form.prohibit_giveaway = level >= 50;
+            this.form.invalidate = level >= 70;
+        },
+        async loadUser() {
+            const userId = String(this.form.user_id || '').trim();
+            if (!userId) {
+                this.userSummary = null;
+                this.rebuildWarning();
+                return;
+            }
+            try {
+                const res = await fetch(`{{ url_for('admin_penalties_api', lang=lang) }}?user_id=${encodeURIComponent(userId)}&page=1`);
+                const data = await res.json();
+                this.userSummary = data.user_summary || null;
+                if (this.userSummary && this.userSummary.lang) {
+                    this.form.warning_lang = this.userSummary.lang === 'en' ? 'en' : 'ja';
+                }
+                this.syncRestrictions();
+                this.rebuildWarning();
+            } catch (e) {
+                this.userSummary = null;
+            }
+        },
+        async rebuildWarning() {
+            if (!this.form.part1_key) {
+                const opts = this.part1Options();
+                this.form.part1_key = opts.length ? opts[0].key : '';
+            }
+            if (!this.form.part1_key) return;
+            try {
+                const res = await fetch(`{{ url_for('admin_penalties_preview', lang=lang) }}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        part1_key: this.form.part1_key,
+                        warning_lang: this.form.warning_lang,
+                        target_kind: this.form.target_type || 'post',
+                        token_delta: Number(this.form.token_delta || 0),
+                        tokens_after: this.tokensAfter(),
+                        result_level: this.resultLevel(),
+                        user_id: this.form.user_id ? Number(this.form.user_id) : null,
+                        level_delta: Number(this.form.level_delta || 0),
+                    }),
+                });
+                const data = await res.json();
+                if (data.warning_text) this.form.warning_text = data.warning_text;
+            } catch (e) {}
+        },
+        normalizeFilters(filters) {
+            return {
+                user_id: (filters.user_id || '').trim(),
+                actor_user_id: (filters.actor_user_id || '').trim(),
+                reason: filters.reason || '',
+                action_kind: filters.action_kind || '',
+                created_after: (filters.created_after || '').trim(),
+                created_before: (filters.created_before || '').trim(),
+            };
+        },
+        get canSubmitFilters() {
+            return JSON.stringify(this.normalizeFilters(this.draft))
+                !== JSON.stringify(this.normalizeFilters(this.applied));
+        },
+        applyFilters() {
+            this.applied = { ...this.draft };
+            this.load(true);
+        },
+        queryParams(page) {
+            const params = new URLSearchParams();
+            const filter = this.normalizeFilters(this.applied);
+            if (filter.user_id) params.set('user_id', filter.user_id);
+            if (filter.actor_user_id) params.set('actor_user_id', filter.actor_user_id);
+            if (filter.reason) params.set('reason', filter.reason);
+            if (filter.action_kind) params.set('action_kind', filter.action_kind);
+            if (filter.created_after) params.set('created_after', filter.created_after);
+            if (filter.created_before) params.set('created_before', filter.created_before);
+            params.set('page', String(page || 1));
+            return params.toString();
+        },
+        async load(reset) {
+            this.loading = true;
+            this.historyError = '';
+            try {
+                const page = reset ? 1 : this.page + 1;
+                const res = await fetch(`{{ url_for('admin_penalties_api', lang=lang) }}?${this.queryParams(page)}`);
+                const data = await res.json();
+                if (reset) this.items = data.items || [];
+                else this.items = this.items.concat(data.items || []);
+                this.hasMore = !!data.has_more;
+                this.totalCount = data.total_count;
+                this.page = page;
+            } catch (e) {
+                this.historyError = '履歴の取得に失敗しました。';
+            } finally {
+                this.loading = false;
+            }
+        },
+        loadMore() { this.load(false); },
+        actionLabel(kind) {
+            return { warning: '警告', penalty: 'ペナルティ', decay: '減衰', level80_sync: '80同期' }[kind] || kind;
+        },
+        actionBadgeClass(kind) {
+            return {
+                warning: 'admin-badge--yellow',
+                penalty: 'admin-badge--red',
+                decay: 'admin-badge--cyan',
+                level80_sync: 'admin-badge--purple',
+            }[kind] || 'admin-badge--gray';
+        },
+        async submitApply(confirmDuplicate = false) {
+            this.applyError = '';
+            this.applySuccess = '';
+            if (!this.form.reason) {
+                this.applyError = '理由を選択してください。';
+                return;
+            }
+            if (this.form.reason === 'other' && !(this.form.other_text || '').trim()) {
+                this.applyError = '「その他」の詳細を入力してください。';
+                return;
+            }
+            if (!this.form.user_id && !this.form.target_type) {
+                this.applyError = 'ユーザーIDか対象を指定してください。';
+                return;
+            }
+            const payload = {
+                user_id: this.form.user_id ? Number(this.form.user_id) : null,
+                reason: this.form.reason,
+                other_text: this.form.other_text || null,
+                level_delta: Number(this.form.level_delta || 0),
+                token_delta: Math.max(0, Number(this.form.token_delta || 0)),
+                prohibit_posting: !!this.form.prohibit_posting,
+                prohibit_giveaway: !!this.form.prohibit_giveaway,
+                invalidate: !!this.form.invalidate,
+                send_warning: !!this.form.send_warning,
+                warning_lang: this.form.warning_lang,
+                part1_key: this.form.part1_key,
+                warning_text: this.form.warning_text,
+                target_type: this.form.target_type || null,
+                target_id: this.form.target_id ? Number(this.form.target_id) : null,
+                report_id: this.form.report_id ? Number(this.form.report_id) : null,
+                delete_target: !!this.form.delete_target,
+                confirm_duplicate: confirmDuplicate,
+            };
+            this.applying = true;
+            try {
+                const res = await fetch(`{{ url_for('admin_penalties_apply', lang=lang) }}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (res.status === 409 && data.code === 'DUPLICATE_TARGET') {
+                    if (confirm((data.message || '再適用しますか？') + '\n既存: ' + (data.existing || []).map((item) => `#${item.id} ${item.created_at_text}`).join(', '))) {
+                        await this.submitApply(true);
+                    }
+                    return;
+                }
+                if (!res.ok || !data.success) {
+                    this.applyError = data.message || '適用に失敗しました。';
+                    return;
+                }
+                this.applySuccess = data.message || '適用しました。';
+                this.form.confirm_duplicate = false;
+                await this.loadUser();
+                this.load(true);
+            } catch (e) {
+                this.applyError = '適用に失敗しました。';
+            } finally {
+                this.applying = false;
+            }
+        },
+    }, 'penalties');
+}
+</script>
+{% endblock %}

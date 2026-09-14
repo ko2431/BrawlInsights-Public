@@ -39,6 +39,12 @@
             alert(this.lang === 'ja' ? '広告の表示に失敗しました。時間をおいて再度お試しください。' : 'Failed to show the ad. Please try again later.');
         },
         async startPlay(method, fromAd = false) {
+            if (this.isProhibitGiveaway) {
+                alert(this.lang === 'ja'
+                    ? '規約違反行為が確認されたため、現在プレゼント企画への参加が制限されています。'
+                    : 'Participation in giveaways is currently restricted because a terms of service violation was confirmed.');
+                return;
+            }
             if (!fromAd && (this.state !== 'idle' || this.info.pending)) return this.showBusyAlert();
             if (method === 'token' && this.info.user_tokens < this.info.price_token_tokens) {
                 alert(this.lang === 'ja' ? 'トークンが不足しています。' : 'You do not have enough tokens.');

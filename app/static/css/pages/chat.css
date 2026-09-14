@@ -548,6 +548,44 @@ body.has-top-banner .chat-featured-spacer {
 .message-bubble--self .message-bubble__user-name {
     display: none; /* 自分のアイコンと名前は非表示 */
 }
+.message-bubble--self.message-bubble--warning .message-bubble__user-name {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2px;
+}
+
+.message-bubble__warning-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background-color: #c0392b;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+.message-bubble--warning .message-bubble__content {
+    background-color: #c0392b;
+    color: #fff;
+    border: none;
+}
+.dark .message-bubble--warning .message-bubble__content {
+    background-color: #a93226;
+    border: none;
+}
+.message-bubble--self.message-bubble--warning .message-bubble__content {
+    background-color: #c0392b;
+    color: #fff;
+}
+.dark .message-bubble--self.message-bubble--warning .message-bubble__content {
+    background-color: #a93226;
+}
+.message-bubble--warning .message-bubble__link {
+    color: #fff;
+    text-decoration-color: rgba(255, 255, 255, 0.85);
+}
 
 .message-reply-preview {
     margin: 2px 0 8px;
@@ -563,7 +601,8 @@ body.has-top-banner .chat-featured-spacer {
 .dark .message-reply-preview {
     border-bottom-color: rgba(255, 255, 255, 0.12);
 }
-.message-bubble--self .message-reply-preview {
+.message-bubble--self .message-reply-preview,
+.message-bubble--warning .message-reply-preview {
     border-bottom-color: rgba(255, 255, 255, 0.28);
 }
 .message-reply-preview__header {
@@ -596,7 +635,8 @@ body.has-top-banner .chat-featured-spacer {
     flex-wrap: wrap;
     gap: 4px;
 }
-.message-bubble--self .message-reply-preview__name {
+.message-bubble--self .message-reply-preview__name,
+.message-bubble--warning .message-reply-preview__name {
     color: rgba(255, 255, 255, 0.95);
 }
 .message-reply-preview__admin-badge,
@@ -639,7 +679,8 @@ body.has-top-banner .chat-featured-spacer {
     word-break: break-word;
     white-space: normal;
 }
-.message-bubble--self .message-reply-preview__text {
+.message-bubble--self .message-reply-preview__text,
+.message-bubble--warning .message-reply-preview__text {
     color: rgba(255, 255, 255, 0.78);
 }
 .message-reply-preview__text--gift {
@@ -650,7 +691,8 @@ body.has-top-banner .chat-featured-spacer {
     color: var(--color-888);
     font-style: italic;
 }
-.message-bubble--self .message-reply-preview__deleted {
+.message-bubble--self .message-reply-preview__deleted,
+.message-bubble--warning .message-reply-preview__deleted {
     color: rgba(255, 255, 255, 0.78);
 }
 

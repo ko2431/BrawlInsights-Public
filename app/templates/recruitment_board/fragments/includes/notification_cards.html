@@ -1,5 +1,5 @@
 {% for notification in notifications %}
-<div class="notification">
+<div class="notification{% if notification.notification_type == 'admin_warning' %} notification--warning{% endif %}">
     <div class="notification-type">
         {% if notification.notification_type == "post_like" %}
         <img src="{{ url_for('static', path='/images/ui/thumbs_up.png') }}" alt="{% if lang == 'ja' %}いいね{% else %}Like{% endif %}" class="notification-type__icon">
@@ -7,6 +7,8 @@
         <img src="{{ url_for('static', path='/images/spray/68000009.webp') }}" alt="{% if lang == 'ja' %}リアクション{% else %}Reaction{% endif %}" class="notification-type__icon">
         {% elif notification.notification_type == "token_gift" %}
         <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="{% if lang == 'ja' %}トークン進呈{% else %}Token gift{% endif %}" class="notification-type__icon">
+        {% elif notification.notification_type == "admin_warning" %}
+        <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}警告{% else %}Warning{% endif %}" class="notification-type__icon">
         {% else %}
         <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}メッセージ{% else %}Message{% endif %}" class="notification-type__icon">
         {% endif %}

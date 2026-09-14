@@ -71,7 +71,11 @@ async def _append_board_notification_context(
     if not user:
         context.update(empty_board_notification_context())
         return
-    context.update(await get_board_notification_context(db, user.id))
+    context.update(await get_board_notification_context(
+        db,
+        user.id,
+        unacked_penalty_count=getattr(user, "unacked_penalty_count", 0),
+    ))
 
 
 async def _attach_fragment_notification_badge(
@@ -92,7 +96,11 @@ async def _attach_fragment_notification_badge(
     badge = empty_board_notification_context()
     if user:
         try:
-            badge = await get_board_notification_context(db, user.id)
+            badge = await get_board_notification_context(
+                db,
+                user.id,
+                unacked_penalty_count=getattr(user, "unacked_penalty_count", 0),
+            )
         except Exception as e:
             logger.error(
                 f"掲示板 fragment での通知バッジ取得中にエラー (User: {user.name}): {e}",
@@ -2420,6 +2428,8 @@ async def report_message(
     message = await get_message(db, id=message_id)
     if not message:
         return JSONResponse(status_code=404, content={"detail": "Message to report not found"}) # 例外をJSONResponseで返すように変更
+    if message.message_type == "warning":
+        return JSONResponse(status_code=400, content={"detail": "This message cannot be reported"})
     if message.message_type == TOKEN_GIFT_MESSAGE_TYPE:
         try:
             gift_row = await db.fetchrow(
@@ -2466,7 +2476,7 @@ async def add_message_reaction(
     message = await get_message(db, id=message_id)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    if message.message_type not in ("message", TOKEN_GIFT_MESSAGE_TYPE):
+    if message.message_type not in ("message", TOKEN_GIFT_MESSAGE_TYPE, "warning"):
         raise HTTPException(status_code=400, detail="Reactions are not allowed on this message")
 
     try:

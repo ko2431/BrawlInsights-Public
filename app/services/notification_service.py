@@ -20,6 +20,7 @@ NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE = "participated_thread_message"
 NOTIFICATION_TYPE_MESSAGE_REPLY = "message_reply"
 NOTIFICATION_TYPE_MESSAGE_REACTION = "message_reaction"
 NOTIFICATION_TYPE_TOKEN_GIFT = "token_gift"
+NOTIFICATION_TYPE_ADMIN_WARNING = "admin_warning"
 
 AGGREGATED_NOTIFICATION_TYPES = {
     NOTIFICATION_TYPE_POST_LIKE,
@@ -43,7 +44,7 @@ NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_TOKEN_GIFT: "notification_token_gift_enabled",
 }
 
-VALID_NOTIFICATION_FILTERS = frozenset({"all", *NOTIFICATION_TYPE_SETTING_KEYS})
+VALID_NOTIFICATION_FILTERS = frozenset({"all", *NOTIFICATION_TYPE_SETTING_KEYS, "admin_warning"})
 
 MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
     NOTIFICATION_TYPE_MESSAGE_REPLY,
@@ -227,6 +228,36 @@ async def _create_notification(
     except asyncpg.PostgresError as e:
         raise DataBaseError(e) from e
 
+    await invalidate_notification_cache(recipient_user_id)
+
+
+async def create_admin_warning_notification(
+    db: asyncpg.Connection,
+    *,
+    recipient_user_id: int,
+    actor_user_id: int,
+    post_id: int | None = None,
+    message_id: int | None = None,
+) -> None:
+    """警告対象者への専用通知。ブロック設定や通知オフでは抑制しない。"""
+    if not recipient_user_id or recipient_user_id == actor_user_id:
+        return
+    try:
+        await db.execute(
+            """
+            INSERT INTO board_notifications (
+                recipient_user_id, notification_type, actor_user_id,
+                post_id, message_id
+            ) VALUES ($1, $2, $3, $4, $5)
+            """,
+            recipient_user_id,
+            NOTIFICATION_TYPE_ADMIN_WARNING,
+            actor_user_id,
+            post_id,
+            message_id,
+        )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
     await invalidate_notification_cache(recipient_user_id)
 
 
@@ -459,7 +490,7 @@ async def handle_message_reaction_notification(
     message = await get_message(db, message_id)
     if not message or message.is_deleted or not message.user_id:
         return
-    if message.message_type not in ("message", "token_gift"):
+    if message.message_type not in ("message", "token_gift", "warning"):
         return
 
     if is_added:
@@ -666,6 +697,12 @@ async def _build_notification_where(
         ntype for ntype in NOTIFICATION_TYPE_SETTING_KEYS
         if _is_type_enabled(settings, ntype)
     ]
+    # 警告は通知設定オフでも一覧に出す。未読バッジは last_read_at ではなく
+    # unacked_penalty_count で数える（一覧を開いただけでは消えない）。
+    if unread_only:
+        where_clauses.append(f"notification_type <> '{NOTIFICATION_TYPE_ADMIN_WARNING}'")
+    elif notification_filter in ("all", NOTIFICATION_TYPE_ADMIN_WARNING):
+        enabled_types.append(NOTIFICATION_TYPE_ADMIN_WARNING)
     if not enabled_types:
         return None
 
@@ -675,7 +712,10 @@ async def _build_notification_where(
     blocked_ids = await get_blocked_ids(db, blocker_user_id=user_id, blocker_anonymous_id=None)
     if blocked_ids["user_ids"]:
         params.append(blocked_ids["user_ids"])
-        where_clauses.append(f"NOT (actor_user_id = ANY(${len(params)}::int[]))")
+        where_clauses.append(
+            f"(notification_type = '{NOTIFICATION_TYPE_ADMIN_WARNING}' "
+            f"OR NOT (actor_user_id = ANY(${len(params)}::int[])))"
+        )
 
     return where_clauses, params
 
@@ -900,7 +940,15 @@ async def _aggregate_notification_rows(
 
         actors = [actor_profiles[actor_id] for actor_id in seen_actor_ids if actor_id in actor_profiles]
         if not actors:
-            continue
+            if ntype != NOTIFICATION_TYPE_ADMIN_WARNING:
+                continue
+            actors = [{
+                "user_id": 0,
+                "user_name": "Admin" if lang == "en" else "管理者",
+                "main_account_tag": None,
+                "main_account_name": None,
+                "icon_path": "/static/images/player_icon/0.png",
+            }]
 
         created_at = latest_row["created_at"]
         if isinstance(created_at, datetime.datetime) and created_at.tzinfo is None:
@@ -998,6 +1046,17 @@ async def _aggregate_notification_rows(
             item["thread_id"] = latest_row["post_id"]
             item["message_id"] = message_id
             item["gift_tier"] = gift_meta["tier"]
+        elif ntype == NOTIFICATION_TYPE_ADMIN_WARNING:
+            if lang == "ja":
+                item["title_html"] = "管理者から<b>警告</b>が届いています。内容を確認してください"
+            else:
+                item["title_html"] = "You received a <b>warning</b> from an administrator. Please review it"
+            message_id = latest_row["message_id"]
+            item["target_text"] = (message_texts.get(message_id) or "") if message_id else ""
+            item["target_kind"] = "chat" if latest_row["post_id"] else ""
+            item["thread_id"] = latest_row["post_id"]
+            item["message_id"] = message_id
+            item["target_is_empty"] = not item["target_text"]
         else:
             continue
 
@@ -1070,19 +1129,21 @@ async def get_unread_badge_count(db: asyncpg.Connection, user_id: int) -> int:
 async def get_board_notification_context(
     db: asyncpg.Connection,
     user_id: int | None,
+    *,
+    unacked_penalty_count: int = 0,
 ) -> dict[str, Any]:
     if not user_id:
         return empty_board_notification_context()
 
     settings = await get_notification_settings(db, user_id)
-    if not settings.get("notification_badge_enabled"):
-        return empty_board_notification_context()
-
-    unread_count = await get_unread_badge_count(db, user_id)
-    show_badge = unread_count > 0
-    badge_text = f"{unread_count}" if unread_count < 100 else "99+"
+    unread_count = 0
+    if settings.get("notification_badge_enabled"):
+        unread_count = await get_unread_badge_count(db, user_id)
+    total_count = unread_count + max(0, int(unacked_penalty_count or 0))
+    show_badge = total_count > 0
+    badge_text = f"{total_count}" if total_count < 100 else "99+"
     return {
-        "unread_badge_count": unread_count,
+        "unread_badge_count": total_count,
         "show_notification_badge": show_badge,
         "notification_badge_text": badge_text if show_badge else "",
     }

@@ -233,12 +233,13 @@
                     <th>ターゲット内容</th>
                     <th>カテゴリー</th>
                     <th>本文</th>
+                    <th class="col-action">対応</th>
                     <th>チェック</th>
                 </tr>
             </thead>
             <tbody>
                 {% for report in reports %}
-                <tr x-data="reportRow" x-init='initData({{ {"id": report.id, "is_checked": report.is_checked} | tojson }})' :class="{ 'changed': isDirty() }">
+                <tr x-data="reportRow" x-init='initData({{ {"id": report.id, "is_checked": report.is_checked, "target_type": report.target_type, "target_id": report.target_id} | tojson }})' :class="{ 'changed': isDirty() }" data-target-key="{{ report.target_type }}-{{ report.target_id }}">
                     <td>{{ report.id }}</td>
                     <td>{{ report.created_at_text }}</td>
                     <td>{{ report.user_name if report.user_name else "(ゲスト)" }}</td>
@@ -296,6 +297,13 @@
                     </td>
                     <td class="col-message">
                         <div class="col-message-content">{{ report.text if report.text else "(なし)" }}</div>
+                    </td>
+                    <td class="col-action">
+                        {% if can_view_penalties %}
+                        <a href="{{ url_for('admin_penalties', lang=lang) }}?report_id={{ report.id }}{% if report.target_user_id %}&user_id={{ report.target_user_id }}{% endif %}&target_type={{ report.target_type }}&target_id={{ report.target_id }}"
+                           class="admin-thread-link"
+                           {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>ペナルティ</a>
+                        {% endif %}
                     </td>
                     <td class="form-checkbox-cell cell-center">
                         <input type="checkbox" class="form-checkbox" :class="{'changed-field': isDirty()}" x-model="is_checked"{% if not can_edit %} disabled{% endif %}>
@@ -566,14 +574,35 @@
 
             Alpine.data('reportRow', () => ({
                 id: null,
+                target_type: '',
+                target_id: null,
                 is_checked_initial: false,
                 is_checked: false,
+                syncing: false,
 
                 initData(data) {
                     this.id = data.id;
+                    this.target_type = data.target_type || '';
+                    this.target_id = data.target_id;
                     this.is_checked_initial = data.is_checked;
                     this.is_checked = data.is_checked;
-                    this.$watch('is_checked', () => this.$dispatch('report-row-change'));
+                    this.$watch('is_checked', (value) => {
+                        this.$dispatch('report-row-change');
+                        if (this.syncing) return;
+                        this.syncGroup(value);
+                    });
+                },
+
+                syncGroup(value) {
+                    if (!this.target_type || this.target_id == null) return;
+                    const key = `${this.target_type}-${this.target_id}`;
+                    document.querySelectorAll(`tr[data-target-key="${key}"]`).forEach((el) => {
+                        const row = Alpine.$data(el);
+                        if (!row || row.id === this.id || row.is_checked === value) return;
+                        row.syncing = true;
+                        row.is_checked = value;
+                        row.syncing = false;
+                    });
                 },
 
                 isDirty() {

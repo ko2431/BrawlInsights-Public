@@ -54,6 +54,10 @@ class User(Base):
     admin_permissions = Column(JSONB, nullable=False, server_default='[]')
     is_invalid = Column(Boolean, nullable=False, server_default='False')
     is_prohibit_posting = Column(Boolean, nullable=False, server_default='False')
+    is_prohibit_giveaway = Column(Boolean, nullable=False, server_default='False')
+    penalty_level = Column(Integer, nullable=False, server_default='0')
+    penalty_level_changed_at = Column(DateTime(timezone=True), nullable=True)
+    unacked_penalty_count = Column(Integer, nullable=False, server_default='0')
     saved_accounts_limit = Column(Integer, nullable=False, server_default='0')
     saved_clubs_limit = Column(Integer, nullable=False, server_default='3')
     viewed_accounts_limit = Column(Integer, nullable=False, server_default='0')
@@ -87,6 +91,21 @@ class User(Base):
         CheckConstraint(
             'NOT (is_admin AND is_sub_admin)',
             name='ck_users_not_admin_and_sub_admin',
+        ),
+        CheckConstraint(
+            'penalty_level >= 0 AND penalty_level <= 80 AND penalty_level % 10 = 0',
+            name='ck_users_penalty_level_step',
+        ),
+        CheckConstraint(
+            'unacked_penalty_count >= 0',
+            name='ck_users_unacked_penalty_count_nonnegative',
+        ),
+        Index(
+            'idx_users_penalty_decay',
+            'penalty_level_changed_at',
+            postgresql_where=text(
+                'penalty_level BETWEEN 10 AND 60 AND NOT is_invalid'
+            ),
         ),
     )
 
@@ -1440,6 +1459,71 @@ class AdminNotificationCategoryRead(Base):
     admin_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
     category = Column(Text, primary_key=True)
     visited_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class UserPenalty(Base):
+    """
+    掲示板モデレーションのペナルティ履歴。減衰・横断同期も含む。
+    """
+    __tablename__ = 'user_penalties'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    action_kind = Column(Text, nullable=False)
+    reason = Column(Text, nullable=True)
+    other_text = Column(Text, nullable=True)
+    level_delta = Column(Integer, nullable=False, server_default='0')
+    level_before = Column(Integer, nullable=False)
+    level_after = Column(Integer, nullable=False)
+    token_delta = Column(Integer, nullable=False, server_default='0')
+    tokens_after = Column(Integer, nullable=True)
+    prohibit_posting = Column(Boolean, nullable=False, server_default='False')
+    prohibit_giveaway = Column(Boolean, nullable=False, server_default='False')
+    invalidated = Column(Boolean, nullable=False, server_default='False')
+    blacklisted = Column(Boolean, nullable=False, server_default='False')
+    synced_user_ids = Column(JSONB, nullable=False, server_default='[]')
+    target_type = Column(Text, nullable=True)
+    target_id = Column(Integer, nullable=True)
+    report_id = Column(Integer, ForeignKey('reports.id', ondelete='SET NULL'), nullable=True)
+    warning_text = Column(Text, nullable=True)
+    warning_message_id = Column(Integer, ForeignKey('messages.id', ondelete='SET NULL'), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "action_kind IN ('warning', 'penalty', 'decay', 'level80_sync')",
+            name='ck_user_penalties_action_kind',
+        ),
+        CheckConstraint(
+            "target_type IS NULL OR target_type IN ('post', 'message')",
+            name='ck_user_penalties_target_type',
+        ),
+        Index('idx_user_penalties_user_created_at', 'user_id', desc('created_at')),
+        Index('idx_user_penalties_actor_created_at', 'actor_user_id', desc('created_at')),
+        Index('idx_user_penalties_target', 'target_type', 'target_id'),
+        Index(
+            'idx_user_penalties_unacked',
+            'user_id',
+            postgresql_where=text(
+                "acknowledged_at IS NULL AND action_kind IN ('warning', 'penalty')"
+            ),
+        ),
+    )
+
+
+class PenaltyBlacklistedPlayer(Base):
+    """
+    ペナルティレベル80で登録されたブロスタタグ。メインアカウントへの設定を拒否する。
+    """
+    __tablename__ = 'penalty_blacklisted_players'
+
+    tag = Column(Text, ForeignKey('players.tag', ondelete='RESTRICT'), primary_key=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    source_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    penalty_id = Column(Integer, ForeignKey('user_penalties.id', ondelete='SET NULL'), nullable=True)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 
 
 class WorkerTaskRun(Base):

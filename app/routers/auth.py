@@ -29,5 +29,12 @@ router = APIRouter(
 # [この部分は公開用リポジトリでは非公開にされています]
 
 # [この部分は公開用リポジトリでは非公開にされています]
+        name: str = await get_player_name(full_tag, db) # [この部分は公開用リポジトリでは非公開にされています]
 
-# [この部分は公開用リポジトリでは非公開にされています]
+    try:
+        name: str = await get_player_name(main_account_tag_for_db, db)
+        if not name:
+            raise ValueError("Main account player not found or invalid")
+    except Exception:
+        error_message_register = "メインアカウントのプレイヤー情報が取得できませんでした。タグを確認してください。" if lang == "ja" else "Could not retrieve main account player information. Please check the tag."
+        # [この部分は公開用リポジトリでは非公開にされています]

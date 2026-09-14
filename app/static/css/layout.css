@@ -644,3 +644,57 @@ body.integrity-island-visible {
         padding-top: calc(40px + env(safe-area-inset-top) + var(--integrity-island-height, 0px) + 24px);
     }
 }
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.penalty-ack-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.55);
+}
+.penalty-ack-overlay[hidden] {
+    display: none !important;
+}
+.penalty-ack-modal {
+    width: min(520px, 100%);
+    max-height: min(80dvh, 640px);
+    overflow: auto;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--bg-main, #fff);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+.dark .penalty-ack-modal {
+    background: #222;
+}
+.penalty-ack-modal__title {
+    margin: 0 0 10px;
+    font-size: 18px;
+    color: #c0392b;
+}
+.penalty-ack-modal__item + .penalty-ack-modal__item {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-ddd, #ddd);
+}
+.penalty-ack-modal__text {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--color-333, #333);
+}
+.penalty-ack-modal__button {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+}
