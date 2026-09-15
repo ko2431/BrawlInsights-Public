@@ -69,6 +69,30 @@ function subAdminManager() {
             const saved = this.savedPermissions[this.selected.id];
             this.selected.permissions = saved ? [...saved] : [];
         },
+        onDeputyKeydown(event) {
+            if (event.isComposing) return;
+            if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+            if (event.metaKey || event.ctrlKey || event.altKey) return;
+            if (!this.deputies.length) return;
+            if (this.isTypingTarget(event.target)) return;
+            event.preventDefault();
+            this.selectAdjacent(event.key === 'ArrowUp' ? -1 : 1);
+        },
+        isTypingTarget(target) {
+            if (!target || typeof target.closest !== 'function') return false;
+            if (target.closest('textarea, select, [contenteditable="true"]')) return true;
+            const input = target.closest('input');
+            if (!input) return false;
+            const type = (input.type || 'text').toLowerCase();
+            return !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'hidden'].includes(type);
+        },
+        selectAdjacent(delta) {
+            if (!this.deputies.length) return;
+            const idx = this.deputies.findIndex(d => d.id === this.selectedId);
+            const currentIdx = idx >= 0 ? idx : 0;
+            const nextIdx = (currentIdx + delta + this.deputies.length) % this.deputies.length;
+            this.selectDeputy(this.deputies[nextIdx].id);
+        },
         selectDeputy(id) {
             if (id === this.selectedId) return;
             if (this.isDirty && !window.confirm('保存していない権限の変更があります。破棄して移動しますか？')) {
