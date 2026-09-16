@@ -470,6 +470,7 @@ class APIBattle:
                 )
                 if inserted_titles:
                     title_cache.pop("all", None)
+                    # [この部分は公開用リポジトリでは非公開にされています]
                     for row in inserted_titles:
                         title_id = row["id"]
                         await emit_admin_notification(

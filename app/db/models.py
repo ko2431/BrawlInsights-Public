@@ -617,9 +617,9 @@ class Title(Base):
 
     id = Column(Integer, primary_key=True)            # タイトルID
     brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=True)
-    rarity = Column(Integer, nullable=True)
-    en = Column(Text, nullable=True)                  # 英語名
-    ja = Column(Text, nullable=True)                  # 日本語名
+    rarity = Column(Integer, nullable=True)           # BSInfo同期、未入力時のみ (PlayerTitleGold=10, Plus=20, TitlePrestige=30)
+    en = Column(Text, nullable=True)                  # 英語名 (BSInfo同期、未入力時のみ)
+    ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期、未入力時のみ)
     equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
 
 
