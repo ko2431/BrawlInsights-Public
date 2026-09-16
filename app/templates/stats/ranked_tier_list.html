@@ -22,7 +22,11 @@
     {% endif %}
 
     {# ^ 1. タイトル #}
-    <h1 class="page-title--main">{% if lang == "ja" %}ガチバトルTier表{% else %}Ranked Tier List{% endif %}</h1>
+    <h1 class="page-title--main tier-list-page-title--main">{% if lang == "ja" %}ガチバトルTier表{% else %}Ranked Tier List{% endif %}</h1>
+
+    {# ガチバトル / マルチプレイ 切り替えタブ #}
+    {% set tier_list_nav_active = 'ranked' %}
+    {% include "stats/includes/tier_list_type_tabs.html" %}
 
     {# ^ 2. モード/マップ/ランク帯選択と並び替え #}
     <div class="filters__container">

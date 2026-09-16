@@ -20,7 +20,11 @@
     </div>
     {% endif %}
 
-    <h1 class="page-title--main">{% if lang == "ja" %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}</h1>
+    <h1 class="page-title--main tier-list-page-title--main">{% if lang == "ja" %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}</h1>
+
+    {# ガチバトル / マルチプレイ 切り替えタブ #}
+    {% set tier_list_nav_active = 'multiplayer' %}
+    {% include "stats/includes/tier_list_type_tabs.html" %}
 
     <form method="get" id="multiplayerTierFilterForm" class="filters__container">
         {% if start_date %}<input type="hidden" name="start_date" value="{{ start_date }}">{% endif %}

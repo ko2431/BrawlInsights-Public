@@ -1,0 +1,17 @@
+{# Tier表ページの種類選択タブ。呼び出し元で tier_list_nav_active を ranked/multiplayer のいずれかに設定する。 #}
+<nav class="tab-nav tier-list-tab-nav">
+    <ul class="tab-nav__list">
+        <li class="tab-nav__item">
+            <a href="{% if tier_list_nav_active == 'ranked' %}#{% else %}{{ url_for('ranked_tier_list', lang=lang) }}{% endif %}" class="tab-nav__link{% if tier_list_nav_active == 'ranked' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="{% if lang == 'ja' %}ガチバトル{% else %}Ranked{% endif %}" class="tier-list-tab-nav__icon tier-list-tab-nav__icon--ranked">
+                <span class="tier-list-tab-nav__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
+            </a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if tier_list_nav_active == 'multiplayer' %}#{% else %}{{ url_for('multiplayer_tier_list', lang=lang) }}{% endif %}" class="tab-nav__link{% if tier_list_nav_active == 'multiplayer' %} tab-nav__link--active{% endif %}">
+                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="{% if lang == 'ja' %}マルチプレイ{% else %}Multiplayer{% endif %}" class="tier-list-tab-nav__icon tier-list-tab-nav__icon--multiplayer">
+                <span class="tier-list-tab-nav__text">{% if lang == "ja" %}マルチプレイ{% else %}Multiplayer{% endif %}</span>
+            </a>
+        </li>
+    </ul>
+</nav>

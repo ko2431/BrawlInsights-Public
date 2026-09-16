@@ -1,6 +1,87 @@
 /* /app/static/css/pages/ranked_stats.css */
 
 /* ^ ------------------------------ ^ */
+/* ^ Tier表ページの種類選択タブ ^ */
+/* ^ ------------------------------ ^ */
+
+.tier-list-page-title--main {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.tier-list-tab-nav {
+    width: 100%;
+}
+
+.tier-list-tab-nav .tab-nav__list {
+    width: 95%;
+}
+
+.tier-list-tab-nav .tab-nav__link {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+}
+
+.dark .tier-list-tab-nav .tab-nav__link {
+    color: #ccc;
+}
+
+.tier-list-tab-nav__icon {
+    height: 22px;
+    width: auto;
+    margin-right: 6px;
+}
+
+.tier-list-tab-nav__icon--ranked {
+    height: 24px;
+    margin-top: -1px;
+    margin-bottom: -1px;
+}
+
+.tier-list-tab-nav__icon--multiplayer {
+    height: 20px;
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
+
+.tier-list-tab-nav__text {
+    line-height: 1;
+}
+
+@media (min-width: 840px) {
+    .tier-list-tab-nav .tab-nav__item {
+        min-width: 160px;
+    }
+}
+
+@media (max-width: 839px) {
+    .tier-list-tab-nav {
+        width: 110%;
+        margin: 0 -5%;
+    }
+    .tier-list-tab-nav .tab-nav__list {
+        width: 90%;
+        margin: 0 auto;
+    }
+    .tier-list-tab-nav .tab-nav__link {
+        flex-direction: row;
+        padding: 10px 8px;
+    }
+}
+
+@media (max-width: 539px) {
+    .tier-list-page-title--main {
+        margin-bottom: 5px;
+    }
+    .tier-list-tab-nav .tab-nav__link {
+        padding: 9px 6px;
+    }
+}
+
+/* ^ ------------------------------ ^ */
 /* ^ 基本的なキャラクターグリッドスタイル ^ */
 /* ^ ------------------------------ ^ */
 
