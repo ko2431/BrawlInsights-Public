@@ -62,7 +62,7 @@
 
     <p class="admin-page__description" style="margin-bottom: 10px;">
         登録ピンズ総数: <b x-text="filteredData.length"></b> (日本語説明未登録: <b x-text="missingJaDescCount" :class="{'text-danger': missingJaDescCount > 0}"></b>)
-        <br>レア度はノーマル=10, レア=20, ハイパーレア=30, レジェンドレア=40で指定すること。
+        <br>レアリティはBSInfoから同期されています（DEFAULT=0, COMMON=10, RARE=20, EPIC=30, COLLECTORS=40）。
     </p>
     
     <div class="filter-container">
@@ -152,20 +152,8 @@
                              <td style="color: #999; font-style: italic;">キャラクターなし</td>
                         </template>
 
-                        {# レアリティ #}
-                        <td contenteditable="{{ 'true' if can_edit else 'false' }}" class="is-editable"
-                            :class="{
-                                'changed': isDirtyField('rarity'),
-                                'invalid': isDirtyField('rarity') && !isValidField('rarity'),
-                                'show-placeholder': isEmptyField('rarity') && !focusedField['rarity']
-                            }"
-                            :data-placeholder="isEmptyField('rarity') ? '未入力' : ''"
-                            @focus="handleFocus($el, 'rarity')"
-                            @blur="focusedField['rarity'] = false; handleBlur($el, 'rarity')"
-                            @input.debounce.300ms="handleInput($el, 'rarity')"
-                            data-field="rarity"
-                            style="text-align: right; min-width: 70px;">
-                        </td>
+                        {# レアリティ (BSInfo同期・読み取り専用) #}
+                        <td style="text-align: right;" x-text="pin.rarity === null || typeof pin.rarity === 'undefined' ? '未入力' : pin.rarity"></td>
 
                         {# 装備率 #}
                         <td style="text-align: right;" x-text="formatRate(pin.equip_rate)"></td>
@@ -408,7 +396,6 @@
                 initialValues: {},
                 currentValues: {},
                 validFields: {
-                    rarity: true,
                     brawler_id: true
                 },
                 focusedField: {},
@@ -421,7 +408,6 @@
                 initRow() {
                     this.initialValues = {
                         brawler_id: toDisplayStr(pinItem.brawler_id),
-                        rarity: toDisplayStr(pinItem.rarity),
                         description_en: toDisplayStr(pinItem.description_en),
                         description_ja: toDisplayStr(pinItem.description_ja)
                     };
@@ -456,7 +442,7 @@
 
                 validateField(key) {
                     const val = this.currentValues[key];
-                    if (key === 'rarity' || key === 'brawler_id') {
+                    if (key === 'brawler_id') {
                         if (val === '' || val === null || typeof val === 'undefined') {
                             this.validFields[key] = true;
                             return;
@@ -493,7 +479,7 @@
                     let dirty = false;
                     let valid = true;
                     
-                    const keysToCheck = ['description_en', 'description_ja', 'rarity', 'brawler_id'];
+                    const keysToCheck = ['description_en', 'description_ja', 'brawler_id'];
 
                     for (const k of keysToCheck) {
                         if (this.isDirtyField(k)) dirty = true;
@@ -511,9 +497,6 @@
                     }
                     if (this.isDirtyField('description_ja')) {
                         payload.description_ja = this.currentValues['description_ja'] === '' ? null : this.currentValues['description_ja'];
-                    }
-                    if (this.isDirtyField('rarity')) {
-                        payload.rarity = this.currentValues['rarity'] === '' ? null : parseInt(this.currentValues['rarity'], 10);
                     }
                     if (this.isDirtyField('brawler_id')) {
                         payload.brawler_id = this.currentValues['brawler_id'] === '' ? null : parseInt(this.currentValues['brawler_id'], 10);

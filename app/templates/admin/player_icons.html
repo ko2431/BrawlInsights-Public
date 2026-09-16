@@ -1,0 +1,205 @@
+{# /app/templates/admin/player_icons.html #}
+{% extends "base.html" %}
+
+{% block title %}管理者向け / アイコン情報管理{% endblock %}
+{% block og_description %}プレイヤーアイコン情報を確認します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+    <style>
+        .table-wrapper {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .brawler-status-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f7f7f7;
+            border-top: none;
+            box-shadow: 0 1px 0 #ccc;
+        }
+        .dark .brawler-status-table thead th {
+            background-color: #111;
+            box-shadow: 0 1px 0 #444;
+        }
+        .filter-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-select,
+        .filter-input {
+            padding: 5px 10px;
+            max-height: 30px;
+            border-radius: 9px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            color: #333;
+        }
+        .dark .filter-select,
+        .dark .filter-input {
+            background-color: #222;
+            color: #ddd;
+            border-color: #444;
+        }
+        .admin-catalog-thumb {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            border-radius: 4px;
+            vertical-align: middle;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container admin-readonly" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="playerIconAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+    <h1 class="page-title--main">アイコン情報管理</h1>
+
+    <p class="admin-page__description" style="margin-bottom: 10px;">
+        登録アイコン総数: <b x-text="filteredData.length"></b>
+        <br>このページは読み取り専用です。ジュエルチップ・エメラルド価格はBSInfo APIから同期されています。
+    </p>
+
+    <div class="filter-container">
+        <input class="filter-input" type="search" x-model="filterId" @input="applyFilter()" placeholder="IDで絞り込み">
+        <select class="filter-select" x-model="filterPrice" @change="applyFilter()">
+            <option value="">すべての価格</option>
+            <option value="bling">ジュエルチップあり</option>
+            <option value="gems">エメラルドあり</option>
+            <option value="none">価格なし</option>
+        </select>
+    </div>
+
+    <div class="table-wrapper" style="overflow-x: auto;">
+        <table class="data-table brawler-status-table" style="white-space: nowrap;">
+            <thead>
+                <tr>
+                    <th>画像</th>
+                    <th @click="sortBy('id')" class="col-frozen">
+                        <span>ID</span>
+                        <span x-show="sortColumn === 'id'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('bling_price')">
+                        <span>ジュエルチップ</span>
+                        <span x-show="sortColumn === 'bling_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('gems_price')">
+                        <span>エメラルド</span>
+                        <span x-show="sortColumn === 'gems_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('equip_rate')">
+                        <span>装備率</span>
+                        <span x-show="sortColumn === 'equip_rate'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="icon in filteredData" :key="icon.id">
+                    <tr>
+                        <td style="text-align: center;">
+                            <img class="admin-catalog-thumb" :src="'/static/images/player_icon/' + icon.id + '.webp'" alt="" @error="$el.style.visibility='hidden'">
+                        </td>
+                        <td x-text="icon.id" style="text-align: center;"></td>
+                        <td style="text-align: right;" x-text="formatNullable(icon.bling_price)"></td>
+                        <td style="text-align: right;" x-text="formatNullable(icon.gems_price)"></td>
+                        <td style="text-align: right;" x-text="formatRate(icon.equip_rate)"></td>
+                    </tr>
+                </template>
+                <template x-if="filteredData.length === 0">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #777;">該当するアイコンデータがありません</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function playerIconAdmin() {
+            return {
+                iconsDataRaw: {{ icons | tojson | safe }},
+                filteredData: [],
+                sortColumn: 'id',
+                sortDirection: 'asc',
+                filterId: '',
+                filterPrice: '',
+
+                init() {
+                    this.applyFilter();
+                    this.sortBy(this.sortColumn, true);
+                },
+
+                formatNullable(val) {
+                    if (val === null || typeof val === 'undefined' || val === '') return '未入力';
+                    return val;
+                },
+
+                formatRate(val) {
+                    if (val === null || typeof val === 'undefined') return '-';
+                    return val.toFixed(3) + '%';
+                },
+
+                applyFilter() {
+                    const idQuery = String(this.filterId || '').trim();
+                    this.filteredData = this.iconsDataRaw.filter(icon => {
+                        if (idQuery && !String(icon.id).includes(idQuery)) return false;
+                        const hasBling = icon.bling_price !== null && typeof icon.bling_price !== 'undefined';
+                        const hasGems = icon.gems_price !== null && typeof icon.gems_price !== 'undefined';
+                        if (this.filterPrice === 'bling') return hasBling;
+                        if (this.filterPrice === 'gems') return hasGems;
+                        if (this.filterPrice === 'none') return !hasBling && !hasGems;
+                        return true;
+                    });
+                    this.sortData();
+                },
+
+                sortBy(column, isInitialSort = false) {
+                    if (!isInitialSort && this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+                    this.sortData();
+                },
+
+                sortData() {
+                    this.filteredData.sort((a, b) => {
+                        let valA = a[this.sortColumn];
+                        let valB = b[this.sortColumn];
+                        const isEmpty = (val) => val === null || typeof val === 'undefined' || String(val).trim() === '';
+                        if (isEmpty(valA) && isEmpty(valB)) return 0;
+                        if (isEmpty(valA)) return 1;
+                        if (isEmpty(valB)) return -1;
+                        const cmp = Number(valA) - Number(valB);
+                        return this.sortDirection === 'asc' ? cmp : -cmp;
+                    });
+                }
+            }
+        }
+    </script>
+{% endblock %}

@@ -38,7 +38,7 @@ def _build_tasks() -> dict[str, TaskDef]:
             needs_db=False,
             schedule_ja="常時稼働（最大3,000人/ループ）",
             description_ja="閲覧済みプレイヤーを last_updated_at 順に更新します。再起動後も未更新プレイヤーから継続します。",
-            display_order=1,
+            display_order=0,
         ),
         TaskDef(
             key="cleanup_expired_profile_images",
@@ -49,7 +49,7 @@ def _build_tasks() -> dict[str, TaskDef]:
             needs_db=True,
             schedule_ja="15分ごと",
             description_ja="期限切れのプロフィール画像ファイルとDBパスを削除します。",
-            display_order=15,
+            display_order=300,
             interval_minutes=15,
         ),
     ]

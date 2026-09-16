@@ -448,21 +448,84 @@ class APIBattle:
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
+                    for row in inserted_pins:
+                        pin_id = row["id"]
+                        await emit_admin_notification(
+                            self.db,
+                            "pin_created",
+                            title="新しいピンズが追加されました",
+                            summary=f"ID: {pin_id}（名称未設定）",
+                            payload={"pin_id": pin_id},
+                        )
 
-async def check_verify(tag: str) -> tuple[bool, str | None]:
-    """認証を実際に確認する。
+            if titles_to_insert:
+                inserted_titles = await self.db.fetch(
+                    """
+                    INSERT INTO titles (id)
+                    SELECT x FROM unnest($1::int[]) AS x
+                    ON CONFLICT (id) DO NOTHING
+                    RETURNING id
+                    """,
+                    [title_id for (title_id,) in titles_to_insert],
+                )
+                if inserted_titles:
+                    title_cache.pop("all", None)
+                    for row in inserted_titles:
+                        title_id = row["id"]
+                        await emit_admin_notification(
+                            self.db,
+                            "title_created",
+                            title="新しいキャッチフレーズが追加されました",
+                            summary=f"ID: {title_id}（名称未設定）",
+                            payload={"title_id": title_id},
+                        )
 
-    Args:
-        tag (str): プレイヤータグ
+            if frames_to_insert:
+                inserted_frames = await self.db.fetch(
+                    """
+                    INSERT INTO frames (id)
+                    SELECT x FROM unnest($1::int[]) AS x
+                    ON CONFLICT (id) DO NOTHING
+                    RETURNING id
+                    """,
+                    [frame_id for (frame_id,) in frames_to_insert],
+                )
+                if inserted_frames:
+                    frame_cache.pop("all", None)
+                    for row in inserted_frames:
+                        frame_id = row["id"]
+                        await emit_admin_notification(
+                            self.db,
+                            "frame_created",
+                            title="新しいバトルカード背景が追加されました",
+                            summary=f"ID: {frame_id}（名称未設定）",
+                            payload={"frame_id": frame_id},
+                        )
 
-    Returns:
-        tuple[bool, str | None]: (認証結果, 失敗理由キーまたはNone)
-                                 失敗理由キー: "icon_mismatch", "no_cached_id", "api_error", "unknown_error"
-    """
-    cache_key = f"player_verify:{tag}"
-    cached_id: int | None = await get_cache(cache_key)
-    if not cached_id:
-        return False, "no_cached_id" # [この部分は公開用リポジトリでは非公開にされています]
+        except asyncpg.PostgresError as e:
+            logger.error(f"{self.name} - {self.tag}のBattleCard保存に失敗しました: {e}")
+
+
+    async def _save_player_brawlers(self) -> None:
+        """player_brawlersテーブルにキャラクターデータをUPSERT(全キャラ一括)。
+        同時にaccessoriesテーブルとskinsテーブルにも未登録データを自動追加する。
+        owned_skin_idsはBSInfo APIの所持スキン一覧を保存し、装備中スキンが欠落していれば補完する。
+        """
+        try:
+            # [この部分は公開用リポジトリでは非公開にされています]
+                    for row in inserted_skins:
+                        skin_id, brawler_id, skin_en = row["id"], row["brawler_id"], row["en"]
+                        await emit_admin_notification(
+                            self.db,
+                            "skin_created",
+                            title="新しいスキンが追加されました",
+                            summary=f"{skin_en or skin_id}（brawler_id: {brawler_id} / 日本語名・レアリティ未設定）",
+                            payload={"skin_id": skin_id, "brawler_id": brawler_id, "en": skin_en},
+                        )
+            
+        except asyncpg.PostgresError as e:
+            logger.error(f"{self.name} - {self.tag}のPlayerBrawlerデータ保存に失敗しました: {e}")
+            # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_player(tag: str, db: asyncpg.Connection, use_long_cache: bool = False, is_bg_task: bool = False) -> Player:
     """Playerデータを取得する。30分間(ただし通常は3分間ごとにデータ更新)のキャッシュを使用する。

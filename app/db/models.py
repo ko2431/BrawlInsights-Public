@@ -586,8 +586,8 @@ class Skin(Base):
     id = Column(Integer, primary_key=True)            # スキンID
     brawler_id = Column(Integer, ForeignKey('brawlers.id'), nullable=True)
     en = Column(Text, nullable=True)                  # 英語名 (Title Case化、デフォルトスキンはNull)
-    ja = Column(Text, nullable=True)                  # 日本語名 (管理者が後から入力)
-    rarity = Column(Integer, nullable=True)           # レアリティ (管理者が入力)
+    ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期、未入力時のみ)
+    rarity = Column(Integer, nullable=True)           # レアリティ (BSInfo同期、未入力時のみ。0はレアリティなし)
     is_limited = Column(Boolean, nullable=True)       # 限定スキンか (管理者が入力)
     description_en = Column(Text, nullable=True)      # 英語説明文 (管理者が入力)
     description_ja = Column(Text, nullable=True)      # 日本語説明文 (管理者が入力)
@@ -603,7 +603,7 @@ class Pin(Base):
 
     id = Column(Integer, primary_key=True)            # ピンズID
     brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=True)
-    rarity = Column(Integer, nullable=True)
+    rarity = Column(Integer, nullable=True)           # BSInfo同期 (DEFAULT=0, COMMON=10, RARE=20, EPIC=30, COLLECTORS=40)
     description_en = Column(Text, nullable=True)
     description_ja = Column(Text, nullable=True)
     equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
@@ -643,7 +643,21 @@ class PlayerIcon(Base):
     __tablename__ = 'player_icons'
 
     id = Column(Integer, primary_key=True)            # アイコンID
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
     equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
+
+
+class Spray(Base):
+    """
+    スプレーのカタログ情報。BSInfo APIから同期する。
+    """
+    __tablename__ = 'sprays'
+
+    id = Column(Integer, primary_key=True)            # スプレーID
+    rarity = Column(Integer, nullable=True)           # BSInfo同期 (DEFAULT=0, COMMON=10, COLLECTORS=40)
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
 
 
 class Mode(Base):
