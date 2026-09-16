@@ -1249,17 +1249,17 @@
                     return Math.round(calculated);
                 },
                 speedLabelText(speed) {
-                    if (speed <= 580) return {% if lang == "ja" %}"超低速"{% else %}"Very Slow"{% endif %};
-                    if (speed <= 650) return {% if lang == "ja" %}"低速"{% else %}"Slow"{% endif %};
-                    if (speed <= 720) return {% if lang == "ja" %}"普通"{% else %}"Normal"{% endif %};
-                    if (speed <= 770) return {% if lang == "ja" %}"高速"{% else %}"Fast"{% endif %};
+                    if (speed <= 610) return {% if lang == "ja" %}"超低速"{% else %}"Very Slow"{% endif %};
+                    if (speed <= 680) return {% if lang == "ja" %}"低速"{% else %}"Slow"{% endif %};
+                    if (speed <= 750) return {% if lang == "ja" %}"普通"{% else %}"Normal"{% endif %};
+                    if (speed <= 800) return {% if lang == "ja" %}"高速"{% else %}"Fast"{% endif %};
                     return {% if lang == "ja" %}"超高速"{% else %}"Very Fast"{% endif %};
                 },
                 speedLabelClass(speed) {
-                    if (speed <= 580) return "brawler-card__rank-grade--D";
-                    if (speed <= 650) return "brawler-card__rank-grade--C";
-                    if (speed <= 720) return "brawler-card__rank-grade--B";
-                    if (speed <= 770) return "brawler-card__rank-grade--A";
+                    if (speed <= 610) return "brawler-card__rank-grade--D";
+                    if (speed <= 680) return "brawler-card__rank-grade--C";
+                    if (speed <= 750) return "brawler-card__rank-grade--B";
+                    if (speed <= 800) return "brawler-card__rank-grade--A";
                     return "brawler-card__rank-grade--S";
                 },
             }
