@@ -62,7 +62,7 @@
 
     <p class="admin-page__description" style="margin-bottom: 10px;">
         登録ピンズ総数: <b x-text="filteredData.length"></b> (日本語説明未登録: <b x-text="missingJaDescCount" :class="{'text-danger': missingJaDescCount > 0}"></b>)
-        <br>レアリティはBSInfoから同期されています（DEFAULT=0, COMMON=10, RARE=20, EPIC=30, COLLECTORS=40）。
+        <br>レアリティはBSInfoから同期されています（DEFAULT=0, COMMON=10, RARE=20, EPIC=30, COLLECTORS=40）。価格はBSInfo同期・編集不可です。
     </p>
     
     <div class="filter-container">
@@ -106,6 +106,14 @@
                     <th @click="sortBy('rarity')">
                         <span>レアリティ</span>
                         <span x-show="sortColumn === 'rarity'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('bling_price')">
+                        <span>ジュエルチップ</span>
+                        <span x-show="sortColumn === 'bling_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('gems_price')">
+                        <span>エメラルド</span>
+                        <span x-show="sortColumn === 'gems_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
                     </th>
                     <th @click="sortBy('equip_rate')">
                         <span>装備率</span>
@@ -155,6 +163,10 @@
                         {# レアリティ (BSInfo同期・読み取り専用) #}
                         <td style="text-align: right;" x-text="pin.rarity === null || typeof pin.rarity === 'undefined' ? '未入力' : pin.rarity"></td>
 
+                        {# ジュエルチップ / エメラルド (BSInfo同期・読み取り専用) #}
+                        <td style="text-align: right;" x-text="pin.bling_price === null || typeof pin.bling_price === 'undefined' ? '未入力' : pin.bling_price"></td>
+                        <td style="text-align: right;" x-text="pin.gems_price === null || typeof pin.gems_price === 'undefined' ? '未入力' : pin.gems_price"></td>
+
                         {# 装備率 #}
                         <td style="text-align: right;" x-text="formatRate(pin.equip_rate)"></td>
 
@@ -189,7 +201,7 @@
                 </template>
                 <template x-if="filteredData.length === 0">
                     <tr>
-                        <td colspan="7" style="text-align: center; color: #777;">該当するピンズデータがありません</td>
+                        <td colspan="9" style="text-align: center; color: #777;">該当するピンズデータがありません</td>
                     </tr>
                 </template>
             </tbody>
@@ -305,7 +317,7 @@
                 },
                 
                 sortData() {
-                    const isNumeric = ['id', 'brawler_id', 'rarity', 'equip_rate'].includes(this.sortColumn);
+                    const isNumeric = ['id', 'brawler_id', 'rarity', 'bling_price', 'gems_price', 'equip_rate'].includes(this.sortColumn);
                     
                     this.filteredData.sort((a, b) => {
                         let valA = a[this.sortColumn];
