@@ -60,6 +60,8 @@ from app.core.admin_permissions import (
     PERM_REPORTS_VIEW_IP,
     PERM_SECRETQUESTIONS_EDIT,
     PERM_SKINS_EDIT,
+    PERM_SPECIAL_REWARD_LINKS_EDIT,
+    PERM_SPECIAL_REWARD_LINKS_EDIT_LIMITED,
     PERM_TITLES_EDIT,
     PERM_USERS_EDIT_ADS,
     PERM_USERS_EDIT_CUSTOM,
@@ -90,6 +92,15 @@ from app.services.minigame_service import (
     validate_prizes,
 )
 from app.services.minigame_assets import CARD_ASSETS
+from app.services.special_reward_link_service import (
+    SpecialRewardLinkError,
+    create_link,
+    invalidate_link,
+    list_links_for_admin,
+    list_links_for_minigame_select,
+    save_banner,
+    update_link,
+)
 from app.services.admin_notification_service import (
     ADMIN_NOTIFICATION_PAGE_SIZE,
     category_options,

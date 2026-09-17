@@ -49,6 +49,7 @@ ADMIN_PATH_SLUG_TO_CATEGORY = {
     "token-gifts": "token_gifts",
     "purchases": "purchases",
     "image-generation-jobs": "image_generation_jobs",
+    "special-reward-links": "special_reward_links",
     "minigame-campaigns": "minigame_campaigns",
     "minigame-plays": "minigame_plays",
     "brawl_videos": "brawl_videos",
@@ -114,6 +115,14 @@ EVENT_CATALOG: tuple[AdminNotificationEvent, ...] = (
     AdminNotificationEvent("purchase_other", "purchases", "その他の購入イベント", 10, "/admin/purchases"),
     AdminNotificationEvent("image_job_completed", "image_generation_jobs", "画像生成成功", 0, "/admin/image-generation-jobs"),
     AdminNotificationEvent("image_job_failed", "image_generation_jobs", "画像生成失敗", 30, "/admin/image-generation-jobs"),
+    AdminNotificationEvent("special_reward_link_created", "special_reward_links", "特別報酬リンク追加", 10, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_link_updated", "special_reward_links", "特別報酬リンク変更", 10, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_link_deleted", "special_reward_links", "特別報酬リンク無効化", 10, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_banner_saved", "special_reward_links", "特別報酬バナー掲載設定", 10, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_banner_started", "special_reward_links", "特別報酬バナー掲載開始", 20, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_banner_ended", "special_reward_links", "特別報酬バナー掲載終了", 20, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_stock_empty", "special_reward_links", "特別報酬リンク在庫切れ", 20, "/admin/special-reward-links"),
+    AdminNotificationEvent("special_reward_provision_failed", "special_reward_links", "特別報酬リンク提供失敗", 30, "/admin/special-reward-links"),
     AdminNotificationEvent("minigame_campaign_created", "minigame_campaigns", "ミニゲーム企画追加", 10, "/admin/minigame-campaigns"),
     AdminNotificationEvent("minigame_campaign_updated", "minigame_campaigns", "ミニゲーム企画変更", 10, "/admin/minigame-campaigns"),
     AdminNotificationEvent("minigame_started", "minigame_campaigns", "ミニゲーム開始", 20, "/admin/minigame-campaigns"),
@@ -121,6 +130,7 @@ EVENT_CATALOG: tuple[AdminNotificationEvent, ...] = (
     AdminNotificationEvent("minigame_stock_empty", "minigame_plays", "ギフト在庫切れ", 20, "/admin/minigame-plays"),
     AdminNotificationEvent("minigame_play", "minigame_plays", "ミニゲーム参加", 0, "/admin/minigame-plays"),
     AdminNotificationEvent("minigame_gift_won", "minigame_plays", "ギフト景品当選", 30, "/admin/minigame-plays"),
+    AdminNotificationEvent("minigame_special_reward_won", "minigame_plays", "特別報酬リンク景品当選", 20, "/admin/minigame-plays"),
     AdminNotificationEvent("minigame_gift_status", "minigame_plays", "ギフト発送状態の変更", 10, "/admin/minigame-plays"),
     AdminNotificationEvent("brawl_video_created", "brawl_videos", "ブロスタ動画追加", 10, "/admin/brawl_videos"),
     AdminNotificationEvent("brawl_video_updated", "brawl_videos", "ブロスタ動画変更", 10, "/admin/brawl_videos"),
@@ -171,6 +181,7 @@ CATEGORY_LABELS: dict[str, str] = {
     "token_gifts": "トークン進呈確認",
     "purchases": "購入情報確認",
     "image_generation_jobs": "画像生成履歴確認",
+    "special_reward_links": "特別報酬リンク管理",
     "minigame_campaigns": "ミニゲーム企画管理",
     "minigame_plays": "ミニゲーム参加履歴",
     "brawl_videos": "ブロスタ動画管理",
@@ -919,3 +930,56 @@ async def poll_admin_notification_schedule_events(db: asyncpg.Connection) -> Non
                 payload={"campaign_id": row["id"]},
                 dedupe_key=f"minigame_ended:{row['id']}",
             )
+
+    try:
+        banners = await db.fetch(
+            """
+            SELECT b.id, b.starts_at, b.ends_at, b.ended_reason, l.name_ja, l.name_en
+            FROM special_reward_home_banners b
+            JOIN special_reward_links l ON l.id = b.link_id
+            WHERE (b.starts_at <= $1 AND b.starts_at >= $2)
+               OR (b.ends_at <= $1 AND b.ends_at >= $2)
+            """,
+            now,
+            since,
+        )
+    except asyncpg.PostgresError as e:
+        _log_internal(f"特別報酬バナー開始/終了のポーリングに失敗しました: {e}", e)
+        banners = []
+
+    banner_cache_dirty = False
+    for row in banners:
+        name = (row["name_ja"] or row["name_en"] or f"バナー {row['id']}").strip()
+        if row["starts_at"] and since <= row["starts_at"] <= now:
+            banner_cache_dirty = True
+            await emit_admin_notification(
+                db,
+                "special_reward_banner_started",
+                title="特別報酬バナーの掲載を開始しました",
+                summary=f"「{clip_admin_notification_text(name, 80)}」のホーム掲載が開始しました。",
+                payload={"banner_id": row["id"]},
+                dedupe_key=f"special_reward_banner_started:{row['id']}",
+            )
+        if row["ends_at"] and since <= row["ends_at"] <= now:
+            banner_cache_dirty = True
+            if row["ended_reason"] is None:
+                try:
+                    await db.execute(
+                        """UPDATE special_reward_home_banners
+                           SET ended_reason = 'scheduled', updated_at = now()
+                           WHERE id = $1 AND ended_reason IS NULL""",
+                        row["id"],
+                    )
+                except asyncpg.PostgresError as e:
+                    _log_internal(f"特別報酬バナー終了状態の更新に失敗しました: {e}", e)
+            await emit_admin_notification(
+                db,
+                "special_reward_banner_ended",
+                title="特別報酬バナーの掲載が終了しました",
+                summary=f"「{clip_admin_notification_text(name, 80)}」のホーム掲載が終了しました。",
+                payload={"banner_id": row["id"]},
+                dedupe_key=f"special_reward_banner_ended:{row['id']}",
+            )
+    if banner_cache_dirty:
+        from app.services.special_reward_link_service import invalidate_home_banner_cache
+        await invalidate_home_banner_cache()

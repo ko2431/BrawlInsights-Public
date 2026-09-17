@@ -920,6 +920,9 @@
     filter: brightness(1.15);
 }
 .minigame-gift-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
     width: 100%;
     margin: 0 0 10px;
     padding: 10px 12px;
@@ -935,6 +938,52 @@
     border-color: #7a6230;
     background: #2a2414;
     color: #f0d48a;
+}
+.minigame-gift-notice__line {
+    margin: 0;
+}
+.minigame-history-wrap {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.minigame-special-claims {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    margin: 0 0 8px;
+}
+.minigame-special-claim {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--color-eee);
+    background-color: var(--bg-f8f8f8);
+    color: var(--color-222);
+    font-size: 13px;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.dark .minigame-special-claim {
+    border-color: #333;
+    background-color: #141414;
+}
+.minigame-special-claim:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+.minigame-special-claim img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 .minigame-panel-toggles {
     display: flex;

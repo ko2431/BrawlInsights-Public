@@ -1343,6 +1343,136 @@ class MinigamePrizeStock(Base):
     )
 
 
+class SpecialRewardLink(Base):
+    """ブロスタ特別報酬リンクの定義。"""
+    __tablename__ = 'special_reward_links'
+
+    id = Column(Integer, primary_key=True)
+    link_type = Column(Text, nullable=False)
+    name_ja = Column(Text, nullable=False)
+    name_en = Column(Text, nullable=False)
+    url = Column(Text, nullable=True)
+    max_uses = Column(Integer, nullable=True)
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "link_type IN ('single_unlimited', 'single_limited', 'link_set')",
+            name='ck_special_reward_links_type',
+        ),
+        CheckConstraint(
+            """(
+                (link_type = 'single_unlimited' AND url IS NOT NULL AND max_uses IS NULL)
+                OR (link_type = 'single_limited' AND url IS NOT NULL AND max_uses >= 1)
+                OR (link_type = 'link_set' AND url IS NULL AND max_uses >= 1)
+            )""",
+            name='ck_special_reward_links_shape',
+        ),
+        Index('ix_special_reward_links_created_by_user_id', 'created_by_user_id'),
+        Index('ix_special_reward_links_is_invalid', 'is_invalid'),
+        Index(
+            'uq_special_reward_links_url',
+            'url',
+            unique=True,
+            postgresql_where=text('url IS NOT NULL'),
+        ),
+    )
+
+
+class SpecialRewardLinkItem(Base):
+    """リンクセットの個別URL。"""
+    __tablename__ = 'special_reward_link_items'
+
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey('special_reward_links.id', ondelete='CASCADE'), nullable=False)
+    url = Column(Text, nullable=False)
+    claimed_at = Column(DateTime(timezone=True), nullable=True)
+    claimed_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    source = Column(Text, nullable=True)
+    play_id = Column(Integer, ForeignKey('minigame_plays.id', ondelete='SET NULL'), nullable=True)
+    banner_id = Column(Integer, ForeignKey('special_reward_home_banners.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('url', name='uq_special_reward_link_items_url'),
+        CheckConstraint(
+            "source IS NULL OR source IN ('home_banner', 'minigame')",
+            name='ck_special_reward_link_items_source',
+        ),
+        Index('ix_special_reward_link_items_link_id_claimed_at', 'link_id', 'claimed_at'),
+    )
+
+
+class SpecialRewardHomeBanner(Base):
+    """ホーム画面の特別報酬バナー掲載設定。"""
+    __tablename__ = 'special_reward_home_banners'
+
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey('special_reward_links.id', ondelete='CASCADE'), nullable=False)
+    starts_at = Column(DateTime(timezone=True), nullable=False)
+    ends_at = Column(DateTime(timezone=True), nullable=False)
+    icon_path = Column(Text, nullable=True)
+    title_ja = Column(Text, nullable=False)
+    title_en = Column(Text, nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    click_count = Column(Integer, nullable=False, server_default='0')
+    ended_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "ended_reason IS NULL OR ended_reason IN ('scheduled', 'stock_empty', 'manual')",
+            name='ck_special_reward_home_banners_ended_reason',
+        ),
+        CheckConstraint('ends_at > starts_at', name='ck_special_reward_home_banners_period'),
+        Index('ix_special_reward_home_banners_link_id', 'link_id'),
+        Index('ix_special_reward_home_banners_period', 'starts_at', 'ends_at'),
+    )
+
+
+class SpecialRewardLinkClaim(Base):
+    """特別報酬リンクの消費・タップログ。"""
+    __tablename__ = 'special_reward_link_claims'
+
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey('special_reward_links.id', ondelete='CASCADE'), nullable=False)
+    item_id = Column(Integer, ForeignKey('special_reward_link_items.id', ondelete='SET NULL'), nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    source = Column(Text, nullable=False)
+    play_id = Column(Integer, ForeignKey('minigame_plays.id', ondelete='SET NULL'), nullable=True)
+    banner_id = Column(Integer, ForeignKey('special_reward_home_banners.id', ondelete='SET NULL'), nullable=True)
+    ip = Column(INET, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('home_banner', 'minigame')",
+            name='ck_special_reward_link_claims_source',
+        ),
+        Index(
+            'uq_special_reward_link_claims_home_user',
+            'link_id',
+            'user_id',
+            unique=True,
+            postgresql_where=text("source = 'home_banner' AND user_id IS NOT NULL"),
+        ),
+        Index(
+            'uq_special_reward_link_claims_minigame_play',
+            'play_id',
+            unique=True,
+            postgresql_where=text("source = 'minigame' AND play_id IS NOT NULL"),
+        ),
+        Index('ix_special_reward_link_claims_link_id_created_at', 'link_id', desc('created_at')),
+        Index('ix_special_reward_link_claims_user_id', 'user_id'),
+    )
+
+
 class MinigamePlay(Base):
     """ミニゲーム参加履歴。"""
     __tablename__ = 'minigame_plays'

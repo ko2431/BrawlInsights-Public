@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}管理者向け / 特別報酬リンク管理{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">{% endblock %}
+{% block content %}
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="specialRewardLinkAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+    <h1 class="page-title--main">特別報酬リンク管理</h1>
+    <p class="admin-page__description">登録数: <b>{{ links|length }}</b><br><b>link.brawlstars.com/voucher/</b>ドメインの特別報酬リンクを登録し、ホーム画面で配布、またはプレゼント企画の景品用に使うことができます。</p>
+    {% if can_edit %}
+    <div class="save-changes-block">
+        <p x-text="form.id ? `リンク #${form.id} を編集` : '新しい特別報酬リンクを追加'"></p>
+        <button type="button" class="button button--secondary" x-show="form.id" @click="reset()">新規作成に戻る</button>
+    </div>
+    <form @submit.prevent="save()" class="admin-filters__container">
+        <div class="admin-filters__columns">
+            <label>タイプ
+                <select class="form-input" x-model="form.link_type" :disabled="!!form.id">
+                    <option value="single_unlimited">同一リンク（無限）</option>
+                    <option value="single_limited">同一リンク（有限）</option>
+                    <option value="link_set">リンクセット（各1回）</option>
+                </select>
+            </label>
+            <label>報酬名（日本語）<input class="form-input" required x-model.trim="form.name_ja" :disabled="!canMutateForm()"></label>
+            <label>報酬名（英語）<input class="form-input" required x-model.trim="form.name_en" :disabled="!canMutateForm()"></label>
+            <template x-if="form.link_type !== 'link_set'">
+                <label>リンク
+                    <input class="form-input" x-model.trim="form.url" placeholder="https://link.brawlstars.com/voucher/..." :disabled="!!form.id">
+                </label>
+            </template>
+            <template x-if="form.link_type === 'single_limited'">
+                <label>使用可能回数<input class="form-input" type="number" min="1" x-model.number="form.max_uses" :disabled="!canMutateForm()"></label>
+            </template>
+            <label>利用開始（JST・任意）<input class="form-input" type="datetime-local" x-model="form.starts_at" :disabled="!canMutateForm()"></label>
+            <label>有効期限（JST・任意）<input class="form-input" type="datetime-local" x-model="form.expires_at" :disabled="!canMutateForm()"></label>
+        </div>
+        <template x-if="form.link_type === 'link_set' && !form.id">
+            <label>リンク一覧（1行1URL）<textarea class="form-input" rows="5" x-model="form.urls_text" placeholder="https://link.brawlstars.com/voucher/..."></textarea></label>
+        </template>
+        <template x-if="form.link_type === 'link_set' && form.id">
+            <div>
+                <p class="admin-page__description" style="margin: 6px 0;">登録URL: <b x-text="(form.items || []).length"></b>件（使用済み <b x-text="usedItemCount()"></b>）</p>
+                <label>未使用URLを追加（1行1URL）<textarea class="form-input" rows="3" x-model="form.add_urls_text" :disabled="!canMutateForm()"></textarea></label>
+            </div>
+        </template>
+        <div class="srl-admin__stats" x-show="form.id">
+            <span>登録者: <b x-text="form.creator_name || '-'"></b></span>
+            <span x-show="form.unlimited">在庫: <b>無限</b></span>
+            <span x-show="!form.unlimited">実残り数: <b x-text="form.physical_remaining"></b>／ロック中: <b x-text="form.locked"></b>／バナー用に使える空き数: <b x-text="form.available"></b></span>
+            <span>バナータップ回数: <b x-text="form.home_click_count || 0"></b>／ミニゲーム受取回数: <b x-text="form.minigame_claim_count || 0"></b></span>
+        </div>
+        <section class="srl-admin__banner" x-show="canMutateForm() || form.banner">
+            <div class="srl-admin__banner-head">
+                <h2 class="block-title">ホーム画面バナー</h2>
+                <label class="srl-admin__banner-toggle"><input type="checkbox" x-model="form.banner.enabled" :disabled="!canMutateForm()"> ホーム画面上部のバナーで配布する</label>
+            </div>
+            <div class="admin-filters__columns" x-show="form.banner.enabled">
+                <label>掲載開始（JST）<input class="form-input" type="datetime-local" x-model="form.banner.starts_at" :disabled="!canMutateForm()"></label>
+                <label>掲載終了（JST）<input class="form-input" type="datetime-local" x-model="form.banner.ends_at" :disabled="!canMutateForm()"></label>
+                <label>バナー左のアイコン（空欄時=🎁を使用）<input class="form-input" x-model.trim="form.banner.icon_path" placeholder="mode_icons/presentPlunder.png" :disabled="!canMutateForm()"></label>
+                <label>バナー文言（日本語）<input class="form-input" x-model.trim="form.banner.title_ja" placeholder="無料：〇〇ボックスはこちら！" :disabled="!canMutateForm()"></label>
+                <label>バナー文言（英語）<input class="form-input" x-model.trim="form.banner.title_en" placeholder="Freebie: Get a 〇〇 Box!" :disabled="!canMutateForm()"></label>
+            </div>
+            <p class="admin-page__description" x-show="form.id && form.banner && form.banner.click_count != null">この掲載のタップ数: <b x-text="form.banner.click_count || 0"></b></p>
+        </section>
+        <p x-show="message" :style="success ? 'color:green' : 'color:#b91c1c'" x-text="message"></p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button class="button button--primary admin-save-button" type="submit" :disabled="saving || !canMutateForm()"><span x-text="saving ? '保存中...' : '保存'"></span><span class="admin-filters__shortcut admin-save-shortcut" aria-hidden="true"></span></button>
+            <button type="button" class="button button--secondary" x-show="form.id && canMutateForm() && !form.is_invalid" @click="invalidate()" :disabled="saving">無効化</button>
+        </div>
+    </form>
+    {% endif %}
+    <h2 class="block-title">登録一覧</h2>
+    <div class="table-wrapper">
+        <table class="data-table purchase-table">
+            <thead>
+                <tr>
+                    <th>ID</th><th>報酬名</th><th>タイプ</th><th>在庫</th><th>登録者</th><th>バナー</th><th>状態</th>
+                    {% if can_edit %}<th></th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in links %}
+                <tr>
+                    <td>{{ link.id }}</td>
+                    <td>{{ link.name_ja }}</td>
+                    <td>{{ {'single_unlimited':'無限','single_limited':'有限','link_set':'セット'}.get(link.link_type, link.link_type) }}</td>
+                    <td>{% if link.unlimited %}無限{% else %}空き {{ link.available }} / ロック {{ link.locked }}{% endif %}</td>
+                    <td>{{ link.creator_name or '-' }}</td>
+                    <td>{% if link.banner and not link.banner.ended_reason %}掲載中/予定{% elif link.banner %}終了{% else %}なし{% endif %}</td>
+                    <td>{{ '無効' if link.is_invalid else '有効' }}</td>
+                    {% if can_edit %}<td>{% if link.can_mutate %}<a class="button button--secondary button--small" href="{{ url_for('admin_special_reward_links', lang=lang) }}?edit_id={{ link.id }}">編集</a>{% endif %}</td>{% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}{{ super() }}
+<script src="{{ url_for('static', path='/js/pages/admin_save_shortcut.js') }}?v={{ app_version }}"></script>
+<script>
+function specialRewardLinkAdmin() {
+    const editing = {{ edit_link | tojson | safe if edit_link else 'null' }};
+    const canEditAll = {{ can_edit_all | tojson }};
+    const currentUserId = {{ current_user_id | tojson }};
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const emptyBanner = () => ({enabled:false, starts_at:'', ends_at:'', icon_path:'', title_ja:'', title_en:'', click_count:0});
+    const emptyForm = () => ({
+        id:null, link_type:'single_unlimited', name_ja:'', name_en:'', url:'', urls_text:'', add_urls_text:'',
+        max_uses:1, starts_at:'', expires_at:'', items:[], unlimited:true, physical_remaining:null, locked:0,
+        available:null, creator_name:'', home_click_count:0, minigame_claim_count:0, is_invalid:false,
+        created_by_user_id: currentUserId, banner: emptyBanner(),
+    });
+    const normalize = (link) => {
+        if (!link) return emptyForm();
+        const value = clone(link);
+        value.starts_at = value.starts_at_input || '';
+        value.expires_at = value.expires_at_input || '';
+        value.urls_text = '';
+        value.add_urls_text = '';
+        const banner = value.banner || null;
+        value.banner = banner ? {
+            enabled: !banner.ended_reason,
+            starts_at: banner.starts_at_input || '',
+            ends_at: banner.ends_at_input || '',
+            icon_path: banner.icon_path || '',
+            title_ja: banner.title_ja || '',
+            title_en: banner.title_en || '',
+            click_count: banner.click_count || 0,
+        } : emptyBanner();
+        return value;
+    };
+    return {
+        form: normalize(editing), saving:false, message:'', success:false,
+        canMutateForm() {
+            if (!this.form.id) return true;
+            return canEditAll || this.form.created_by_user_id === currentUserId;
+        },
+        usedItemCount() { return (this.form.items || []).filter((item) => item.claimed_at).length; },
+        reset() { this.form = emptyForm(); this.message=''; history.replaceState(null,'', '{{ url_for("admin_special_reward_links", lang=lang) }}'); },
+        async save() {
+            if (!this.canMutateForm()) return;
+            this.saving = true; this.message = '';
+            try {
+                const payload = {
+                    id: this.form.id, link_type: this.form.link_type, name_ja: this.form.name_ja, name_en: this.form.name_en,
+                    url: this.form.url, urls_text: this.form.urls_text, add_urls_text: this.form.add_urls_text,
+                    max_uses: this.form.max_uses, starts_at: this.form.starts_at, expires_at: this.form.expires_at,
+                    banner: this.form.banner,
+                };
+                const r = await fetch('{{ url_for("admin_special_reward_link_save", lang=lang) }}', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
+                });
+                const d = await r.json();
+                this.success = d.success; this.message = d.message;
+                if (d.success) location.href = '{{ url_for("admin_special_reward_links", lang=lang) }}?edit_id=' + d.id;
+            } catch (error) {
+                console.error(error); this.success = false; this.message = '保存中に通信エラーが発生しました。';
+            } finally { this.saving = false; }
+        },
+        async invalidate() {
+            if (!this.form.id || !confirm('このリンクを無効化しますか？')) return;
+            this.saving = true; this.message = '';
+            try {
+                const r = await fetch('{{ url_for("admin_special_reward_link_delete", lang=lang) }}', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: this.form.id}),
+                });
+                const d = await r.json();
+                this.success = d.success; this.message = d.message;
+                if (d.success) location.href = '{{ url_for("admin_special_reward_links", lang=lang) }}';
+            } catch (error) {
+                console.error(error); this.success = false; this.message = '無効化中に通信エラーが発生しました。';
+            } finally { this.saving = false; }
+        },
+    };
+}
+</script>
+{% endblock %}

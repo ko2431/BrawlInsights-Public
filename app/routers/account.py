@@ -24,7 +24,12 @@ from app.services.minigame_service import (
 from app.services.user_service import _current_token_claim_date, _normalize_daily_claim_count
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
-from app.utils.utils import format_tag, confirm_tag
+from app.services.special_reward_link_service import (
+    SpecialRewardLinkError,
+    claim_minigame_reward,
+    list_claimable_minigame_rewards,
+)
+from app.utils.utils import format_tag, confirm_tag, get_remote_ip
 from app.db.db import get_shared_db
 from app.core.logger import logger
 
@@ -1445,6 +1450,7 @@ async def account_minigame_complete(
         label = minigame_service.format_prize_label(items, lang)
         is_none = len(items) == 1 and items[0].get("type") == "none"
         is_gift = any(i.get("type") == "gift" for i in items)
+        is_special_reward = any(i.get("type") == "special_reward_link" for i in items)
         grant_log = result.get("grant_log") or {}
         if isinstance(grant_log, str):
             grant_log = json.loads(grant_log)
@@ -1457,6 +1463,12 @@ async def account_minigame_complete(
                 f"おめでとうございます！<b>{label}</b>が当選しました。"
                 if lang == "ja"
                 else f"Congratulations! You won <b>{label}</b>."
+            )
+        elif is_special_reward:
+            message = (
+                f"おめでとうございます！<b>{label}</b>が進呈されました。参加履歴よりお受け取りください。"
+                if lang == "ja"
+                else f"Congratulations! <b>{label}</b> was granted. Please claim it from Play History."
             )
         else:
             message = None
@@ -1560,5 +1572,41 @@ async def account_minigame_complete(
         return JSONResponse({"success": False, "message": str(e)}, status_code=400)
     except Exception as e:
         logger.error(f"ミニゲーム完了エラー (User: {current_user.id}): {e}", exc_info=True)
+        message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
+        return JSONResponse({"success": False, "message": message}, status_code=500)
+
+
+class MinigameSpecialRewardClaimRequest(BaseModel):
+    play_id: int
+
+
+@router.post("/minigame/special-reward/claim", name="account_minigame_special_reward_claim")
+async def account_minigame_special_reward_claim(
+    request: Request,
+    payload: MinigameSpecialRewardClaimRequest,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    try:
+        result = await claim_minigame_reward(
+            db, current_user, payload.play_id, ip=get_remote_ip(request), lang=lang
+        )
+        return JSONResponse({
+            "success": True,
+            "url": result["url"],
+            "already_claimed": result.get("already_claimed", False),
+            "user_tokens": current_user.tokens,
+        })
+    except SpecialRewardLinkError as e:
+        status_code = 429 if e.code == "rate_limited" else 400
+        return JSONResponse({
+            "success": False,
+            "message": e.message(lang),
+            "code": e.code,
+            "user_tokens": current_user.tokens,
+        }, status_code=status_code)
+    except Exception as e:
+        logger.error(f"特別報酬リンク受け取りエラー (User: {current_user.id}): {e}", exc_info=True)
         message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
         return JSONResponse({"success": False, "message": message}, status_code=500)

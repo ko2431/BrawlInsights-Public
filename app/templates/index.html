@@ -46,6 +46,26 @@
     </div>
     {% endif %}
 
+    {% if special_reward_banners %}
+    <div class="home-special-rewards" x-data="homeSpecialRewardBanners()">
+        {% for banner in special_reward_banners %}
+        <div class="home-special-reward"
+             role="button"
+             tabindex="0"
+             data-banner-id="{{ banner.id }}"
+             data-requires-login="{{ 'true' if banner.requires_login else 'false' }}"
+             @click="claim($event.currentTarget)"
+             @keydown.enter.prevent="claim($event.currentTarget)">
+            <img class="home-special-reward__icon" src="{{ url_for('static', path='/images/' + banner.icon_path) }}" alt="">
+            <p class="home-special-reward__title">{% if lang == 'ja' %}{{ banner.title_ja }}{% else %}{{ banner.title_en }}{% endif %}</p>
+            <button type="button" class="home-special-reward__info" aria-label="{% if lang == 'ja' %}情報{% else %}Info{% endif %}" data-organizer-name="{{ banner.organizer_name }}" @click.stop="showInfo($event.currentTarget.dataset.organizerName)" @keydown.enter.stop.prevent @keydown.space.stop.prevent>
+                <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="">
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {# 0. お知らせ #}
     <section class="home-page__section announcements-section">
         <div class="announcements-box">
@@ -1418,11 +1438,63 @@
         }
 
         // Alpine.jsの初期化
+        function homeSpecialRewardBanners() {
+            const isJa = currentLang === 'ja';
+            const isLoggedIn = {{ 'true' if current_user else 'false' }};
+            return {
+                async claim(el) {
+                    const requiresLogin = el.dataset.requiresLogin === 'true';
+                    const bannerId = el.dataset.bannerId;
+                    if (requiresLogin && !isLoggedIn) {
+                        alert(isJa ? 'アカウントタブからログインしてください。' : 'Please log in from the Account tab.');
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/${currentLang}/special-reward-banners/${bannerId}/open`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success || !data.url) {
+                            alert(data.message || (isJa ? '報酬を受け取れませんでした。' : 'Could not claim the reward.'));
+                            if (data.hide_banner) {
+                                const parent = el.parentElement;
+                                el.remove();
+                                if (parent && !parent.querySelector('.home-special-reward')) {
+                                    parent.remove();
+                                }
+                            }
+                            return;
+                        }
+                        if (window.Capacitor?.isNativePlatform()) {
+                            try {
+                                await window.Capacitor.Plugins.Browser.open({ url: data.url });
+                                return;
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        }
+                        window.open(data.url, '_blank', 'noopener,noreferrer');
+                    } catch (error) {
+                        console.error('special reward banner open error', error);
+                        alert(isJa ? '報酬を受け取れませんでした。' : 'Could not claim the reward.');
+                    }
+                },
+                showInfo(name) {
+                    const host = name || (isJa ? '管理者' : 'an administrator');
+                    alert(isJa
+                        ? `この報酬はBrawl Insightsの共同管理者である ${host} が主催して配布しています。`
+                        : `This reward is hosted and distributed by ${host}, a co-administrator of Brawl Insights.`);
+                }
+            };
+        }
+
         document.addEventListener('alpine:init', () => {
             Alpine.data('bookmarksEditor', bookmarksEditor);
             Alpine.data('viewedHistoryEditor', viewedHistoryEditor);
             Alpine.data('clubBookmarksEditor', clubBookmarksEditor);
             Alpine.data('clubViewedHistoryEditor', clubViewedHistoryEditor);
+            Alpine.data('homeSpecialRewardBanners', homeSpecialRewardBanners);
         });
 
         window.addEventListener('beforeunload', (event) => {

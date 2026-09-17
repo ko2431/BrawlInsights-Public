@@ -293,11 +293,20 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
                 logger.warning(f"閲覧履歴のクラブ情報取得中にエラー (タグ: {tag}): {e}")
                 viewed_clubs_for_display.append({"tag": tag, "name": tag, "badge_id": badge_id})
 
+    special_reward_banners = []
+    try:
+        special_reward_banners = await get_public_home_banners(
+            db, user_id=current_login_user.id if current_login_user else None
+        )
+    except Exception as e:
+        logger.warning(f"ホーム特別報酬バナーの取得中にエラー: {e}", exc_info=True)
+
     context = {
         "request": request,
         "lang": lang,
         "current_page": "home", # 下部タブバーのハイライト用
         "announcements": announcements,
+        "special_reward_banners": special_reward_banners,
         "bookmarked_players": bookmarked_players_for_display, # テンプレートでの変数名変更
         "available_bookmark_slots": available_bookmark_slots,
         "can_extend_bookmark_slots": can_extend_bookmark_slots,

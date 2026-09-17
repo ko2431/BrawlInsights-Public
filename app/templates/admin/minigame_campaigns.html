@@ -47,7 +47,7 @@
                 <fieldset class="admin-filters__container">
                     <legend x-text="`${index + 1}等`"></legend>
                     <div class="admin-filters__columns">
-                        <label>配分 <select class="form-input" x-model="tier.allocation" :disabled="started"><option value="stock">在庫</option><option value="weight">重み</option></select></label>
+                        <label>配分 <select class="form-input" x-model="tier.allocation" :disabled="started || isFiniteSpecial(tier)"><option value="stock">在庫</option><option value="weight" :disabled="isFiniteSpecial(tier)">重み</option></select></label>
                         <label>
                             <span x-text="tier.allocation === 'stock' ? '在庫数' : '重み'"></span>
                             <input class="form-input" type="number"
@@ -64,7 +64,7 @@
                                     :disabled="started">
                             </label>
                         </template>
-                        <label>景品種別 <select class="form-input" x-model="tier.item.type" :disabled="started"><option value="none">なし</option><option value="token">トークン</option><option value="ad_skip_ticket">広告スキップチケット</option><option value="auto_track_elixir">自動追跡エリクサー</option><option value="token_and_ticket">トークン＋チケット</option><option value="token_and_elixir">トークン＋エリクサー</option><option value="ticket_and_elixir">チケット＋エリクサー</option><option value="token_and_ticket_and_elixir">トークン＋チケット＋エリクサー</option><option value="auto_track_extend">自動追跡延長</option><option value="battle_log_retention">バトル履歴保存</option><option value="gift">ギフト</option></select></label>
+                        <label>景品種別 <select class="form-input" x-model="tier.item.type" :disabled="started" @change="onPrizeTypeChange(tier)"><option value="none">なし</option><option value="token">トークン</option><option value="ad_skip_ticket">広告スキップチケット</option><option value="auto_track_elixir">自動追跡エリクサー</option><option value="token_and_ticket">トークン＋チケット</option><option value="token_and_elixir">トークン＋エリクサー</option><option value="ticket_and_elixir">チケット＋エリクサー</option><option value="token_and_ticket_and_elixir">トークン＋チケット＋エリクサー</option><option value="auto_track_extend">自動追跡延長</option><option value="battle_log_retention">バトル履歴保存</option><option value="gift">ギフト</option><option value="special_reward_link">特別報酬リンク</option></select></label>
                         <template x-if="['token','ad_skip_ticket','auto_track_elixir'].includes(tier.item.type)"><label>数量<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></template>
                         <template x-if="tier.item.type === 'token_and_ticket'"><label>トークン<input class="form-input" type="number" min="1" x-model.number="tier.item.token_amount" :disabled="started"></label></template>
                         <template x-if="tier.item.type === 'token_and_ticket'"><label>チケット<input class="form-input" type="number" min="1" x-model.number="tier.item.ticket_amount" :disabled="started"></label></template>
@@ -81,6 +81,18 @@
                         <template x-if="tier.item.type === 'gift'"><label>景品名（日本語）<input class="form-input" x-model="tier.item.name_ja" :disabled="started"></label></template>
                         <template x-if="tier.item.type === 'gift'"><label>景品名（英語）<input class="form-input" x-model="tier.item.name_en" :disabled="started"></label></template>
                         <template x-if="tier.item.type === 'gift'"><label>数量（任意）<input class="form-input" type="number" min="1" x-model.number="tier.item.amount" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'special_reward_link'">
+                            <label>特別報酬リンク
+                                <select class="form-input" x-model.number="tier.item.link_id" @change="fillSpecialRewardNames(tier)" :disabled="started">
+                                    <option value="">選択してください</option>
+                                    <template x-for="link in specialRewardLinks" :key="link.id">
+                                        <option :value="link.id" x-text="specialRewardOptionLabel(link)"></option>
+                                    </template>
+                                </select>
+                            </label>
+                        </template>
+                        <template x-if="tier.item.type === 'special_reward_link'"><label>景品名（日本語）<input class="form-input" x-model="tier.item.name_ja" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'special_reward_link'"><label>景品名（英語）<input class="form-input" x-model="tier.item.name_en" :disabled="started"></label></template>
                     </div>
                 </fieldset>
             </template>
@@ -108,8 +120,9 @@
 <script>
 function minigameCampaignAdmin() {
  const editing = {{ edit_campaign | tojson | safe if edit_campaign else 'null' }};
+ const specialRewardLinks = {{ special_reward_links | tojson | safe }};
  const clone = (value) => JSON.parse(JSON.stringify(value));
- const item = () => ({type:'none', amount:null, token_amount:null, ticket_amount:null, elixir_amount:null, days:0, hours:0, months:null, name_ja:'', name_en:''});
+ const item = () => ({type:'none', amount:null, token_amount:null, ticket_amount:null, elixir_amount:null, days:0, hours:0, months:null, name_ja:'', name_en:'', link_id:''});
  const tier = rank => ({rank, allocation: rank === 1 ? 'stock' : 'weight', quantity:1, max_probability:null, item:item()});
  const normalize = campaign => {
    const value = campaign ? clone(campaign) : {id:null,name_ja:'',name_en:'',game_type:'card_flip_single',starts_at:'',ends_at:'',price_ad_tokens:'',price_token_tokens:'',ad_daily_limit:'',expected_total_plays:'',terms_extra_ja:'',terms_extra_en:'',is_invalid:false,prizes:{tiers:[tier(1),tier(2)]}};
@@ -151,9 +164,25 @@ function minigameCampaignAdmin() {
    });
    return value;
  };
- return {form:normalize(editing), tierCount: editing?.prizes?.tiers?.length || 2, started: editing?.has_started || false, saving:false,message:'',success:false,
+ return {form:normalize(editing), specialRewardLinks, tierCount: editing?.prizes?.tiers?.length || 2, started: editing?.has_started || false, saving:false,message:'',success:false,
    reset(){ this.form=normalize(null); this.tierCount=2; this.started=false; this.message=''; },
    setTierCount(){ while(this.form.prizes.tiers.length < this.tierCount) this.form.prizes.tiers.push(tier(this.form.prizes.tiers.length+1)); this.form.prizes.tiers.splice(this.tierCount); this.form.prizes.tiers.forEach((t,i)=>t.rank=i+1); },
+   specialRewardById(id){ return this.specialRewardLinks.find(link => link.id === Number(id)); },
+   isFiniteSpecial(tier){ const link = this.specialRewardById(tier?.item?.link_id); return tier?.item?.type === 'special_reward_link' && link && !link.unlimited; },
+   specialRewardOptionLabel(link){
+     const stock = link.unlimited ? '無限' : `空き${link.available ?? 0}`;
+     return `#${link.id} ${link.name_ja}（${stock}${link.creator_name ? ' / ' + link.creator_name : ''}）`;
+   },
+   fillSpecialRewardNames(tier){
+     const link = this.specialRewardById(tier.item.link_id);
+     if (!link) return;
+     tier.item.name_ja = link.name_ja;
+     tier.item.name_en = link.name_en;
+     if (!link.unlimited) tier.allocation = 'stock';
+   },
+   onPrizeTypeChange(tier){
+     if (tier.item.type === 'special_reward_link') this.fillSpecialRewardNames(tier);
+   },
    async save(){ this.saving=true; this.message=''; try { const payload=clone(this.form); payload.prizes.tiers.forEach(t=>{ if(t.allocation !== 'stock') t.max_probability=null; if(t.item.type==='token_and_ticket'){ t.items=[{type:'token',amount:Number(t.item.token_amount)},{type:'ad_skip_ticket',amount:Number(t.item.ticket_amount)}]; } else if(t.item.type==='token_and_elixir'){ t.items=[{type:'token',amount:Number(t.item.token_amount)},{type:'auto_track_elixir',amount:Number(t.item.elixir_amount)}]; } else if(t.item.type==='ticket_and_elixir'){ t.items=[{type:'ad_skip_ticket',amount:Number(t.item.ticket_amount)},{type:'auto_track_elixir',amount:Number(t.item.elixir_amount)}]; } else if(t.item.type==='token_and_ticket_and_elixir'){ t.items=[{type:'token',amount:Number(t.item.token_amount)},{type:'ad_skip_ticket',amount:Number(t.item.ticket_amount)},{type:'auto_track_elixir',amount:Number(t.item.elixir_amount)}]; } else { t.items=[t.item]; } delete t.item; }); const r=await fetch('{{ url_for("admin_minigame_campaign_save", lang=lang) }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const d=await r.json(); this.success=d.success; this.message=d.message; if(d.success) location.href='{{ url_for("admin_minigame_campaigns", lang=lang) }}?edit_id='+d.id; } catch (error) { console.error(error); this.success=false; this.message='保存中に通信エラーが発生しました。'; } finally {this.saving=false;} }
  };
 }

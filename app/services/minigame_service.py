@@ -138,6 +138,9 @@ GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scrat
             campaign["game_type"], len(campaign["prizes"]["tiers"]), rank, prizes
         )
         has_gift = any(item.get("type") == "gift" for item in prizes.get("items", []))
+        has_special_reward = any(
+            item.get("type") == "special_reward_link" for item in prizes.get("items", [])
+        )
         # asyncpg の jsonb codec があるため dict をそのまま渡す（json.dumps すると二重エンコードになる）
         row = await db.fetchrow(
             """INSERT INTO minigame_plays (
@@ -165,6 +168,17 @@ GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scrat
             db,
             "minigame_gift_won",
             title="ギフト景品が当選しました",
+            summary=(
+                f"ユーザー: {format_admin_user_label(user.name, user.id)} が企画"
+                f"「{clip_admin_notification_text(str(campaign_name), 60)}」で{rank}等に当選。"
+            ),
+            payload={"play_id": play.get("id"), "campaign_id": campaign["id"], "user_id": user.id, "rank": rank},
+        )
+    elif has_special_reward:
+        await emit_admin_notification(
+            db,
+            "minigame_special_reward_won",
+            title="特別報酬リンク景品が当選しました",
             summary=(
                 f"ユーザー: {format_admin_user_label(user.name, user.id)} が企画"
                 f"「{clip_admin_notification_text(str(campaign_name), 60)}」で{rank}等に当選。"
@@ -253,7 +267,7 @@ async def _grant_items(db: asyncpg.Connection, user: User, items: list[dict[str,
             ) or user.main_account
             granted["after_months"] = current + granted_months
             granted["granted_months"] = granted_months
-        elif kind != "gift":
+        elif kind not in {"gift", "special_reward_link"}:
             raise ValueError(f"Unknown prize type: {kind}")
         grants.append(granted)
     return grants
@@ -389,6 +403,8 @@ def format_prize_label(items: list[dict[str, Any]], lang: str) -> str:
                 labels.append(f"{name} {int(qty)}個" if lang == "ja" else f"{name} x{int(qty)}")
             else:
                 labels.append(name)
+        elif kind == "special_reward_link":
+            labels.append(item.get(f"name_{lang}") or item.get("name_ja") or ("特別報酬" if lang == "ja" else "Special reward"))
         elif kind == "token_and_ticket":
             token_amount = int(item.get("token_amount", 0) or 0)
             ticket_amount = int(item.get("ticket_amount", 0) or 0)
@@ -679,6 +695,10 @@ async def sync_prize_stocks(
 async def create_campaign(db: asyncpg.Connection, data: dict[str, Any]) -> dict[str, Any]:
     """管理画面から企画を作成する。"""
     errors = validate_prizes(data.get("prizes", {}))
+    from app.services.special_reward_link_service import validate_minigame_special_reward_prizes
+    errors.extend(await validate_minigame_special_reward_prizes(
+        db, data.get("prizes", {}), starts_at=data["starts_at"], ends_at=data["ends_at"],
+    ))
     if errors: raise ValueError(" ".join(errors))
     if data.get("game_type") not in GAME_TYPES or (data["game_type"], len(data["prizes"]["tiers"])) not in CARD_ASSETS:
         raise ValueError("ゲーム種別または景品階層数が不正です。")
@@ -697,6 +717,11 @@ async def create_campaign(db: asyncpg.Connection, data: dict[str, Any]) -> dict[
 async def update_campaign(db: asyncpg.Connection, campaign_id: int, data: dict[str, Any]) -> dict[str, Any]:
     """管理画面から企画を更新する。"""
     errors = validate_prizes(data.get("prizes", {}))
+    from app.services.special_reward_link_service import validate_minigame_special_reward_prizes
+    errors.extend(await validate_minigame_special_reward_prizes(
+        db, data.get("prizes", {}), starts_at=data["starts_at"], ends_at=data["ends_at"],
+        exclude_campaign_id=campaign_id,
+    ))
     if errors: raise ValueError(" ".join(errors))
     if data.get("game_type") not in GAME_TYPES or (data["game_type"], len(data["prizes"]["tiers"])) not in CARD_ASSETS:
         raise ValueError("ゲーム種別または景品階層数が不正です。")
