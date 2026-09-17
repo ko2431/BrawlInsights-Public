@@ -34,8 +34,8 @@
                     <option value="link_set">リンクセット（各1回）</option>
                 </select>
             </label>
-            <label>報酬名（日本語）<input class="form-input" required x-model.trim="form.name_ja" :disabled="!canMutateForm()"></label>
-            <label>報酬名（英語）<input class="form-input" required x-model.trim="form.name_en" :disabled="!canMutateForm()"></label>
+            <label>報酬名（日本語）<input class="form-input" required x-model.trim="form.name_ja" :disabled="!canMutateForm()" placeholder="〇〇ボックス、100コイン など"></label>
+            <label>報酬名（英語）<input class="form-input" required x-model.trim="form.name_en" :disabled="!canMutateForm()" placeholder="〇〇 Box, 100 Coins など"></label>
             <template x-if="form.link_type !== 'link_set'">
                 <label>リンク
                     <input class="form-input" x-model.trim="form.url" placeholder="https://link.brawlstars.com/voucher/..." :disabled="!!form.id">
