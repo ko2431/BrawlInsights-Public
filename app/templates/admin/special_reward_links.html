@@ -77,6 +77,17 @@
                 <label>掲載開始（JST）<input class="form-input" type="datetime-local" x-model="form.banner.starts_at" :disabled="!canMutateForm()"></label>
                 <label>掲載終了（JST）<input class="form-input" type="datetime-local" x-model="form.banner.ends_at" :disabled="!canMutateForm()"></label>
                 <label>バナー左のアイコン（空欄時=🎁を使用）<input class="form-input" x-model.trim="form.banner.icon_path" placeholder="mode_icons/presentPlunder.png" :disabled="!canMutateForm()"></label>
+                <label>バナーの色
+                    <select class="form-input" x-model="form.banner.color" :disabled="!canMutateForm()">
+                        <option value="">選択してください</option>
+                        <option value="red">赤</option>
+                        <option value="orange">橙</option>
+                        <option value="yellow">黄色</option>
+                        <option value="green">緑</option>
+                        <option value="blue">青</option>
+                        <option value="purple">紫</option>
+                    </select>
+                </label>
                 <label>バナー文言（日本語）<input class="form-input" x-model.trim="form.banner.title_ja" placeholder="無料：〇〇ボックスはこちら！" :disabled="!canMutateForm()"></label>
                 <label>バナー文言（英語）<input class="form-input" x-model.trim="form.banner.title_en" placeholder="Freebie: Get a 〇〇 Box!" :disabled="!canMutateForm()"></label>
             </div>
@@ -134,7 +145,7 @@ function specialRewardLinkAdmin() {
     const canEditAll = {{ can_edit_all | tojson }};
     const currentUserId = {{ current_user_id | tojson }};
     const clone = (value) => JSON.parse(JSON.stringify(value));
-    const emptyBanner = () => ({enabled:false, starts_at:'', ends_at:'', icon_path:'', title_ja:'', title_en:'', click_count:0});
+    const emptyBanner = () => ({enabled:false, starts_at:'', ends_at:'', icon_path:'', color:'', title_ja:'', title_en:'', click_count:0});
     const emptyForm = () => ({
         id:null, link_type:'single_unlimited', name_ja:'', name_en:'', url:'', urls_text:'', add_urls_text:'',
         max_uses:1, starts_at:'', expires_at:'', items:[], unlimited:true, physical_remaining:null, locked:0,
@@ -155,6 +166,7 @@ function specialRewardLinkAdmin() {
             starts_at: banner.starts_at_input || '',
             ends_at: banner.ends_at_input || '',
             icon_path: banner.icon_path || '',
+            color: banner.color || '',
             title_ja: banner.title_ja || '',
             title_en: banner.title_en || '',
             click_count: banner.click_count || 0,

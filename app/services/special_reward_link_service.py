@@ -27,6 +27,8 @@ HOME_BANNERS_CACHE_KEY = "special_reward:home_banners"
 HOME_BANNERS_CACHE_TTL = 30
 LINK_TYPES = frozenset({"single_unlimited", "single_limited", "link_set"})
 FINITE_TYPES = frozenset({"single_limited", "link_set"})
+BANNER_COLORS = frozenset({"red", "orange", "yellow", "green", "blue", "purple"})
+DEFAULT_BANNER_COLOR = "blue"
 SOURCE_HOME = "home_banner"
 SOURCE_MINIGAME = "minigame"
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -535,6 +537,7 @@ async def save_banner(
                 "Banner titles (Japanese and English) are required.",
             )
         icon_path = normalize_icon_path(payload.get("icon_path"))
+        color = normalize_banner_color(payload.get("color"))
         overlap = await db.fetchval(
             """SELECT id FROM special_reward_home_banners
                WHERE link_id = $1 AND ended_reason IS NULL
@@ -557,18 +560,18 @@ async def save_banner(
         if existing:
             row = await db.fetchrow(
                 """UPDATE special_reward_home_banners
-                   SET starts_at = $2, ends_at = $3, icon_path = $4, title_ja = $5, title_en = $6,
+                   SET starts_at = $2, ends_at = $3, icon_path = $4, color = $5, title_ja = $6, title_en = $7,
                        ended_reason = NULL, updated_at = now()
                  WHERE id = $1 RETURNING *""",
-                existing["id"], starts_at, ends_at, icon_path, title_ja, title_en,
+                existing["id"], starts_at, ends_at, icon_path, color, title_ja, title_en,
             )
         else:
             row = await db.fetchrow(
                 """INSERT INTO special_reward_home_banners (
-                       link_id, starts_at, ends_at, icon_path, title_ja, title_en, created_by_user_id
-                   ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                       link_id, starts_at, ends_at, icon_path, color, title_ja, title_en, created_by_user_id
+                   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                    RETURNING *""",
-                link_id, starts_at, ends_at, icon_path, title_ja, title_en, user.id,
+                link_id, starts_at, ends_at, icon_path, color, title_ja, title_en, user.id,
             )
     await invalidate_home_banner_cache()
     return dict(row)

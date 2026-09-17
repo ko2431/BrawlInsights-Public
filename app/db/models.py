@@ -1417,6 +1417,7 @@ class SpecialRewardHomeBanner(Base):
     starts_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=False)
     icon_path = Column(Text, nullable=True)
+    color = Column(Text, nullable=False)
     title_ja = Column(Text, nullable=False)
     title_en = Column(Text, nullable=False)
     created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
@@ -1429,6 +1430,10 @@ class SpecialRewardHomeBanner(Base):
         CheckConstraint(
             "ended_reason IS NULL OR ended_reason IN ('scheduled', 'stock_empty', 'manual')",
             name='ck_special_reward_home_banners_ended_reason',
+        ),
+        CheckConstraint(
+            "color IN ('red', 'orange', 'yellow', 'green', 'blue', 'purple')",
+            name='ck_special_reward_home_banners_color',
         ),
         CheckConstraint('ends_at > starts_at', name='ck_special_reward_home_banners_period'),
         Index('ix_special_reward_home_banners_link_id', 'link_id'),

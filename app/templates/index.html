@@ -49,7 +49,7 @@
     {% if special_reward_banners %}
     <div class="home-special-rewards" x-data="homeSpecialRewardBanners()">
         {% for banner in special_reward_banners %}
-        <div class="home-special-reward"
+        <div class="home-special-reward home-special-reward--{% if banner.color in ('red', 'orange', 'yellow', 'green', 'blue', 'purple') %}{{ banner.color }}{% else %}blue{% endif %}"
              role="button"
              tabindex="0"
              data-banner-id="{{ banner.id }}"
