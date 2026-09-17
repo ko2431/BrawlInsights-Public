@@ -18,6 +18,13 @@
         <p x-text="form.id ? `リンク #${form.id} を編集` : '新しい特別報酬リンクを追加'"></p>
         <button type="button" class="button button--secondary" x-show="form.id" @click="reset()">新規作成に戻る</button>
     </div>
+    {% elif edit_link %}
+    <div class="save-changes-block">
+        <p>リンク #{{ edit_link.id }} を表示</p>
+        <a class="button button--secondary" href="{{ url_for('admin_special_reward_links', lang=lang) }}">一覧に戻る</a>
+    </div>
+    {% endif %}
+    {% if can_edit or edit_link %}
     <form @submit.prevent="save()" class="admin-filters__container">
         <div class="admin-filters__columns">
             <label>タイプ
@@ -40,13 +47,19 @@
             <label>利用開始（JST・任意）<input class="form-input" type="datetime-local" x-model="form.starts_at" :disabled="!canMutateForm()"></label>
             <label>有効期限（JST・任意）<input class="form-input" type="datetime-local" x-model="form.expires_at" :disabled="!canMutateForm()"></label>
         </div>
+        <p class="admin-page__description" x-show="form.url_redacted" style="margin: 6px 0 0;">URLは一部が省略表示されています。</p>
         <template x-if="form.link_type === 'link_set' && !form.id">
             <label>リンク一覧（1行1URL）<textarea class="form-input" rows="5" x-model="form.urls_text" placeholder="https://link.brawlstars.com/voucher/..."></textarea></label>
         </template>
         <template x-if="form.link_type === 'link_set' && form.id">
             <div>
                 <p class="admin-page__description" style="margin: 6px 0;">登録URL: <b x-text="(form.items || []).length"></b>件（使用済み <b x-text="usedItemCount()"></b>）</p>
-                <label>未使用URLを追加（1行1URL）<textarea class="form-input" rows="3" x-model="form.add_urls_text" :disabled="!canMutateForm()"></textarea></label>
+                <ul class="srl-admin__url-list" x-show="form.items && form.items.length">
+                    <template x-for="item in form.items" :key="item.id">
+                        <li x-text="item.url"></li>
+                    </template>
+                </ul>
+                <label x-show="canMutateForm()">未使用URLを追加（1行1URL）<textarea class="form-input" rows="3" x-model="form.add_urls_text"></textarea></label>
             </div>
         </template>
         <div class="srl-admin__stats" x-show="form.id">
@@ -70,9 +83,9 @@
             <p class="admin-page__description" x-show="form.id && form.banner && form.banner.click_count != null">この掲載のタップ数: <b x-text="form.banner.click_count || 0"></b></p>
         </section>
         <p x-show="message" :style="success ? 'color:green' : 'color:#b91c1c'" x-text="message"></p>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <button class="button button--primary admin-save-button" type="submit" :disabled="saving || !canMutateForm()"><span x-text="saving ? '保存中...' : '保存'"></span><span class="admin-filters__shortcut admin-save-shortcut" aria-hidden="true"></span></button>
-            <button type="button" class="button button--secondary" x-show="form.id && canMutateForm() && !form.is_invalid" @click="invalidate()" :disabled="saving">無効化</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;" x-show="canMutateForm()">
+            <button class="button button--primary admin-save-button" type="submit" :disabled="saving"><span x-text="saving ? '保存中...' : '保存'"></span><span class="admin-filters__shortcut admin-save-shortcut" aria-hidden="true"></span></button>
+            <button type="button" class="button button--secondary" x-show="form.id && !form.is_invalid" @click="invalidate()" :disabled="saving">無効化</button>
         </div>
     </form>
     {% endif %}
@@ -81,8 +94,8 @@
         <table class="data-table purchase-table">
             <thead>
                 <tr>
-                    <th>ID</th><th>報酬名</th><th>タイプ</th><th>在庫</th><th>登録者</th><th>バナー</th><th>状態</th>
-                    {% if can_edit %}<th></th>{% endif %}
+                    <th>ID</th><th>報酬名</th><th>タイプ</th><th>リンク</th><th>在庫</th><th>登録者</th><th>バナー</th><th>状態</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -91,11 +104,12 @@
                     <td>{{ link.id }}</td>
                     <td>{{ link.name_ja }}</td>
                     <td>{{ {'single_unlimited':'無限','single_limited':'有限','link_set':'セット'}.get(link.link_type, link.link_type) }}</td>
+                    <td class="srl-admin__url">{{ link.display_url or '-' }}</td>
                     <td>{% if link.unlimited %}無限{% else %}空き {{ link.available }} / ロック {{ link.locked }}{% endif %}</td>
                     <td>{{ link.creator_name or '-' }}</td>
                     <td>{% if link.banner and not link.banner.ended_reason %}掲載中/予定{% elif link.banner %}終了{% else %}なし{% endif %}</td>
                     <td>{{ '無効' if link.is_invalid else '有効' }}</td>
-                    {% if can_edit %}<td>{% if link.can_mutate %}<a class="button button--secondary button--small" href="{{ url_for('admin_special_reward_links', lang=lang) }}?edit_id={{ link.id }}">編集</a>{% endif %}</td>{% endif %}
+                    <td>{% if can_edit and link.can_mutate %}<a class="button button--secondary button--small" href="{{ url_for('admin_special_reward_links', lang=lang) }}?edit_id={{ link.id }}">編集</a>{% else %}<a class="button button--secondary button--small" href="{{ url_for('admin_special_reward_links', lang=lang) }}?edit_id={{ link.id }}">表示</a>{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -116,6 +130,7 @@
 <script>
 function specialRewardLinkAdmin() {
     const editing = {{ edit_link | tojson | safe if edit_link else 'null' }};
+    const canEditLimited = {{ can_edit_limited | tojson }};
     const canEditAll = {{ can_edit_all | tojson }};
     const currentUserId = {{ current_user_id | tojson }};
     const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -124,11 +139,12 @@ function specialRewardLinkAdmin() {
         id:null, link_type:'single_unlimited', name_ja:'', name_en:'', url:'', urls_text:'', add_urls_text:'',
         max_uses:1, starts_at:'', expires_at:'', items:[], unlimited:true, physical_remaining:null, locked:0,
         available:null, creator_name:'', home_click_count:0, minigame_claim_count:0, is_invalid:false,
-        created_by_user_id: currentUserId, banner: emptyBanner(),
+        created_by_user_id: currentUserId, url_redacted:false, banner: emptyBanner(),
     });
     const normalize = (link) => {
         if (!link) return emptyForm();
         const value = clone(link);
+        value.url_redacted = !!value.url_redacted;
         value.starts_at = value.starts_at_input || '';
         value.expires_at = value.expires_at_input || '';
         value.urls_text = '';
@@ -148,6 +164,7 @@ function specialRewardLinkAdmin() {
     return {
         form: normalize(editing), saving:false, message:'', success:false,
         canMutateForm() {
+            if (!canEditLimited) return false;
             if (!this.form.id) return true;
             return canEditAll || this.form.created_by_user_id === currentUserId;
         },

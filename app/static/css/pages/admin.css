@@ -1559,4 +1559,22 @@ a.admin-notification-card--unread:hover {
 .srl-admin__banner .admin-page__description {
     margin: 8px 0 0;
 }
+.srl-admin__url {
+    font-size: 12px;
+    line-height: 1.35;
+    max-width: 280px;
+}
+.purchase-table td.srl-admin__url {
+    white-space: normal;
+    word-break: break-all;
+}
+.srl-admin__url-list {
+    margin: 0 0 8px;
+    padding-left: 1.2em;
+    font-size: 12px;
+    line-height: 1.45;
+    word-break: break-all;
+    max-height: 180px;
+    overflow: auto;
+}
 

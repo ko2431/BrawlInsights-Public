@@ -83,6 +83,47 @@ def is_unlimited(link_type: str) -> bool:
     return link_type == "single_unlimited"
 
 
+VOUCHER_URL_VISIBLE_CHARS = 5
+
+
+def mask_voucher_url(url: str | None, *, visible: int = VOUCHER_URL_VISIBLE_CHARS) -> str:
+    """voucher/ 以降は先頭数文字だけ残して省略する。"""
+    text = str(url or "").strip()
+    if not text:
+        return ""
+    marker = "/voucher/"
+    idx = text.lower().find(marker)
+    if idx < 0:
+        return text[:visible] + "..." if len(text) > visible else text
+    keep = idx + len(marker) + visible
+    if len(text) <= keep:
+        return text
+    return text[:keep] + "..."
+
+
+def redact_link_urls(link: dict[str, Any]) -> None:
+    """有限リンクの実URLを表示用に省略する（破壊的）。"""
+    if link.get("url"):
+        link["url"] = mask_voucher_url(link["url"])
+    items = link.get("items")
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict) and item.get("url"):
+                item["url"] = mask_voucher_url(item["url"])
+    link["url_redacted"] = True
+
+
+def link_display_url(link: dict[str, Any]) -> str:
+    if link.get("link_type") == "link_set":
+        items = link.get("items") or []
+        if not items:
+            return ""
+        first = str(items[0].get("url") or "")
+        extra = len(items) - 1
+        return f"{first} など{len(items)}件" if extra > 0 else first
+    return str(link.get("url") or "")
+
+
 def extract_special_reward_items(payload: Any) -> list[dict[str, Any]]:
     if isinstance(payload, dict):
         items = payload.get("items")
