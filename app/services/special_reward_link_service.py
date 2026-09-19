@@ -189,6 +189,12 @@ def sanitize_special_reward_prize_items(prizes: Any) -> None:
                 cleaned["link_id"] = item.get("link_id")
             cleaned["name_ja"] = str(item.get("name_ja") or "").strip()
             cleaned["name_en"] = str(item.get("name_en") or "").strip()
+            try:
+                icon_path = normalize_icon_path(item.get("icon_path"))
+            except SpecialRewardLinkError:
+                icon_path = None
+            if icon_path:
+                cleaned["icon_path"] = icon_path
             items[index] = cleaned
 
 

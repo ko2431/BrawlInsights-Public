@@ -697,6 +697,15 @@
     color: var(--color-222);
     line-height: 1.35;
 }
+.minigame-prize-icon {
+    display: inline-block;
+    width: 1.35em;
+    height: 1.35em;
+    margin: 0 -0.15em 0 0.15em;
+    vertical-align: -0.25em;
+    object-fit: contain;
+    border-radius: 4px;
+}
 .minigame-prize-legend--bingo {
     display: grid;
     grid-template-columns: max-content max-content minmax(0, 1fr);

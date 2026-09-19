@@ -360,6 +360,22 @@ def _format_months_en(months: int) -> str:
     return f"{months} month{'s' if months != 1 else ''}"
 
 
+def _prize_icon_url(items: list[dict[str, Any]]) -> str:
+    """特別報酬リンク景品の任意アイコンURLを返す。未設定時は空文字。"""
+    from app.services.special_reward_link_service import SpecialRewardLinkError, normalize_icon_path
+
+    for item in items:
+        if not isinstance(item, dict) or item.get("type") != "special_reward_link":
+            continue
+        try:
+            path = normalize_icon_path(item.get("icon_path"))
+        except SpecialRewardLinkError:
+            continue
+        if path:
+            return static_url_path(path)
+    return ""
+
+
 def format_prize_label(items: list[dict[str, Any]], lang: str) -> str:
     """景品一覧を短い表示文にする。"""
     labels: list[str] = []
@@ -564,6 +580,7 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
             "slot_count": len(faces) + mysteries + empties,
             "condition_text": condition_text,
             "label": label,
+            "icon_url": _prize_icon_url(tier.get("items") or []),
             "rank_label": _message(lang, f"{rank}等", f"{rank}"),
             "allocation": allocation,
             "quantity": quantity,

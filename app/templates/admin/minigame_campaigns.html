@@ -93,6 +93,7 @@
                         </template>
                         <template x-if="tier.item.type === 'special_reward_link'"><label>景品名（日本語）<input class="form-input" x-model="tier.item.name_ja" :disabled="started"></label></template>
                         <template x-if="tier.item.type === 'special_reward_link'"><label>景品名（英語）<input class="form-input" x-model="tier.item.name_en" :disabled="started"></label></template>
+                        <template x-if="tier.item.type === 'special_reward_link'"><label>景品アイコン（任意、空欄時は名前のみ）<input class="form-input" x-model.trim="tier.item.icon_path" placeholder="mode_icons/presentPlunder.png" :disabled="started"></label></template>
                     </div>
                 </fieldset>
             </template>
@@ -122,7 +123,7 @@ function minigameCampaignAdmin() {
  const editing = {{ edit_campaign | tojson | safe if edit_campaign else 'null' }};
  const specialRewardLinks = {{ special_reward_links | tojson | safe }};
  const clone = (value) => JSON.parse(JSON.stringify(value));
- const item = () => ({type:'none', amount:null, token_amount:null, ticket_amount:null, elixir_amount:null, days:0, hours:0, months:null, name_ja:'', name_en:'', link_id:''});
+ const item = () => ({type:'none', amount:null, token_amount:null, ticket_amount:null, elixir_amount:null, days:0, hours:0, months:null, name_ja:'', name_en:'', link_id:'', icon_path:''});
  const tier = rank => ({rank, allocation: rank === 1 ? 'stock' : 'weight', quantity:1, max_probability:null, item:item()});
  const normalize = campaign => {
    const value = campaign ? clone(campaign) : {id:null,name_ja:'',name_en:'',game_type:'card_flip_single',starts_at:'',ends_at:'',price_ad_tokens:'',price_token_tokens:'',ad_daily_limit:'',expected_total_plays:'',terms_extra_ja:'',terms_extra_en:'',is_invalid:false,prizes:{tiers:[tier(1),tier(2)]}};
