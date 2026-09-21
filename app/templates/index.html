@@ -1483,8 +1483,8 @@
                 showInfo(name) {
                     const host = name || (isJa ? '管理者' : 'an administrator');
                     alert(isJa
-                        ? `この報酬は、Brawl Insightsの共同管理者である${host}が主催して配布しています。`
-                        : `This reward is hosted and distributed by ${host}, a co-administrator of Brawl Insights.`);
+                        ? `この報酬は、Brawl Insightsの共同管理者である${host}が主催して配布しています。\nすでに別のアプリやクリエイターから同じ報酬を受け取り済みの場合、受け取れないことがあります。`
+                        : `This reward is hosted and distributed by ${host}, a co-administrator of Brawl Insights.\nIf you have already received this reward from another app or creator, you may not be able to receive it again.`);
                 }
             };
         }
