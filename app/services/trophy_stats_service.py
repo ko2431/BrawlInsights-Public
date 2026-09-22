@@ -42,9 +42,6 @@ KNOWN_INCLUDED_BATTLE_TYPES = frozenset({
 SHOWDOWN_SLUGS = frozenset({"soloShowdown", "duoShowdown", "trioShowdown"})
 DUELS_SLUG = "duels"
 MAP_ALL_SENTINEL_PREFIX = "m"
-PG_INT4_MIN = -2_147_483_648
-PG_INT4_MAX = 2_147_483_647
-
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
@@ -167,6 +164,33 @@ def parse_map_id_param(value: str | int | None) -> tuple[int | None, int | None]
     return None, _parse_positive_int4(raw)
 
 
+def _map_name_key(en: str | None, ja: str | None, map_id: int) -> str:
+    """同じモード内で、再発行されても同一マップとみなす名前キー。"""
+    if en and str(en).strip():
+        return "en:" + str(en).strip().casefold()
+    if ja and str(ja).strip():
+        return "ja:" + str(ja).strip().casefold()
+    return f"id:{map_id}"
+
+
+def equivalent_map_ids(map_id: int, mode_id: int | None = None) -> frozenset[int]:
+    """同じモード・同じマップ名のIDをまとめて返す。"""
+    info = get_map_by_id(map_id)
+    if info is None and mode_id is None:
+        return frozenset({map_id})
+    key = _map_name_key(info.en if info else None, info.ja if info else None, map_id)
+    if key.startswith("id:"):
+        return frozenset({map_id})
+    owner_mode = mode_id if mode_id is not None else (info.mode_id if info else None)
+    found = {
+        item.id
+        for item in iter_maps()
+        if item.mode_id == owner_mode and _map_name_key(item.en, item.ja, item.id) == key
+    }
+    found.add(map_id)
+    return frozenset(found)
+
+
 def resolve_trophy_filter_ids(
     mode_id: int | None,
     map_id: int | None,
@@ -177,10 +201,17 @@ def resolve_trophy_filter_ids(
     map_id = _parse_positive_int4(map_id)
     modes = {item["mode_id"] for item in pool}
     map_to_mode: dict[int, int] = {}
+    alias_to_canonical: dict[int, int] = {}
     for item in pool:
         owner_mode_id = item["mode_id"]
         for map_data in item.get("maps") or []:
-            map_to_mode[map_data["map_id"]] = owner_mode_id
+            canonical_id = map_data["map_id"]
+            alias_ids = map_data.get("alias_map_ids") or [canonical_id]
+            for alias_id in alias_ids:
+                map_to_mode[alias_id] = owner_mode_id
+                alias_to_canonical[alias_id] = canonical_id
+            map_to_mode.setdefault(canonical_id, owner_mode_id)
+            alias_to_canonical.setdefault(canonical_id, canonical_id)
 
     if map_id is not None:
         owner_mode_id = map_to_mode.get(map_id)
@@ -188,6 +219,7 @@ def resolve_trophy_filter_ids(
             map_id = None
         else:
             mode_id = owner_mode_id
+            map_id = alias_to_canonical.get(map_id, map_id)
 
     if mode_id is not None and mode_id not in modes:
         mode_id = None
@@ -219,9 +251,9 @@ async def get_trophy_stats(
 async def get_trophy_filter_pool(
     db: asyncpg.Connection,
     use_cache: bool = True,
-    lookback_days: int = 7,
+    lookback_days: int = TROPHY_FILTER_POOL_LOOKBACK_DAYS,
 ) -> list[dict[str, Any]]:
-    """直近の集計に出たモード/マップを、フィルター用に返す。"""
+    """集計期間内に記録があったモード/マップを、フィルター用に返す。"""
     await ensure_catalog(db)
     end_date = await _get_latest_trophy_stats_date(db)
     start_date = end_date - datetime.timedelta(days=lookback_days - 1)
@@ -234,9 +266,10 @@ async def get_trophy_filter_pool(
     try:
         rows = await db.fetch(
             """
-            SELECT DISTINCT mode_id, map_id
+            SELECT mode_id, map_id, MAX(date) AS last_date
             FROM trophy_stats_brawler
             WHERE date BETWEEN $1 AND $2
+            GROUP BY mode_id, map_id
             """,
             start_date,
             end_date,
@@ -244,34 +277,37 @@ async def get_trophy_filter_pool(
     except asyncpg.UndefinedTableError:
         logger.warning("trophy_stats_brawler テーブルが未作成のため、空のフィルター候補を返します。")
         return []
-    maps_by_mode: dict[int, set[int]] = defaultdict(set)
+    grouped: dict[int, dict[str, list[tuple]]] = defaultdict(lambda: defaultdict(list))
     for row in rows:
-        maps_by_mode[row["mode_id"]].add(row["map_id"])
-
-    catalog_maps_by_mode: dict[int, list] = defaultdict(list)
-    for map_info in iter_maps():
-        if map_info.mode_id:
-            catalog_maps_by_mode[map_info.mode_id].append(map_info)
+        map_id = row["map_id"]
+        map_info = get_map_by_id(map_id)
+        name_key = _map_name_key(
+            map_info.en if map_info else None,
+            map_info.ja if map_info else None,
+            map_id,
+        )
+        grouped[row["mode_id"]][name_key].append((row["last_date"], bool(map_info.disabled) if map_info else False, map_id, map_info))
 
     pool: list[dict[str, Any]] = []
-    for mode_id in sorted(maps_by_mode.keys(), key=lambda item: mode_sort_key(item)):
+    for mode_id in sorted(grouped, key=lambda item: mode_sort_key(item)):
         mode = get_mode_by_id(mode_id)
         maps: list[dict[str, Any]] = []
-        seen: set[int] = set()
-        for map_info in catalog_maps_by_mode.get(mode_id, []):
-            if map_info.id in maps_by_mode[mode_id]:
-                maps.append({
-                    "map_id": map_info.id,
-                    "map_ja": map_info.ja,
-                    "map_en": map_info.en,
-                })
-                seen.add(map_info.id)
-        for map_id in sorted(maps_by_mode[mode_id] - seen):
-            map_info = get_map_by_id(map_id)
+        for candidates in grouped[mode_id].values():
+            _, _, canonical_id, canonical_info = max(candidates, key=lambda item: (item[0], not item[1], item[2]))
+            alias_ids = sorted({item[2] for item in candidates})
+            map_ja = canonical_info.ja if canonical_info and canonical_info.ja else None
+            map_en = canonical_info.en if canonical_info and canonical_info.en else None
+            if not map_ja or not map_en:
+                for _, _, _, info in candidates:
+                    if info is None:
+                        continue
+                    map_ja = map_ja or info.ja
+                    map_en = map_en or info.en
             maps.append({
-                "map_id": map_id,
-                "map_ja": map_info.ja if map_info else None,
-                "map_en": map_info.en if map_info else None,
+                "map_id": canonical_id,
+                "map_ja": map_ja,
+                "map_en": map_en,
+                "alias_map_ids": alias_ids,
             })
         maps.sort(key=lambda item: ((item["map_ja"] or item["map_en"] or "").lower(), item["map_id"]))
         pool.append({
