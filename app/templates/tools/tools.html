@@ -16,7 +16,7 @@
 
     <h1 class="page-title--main hub-page-title">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</h1>
 
-    <div class="hub-page" x-data="hubSubtabs({ ids: ['ranked', 'brawlers', 'maps', 'rewards', 'others'], storageKey: 'bi_tools_subtab', platform: '{{ platform }}' })">
+    <div class="hub-page" x-data="hubSubtabs({ ids: ['ranked', 'brawlers', 'maps', 'rewards', 'others'], storageKey: 'bi_tools_subtab', platform: '{{ platform }}' })" @keydown.window="handleKeydown($event)">
         <div class="hub-subtabs hub-subtabs--dense">
             <nav class="sub-tab-nav">
                 <ul class="sub-tab-nav__list">

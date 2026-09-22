@@ -26,6 +26,18 @@ document.addEventListener('alpine:init', () => {
             init() {
                 this.persist(this.activeSubTab);
             },
+            handleKeydown(e) {
+                if (e.metaKey || e.ctrlKey) return;
+                if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+                const el = document.activeElement;
+                if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+                e.preventDefault();
+                const index = Math.max(0, ids.indexOf(this.activeSubTab));
+                const nextIndex = e.key === 'ArrowRight'
+                    ? (index + 1) % ids.length
+                    : (index - 1 + ids.length) % ids.length;
+                this.setSubTab(ids[nextIndex]);
+            },
             setSubTab(id) {
                 if (!ids.includes(id) || id === this.activeSubTab) return;
                 this.activeSubTab = id;
