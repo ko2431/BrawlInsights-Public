@@ -7,7 +7,7 @@
 }
 
 .tools-page__description {
-    margin-top: 20px;
+    margin: 0 0 8px;
 }
 
 .tools-page__section {
@@ -73,7 +73,7 @@
     }
     .tools-page__description{
         font-size: 13.5px;
-        margin-top: 10px;
+        margin-top: 0;
     }
     .tools-page__section {
         margin-top: 20px;
@@ -88,6 +88,45 @@
 @media (min-width: 1080px){
     .tools-page__contents-box{
         grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* お役立ち外部リンク。見出しは点線の上辺に重ねる */
+.tools-page__external-links {
+    position: relative;
+    margin-top: 22px;
+    padding: 16px 14px 14px;
+    border: 1.5px dashed var(--color-888);
+    border-radius: 14px;
+}
+.tools-page__external-links__legend {
+    position: absolute;
+    top: 0;
+    left: 14px;
+    transform: translateY(-50%);
+    margin: 0;
+    padding: 0 8px;
+    background-color: var(--bg-main);
+    color: var(--color-333);
+    font-size: 14.5px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+.tools-page__contents-box--external {
+    gap: 8px;
+}
+/* 枠のパディングに加え、従来の小バナーより一回り小さくする */
+.tools-page__contents-box--external .tools-page__content--small {
+    width: 96%;
+    margin-inline: auto;
+}
+@media (max-width: 539px) {
+    .tools-page__external-links {
+        padding: 14px 10px 12px;
+    }
+    .tools-page__external-links__legend {
+        left: 10px;
+        font-size: 13px;
     }
 }
 

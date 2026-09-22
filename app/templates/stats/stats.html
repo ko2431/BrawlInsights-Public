@@ -6,6 +6,7 @@
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/components/hub_subtabs.css') }}?v={{ app_version }}">
 {% endblock %}
 
 {% block content %}
@@ -13,22 +14,41 @@
     {# ^ アップデートのお願い #}
     {% include "components/update_request.html" %}
 
-    <h1 class="page-title--main">{% if lang == "ja" %}統計データ{% else %}Statistics{% endif %}</h1>
+    <h1 class="page-title--main hub-page-title">{% if lang == "ja" %}統計データ{% else %}Statistics{% endif %}</h1>
 
-    <p class="stats-page__description">
-        {% if lang == "ja" %}このタブでは、Tier表やランキングなどのブロスタのさまざまな統計データを閲覧できます。<br><b>【New】</b>新コンテンツ、8000万件以上の勝敗データをもとに毎日更新される<b>マルチプレイTier表</b>が登場しました！
-        {% else %}On this tab, you can view a variety of Brawl Stars statistics, including Tier lists and leaderboards.<br><b>【New】</b>New content, <b>Multiplayer Tier List</b>, is now available!
-        {% endif %}
-    </p>
-    
-    <div x-data>
-        {# ガチバトル関連 #}
-        <div class="stats-page__section" x-data="{ open: sessionStorage.getItem('bi_stats_ranked_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_stats_ranked_open', val))">
-            <h2 class="section-title stats-page__section-title" @click="open = !open">
-                <span>{% if lang == "ja" %}ガチバトル関連{% else %}Ranked{% endif %}</span>
-                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-            </h2>
-            <div class="stats-page__contents-box" x-show="open" x-transition>
+    <div class="hub-page" x-data="hubSubtabs({ ids: ['ranked', 'brawlers', 'rankings'], storageKey: 'bi_stats_subtab', platform: '{{ platform }}' })">
+        <div class="hub-subtabs">
+            <nav class="sub-tab-nav">
+                <ul class="sub-tab-nav__list">
+                    <li class="sub-tab-nav__item">
+                        <a href="{{ url_for('stats', lang=lang) }}?sub=ranked" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'ranked' }" :aria-current="activeSubTab === 'ranked' ? 'page' : null" @click.prevent="setSubTab('ranked')">
+                            <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="{% if lang == 'ja' %}ガチバトル{% else %}Ranked{% endif %}" class="hub-subtab__icon hub-subtab__icon--ranked">
+                            <span class="sub-tab-nav__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="sub-tab-nav__item">
+                        <a href="{{ url_for('stats', lang=lang) }}?sub=brawlers" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'brawlers' }" :aria-current="activeSubTab === 'brawlers' ? 'page' : null" @click.prevent="setSubTab('brawlers')">
+                            <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="{% if lang == 'ja' %}キャラクター・トロフィー{% else %}Brawler & Trophy{% endif %}" class="hub-subtab__icon hub-subtab__icon--trophy">
+                            <span class="sub-tab-nav__text">{% if lang == "ja" %}キャラクター・<wbr>トロフィー{% else %}Brawler &<wbr> Trophy{% endif %}</span>
+                        </a>
+                    </li>
+                    <li class="sub-tab-nav__item">
+                        <a href="{{ url_for('stats', lang=lang) }}?sub=rankings" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'rankings' }" :aria-current="activeSubTab === 'rankings' ? 'page' : null" @click.prevent="setSubTab('rankings')">
+                            <img src="{{ url_for('static', path='/images/ui/leaderboards.png') }}" alt="{% if lang == 'ja' %}非公式ランキング{% else %}Unofficial Rankings{% endif %}" class="hub-subtab__icon hub-subtab__icon--leaderboards">
+                            <span class="sub-tab-nav__text">{% if lang == "ja" %}非公式<wbr>ランキング{% else %}Unofficial<wbr> Rankings{% endif %}</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="hub-subtab-panel" x-show="activeSubTab === 'ranked'" x-cloak>
+            <p class="stats-page__description">
+                {% if lang == "ja" %}このタブでは、ガチバトルのTier表やランク分布、ランキングを閲覧できます。
+                {% else %}On this tab, you can view the Ranked Tier List, rank distribution, and leaderboards.
+                {% endif %}
+            </p>
+            <div class="stats-page__contents-box">
                 <a href="{{ url_for('ranked_tier_list', lang=lang) }}">
                     <div class="stats-page__content">
                         <img src="{{ url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png') }}" alt="ガチバトルTier表" class="stats-page__content-image">
@@ -49,13 +69,13 @@
             </div>
         </div>
 
-        {# トロフィー関連 #}
-        <div class="stats-page__section" x-data="{ open: sessionStorage.getItem('bi_stats_trophy_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_stats_trophy_open', val))">
-            <h2 class="section-title stats-page__section-title" @click="open = !open">
-                <span>{% if lang == "ja" %}キャラクター・トロフィー関連{% else %}Brawler & Trophy{% endif %}</span>
-                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-            </h2>
-            <div class="stats-page__contents-box" x-show="open" x-transition>
+        <div class="hub-subtab-panel" x-show="activeSubTab === 'brawlers'" x-cloak>
+            <p class="stats-page__description">
+                {% if lang == "ja" %}このタブでは、マルチプレイTier表やスキン・トロフィーのランキング、各種データ分布などを閲覧できます。<br><b>【New】</b>新コンテンツ、8000万件以上の勝敗データをもとに毎日更新される<b>マルチプレイTier表</b>が登場しました！
+                {% else %}On this tab, you can view the Multiplayer Tier List, skin ranking, trophy leaderboards, various stat distributions, etc.<br><b>【New】</b>New content, <b>Multiplayer Tier List</b>, is now available!
+                {% endif %}
+            </p>
+            <div class="stats-page__contents-box">
                 <a href="{{ url_for('multiplayer_tier_list', lang=lang) }}">
                     <div class="stats-page__content">
                         <img src="{{ url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}" class="stats-page__content-image">
@@ -99,13 +119,13 @@
             </div>
         </div>
 
-        {# その他 #}
-        <div class="stats-page__section" x-data="{ open: sessionStorage.getItem('bi_stats_others_open') !== 'false' }" x-init="$watch('open', val => sessionStorage.setItem('bi_stats_others_open', val))">
-            <h2 class="section-title stats-page__section-title" @click="open = !open">
-                <span>{% if lang == "ja" %}その他のランキング{% else %}Other Leaderboards{% endif %}</span>
-                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-            </h2>
-            <div class="stats-page__contents-box" x-show="open" x-transition>
+        <div class="hub-subtab-panel" x-show="activeSubTab === 'rankings'" x-cloak>
+            <p class="stats-page__description">
+                {% if lang == "ja" %}このタブでは、キャッチフレーズやアイコン、名声などのさまざまな非公式ランキングを閲覧できます。
+                {% else %}On this tab, you can view various unofficial rankings such as titles, player icons, and fame.
+                {% endif %}
+            </p>
+            <div class="stats-page__contents-box">
                 <a href="{{ url_for('title_ranking', lang=lang) }}">
                     <div class="stats-page__content stats-page__content--responsive">
                         <img src="{{ url_for('static', path='/images/banners/title_ranking_banner_' + lang + '.png') }}" alt="キャッチフレーズ使用率ランキング" class="stats-page__content-image">
@@ -183,4 +203,5 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/hub_subtabs.js') }}?v={{ app_version }}"></script>
 {% endblock %}
