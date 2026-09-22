@@ -195,3 +195,46 @@
         padding: 6px 2px;
     }
 }
+
+/* 見出しを枠の上辺に重ねるブロック。こちらをお探しですか？は点線、お役立ち外部リンクは実線 */
+.hub-suggest {
+    position: relative;
+    margin-top: 22px;
+    padding: 16px 16px 14px;
+    border: 1.5px dashed var(--color-888);
+    border-radius: 14px;
+}
+.hub-suggest--solid {
+    border-style: solid;
+}
+.hub-suggest__legend {
+    position: absolute;
+    top: 0;
+    left: 14px;
+    transform: translateY(-50%);
+    margin: 0;
+    padding: 0 8px;
+    background-color: var(--bg-main);
+    color: var(--color-333);
+    font-size: 14.5px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+.hub-suggest .stats-page__contents-box,
+.hub-suggest .tools-page__contents-box {
+    gap: 8px;
+}
+.hub-suggest .stats-page__content,
+.hub-suggest .tools-page__content {
+    
+    margin-inline: auto;
+}
+@media (max-width: 539px) {
+    .hub-suggest {
+        padding: 14px 14px 12px;
+    }
+    .hub-suggest__legend {
+        left: 10px;
+        font-size: 13px;
+    }
+}

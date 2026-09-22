@@ -67,6 +67,22 @@
                     </div>
                 </a>
             </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="stats-page__contents-box">
+                    <a href="{{ url_for('pick_tool', lang=lang) }}">
+                        <div class="stats-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_pick_tool_banner_' + lang + '.png') }}" alt="ガチバトルピック提案ツール" class="stats-page__content-image">
+                        </div>
+                    </a>
+                    <a href="{{ url_for('ranked_maps', lang=lang) }}">
+                        <div class="stats-page__content stats-page__content--responsive">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_maps_banner_' + lang + '.png') }}" alt="ガチバトルマップ一覧" class="stats-page__content-image">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_maps_banner_slim_' + lang + '.png') }}" alt="ガチバトルマップ一覧" class="stats-page__content-image--slim">
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="hub-subtab-panel" x-show="activeSubTab === 'brawlers'" x-cloak>
@@ -116,6 +132,16 @@
                         <img src="{{ url_for('static', path='/images/banners/prestige_banner_slim_' + lang + '.png') }}" alt="トップランカーボーダー一覧" class="stats-page__content-image--slim">
                     </div>
                 </a>
+            </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="stats-page__contents-box">
+                    <a href="{{ url_for('brawler_guide_menu', lang=lang) }}">
+                        <div class="stats-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/brawler_guide_banner_new_' + lang + '.png') }}" alt="キャラクター図鑑" class="stats-page__content-image">
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -192,6 +218,16 @@
                         <img src="{{ url_for('static', path='/images/banners/mastery_lb_banner_slim_' + lang + '.png') }}" alt="旧マスタリーポイントランキング" class="stats-page__content-image--slim">
                     </div>
                 </a>
+            </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="stats-page__contents-box">
+                    <a href="{{ url_for('skin_ranking', lang=lang) }}">
+                        <div class="stats-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png') }}" alt="スキン使用率ランキング" class="stats-page__content-image">
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
 

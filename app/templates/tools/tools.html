@@ -73,6 +73,28 @@
                     </div>
                 </a>
             </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="tools-page__contents-box">
+                    <a href="{{ url_for('ranked_tier_list', lang=lang) }}">
+                        <div class="tools-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png') }}" alt="ガチバトルTier表" class="tools-page__content-image">
+                        </div>
+                    </a>
+                    <a href="{{ url_for('ranked_rank_distribution', lang=lang) }}">
+                        <div class="tools-page__content tools-page__content--responsive">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_dist_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}" class="tools-page__content-image">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_dist_banner_slim_' + lang + '.png') }}" alt="{% if lang == 'ja' %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}" class="tools-page__content-image--slim">
+                        </div>
+                    </a>
+                    <a href="{{ url_for('ranked_ranking', lang=lang) }}">
+                        <div class="tools-page__content tools-page__content--responsive">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_lb_banner_' + lang + '.png') }}" alt="ガチバトルランキング" class="tools-page__content-image">
+                            <img src="{{ url_for('static', path='/images/banners/ranked_lb_banner_slim_' + lang + '.png') }}" alt="ガチバトルランキング" class="tools-page__content-image--slim">
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="hub-subtab-panel" x-show="activeSubTab === 'brawlers'" x-cloak>
@@ -107,6 +129,16 @@
                     </div>
                 </a>
             </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="tools-page__contents-box">
+                    <a href="{{ url_for('skin_ranking', lang=lang) }}">
+                        <div class="tools-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png') }}" alt="スキン使用率ランキング" class="tools-page__content-image">
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="hub-subtab-panel" x-show="activeSubTab === 'maps'" x-cloak>
@@ -127,6 +159,23 @@
                         <img src="{{ url_for('static', path='/images/banners/trophy_table_banner_slim_' + lang + '.png') }}" alt="トロフィー増減表" class="tools-page__content-image--slim">
                     </div>
                 </a>
+            </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="tools-page__contents-box">
+                    {% if (platform == "ios" and version_at_least(app_client_version, "14.0")) or (platform == "android" and version_at_least(app_client_version, "14.0")) or platform == "web" %}
+                    <a href="{{ url_for('profile_image_tool', lang=lang) }}">
+                        <div class="tools-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %}" class="tools-page__content-image">
+                        </div>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('multiplayer_tier_list', lang=lang) }}">
+                        <div class="tools-page__content">
+                            <img src="{{ url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}" class="tools-page__content-image">
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -162,6 +211,26 @@
                     </div>
                 </a>
             </div>
+            <div class="hub-suggest">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
+                <div class="tools-page__contents-box">
+                    <a href="https://store.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars" target="_blank">
+                        <div class="tools-page__content tools-page__content--small">
+                            <img src="{{ url_for('static', path='/images/banners/link_store_banner_' + lang + '.png') }}" alt="Supercell Store" class="tools-page__content-image tools-page__content-image--small">
+                        </div>
+                    </a>
+                    <a href="https://id.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars/" target="_blank">
+                        <div class="tools-page__content tools-page__content--small">
+                            <img src="{{ url_for('static', path='/images/banners/link_rewards_banner_' + lang + '.png') }}" alt="Supercell ID Rewards" class="tools-page__content-image tools-page__content-image--small">
+                        </div>
+                    </a>
+                    <a href="https://event.supercell.com/brawlstars/{% if lang == 'ja' %}jp{% else %}en{% endif %}/" target="_blank">
+                        <div class="tools-page__content tools-page__content--small">
+                            <img src="{{ url_for('static', path='/images/banners/link_champ_banner_' + lang + '.png') }}" alt="Brawl Stars Championship" class="tools-page__content-image tools-page__content-image--small">
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="hub-subtab-panel" x-show="activeSubTab === 'others'" x-cloak>
@@ -184,9 +253,9 @@
                     </div>
                 </a>
             </div>
-            <div class="tools-page__external-links">
-                <h2 class="tools-page__external-links__legend">{% if lang == "ja" %}お役立ち外部リンク{% else %}Useful External Links{% endif %}</h2>
-                <div class="tools-page__contents-box tools-page__contents-box--external">
+            <div class="hub-suggest hub-suggest--solid">
+                <h2 class="hub-suggest__legend">{% if lang == "ja" %}お役立ち外部リンク{% else %}Useful External Links{% endif %}</h2>
+                <div class="tools-page__contents-box">
                     <a href="https://store.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars" target="_blank">
                         <div class="tools-page__content tools-page__content--small">
                             <img src="{{ url_for('static', path='/images/banners/link_store_banner_' + lang + '.png') }}" alt="Supercell Store" class="tools-page__content-image tools-page__content-image--small">
