@@ -727,6 +727,121 @@ class Map(Base):
     )
 
 
+class EventRotationObservation(Base):
+    """公式API /v1/events/rotation の出現履歴。api_slot_id + start_time で一意。"""
+    __tablename__ = 'event_rotation_observations'
+
+    id = Column(Integer, primary_key=True)
+    api_slot_id = Column(Integer, nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    map_id = Column(Integer, nullable=False)
+    mode_slug = Column(Text, nullable=True)
+    api_mode_id = Column(Integer, nullable=True)
+    map_name_en = Column(Text, nullable=True)
+    first_seen_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('api_slot_id', 'start_time', name='uq_event_rotation_observations_slot_start'),
+        Index('idx_event_rotation_observations_slot_start', 'api_slot_id', 'start_time'),
+    )
+
+
+class MapRotationSlot(Base):
+    """マップ周期ページの表示スロット。複数の公式slotIdを1つにまとめられる。"""
+    __tablename__ = 'map_rotation_slots'
+
+    id = Column(Integer, primary_key=True)
+    display_order = Column(Integer, nullable=False, server_default='0')
+    name_ja = Column(Text, nullable=False)
+    name_en = Column(Text, nullable=False)
+    icons = Column(JSONB, nullable=False, server_default='[]')
+    icon_path = Column(Text, nullable=True)
+    api_slot_ids = Column(JSONB, nullable=False, server_default='[]')
+    primary_api_slot_id = Column(Integer, nullable=False)
+    duration_minutes = Column(Integer, nullable=False, server_default='1440')
+    is_visible = Column(Boolean, nullable=False, server_default='True')
+    needs_review = Column(Boolean, nullable=False, server_default='False')
+    auto_created = Column(Boolean, nullable=False, server_default='False')
+    last_observed_at = Column(DateTime(timezone=True), nullable=True)
+    inference_state = Column(JSONB, nullable=False, server_default='{}')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_map_rotation_slots_display_order', 'display_order'),
+        Index('idx_map_rotation_slots_primary_api_slot', 'primary_api_slot_id'),
+    )
+
+
+class MapRotationCycle(Base):
+    """スロットの周期。confirmed と working はスロットごとに最大1件。"""
+    __tablename__ = 'map_rotation_cycles'
+
+    id = Column(Integer, primary_key=True)
+    slot_id = Column(Integer, ForeignKey('map_rotation_slots.id', ondelete='CASCADE'), nullable=False)
+    status = Column(Text, nullable=False)
+    cycle_length = Column(Integer, nullable=True)
+    duration_minutes = Column(Integer, nullable=False)
+    anchor_start = Column(DateTime(timezone=True), nullable=False)
+    maps = Column(JSONB, nullable=False, server_default='[]')
+    source = Column(Text, nullable=False, server_default='auto')
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('confirmed', 'working', 'archived')",
+            name='ck_map_rotation_cycles_status',
+        ),
+        CheckConstraint(
+            "source IN ('seed', 'auto', 'manual')",
+            name='ck_map_rotation_cycles_source',
+        ),
+        Index('idx_map_rotation_cycles_slot_status', 'slot_id', 'status'),
+        Index(
+            'uq_map_rotation_cycles_confirmed',
+            'slot_id',
+            unique=True,
+            postgresql_where=text("status = 'confirmed'"),
+        ),
+        Index(
+            'uq_map_rotation_cycles_working',
+            'slot_id',
+            unique=True,
+            postgresql_where=text("status = 'working'"),
+        ),
+    )
+
+
+class MapRotationEpisode(Base):
+    """周期変更のまとまり。進行中は最大1件。"""
+    __tablename__ = 'map_rotation_episodes'
+
+    id = Column(Integer, primary_key=True)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    started_at_override = Column(DateTime(timezone=True), nullable=True)
+    expected_complete_at = Column(DateTime(timezone=True), nullable=True)
+    expected_complete_override = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(Text, nullable=False, server_default='active')
+    trigger_slot_id = Column(Integer, ForeignKey('map_rotation_slots.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'completed', 'cancelled')",
+            name='ck_map_rotation_episodes_status',
+        ),
+        Index(
+            'uq_map_rotation_episodes_active',
+            'status',
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+    )
+
+
 class Announcement(Base):
     """
     お知らせを格納するテーブル。

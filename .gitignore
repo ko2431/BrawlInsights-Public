@@ -49,3 +49,6 @@ generated/
 
 # ゴミファイル
 _filter_preview_shots/
+
+# エージェントへの指示ファイル(今後Gitに含めるようにする可能性あり)
+CLAUDE.md

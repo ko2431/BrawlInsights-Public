@@ -332,6 +332,12 @@ async def map_rotation(
         logger.error(f"マップ周期のカタログ取得中にエラー: {e}", exc_info=True)
         map_catalog = {}
         mode_slug_to_id = {}
+    try:
+        from app.services.map_rotation_service import build_map_rotation_payload
+        rotation_payload = await build_map_rotation_payload(db)
+    except Exception as e:
+        logger.error(f"マップ周期の表示データ取得中にエラー: {e}", exc_info=True)
+        rotation_payload = {"slots": [], "visibleCount": 0, "adjusting": False, "startedAt": None, "expectedCompleteAt": None}
 
     context = {
         "request": request,
@@ -339,6 +345,7 @@ async def map_rotation(
         "current_page": "tools",
         "map_catalog": map_catalog,
         "mode_slug_to_id": mode_slug_to_id,
+        "rotation_payload": rotation_payload,
     }
 
     try:

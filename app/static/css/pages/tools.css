@@ -310,6 +310,61 @@
     margin-top: 1px;
     white-space: nowrap;
 }
+.map-rotation-slot__badge {
+    margin: 1px 0 4px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #fde8e8;
+    color: #c62828;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+.dark .map-rotation-slot__badge {
+    background: #4a1616;
+    color: #ff9a9a;
+}
+.map-rotation-adjusting {
+    font-weight: bold;
+    color: var(--c-red);
+}
+
+.map-rotation-table__map {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2px 5px;
+}
+.map-rotation-table__map .map-link {
+    display: inline;
+}
+.map-rotation-table__unknown {
+    color: var(--color-777);
+}
+.map-rotation-state {
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.6;
+    white-space: nowrap;
+    background: #ececec;
+    color: #666;
+}
+.dark .map-rotation-state {
+    background: #333;
+    color: #bbb;
+}
+.map-rotation-state--unknown {
+    background: #fff3d6;
+    color: #a15c00;
+}
+.dark .map-rotation-state--unknown {
+    background: #4a3510;
+    color: #ffc864;
+}
 
 .map-rotation-slot__icon--multi {
     height: 36px;

@@ -1,0 +1,377 @@
+{# /app/templates/admin/map_rotation.html #}
+{% extends "base.html" %}
+
+{% block title %}管理者向け / マップ周期管理{% endblock %}
+{% block og_description %}マップ周期を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="mapRotationAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container" x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }" x-show="showManualBackButton" style="display: none;">
+        <div class="back-button">＜ 戻る</div>
+    </div>
+    {% endif %}
+    <h1 class="page-title--main">マップ周期管理</h1>
+    <p class="catalog-note">公式APIを毎時1分・31分に取得して周期を推論します。未知のスロットは非公開で追加されます。日時はすべてJSTです。手動保存した周期は、「観測から再推論」を押すまで自動更新で上書きしません。</p>
+
+    <div x-show="status.message" style="display: none;" class="form-field-status server-response" :class="{ 'success': status.success, 'error': !status.success }" x-text="status.message"></div>
+
+    {#^ 調整エピソード #}
+    <section class="mr-admin__panel">
+        <div class="mr-admin__panel-head">
+            <h2 class="mr-admin__title">調整エピソード</h2>
+            <template x-if="episode"><span class="admin-badge admin-badge--red">調整中</span></template>
+            <template x-if="!episode"><span class="admin-badge admin-badge--green">確定済み</span></template>
+        </div>
+        <template x-if="episode">
+            <div class="mr-admin__episode">
+                <dl class="mr-admin__facts">
+                    <div><dt>変更検知</dt><dd x-text="fmt(episode.started_at)"></dd></div>
+                    <div><dt>完成予定(自動)</dt><dd x-text="fmt(episode.expected_complete_at) || '未定'"></dd></div>
+                    <div><dt>確定済みスロット</dt><dd x-text="confirmedCount() + ' / ' + visibleCount()"></dd></div>
+                </dl>
+                <div class="mr-admin__fields">
+                    <label class="mr-admin__field">
+                        <span>アップデート日(上書き)</span>
+                        <input class="catalog-input" type="datetime-local" x-model="episode.started_local" {% if not can_edit %}disabled{% endif %}>
+                    </label>
+                    <label class="mr-admin__field">
+                        <span>完成予定(上書き)</span>
+                        <input class="catalog-input" type="datetime-local" x-model="episode.expected_local" {% if not can_edit %}disabled{% endif %}>
+                    </label>
+                    {% if can_edit %}
+                    <button type="button" class="button button--secondary button--small" @click="saveEpisode('override')" :disabled="busy">日付を保存</button>
+                    {% endif %}
+                </div>
+                {% if can_edit %}
+                <div class="mr-admin__actions">
+                    <button type="button" class="button button--primary button--small" @click="saveEpisode('confirm')" :disabled="busy">今すぐ確定</button>
+                    <button type="button" class="button button--danger button--small" @click="saveEpisode('cancel')" :disabled="busy">取り消す</button>
+                    <button type="button" class="button button--secondary button--small" @click="reinfer()" :disabled="busy">観測から再推論</button>
+                </div>
+                {% endif %}
+            </div>
+        </template>
+        <template x-if="!episode">
+            <div class="mr-admin__episode">
+                <p class="mr-admin__muted">進行中の周期変更はありません。</p>
+                {% if can_edit %}
+                <div class="mr-admin__actions">
+                    <button type="button" class="button button--secondary button--small" @click="saveEpisode('start')" :disabled="busy">手動で調整中にする</button>
+                    <button type="button" class="button button--secondary button--small" @click="reinfer()" :disabled="busy">観測から再推論</button>
+                </div>
+                {% endif %}
+            </div>
+        </template>
+    </section>
+
+    {#^ スロット一覧 #}
+    <section class="mr-admin__panel">
+        <div class="mr-admin__panel-head">
+            <h2 class="mr-admin__title">スロット</h2>
+            <span class="mr-admin__muted" x-text="slots.length + '件'"></span>
+        </div>
+        <div class="mr-admin__table-wrap">
+            <table class="data-table catalog-table mr-admin__table">
+                <thead>
+                    <tr>
+                        <th>順</th><th>日本語名</th><th>英語名</th><th>アイコン</th><th>API slot</th><th>代表</th><th>分</th>
+                        <th>公開</th><th>要確認</th><th>固定</th><th>周期</th><th>最終観測</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="slot in slots" :key="slot.id">
+                        <tr :class="{ 'mr-admin__row--review': slot.needs_review, 'mr-admin__row--selected': slot.id === selectedId }">
+                            <td><input class="catalog-input mr-admin__num" type="number" x-model.number="slot.display_order" {% if not can_edit %}disabled{% endif %}></td>
+                            <td><input class="catalog-input" type="text" x-model="slot.name_ja" {% if not can_edit %}disabled{% endif %}></td>
+                            <td><input class="catalog-input" type="text" x-model="slot.name_en" {% if not can_edit %}disabled{% endif %}></td>
+                            <td><input class="catalog-input" type="text" x-model="slot.icons_text" placeholder="brawlBall" {% if not can_edit %}disabled{% endif %}></td>
+                            <td><input class="catalog-input mr-admin__ids" type="text" x-model="slot.api_slot_text" {% if not can_edit %}disabled{% endif %}></td>
+                            <td><input class="catalog-input mr-admin__num" type="number" x-model.number="slot.primary_api_slot_id" {% if not can_edit %}disabled{% endif %}></td>
+                            <td><input class="catalog-input mr-admin__num" type="number" step="30" x-model.number="slot.duration_minutes" {% if not can_edit %}disabled{% endif %}></td>
+                            <td class="form-checkbox-cell"><input class="form-checkbox" type="checkbox" x-model="slot.is_visible" {% if not can_edit %}disabled{% endif %}></td>
+                            <td class="form-checkbox-cell"><input class="form-checkbox" type="checkbox" x-model="slot.needs_review" {% if not can_edit %}disabled{% endif %}></td>
+                            <td class="form-checkbox-cell"><input class="form-checkbox" type="checkbox" x-model="slot.manual_lock" {% if not can_edit %}disabled{% endif %}></td>
+                            <td class="mr-admin__nowrap">
+                                <template x-if="slot.cycles.working">
+                                    <span class="admin-badge admin-badge--red" x-text="'調整中 ' + verifiedCount(slot.cycles.working) + '/' + slot.cycles.working.maps.length"></span>
+                                </template>
+                                <template x-if="!slot.cycles.working && slot.cycles.confirmed">
+                                    <span class="admin-badge admin-badge--green" x-text="'確定 ' + slot.cycles.confirmed.maps.length + '枠'"></span>
+                                </template>
+                                <template x-if="!slot.cycles.working && !slot.cycles.confirmed">
+                                    <span class="admin-badge">なし</span>
+                                </template>
+                            </td>
+                            <td class="mr-admin__nowrap" x-text="fmt(slot.last_observed_at) || '-'"></td>
+                            <td class="mr-admin__nowrap">
+                                {% if can_edit %}<button type="button" class="button button--secondary button--small" @click="saveSlot(slot)" :disabled="busy">保存</button>{% endif %}
+                                <button type="button" class="button button--small" :class="slot.id === selectedId ? 'button--primary' : 'button--secondary'" @click="selectedId = slot.id === selectedId ? null : slot.id">周期</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {#^ 周期エディタ #}
+    <template x-if="selected">
+        <section class="mr-admin__panel">
+            <div class="mr-admin__panel-head">
+                <h2 class="mr-admin__title" x-text="selected.name_ja + ' の周期'"></h2>
+                <button type="button" class="button button--secondary button--small mr-admin__close" @click="selectedId = null">閉じる</button>
+            </div>
+            <div class="mr-admin__cycles">
+                <template x-for="kind in ['working', 'confirmed']" :key="kind">
+                    <div class="mr-admin__cycle" x-show="selected.cycles[kind]">
+                        <template x-if="selected.cycles[kind]">
+                            <div>
+                                <div class="mr-admin__cycle-head">
+                                    <b x-text="kind === 'working' ? '調整中の周期' : '確定周期'"></b>
+                                    <span class="admin-badge" :class="kind === 'working' ? 'admin-badge--red' : 'admin-badge--green'" x-text="sourceLabel(selected.cycles[kind].source)"></span>
+                                    <span class="mr-admin__muted" x-show="selected.cycles[kind].cycle_length === null">日数未確定</span>
+                                </div>
+                                <div class="mr-admin__fields">
+                                    <label class="mr-admin__field">
+                                        <span>日数(枠数)</span>
+                                        <input class="catalog-input mr-admin__num" type="number" min="1" x-model.number="selected.cycles[kind].cycle_length" placeholder="未確定" {% if not can_edit %}disabled{% endif %}>
+                                    </label>
+                                    <label class="mr-admin__field">
+                                        <span>基準(位置1の開始)</span>
+                                        <input class="catalog-input" type="datetime-local" x-model="selected.cycles[kind].anchor_local" {% if not can_edit %}disabled{% endif %}>
+                                    </label>
+                                </div>
+                                <div class="mr-admin__table-wrap">
+                                    <table class="data-table catalog-table mr-admin__table">
+                                        <thead><tr><th>#</th><th>マップID</th><th>マップ名</th><th>状態</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+                                        <tbody>
+                                            <template x-for="(map, index) in selected.cycles[kind].maps" :key="kind + '-' + index">
+                                                <tr>
+                                                    <td class="mr-admin__index" x-text="index + 1"></td>
+                                                    <td><input class="catalog-input mr-admin__mapid" type="number" x-model.number="map.map_id" {% if not can_edit %}disabled{% endif %}></td>
+                                                    <td class="mr-admin__mapname" x-text="mapName(map.map_id)"></td>
+                                                    <td>
+                                                        <select class="catalog-input mr-admin__state" :class="'mr-admin__state--' + map.state" x-model="map.state" {% if not can_edit %}disabled{% endif %}>
+                                                            <option value="verified">確認済み</option>
+                                                            <option value="predicted">予想</option>
+                                                            <option value="unknown">未確定</option>
+                                                            <option value="manual">手動</option>
+                                                        </select>
+                                                    </td>
+                                                    {% if can_edit %}
+                                                    <td class="mr-admin__nowrap">
+                                                        <button type="button" class="mr-admin__icon-button" title="上へ" @click="moveMap(selected.cycles[kind], index, -1)" :disabled="index === 0">↑</button>
+                                                        <button type="button" class="mr-admin__icon-button" title="下へ" @click="moveMap(selected.cycles[kind], index, 1)" :disabled="index === selected.cycles[kind].maps.length - 1">↓</button>
+                                                        <button type="button" class="mr-admin__icon-button mr-admin__icon-button--danger" title="削除" @click="removeMap(selected.cycles[kind], index)">×</button>
+                                                    </td>
+                                                    {% endif %}
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% if can_edit %}
+                                <div class="mr-admin__actions">
+                                    <button type="button" class="button button--secondary button--small" @click="addMap(selected.cycles[kind])">行を追加</button>
+                                    <button type="button" class="button button--primary button--small" @click="saveCycle(selected, selected.cycles[kind])" :disabled="busy">この周期を保存</button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </section>
+    </template>
+
+    {#^ 観測ログ #}
+    <section class="mr-admin__panel">
+        <div class="mr-admin__panel-head">
+            <h2 class="mr-admin__title">直近の観測</h2>
+            <template x-for="id in unassignedIds()" :key="id">
+                <span class="admin-badge admin-badge--red" x-text="'未割り当て slot ' + id"></span>
+            </template>
+        </div>
+        <div class="mr-admin__table-wrap">
+            <table class="data-table mr-admin__table mr-admin__table--nowrap">
+                <thead><tr><th>slot</th><th>表示スロット</th><th>開始</th><th>終了</th><th>マップ</th><th>モード</th></tr></thead>
+                <tbody>
+                    <template x-for="row in observations" :key="row.api_slot_id + row.start_time">
+                        <tr>
+                            <td x-text="row.api_slot_id"></td>
+                            <td x-text="slotNameForApi(row.api_slot_id)"></td>
+                            <td class="mr-admin__nowrap" x-text="fmt(row.start_time)"></td>
+                            <td class="mr-admin__nowrap" x-text="fmt(row.end_time)"></td>
+                            <td><span x-text="mapName(row.map_id, row.map_name_en)"></span> <span class="mr-admin__muted" x-text="row.map_id"></span></td>
+                            <td x-text="row.mode_slug"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function mapRotationAdmin() {
+    const rotation = {{ rotation | tojson }};
+    const catalog = {{ map_catalog | default({}) | tojson }};
+    const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    // ISO(UTC) → datetime-local用のJST文字列
+    const toJstLocal = (iso) => iso ? new Date(new Date(iso).getTime() + JST_OFFSET_MS).toISOString().slice(0, 16) : '';
+    // datetime-local(JST) → タイムゾーン付きISO
+    const fromJstLocal = (local) => local ? `${local}:00+09:00` : null;
+    const withLocalAnchor = (cycles) => {
+        const result = {};
+        for (const [kind, cycle] of Object.entries(cycles || {})) {
+            result[kind] = { ...cycle, maps: cycle.maps.map(item => ({ ...item })), anchor_local: toJstLocal(cycle.anchor_start) };
+        }
+        return result;
+    };
+    return {
+        episode: rotation.episode ? {
+            ...rotation.episode,
+            // 上書き欄は上書き値だけを入れる(自動値を入れたまま保存すると自動更新が止まるため)
+            started_local: toJstLocal(rotation.episode.started_at_override),
+            expected_local: toJstLocal(rotation.episode.expected_complete_override),
+        } : null,
+        slots: (rotation.slots || []).map(slot => ({
+            ...slot,
+            api_slot_text: (slot.api_slot_ids || []).join(','),
+            icons_text: (slot.icons || []).join(','),
+            cycles: withLocalAnchor(slot.cycles),
+        })),
+        observations: rotation.observations || [],
+        selectedId: null,
+        busy: false,
+        status: { success: false, message: '' },
+        get selected() {
+            return this.slots.find(slot => slot.id === this.selectedId) || null;
+        },
+        fmt(iso) {
+            if (!iso) return '';
+            const d = new Date(new Date(iso).getTime() + JST_OFFSET_MS);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+        },
+        mapName(mapId, fallback) {
+            if (!mapId) return '未確定';
+            const info = catalog[String(mapId)];
+            return (info && (info.ja || info.en)) || fallback || '不明なマップ';
+        },
+        sourceLabel(source) {
+            return { seed: '初期値', auto: '自動', manual: '手動' }[source] || source;
+        },
+        verifiedCount(cycle) {
+            return cycle.maps.filter(item => item.state === 'verified' || item.state === 'manual').length;
+        },
+        visibleCount() {
+            return this.slots.filter(slot => slot.is_visible).length;
+        },
+        confirmedCount() {
+            return this.slots.filter(slot => slot.is_visible && slot.cycles.working && slot.cycles.working.confirmed_at).length;
+        },
+        slotNameForApi(apiSlotId) {
+            const slot = this.slots.find(item => (item.api_slot_ids || []).includes(apiSlotId) || item.primary_api_slot_id === apiSlotId);
+            return slot ? slot.name_ja : '―';
+        },
+        unassignedIds() {
+            const ids = new Set(this.observations.map(row => row.api_slot_id));
+            return [...ids].filter(id => this.slotNameForApi(id) === '―').sort((a, b) => a - b);
+        },
+        async post(body) {
+            if (this.busy) return;
+            this.busy = true;
+            try {
+                const response = await fetch("{{ url_for('admin_save_map_rotation', lang=lang) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await response.json().catch(() => ({}));
+                this.status = { success: !!data.success, message: data.message || '保存に失敗しました。' };
+                if (data.success) {
+                    setTimeout(() => location.reload(), 600);
+                    return;
+                }
+            } catch (e) {
+                this.status = { success: false, message: '通信に失敗しました。' };
+            }
+            this.busy = false;
+        },
+        saveSlot(slot) {
+            const split = (text) => String(text || '').split(',').map(item => item.trim()).filter(Boolean);
+            this.post({
+                action: 'save_slot',
+                slot: {
+                    id: slot.id,
+                    display_order: slot.display_order,
+                    name_ja: slot.name_ja,
+                    name_en: slot.name_en,
+                    icons: split(slot.icons_text),
+                    icon_path: slot.icon_path,
+                    api_slot_ids: split(slot.api_slot_text).map(Number),
+                    primary_api_slot_id: slot.primary_api_slot_id,
+                    duration_minutes: slot.duration_minutes,
+                    is_visible: slot.is_visible,
+                    needs_review: slot.needs_review,
+                    manual_lock: slot.manual_lock,
+                },
+            });
+        },
+        saveCycle(slot, cycle) {
+            this.post({
+                action: 'save_cycle',
+                slot_id: slot.id,
+                cycle: {
+                    id: cycle.id,
+                    cycle_length: cycle.cycle_length === '' ? null : cycle.cycle_length,
+                    duration_minutes: cycle.duration_minutes,
+                    anchor_start: fromJstLocal(cycle.anchor_local),
+                    maps: cycle.maps,
+                },
+            });
+        },
+        saveEpisode(command) {
+            if (command === 'confirm' && !confirm('調整中の周期をすべて確定周期にします。よろしいですか？')) return;
+            if (command === 'cancel' && !confirm('調整中の周期を破棄します。よろしいですか？')) return;
+            this.post({
+                action: 'episode',
+                command,
+                episode_id: this.episode ? this.episode.id : null,
+                started_at_override: this.episode ? fromJstLocal(this.episode.started_local) : null,
+                expected_complete_override: this.episode ? fromJstLocal(this.episode.expected_local) : null,
+            });
+        },
+        reinfer() {
+            this.post({ action: 'reinfer' });
+        },
+        syncLength(cycle) {
+            if (cycle.cycle_length !== null && cycle.cycle_length !== '') cycle.cycle_length = cycle.maps.length;
+        },
+        addMap(cycle) {
+            cycle.maps.push({ map_id: null, state: 'manual' });
+            this.syncLength(cycle);
+        },
+        removeMap(cycle, index) {
+            cycle.maps.splice(index, 1);
+            this.syncLength(cycle);
+        },
+        moveMap(cycle, index, delta) {
+            const target = index + delta;
+            if (target < 0 || target >= cycle.maps.length) return;
+            const [item] = cycle.maps.splice(index, 1);
+            cycle.maps.splice(target, 0, item);
+        },
+    };
+}
+</script>
+{% endblock %}

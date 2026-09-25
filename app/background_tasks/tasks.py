@@ -95,6 +95,9 @@ async def check_new_maps_and_modes_task(db: asyncpg.Connection, ctx=None) -> Non
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
 async def update_prestige_borders_task(db: asyncpg.Connection) -> None:
     """トップランカーボーダーを更新するタスク"""
     logger.info(f"トップランカーボーダーのアップデートタスクを開始します")

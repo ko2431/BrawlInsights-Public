@@ -25,15 +25,8 @@
     <h1 class="page-title--main">{% if lang == "ja" %}マップ周期{% else %}Map Rotation{% endif %}</h1>
 
     <p class="tools-page__description">
-        {% if lang == "ja" %}
-        <span style="font-weight: bold; color: var(--c-red);"></span>
-        2026年9月アップデート後のマップ周期です。常設の11スロットのマップ周期を表示しています。<br>
-        {% if true %}<span style="font-weight: bold; color: var(--c-red);">【アップデート直後のため、マップ周期は調整中です。新しいマップ周期は10月中旬ごろ完成する予定です。】</span>{% endif %}
-        {% else %}
-        <span style="font-weight: bold; color: var(--c-red);"></span>
-        Here are the map rotation of Brawl Stars.<br>
-        {% if true %}<span style="font-weight: bold; color: var(--c-red);">*Currently, the map rotation is being adjusted due to the update. It is expected to be completed by the middle of October.</span>{% endif %}
-        {% endif %}
+        <span x-text="introText()"></span><br>
+        <span class="map-rotation-adjusting" x-show="payload.adjusting" x-text="adjustingText()"></span>
     </p>
 
     {#^ スロット選択タブ #}
@@ -63,6 +56,7 @@
                     </template>
 
                     <p class="map-rotation-slot__text" x-text="isJa ? slot.name_ja : slot.name_en"></p>
+                    <span class="map-rotation-slot__badge" x-show="slot.adjusting" x-text="isJa ? '調整中' : 'Adjusting'"></span>
                 </div>
             </template>
         </div>
@@ -79,7 +73,7 @@
         <div class="map-rotation-slot-info__days">
             <img src="{{ url_for('static', path='/images/ui/calendar.png') }}" alt="周期日数" class="map-rotation-slot-info__days__icon">
             <p class="map-rotation-slot-info__days__text">
-                <span x-text="slots[activeSlot].rotationHours ? (slots[activeSlot].maps.length * slots[activeSlot].rotationHours / 24) : slots[activeSlot].maps.length"></span><span x-text="isJa ? '日' : 'd'"></span><span style="font-size: smaller;" x-text="isJa ? '周期' : ' Cycle'"></span>
+                <span x-text="cycleDayText()"></span><span style="font-size: smaller;" x-text="isJa ? '周期' : ' Cycle'"></span>
             </p>
         </div>
     </div>
@@ -108,7 +102,17 @@
                         </td>
                         
                         <td>
-                            <a :href="getMapLink(row.map)" class="map-link" x-text="isJa ? row.map.name_ja : row.map.name_en"></a>
+                            <div class="map-rotation-table__map">
+                                <template x-if="row.map.id">
+                                    <a :href="getMapLink(row.map)" class="map-link" x-text="row.mapLabel"></a>
+                                </template>
+                                <template x-if="!row.map.id">
+                                    <span class="map-rotation-table__unknown" x-text="row.mapLabel"></span>
+                                </template>
+                                <span class="map-rotation-state"
+                                      :class="{ 'map-rotation-state--unknown': row.map.state === 'unknown' }"
+                                      x-show="row.stateLabel" x-text="row.stateLabel"></span>
+                            </div>
                         </td>
                     </tr>
                 </template>
@@ -155,242 +159,102 @@ function mapRotationApp() {
         slugToId: {{ mode_slug_to_id | default({}) | tojson | safe }},
         iconBase: "{{ url_for('static', path='/images/mode_icons/') }}",
         mysteryUrl: "{{ url_for('static', path='/images/ui/mystery.png') }}",
-
-        // 🗓️ここでスロットとマップ周期を定義する
-        slots: [
-            // Slot 1: バトルロイヤル
-            {
-                name_ja: 'バトロイ', name_en: 'Showdown',
-                icons: ['soloShowdown'],
-                baseDate: '2026-06-30T05:00:00+09:00',
-                maps: [
-                    { id: 15001121 },
-                    { id: 15001012 },
-                    { id: 15001217 },
-                    { id: 15001109 },
-                    { id: 15000950 },
-                    { id: 15000959 },
-                    { id: 15000990 },
-                    { id: 15001279 },
-                    { id: 15001281 },
-                    { id: 15000947 },
-                    { id: 15000953 },
-                    { id: 15001284 },
-                    { id: 15001119 },
-                    { id: 15000032 },
-                ]
-            },
-            // Slot 2: ブロストライカー
-            {
-                name_ja: 'サッカー', name_en: 'Brawl Ball',
-                icons: ['brawlBall'],
-                baseDate: '2026-06-30T17:00:00+09:00',
-                maps: [
-                    { id: 15000143 },
-                    { id: 15000118 },
-                    { id: 15000026 },
-                    { id: 15001270 },
-                    { id: 15001330 },
-                    { id: 15001020 },
-                    { id: 15001054 },
-                    { id: 15000144 },
-                    { id: 15000051 },
-                    { id: 15001331 },
-                    { id: 15000025 },
-                    { id: 15000050 },
-                    { id: 15000024 },
-                    { id: 15001021 },
-                ]
-            },
-            // Slot 3: エメラルドハント
-            {
-                name_ja: 'エメハン', name_en: 'Gem Grab',
-                icons: ['gemGrab'],
-                baseDate: '2026-07-01T09:00:00+09:00',
-                maps: [
-                    { id: 15000009 },
-                    { id: 15001332 },
-                    { id: 15000010 },
-                    { id: 15000007 },
-                    { id: 15000931 },
-                    { id: 15001274 },
-                    { id: 15001208 },
-                    { id: 15000499 },
-                    { id: 15001275 },
-                    { id: 15000011 },
-                    { id: 15001051 },
-                    { id: 15001026 },
-                    { id: 15000932 },
-                    { id: 15000115 },
-                ]
-            },
-            // Slot 4: ノックアウト
-            {
-                name_ja: 'ノック', name_en: 'Knockout',
-                icons: ['knockout'],
-                baseDate: '2026-07-12T11:00:00+09:00',
-                maps: [
-                    { id: 15001173 },
-                    { id: 15000367 },
-                    { id: 15000368 },
-                    { id: 15001058 },
-                    { id: 15001276 },
-                    { id: 15001210 },
-                    { id: 15000548 },
-                    { id: 15001059 },
-                    { id: 15001333 },
-                    { id: 15001127 },
-                    { id: 15001019 },
-                    { id: 15001247 },
-                    { id: 15001018 },
-                    { id: 15000528 },
-                ]
-            },
-            // Slot 5: 強奪／ホッゾ
-            {
-                name_ja: '強奪／ホッゾ', name_en: 'Heist/HZ',
-                icons: ['heist', 'hotZone'],
-                baseDate: '2026-07-08T03:00:00+09:00',
-                maps: [
-                    { id: 15001273 },
-                    { id: 15001023 },
-                    { id: 15000053 },
-                    { id: 15001268 },
-                    { id: 15001170 },
-                    { id: 15001269 },
-                    { id: 15000018 },
-                    { id: 15000293 },
-                    { id: 15001099 },
-                    { id: 15001202 },
-                    { id: 15001272 },
-                    { id: 15001329 },
-                ]
-            },
-            // Slot 6: ホッケー
-            {
-                name_ja: 'ホッケー', name_en: 'Hockey',
-                icons: ['airHockey'],
-                baseDate: '2026-06-30T19:00:00+09:00',
-                maps: [
-                    { id: 15001265 },
-                    { id: 15001266 },
-                    { id: 15001222 },
-                    { id: 15001338 },
-                    { id: 15001248 },
-                    { id: 15001249 },
-                ]
-            },
-            // Slot 7: 殲滅／バスケ
-            {
-                name_ja: '殲滅／バスケ', name_en: 'WO/Basket',
-                icons: ['wipeout', 'basketBrawl'],
-                baseDate: '2026-07-03T13:00:00+09:00',
-                maps: [
-                    { id: 15001163 },
-                    { id: 15000386 },
-                    { id: 15001244 },
-                    { id: 15000387 },
-                    { id: 15001056 },
-                    { id: 15000384 },
-                    { id: 15001201 },
-                    { id: 15000390 },
-                ]
-            },
-            // Slot 8: 5v5
-            {
-                name_ja: '5対5', name_en: '5v5',
-                icons: ['5v5'],
-                baseDate: '2026-07-01T21:00:00+09:00',
-                maps: [
-                    { id: 15000971 },
-                    { id: 15001049 },
-                    { id: 15001047 },
-                    { id: 15000919 },
-                    { id: 15000920 },
-                    { id: 15001048 },
-                    { id: 15001043 },
-                    { id: 15001050 },
-                    { id: 15001101 },
-                ]
-            },
-            // Slot 9: デュエル／賞金
-            {
-                name_ja: 'デュエル／賞金', name_en: 'Duels/Bounty',
-                icons: ['duels', 'bounty'],
-                baseDate: '2026-06-30T01:00:00+09:00',
-                maps: [
-                    { id: 15001334 },
-                    { id: 15000022 },
-                    { id: 15001212 },
-                    { id: 15001336 },
-                    { id: 15000463 },
-                    { id: 15000082 },
-                    { id: 15001335 },
-                    { id: 15001176 },
-                    { id: 15001061 },
-                    { id: 15000005 },
-                    { id: 15000460 },
-                    { id: 15001288 },
-                    { id: 15001097 },
-                    { id: 15001287 },
-                ]
-            },
-            // Slot 10: アリーナ
-            {
-                name_ja: 'アリーナ', name_en: 'Arena',
-                icons: ['brawlArena'],
-                baseDate: '2026-06-30T23:00:00+09:00',
-                maps: [
-                    { id: 15000997 },
-                    { id: 15001324 },
-                    { id: 15001241 },
-                    { id: 15001242 },
-                    { id: 15001064 },
-                    { id: 15001065 },
-                    { id: 15001323 },
-                ]
-            },
-            // Slot 11: フリープレイ（2時間毎・12マップで1日周期）
-            {
-                name_ja: 'フリープレイ', name_en: 'Free Play',
-                icons: ['friends_old'],
-                iconFullUrl: MAP_ROTATION_FRIENDS_ICON,
-                rotationHours: 2,
-                baseDate: '2026-03-04T01:00:00+09:00',
-                maps: [
-                    { id: 15000528 },
-                    { id: 15000581 },
-                    { id: 15001101 },
-                    { id: 15001102 },
-                    { id: 15000852 },
-                    { id: 15000853 },
-                    { id: 15000292 },
-                    { id: 15000306 },
-                    { id: 15000959 },
-                    { id: 15001122 },
-                    { id: 15000024 },
-                    { id: 15000143 },
-                ]
-            },
-        ],
+        friendsIcon: MAP_ROTATION_FRIENDS_ICON,
+        payload: {{ rotation_payload | default({}) | tojson | safe }},
+        slots: [],
 
         init() {
-            const catalog = this.catalog || {};
-            this.slots.forEach(slot => {
-                (slot.maps || []).forEach(map => {
-                    const info = catalog[String(map.id)] || {};
-                    map.name_ja = info.ja || String(map.id);
-                    map.name_en = info.en || String(map.id);
-                    map.mode_id = info.mode_id || null;
-                    map.mode_slug = info.mode_slug || null;
-                });
-            });
+            const source = (this.payload && this.payload.slots) || [];
+            this.slots = source.map(slot => ({
+                ...slot,
+                icons: slot.icons || [],
+                iconFullUrl: (slot.icons || []).includes('friends_old') ? this.friendsIcon : null,
+                maps: (slot.maps || []).map(entry => this.mapEntry(entry.map_id, entry.state || 'predicted')),
+                // 現在枠は周期に無いマップでも、観測値そのままを表示する
+                currentMap: slot.currentMapId ? this.mapEntry(slot.currentMapId, 'verified') : null,
+            }));
+        },
+
+        mapEntry(mapId, state) {
+            const info = (this.catalog || {})[String(mapId)] || {};
+            return {
+                id: mapId,
+                state,
+                name_ja: info.ja || (mapId ? String(mapId) : ''),
+                name_en: info.en || (mapId ? String(mapId) : ''),
+                mode_id: info.mode_id || null,
+                mode_slug: info.mode_slug || null,
+            };
+        },
+
+        zone() {
+            return this.isJa ? 'Asia/Tokyo' : 'UTC';
+        },
+
+        zonedParts(date) {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: this.zone(),
+                year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', hourCycle: 'h23', weekday: 'short',
+            }).formatToParts(date);
+            const get = (type) => parts.find(part => part.type === type)?.value;
+            return {
+                year: Number(get('year')),
+                month: Number(get('month')),
+                day: Number(get('day')),
+                hour: Number(get('hour')),
+                minute: Number(get('minute')),
+                weekday: get('weekday'),
+            };
+        },
+
+        introText() {
+            const count = this.slots.length;
+            const started = this.payload && this.payload.startedAt ? new Date(this.payload.startedAt) : null;
+            if (!started) {
+                return this.isJa
+                    ? `常設の${count}スロットのマップ周期を表示しています。`
+                    : `Showing ${count} permanent map rotation slots.`;
+            }
+            const parts = this.zonedParts(started);
+            if (this.isJa) {
+                return `${parts.year}年${parts.month}月${parts.day}日アップデート後のマップ周期です。常設の${count}スロットのマップ周期を表示しています。`;
+            }
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            return `Map rotation after the ${months[parts.month - 1]} ${parts.day}, ${parts.year} update. Showing ${count} permanent slots.`;
+        },
+
+        adjustingText() {
+            const expected = this.payload && this.payload.expectedCompleteAt ? new Date(this.payload.expectedCompleteAt) : null;
+            if (!expected) {
+                return this.isJa
+                    ? '【アップデート直後のため、マップ周期は調整中です。完成時期は未定です。】'
+                    : '*The map rotation is being adjusted after the update. The completion date is not set yet.';
+            }
+            const parts = this.zonedParts(expected);
+            if (this.isJa) {
+                return `【アップデート直後のため、マップ周期は調整中です。新しいマップ周期は${parts.month}月${parts.day}日ごろ完成する予定です。】`;
+            }
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            return `*The map rotation is being adjusted after the update. It is expected to be completed around ${months[parts.month - 1]} ${parts.day}.`;
+        },
+
+        cycleDayText() {
+            const slot = this.slots[this.activeSlot];
+            if (!slot) return '';
+            if (slot.lengthUncertain) {
+                const days = slot.maps.length * slot.durationMinutes / (60 * 24);
+                return this.isJa ? `${days}日（調整中）` : `${days}d (adjusting)`;
+            }
+            const days = (slot.cycleLength || slot.maps.length) * slot.durationMinutes / (60 * 24);
+            const label = Number.isInteger(days) ? String(days) : String(Math.round(days * 10) / 10);
+            return this.isJa ? `${label}日` : `${label}d`;
         },
 
         // === Methods ===
 
         handleKeydown(e) {
-            if (e.metaKey || e.ctrlKey) return;
+            if (e.metaKey || e.ctrlKey || !this.slots.length) return;
             if (e.key === 'ArrowRight') {
                 e.preventDefault();
                 this.activeSlot = (this.activeSlot + 1) % this.slots.length;
@@ -403,105 +267,79 @@ function mapRotationApp() {
         // 切り替え時間テキストの取得 (17時 / 8AM、または2時間毎)
         getRefreshTimeText() {
             const slot = this.slots[this.activeSlot];
-            if (slot.rotationHours === 2) {
-                return this.isJa ? "2時間毎" : "Every 2h";
+            if (!slot) return '';
+            if (slot.durationMinutes && slot.durationMinutes < 24 * 60) {
+                const hours = slot.durationMinutes / 60;
+                return this.isJa ? `${hours}時間毎` : `Every ${hours}h`;
             }
-            // 入力文字列 例えば"2026-01-01T17:00:00+09:00" から "17" を抽出
-            const jstHour = parseInt(slot.baseDate.substring(11, 13));
+            const basis = slot.latestStart || slot.anchorStart;
+            if (!basis) return '';
+            const parts = this.zonedParts(new Date(basis));
             if (this.isJa) {
-                return jstHour + "時";
-            } else {
-                let utcHour = jstHour - 9;
-                if (utcHour < 0) utcHour += 24;
-                return utcHour + (utcHour < 12 ? "AM" : "PM");
+                return parts.minute ? `${parts.hour}時${parts.minute}分` : `${parts.hour}時`;
             }
+            const hour12 = parts.hour % 12 || 12;
+            const suffix = parts.hour < 12 ? 'AM' : 'PM';
+            return parts.minute ? `${hour12}:${String(parts.minute).padStart(2, '0')}${suffix}` : `${hour12}${suffix}`;
         },
 
-        // 周期表の生成
+        stateLabel(state) {
+            if (state === 'predicted') return this.isJa ? '予想' : 'Predicted';
+            if (state === 'unknown') return this.isJa ? '未確定' : 'Unknown';
+            return '';
+        },
+
+        mapLabel(map) {
+            if (!map || !map.id) return this.isJa ? '未確定' : 'Unknown';
+            return this.isJa ? map.name_ja : map.name_en;
+        },
+
         getRotationTable() {
             const slot = this.slots[this.activeSlot];
-            if (!slot.maps || slot.maps.length === 0) return [];
-
-            const list = [];
-            const baseTime = new Date(slot.baseDate).getTime();
+            if (!slot || !slot.maps || slot.maps.length === 0) return [];
+            const periodMs = (slot.durationMinutes || 1440) * 60 * 1000;
+            const originIso = slot.latestStart || slot.anchorStart;
+            if (!originIso) return [];
+            const origin = new Date(originIso).getTime();
             const nowTime = this.now.getTime();
-            const displayCount = slot.maps.length;
-
-            // 2時間周期（フリープレイ等）
-            if (slot.rotationHours === 2) {
-                const periodMs = 2 * 60 * 60 * 1000;
-                const periodsPassed = Math.floor((nowTime - baseTime) / periodMs);
-                for (let i = 0; i < displayCount; i++) {
-                    const mapIndex = (periodsPassed + i) % slot.maps.length;
-                    const periodStart = baseTime + (periodsPassed + i) * periodMs;
-                    const targetDate = new Date(periodStart);
-                    const dateLabel = i === 0
-                        ? (this.isJa ? "現在出現中" : "Active")
-                        : this.formatDate(targetDate, i);
-                    list.push({ dateLabel: dateLabel, map: slot.maps[mapIndex] });
-                }
-                return list;
-            }
-
-            // 24時間周期
-            const oneDay = 24 * 60 * 60 * 1000;
-            const diffTime = nowTime - baseTime;
-            const daysPassed = Math.floor(diffTime / oneDay);
-
-            for (let i = 0; i < displayCount; i++) {
-                const targetDayIndex = daysPassed + i;
-                const mapIndex = targetDayIndex % slot.maps.length;
-                const targetDate = new Date(baseTime + (targetDayIndex * oneDay));
-                let dateLabel = "";
-                if (i === 0) {
-                    dateLabel = this.isJa ? "現在出現中" : "Active";
-                } else {
-                    dateLabel = this.formatDate(targetDate, i);
-                }
+            const steps = Math.max(0, Math.floor((nowTime - origin) / periodMs));
+            const length = slot.maps.length;
+            const list = [];
+            for (let i = 0; i < length; i++) {
+                const mapIndex = (slot.latestIndex + steps + i) % length;
+                const targetDate = new Date(origin + (steps + i) * periodMs);
+                const map = slot.maps[mapIndex] || { id: null, state: 'unknown' };
+                // 同期が遅れて観測が古い場合(steps > 0)は、現在枠も周期から予測する
+                const observed = i === 0 && steps === 0 && slot.currentMap;
+                const current = observed ? slot.currentMap : map;
                 list.push({
-                    dateLabel: dateLabel,
-                    map: slot.maps[mapIndex]
+                    dateLabel: i === 0 ? (this.isJa ? '現在出現中' : 'Active') : this.formatDate(targetDate),
+                    map: current,
+                    mapLabel: this.mapLabel(current),
+                    stateLabel: observed ? '' : this.stateLabel(current.state),
                 });
             }
             return list;
         },
 
-        // 日付フォーマット
-        formatDate(dateObj, daysFromNow) {
-            // 注意: dateObj は JST 17:00 を指している Date オブジェクト
-            
-            // "今日" か "明日" かの判定について
-            // この判定を行うには、現在のローカル日付と dateObj の日付を比較します
-            const today = new Date();
-            const isSameDate = dateObj.getDate() === today.getDate() && dateObj.getMonth() === today.getMonth();
-            
-            // 明日の判定 (今日+1日)
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const isTomorrow = dateObj.getDate() === tomorrow.getDate() && dateObj.getMonth() === tomorrow.getMonth();
-
-            const timeStr = this.isJa ? 
-                            `${dateObj.getHours()}時〜` : 
-                            `${dateObj.getHours() < 12 ? dateObj.getHours() + 'AM-' : (dateObj.getHours() - 12 || 12) + 'PM-'}`; // 簡易的な英語時刻
-
-            if (isSameDate) {
-                return this.isJa ? `今日 ${timeStr}` : `Today ${timeStr}`;
-            } else if (isTomorrow) {
-                return this.isJa ? `明日 ${timeStr}` : `Tomorrow ${timeStr}`;
-            } else {
-                // 通常の日付フォーマット
-                const m = dateObj.getMonth() + 1;
-                const d = dateObj.getDate();
-                const day = dateObj.getDay();
-                const daysJa = ['日', '月', '火', '水', '木', '金', '土'];
-                const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                
-                if (this.isJa) {
-                    return `${m}/${d}(${daysJa[day]}) ${timeStr}`;
-                } else {
-                    return `${monthsEn[dateObj.getMonth()]} ${d} ${timeStr}`;
-                }
-            }
+        formatDate(dateObj) {
+            const parts = this.zonedParts(dateObj);
+            const today = this.zonedParts(new Date());
+            const tomorrowDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const tomorrow = this.zonedParts(tomorrowDate);
+            const minute = parts.minute ? `${parts.minute}分` : '';
+            const timeJa = `${parts.hour}時${minute}〜`;
+            const hour12 = parts.hour % 12 || 12;
+            const suffix = parts.hour < 12 ? 'AM' : 'PM';
+            const timeEn = parts.minute ? `${hour12}:${String(parts.minute).padStart(2, '0')}${suffix}-` : `${hour12}${suffix}-`;
+            const sameDay = parts.month === today.month && parts.day === today.day;
+            const nextDay = parts.month === tomorrow.month && parts.day === tomorrow.day;
+            if (sameDay) return this.isJa ? `今日 ${timeJa}` : `Today ${timeEn}`;
+            if (nextDay) return this.isJa ? `明日 ${timeJa}` : `Tomorrow ${timeEn}`;
+            const daysJa = { Sun: '日', Mon: '月', Tue: '火', Wed: '水', Thu: '木', Fri: '金', Sat: '土' };
+            const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            if (this.isJa) return `${parts.month}/${parts.day}(${daysJa[parts.weekday] || ''}) ${timeJa}`;
+            return `${monthsEn[parts.month - 1]} ${parts.day} ${timeEn}`;
         },
 
         // 行のクラス決定 (背景色制御)
