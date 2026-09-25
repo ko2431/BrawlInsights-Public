@@ -1,0 +1,57 @@
+{# 統計データ・ツールのハブ用。バナーと説明文はここで1回だけ描画する。 #}
+
+{% macro hub_subtab(endpoint, sub, icon, icon_class, label) %}
+<li class="sub-tab-nav__item">
+    <a href="{{ url_for(endpoint, lang=lang) }}?sub={{ sub }}" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === '{{ sub }}' }" :aria-current="activeSubTab === '{{ sub }}' ? 'page' : null" @click.prevent="setSubTab('{{ sub }}')">
+        <img src="{{ url_for('static', path='/images/ui/' + icon) }}" alt="{{ label|striptags }}" class="hub-subtab__icon {{ icon_class }}">
+        <span class="sub-tab-nav__text">{{ label|safe }}</span>
+    </a>
+</li>
+{% endmacro %}
+
+{% macro content_banner(prefix, item) %}
+<a href="{{ item.href }}"{% if item.target %} target="{{ item.target }}"{% endif %}>
+    <div class="{{ prefix }}-page__content{% if item.slim %} {{ prefix }}-page__content--responsive{% endif %}{% if item.small %} {{ prefix }}-page__content--small{% endif %}">
+        <img src="{{ item.image }}" alt="{{ item.alt }}" class="{{ prefix }}-page__content-image{% if item.small %} {{ prefix }}-page__content-image--small{% endif %}">
+        {% if item.slim %}
+        <img src="{{ item.slim }}" alt="{{ item.alt }}" class="{{ prefix }}-page__content-image--slim">
+        {% endif %}
+    </div>
+</a>
+{% endmacro %}
+
+{% macro banner_grid(prefix, items) %}
+<div class="{{ prefix }}-page__contents-box">
+    {% for item in items %}
+        {% if item.show|default(true) %}
+        {{ content_banner(prefix, item) }}
+        {% endif %}
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro hub_copy(prefix, description, notice=none) %}
+<p class="{{ prefix }}-page__description">
+    {{ description }}{% if notice %}<br>{{ notice|safe }}{% endif %}
+</p>
+{% endmacro %}
+
+{% macro suggest_box(prefix, items, legend, solid=false) %}
+<div class="hub-suggest{% if solid %} hub-suggest--solid{% endif %}">
+    <h2 class="hub-suggest__legend">{{ legend }}</h2>
+    {{ banner_grid(prefix, items) }}
+</div>
+{% endmacro %}
+
+{% macro hub_panel(prefix, sub, description, banners, notice=none, suggest_items=none, suggest_legend=none, external_items=none, external_legend=none) %}
+<div class="hub-subtab-panel" x-show="activeSubTab === '{{ sub }}'" x-cloak>
+    {{ hub_copy(prefix, description, notice) }}
+    {{ banner_grid(prefix, banners) }}
+    {% if suggest_items %}
+    {{ suggest_box(prefix, suggest_items, suggest_legend) }}
+    {% endif %}
+    {% if external_items %}
+    {{ suggest_box(prefix, external_items, external_legend, true) }}
+    {% endif %}
+</div>
+{% endmacro %}

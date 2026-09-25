@@ -87,6 +87,7 @@
 .hub-subtabs .hub-subtab__icon--brawlers { height: 19px; margin-top: 1.5px; margin-bottom: 1.5px; }
 .hub-subtabs .hub-subtab__icon--starrdrop { height: 28px; margin-top: -3px; margin-bottom: -3px; }
 .hub-subtabs .hub-subtab__icon--other { height: 22px; }
+.hub-subtabs .hub-subtab__icon--mastery { height: 22px; }
 
 .hub-subtabs .sub-tab-nav__text {
     line-height: 1.2;
@@ -146,6 +147,7 @@
     .hub-subtabs .hub-subtab__icon--brawlers { height: 22px; margin-top: 2px; margin-bottom: 7px; }
     .hub-subtabs .hub-subtab__icon--starrdrop { height: 34px; margin-top: -4px; margin-bottom: 1px; }
     .hub-subtabs .hub-subtab__icon--other { height: 26px; }
+    .hub-subtabs .hub-subtab__icon--mastery { height: 26px; }
 }
 
 @media (max-width: 679px) {
@@ -164,6 +166,7 @@
     .hub-subtabs .hub-subtab__icon--brawlers { height: 21px; margin-top: 1.5px; margin-bottom: 6px; }
     .hub-subtabs .hub-subtab__icon--starrdrop { height: 31px; margin-top: -3.5px; margin-bottom: 1px; }
     .hub-subtabs .hub-subtab__icon--other { height: 24px; }
+    .hub-subtabs .hub-subtab__icon--mastery { height: 24px; }
 }
 
 @media (max-width: 539px) {
@@ -189,6 +192,7 @@
     .hub-subtabs .hub-subtab__icon--brawlers { height: 19px; margin-top: 1.5px; margin-bottom: 5.5px; }
     .hub-subtabs .hub-subtab__icon--starrdrop { height: 28px; margin-top: -3px; margin-bottom: 1px; }
     .hub-subtabs .hub-subtab__icon--other { height: 22px; }
+    .hub-subtabs .hub-subtab__icon--mastery { height: 22px; }
     /* 5タブ（ツール）は幅が足りないので、ラベルだけさらに詰める */
     .hub-subtabs--dense .sub-tab-nav__link {
         font-size: 9px;

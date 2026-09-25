@@ -1,5 +1,6 @@
 {# /app/templates/tools/tools.html #}
 {% extends "base.html" %}
+{% from "components/hub_banners.html" import hub_subtab, hub_panel with context %}
 
 {% block title %}{% if lang == "ja" %}ツール{% else %}Tools{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタのさまざまなツールを利用できます。{% else %}A variety of tools related to Brawl Stars are available.{% endif %}{% endblock %}
@@ -10,282 +11,84 @@
 {% endblock %}
 
 {% block content %}
+{% set looking_legend = 'こちらをお探しですか？' if lang == 'ja' else 'Looking for these?' %}
+{% set external_legend = 'お役立ち外部リンク' if lang == 'ja' else 'Useful External Links' %}
+{% set show_profile_image = (platform == "ios" and version_at_least(app_client_version, "14.0")) or (platform == "android" and version_at_least(app_client_version, "14.0")) or platform == "web" %}
+{% set brawler_notice = '<b>【New】</b>キャラクター図鑑にキャラごとの<b>掲示板</b>が追加。9/28(月)まで、掲示板利用で<b>ブロスタパス+</b>などが当たる。詳細は<a href="/ja/help/announcements#222" style="text-decoration: underline; font-weight: bold;">こちら</a>！' if lang == 'ja' else '<b>【New】</b>The brawler chatboard for each brawler has been added to the Brawler Guide. Until Sep 27 UTC, you can win Brawl Pass Plus and more by using the board. Check <a href="/en/help/announcements#222" style="text-decoration: underline; font-weight: bold;">here</a> for details!' %}
+{% set all_notice = '<b>【New】</b>キャラクター図鑑にキャラごとの<b>掲示板</b>が追加。9/28(月)まで、掲示板利用で<b>ブロスタパス+</b>などが当たる。詳細は<a href="/ja/help/announcements#222" style="text-decoration: underline; font-weight: bold;">こちら</a>！' if lang == 'ja' else '<b>【New】</b>The brawler chatboard for each brawler has been added to the Brawler Guide. Until Sep 27 UTC, you can win Brawl Pass Plus and more by using the board. Check <a href="/en/help/announcements#222" style="text-decoration: underline; font-weight: bold;">here</a> for details!' %}
+{% set store_lang = 'ja' if lang == 'ja' else 'en' %}
+{% set event_lang = 'jp' if lang == 'ja' else 'en' %}
+
+{% set ranked_banners = [
+    {'href': url_for('pick_tool', lang=lang), 'image': url_for('static', path='/images/banners/ranked_pick_tool_banner_' + lang + '.png'), 'alt': 'ガチバトルピック提案ツール'},
+    {'href': url_for('ranked_maps', lang=lang), 'image': url_for('static', path='/images/banners/ranked_maps_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/ranked_maps_banner_slim_' + lang + '.png'), 'alt': 'ガチバトルマップ一覧'},
+] %}
+{% set brawlers_banners = [
+    {'href': url_for('profile_image_tool', lang=lang), 'image': url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png'), 'alt': 'プロフィール画像生成ツール' if lang == 'ja' else 'Profile Image Generator', 'show': show_profile_image},
+    {'href': url_for('brawler_guide_menu', lang=lang), 'image': url_for('static', path='/images/banners/brawler_guide_banner_new_' + lang + '.png'), 'alt': 'キャラクター図鑑'},
+    {'href': url_for('cost_calc', lang=lang), 'image': url_for('static', path='/images/banners/cost_calc_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/cost_calc_banner_slim_' + lang + '.png'), 'alt': '育成計算機'},
+    {'href': url_for('random_brawler', lang=lang), 'image': url_for('static', path='/images/banners/random_brawler_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/random_brawler_banner_slim_' + lang + '.png'), 'alt': 'キャラクタールーレット'},
+] %}
+{% set maps_banners = [
+    {'href': url_for('map_rotation', lang=lang), 'image': url_for('static', path='/images/banners/map_rotation_banner_' + lang + '.png'), 'alt': 'マップ周期'},
+    {'href': url_for('trophy_table', lang=lang), 'image': url_for('static', path='/images/banners/trophy_table_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/trophy_table_banner_slim_' + lang + '.png'), 'alt': 'トロフィー増減表'},
+] %}
+{% set rewards_banners = [
+    {'href': url_for('starrdrop_chances', lang=lang), 'image': url_for('static', path='/images/banners/drop_chances_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/drop_chances_banner_slim_' + lang + '.png'), 'alt': '各種ドロップ/ボックス確率表' if lang == 'ja' else 'Drop / Box Chances'},
+    {'href': url_for('starrdrop_calc', lang=lang), 'image': url_for('static', path='/images/banners/drop_calc_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/drop_calc_banner_slim_' + lang + '.png'), 'alt': '各種ドロップ/ボックス期待値計算機'},
+    {'href': url_for('reward_calc', lang=lang), 'image': url_for('static', path='/images/banners/brawlpass_calc_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/brawlpass_calc_banner_slim_' + lang + '.png'), 'alt': '報酬量計算機'},
+    {'href': url_for('trophy_reward_calc', lang=lang), 'image': url_for('static', path='/images/banners/trophy_reward_banner_' + lang + '.webp'), 'slim': url_for('static', path='/images/banners/trophy_reward_banner_slim_' + lang + '.webp'), 'alt': 'トロフィー目標報酬計算機' if lang == 'ja' else 'Trophy Road Reward Calculator'},
+] %}
+{% set others_banners = [
+    {'href': url_for('brawl_videos', lang=lang), 'image': url_for('static', path='/images/banners/brawl_videos_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/brawl_videos_banner_slim_' + lang + '.png'), 'alt': 'ブロスタ動画'},
+    {'href': url_for('app_faq', lang=lang), 'image': url_for('static', path='/images/banners/app_faq_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/app_faq_banner_slim_' + lang + '.png'), 'alt': 'アプリFAQ'},
+] %}
+{% set ranked_suggest = [
+    {'href': url_for('ranked_tier_list', lang=lang), 'image': url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png'), 'alt': 'ガチバトルTier表'},
+    {'href': url_for('ranked_rank_distribution', lang=lang), 'image': url_for('static', path='/images/banners/ranked_dist_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/ranked_dist_banner_slim_' + lang + '.png'), 'alt': 'ガチバトルランク分布' if lang == 'ja' else 'Ranked Rank Distribution'},
+    {'href': url_for('ranked_ranking', lang=lang), 'image': url_for('static', path='/images/banners/ranked_lb_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/ranked_lb_banner_slim_' + lang + '.png'), 'alt': 'ガチバトルランキング'},
+] %}
+{% set brawlers_suggest = [
+    {'href': url_for('skin_ranking', lang=lang), 'image': url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png'), 'alt': 'スキン使用率ランキング'},
+] %}
+{% set maps_suggest = [
+    {'href': url_for('profile_image_tool', lang=lang), 'image': url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png'), 'alt': 'プロフィール画像生成ツール' if lang == 'ja' else 'Profile Image Generator', 'show': show_profile_image},
+    {'href': url_for('multiplayer_tier_list', lang=lang), 'image': url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png'), 'alt': 'マルチプレイTier表' if lang == 'ja' else 'Multiplayer Tier List'},
+] %}
+{% set external_links = [
+    {'href': 'https://store.supercell.com/' + store_lang + '/brawlstars', 'image': url_for('static', path='/images/banners/link_store_banner_' + lang + '.png'), 'alt': 'Supercell Store', 'small': true, 'target': '_blank'},
+    {'href': 'https://id.supercell.com/' + store_lang + '/brawlstars/', 'image': url_for('static', path='/images/banners/link_rewards_banner_' + lang + '.png'), 'alt': 'Supercell ID Rewards', 'small': true, 'target': '_blank'},
+    {'href': 'https://event.supercell.com/brawlstars/' + event_lang + '/', 'image': url_for('static', path='/images/banners/link_champ_banner_' + lang + '.png'), 'alt': 'Brawl Stars Championship', 'small': true, 'target': '_blank'},
+    {'href': 'https://fankit.supercell.com/d/YvtsWV4pUQVm/game-assets', 'image': url_for('static', path='/images/banners/link_fankit_banner_' + lang + '.png'), 'alt': 'Brawl Stars Fan Kit', 'small': true, 'target': '_blank'},
+    {'href': 'https://pinmaker.supercell.com/' + event_lang, 'image': url_for('static', path='/images/banners/link_pinmaker_banner_' + lang + '.png'), 'alt': 'Brawl Stars Pin Maker', 'small': true, 'target': '_blank'},
+] %}
+
 <div class="tools-page__container">
-    {# ^ アップデートのお願い #}
     {% include "components/update_request.html" %}
 
     <h1 class="page-title--main hub-page-title">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</h1>
 
-    <div class="hub-page" x-data="hubSubtabs({ ids: ['ranked', 'brawlers', 'maps', 'rewards', 'others'], storageKey: 'bi_tools_subtab', platform: '{{ platform }}' })" @keydown.window="handleKeydown($event)">
+    <div class="hub-page" x-data="hubSubtabs({ ids: ['all', 'ranked', 'brawlers', 'maps', 'rewards', 'others'], storageKey: 'bi_tools_subtab', platform: '{{ platform }}' })" @keydown.window="handleKeydown($event)">
         <div class="hub-subtabs hub-subtabs--dense">
             <nav class="sub-tab-nav">
                 <ul class="sub-tab-nav__list">
-                    <li class="sub-tab-nav__item">
-                        <a href="{{ url_for('tools', lang=lang) }}?sub=ranked" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'ranked' }" :aria-current="activeSubTab === 'ranked' ? 'page' : null" @click.prevent="setSubTab('ranked')">
-                            <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="{% if lang == 'ja' %}ガチバトル{% else %}Ranked{% endif %}" class="hub-subtab__icon hub-subtab__icon--ranked">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}ガチバトル{% else %}Ranked{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="{{ url_for('tools', lang=lang) }}?sub=brawlers" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'brawlers' }" :aria-current="activeSubTab === 'brawlers' ? 'page' : null" @click.prevent="setSubTab('brawlers')">
-                            <img src="{{ url_for('static', path='/images/ui/brawlers.png') }}" alt="{% if lang == 'ja' %}キャラクター{% else %}Brawler{% endif %}" class="hub-subtab__icon hub-subtab__icon--brawlers">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}キャラクター{% else %}Brawler{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="{{ url_for('tools', lang=lang) }}?sub=maps" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'maps' }" :aria-current="activeSubTab === 'maps' ? 'page' : null" @click.prevent="setSubTab('maps')">
-                            <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="{% if lang == 'ja' %}マップ・トロフィー{% else %}Maps & Trophy{% endif %}" class="hub-subtab__icon hub-subtab__icon--trophy">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}マップ・<wbr>トロフィー{% else %}Maps &<wbr> Trophy{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="{{ url_for('tools', lang=lang) }}?sub=rewards" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'rewards' }" :aria-current="activeSubTab === 'rewards' ? 'page' : null" @click.prevent="setSubTab('rewards')">
-                            <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="{% if lang == 'ja' %}報酬関連{% else %}Rewards{% endif %}" class="hub-subtab__icon hub-subtab__icon--starrdrop">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}報酬関連{% else %}Rewards{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="{{ url_for('tools', lang=lang) }}?sub=others" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'others' }" :aria-current="activeSubTab === 'others' ? 'page' : null" @click.prevent="setSubTab('others')">
-                            <img src="{{ url_for('static', path='/images/ui/skin_other.png') }}" alt="{% if lang == 'ja' %}その他{% else %}Others{% endif %}" class="hub-subtab__icon hub-subtab__icon--other">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}その他{% else %}Others{% endif %}</span>
-                        </a>
-                    </li>
+                    {{ hub_subtab('tools', 'all', 'mastery_gold.png', 'hub-subtab__icon--mastery', 'すべて' if lang == 'ja' else 'All') }}
+                    {{ hub_subtab('tools', 'ranked', 'ranked.png', 'hub-subtab__icon--ranked', 'ガチ<wbr>バトル' if lang == 'ja' else 'Ranked') }}
+                    {{ hub_subtab('tools', 'brawlers', 'brawlers.png', 'hub-subtab__icon--brawlers', 'キャラ<wbr>クター' if lang == 'ja' else 'Brawler') }}
+                    {{ hub_subtab('tools', 'maps', 'trophy.png', 'hub-subtab__icon--trophy', 'マップ・<wbr>トロフィー' if lang == 'ja' else 'Maps &<wbr> Trophy') }}
+                    {{ hub_subtab('tools', 'rewards', 'starrdrop.png', 'hub-subtab__icon--starrdrop', '報酬関連' if lang == 'ja' else 'Rewards') }}
+                    {{ hub_subtab('tools', 'others', 'skin_other.png', 'hub-subtab__icon--other', 'その他' if lang == 'ja' else 'Others') }}
                 </ul>
             </nav>
         </div>
 
-        <div class="hub-subtab-panel" x-show="activeSubTab === 'ranked'" x-cloak>
-            <p class="tools-page__description">
-                {% if lang == "ja" %}このタブでは、ガチバトルのさまざまなツールを利用できます。
-                {% else %}On this tab, you can use various tools related to Ranked.
-                {% endif %}
-            </p>
-            <div class="tools-page__contents-box">
-                <a href="{{ url_for('pick_tool', lang=lang) }}">
-                    <div class="tools-page__content">
-                        <img src="{{ url_for('static', path='/images/banners/ranked_pick_tool_banner_' + lang + '.png') }}" alt="ガチバトルピック提案ツール" class="tools-page__content-image">
-                    </div>
-                </a>
-                <a href="{{ url_for('ranked_maps', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/ranked_maps_banner_' + lang + '.png') }}" alt="ガチバトルマップ一覧" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/ranked_maps_banner_slim_' + lang + '.png') }}" alt="ガチバトルマップ一覧" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-            </div>
-            <div class="hub-suggest">
-                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
-                <div class="tools-page__contents-box">
-                    <a href="{{ url_for('ranked_tier_list', lang=lang) }}">
-                        <div class="tools-page__content">
-                            <img src="{{ url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png') }}" alt="ガチバトルTier表" class="tools-page__content-image">
-                        </div>
-                    </a>
-                    <a href="{{ url_for('ranked_rank_distribution', lang=lang) }}">
-                        <div class="tools-page__content tools-page__content--responsive">
-                            <img src="{{ url_for('static', path='/images/banners/ranked_dist_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}" class="tools-page__content-image">
-                            <img src="{{ url_for('static', path='/images/banners/ranked_dist_banner_slim_' + lang + '.png') }}" alt="{% if lang == 'ja' %}ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %}" class="tools-page__content-image--slim">
-                        </div>
-                    </a>
-                    <a href="{{ url_for('ranked_ranking', lang=lang) }}">
-                        <div class="tools-page__content tools-page__content--responsive">
-                            <img src="{{ url_for('static', path='/images/banners/ranked_lb_banner_' + lang + '.png') }}" alt="ガチバトルランキング" class="tools-page__content-image">
-                            <img src="{{ url_for('static', path='/images/banners/ranked_lb_banner_slim_' + lang + '.png') }}" alt="ガチバトルランキング" class="tools-page__content-image--slim">
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
+        {{ hub_panel('tools', 'all', 'このタブでは、ブロスタに関連するさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, a variety of tools related to Brawl Stars are available.', ranked_banners + brawlers_banners + maps_banners + rewards_banners + others_banners, all_notice, external_items=external_links, external_legend=external_legend) }}
+        {{ hub_panel('tools', 'ranked', 'このタブでは、ガチバトルのさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to Ranked.', ranked_banners, suggest_items=ranked_suggest, suggest_legend=looking_legend) }}
+        {{ hub_panel('tools', 'brawlers', 'このタブでは、キャラクター関連のさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to brawlers.', brawlers_banners, brawler_notice, brawlers_suggest, looking_legend) }}
+        {{ hub_panel('tools', 'maps', 'このタブでは、マップ周期やトロフィー増減表を利用できます。' if lang == 'ja' else 'On this tab, you can use the map rotation and the trophy change table.', maps_banners, suggest_items=maps_suggest, suggest_legend=looking_legend) }}
+        {{ hub_panel('tools', 'rewards', 'このタブでは、ブロスタパスや各種ドロップ／ボックスなどの、さまざまな報酬関連ツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to rewards such as Brawl Pass, drop chances, and more.', rewards_banners, suggest_items=external_links[:3], suggest_legend=looking_legend) }}
+        {{ hub_panel('tools', 'others', 'このタブでは、FAQやお役立ち外部リンクなど、その他のツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools such as the FAQ and useful external links.', others_banners, external_items=external_links, external_legend=external_legend) }}
 
-        <div class="hub-subtab-panel" x-show="activeSubTab === 'brawlers'" x-cloak>
-            <p class="tools-page__description">
-                {% if lang == "ja" %}このタブでは、キャラクター関連のさまざまなツールを利用できます。<br><b>【New】</b>キャラクター図鑑にキャラごとの<b>掲示板</b>が追加。9/28(月)まで、掲示板利用で<b>ブロスタパス+</b>などが当たる。詳細は<a href="/ja/help/announcements#222" style="text-decoration: underline; font-weight: bold;">こちら</a>！
-                {% else %}On this tab, you can use various tools related to brawlers.<br><b>【New】</b>The brawler chatboard for each brawler has been added to the Brawler Guide. Until Sep 27 UTC, you can win Brawl Pass Plus and more by using the board. Check <a href="/en/help/announcements#222" style="text-decoration: underline; font-weight: bold;">here</a> for details!
-                {% endif %}
-            </p>
-            <div class="tools-page__contents-box">
-                {% if (platform == "ios" and version_at_least(app_client_version, "14.0")) or (platform == "android" and version_at_least(app_client_version, "14.0")) or platform == "web" %}
-                <a href="{{ url_for('profile_image_tool', lang=lang) }}">
-                    <div class="tools-page__content">
-                        <img src="{{ url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %}" class="tools-page__content-image">
-                    </div>
-                </a>
-                {% endif %}
-                <a href="{{ url_for('brawler_guide_menu', lang=lang) }}">
-                    <div class="tools-page__content">
-                        <img src="{{ url_for('static', path='/images/banners/brawler_guide_banner_new_' + lang + '.png') }}" alt="キャラクター図鑑" class="tools-page__content-image">
-                    </div>
-                </a>
-                <a href="{{ url_for('cost_calc', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/cost_calc_banner_' + lang + '.png') }}" alt="育成計算機" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/cost_calc_banner_slim_' + lang + '.png') }}" alt="育成計算機" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-                <a href="{{ url_for('random_brawler', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/random_brawler_banner_' + lang + '.png') }}" alt="キャラクタールーレット" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/random_brawler_banner_slim_' + lang + '.png') }}" alt="キャラクタールーレット" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-            </div>
-            <div class="hub-suggest">
-                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
-                <div class="tools-page__contents-box">
-                    <a href="{{ url_for('skin_ranking', lang=lang) }}">
-                        <div class="tools-page__content">
-                            <img src="{{ url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png') }}" alt="スキン使用率ランキング" class="tools-page__content-image">
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="hub-subtab-panel" x-show="activeSubTab === 'maps'" x-cloak>
-            <p class="tools-page__description">
-                {% if lang == "ja" %}このタブでは、マップ周期やトロフィー増減表を利用できます。
-                {% else %}On this tab, you can use the map rotation and the trophy change table.
-                {% endif %}
-            </p>
-            <div class="tools-page__contents-box">
-                <a href="{{ url_for('map_rotation', lang=lang) }}">
-                    <div class="tools-page__content">
-                        <img src="{{ url_for('static', path='/images/banners/map_rotation_banner_' + lang + '.png') }}" alt="マップ周期" class="tools-page__content-image">
-                    </div>
-                </a>
-                <a href="{{ url_for('trophy_table', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/trophy_table_banner_' + lang + '.png') }}" alt="トロフィー増減表" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/trophy_table_banner_slim_' + lang + '.png') }}" alt="トロフィー増減表" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-            </div>
-            <div class="hub-suggest">
-                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
-                <div class="tools-page__contents-box">
-                    {% if (platform == "ios" and version_at_least(app_client_version, "14.0")) or (platform == "android" and version_at_least(app_client_version, "14.0")) or platform == "web" %}
-                    <a href="{{ url_for('profile_image_tool', lang=lang) }}">
-                        <div class="tools-page__content">
-                            <img src="{{ url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %}" class="tools-page__content-image">
-                        </div>
-                    </a>
-                    {% endif %}
-                    <a href="{{ url_for('multiplayer_tier_list', lang=lang) }}">
-                        <div class="tools-page__content">
-                            <img src="{{ url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}マルチプレイTier表{% else %}Multiplayer Tier List{% endif %}" class="tools-page__content-image">
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="hub-subtab-panel" x-show="activeSubTab === 'rewards'" x-cloak>
-            <p class="tools-page__description">
-                {% if lang == "ja" %}このタブでは、ブロスタパスや各種ドロップ／ボックスなどの、さまざまな報酬関連ツールを利用できます。
-                {% else %}On this tab, you can use various tools related to rewards such as Brawl Pass, drop chances, and more.
-                {% endif %}
-            </p>
-            <div class="tools-page__contents-box">
-                <a href="{{ url_for('starrdrop_chances', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/drop_chances_banner_' + lang + '.png') }}" alt="{% if lang == 'ja' %}各種ドロップ/ボックス確率表{% else %}Drop / Box Chances{% endif %}" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/drop_chances_banner_slim_' + lang + '.png') }}" alt="{% if lang == 'ja' %}各種ドロップ/ボックス確率表{% else %}Drop / Box Chances{% endif %}" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-                <a href="{{ url_for('starrdrop_calc', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/drop_calc_banner_' + lang + '.png') }}" alt="各種ドロップ/ボックス期待値計算機" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/drop_calc_banner_slim_' + lang + '.png') }}" alt="各種ドロップ/ボックス期待値計算機" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-                <a href="{{ url_for('reward_calc', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/brawlpass_calc_banner_' + lang + '.png') }}" alt="報酬量計算機" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/brawlpass_calc_banner_slim_' + lang + '.png') }}" alt="報酬量計算機" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-                <a href="{{ url_for('trophy_reward_calc', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/trophy_reward_banner_' + lang + '.webp') }}" alt="{% if lang == 'ja' %}トロフィー目標報酬計算機{% else %}Trophy Road Reward Calculator{% endif %}" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/trophy_reward_banner_slim_' + lang + '.webp') }}" alt="{% if lang == 'ja' %}トロフィー目標報酬計算機{% else %}Trophy Road Reward Calculator{% endif %}" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-            </div>
-            <div class="hub-suggest">
-                <h2 class="hub-suggest__legend">{% if lang == "ja" %}こちらをお探しですか？{% else %}Looking for these?{% endif %}</h2>
-                <div class="tools-page__contents-box">
-                    <a href="https://store.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_store_banner_' + lang + '.png') }}" alt="Supercell Store" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                    <a href="https://id.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars/" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_rewards_banner_' + lang + '.png') }}" alt="Supercell ID Rewards" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                    <a href="https://event.supercell.com/brawlstars/{% if lang == 'ja' %}jp{% else %}en{% endif %}/" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_champ_banner_' + lang + '.png') }}" alt="Brawl Stars Championship" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="hub-subtab-panel" x-show="activeSubTab === 'others'" x-cloak>
-            <p class="tools-page__description">
-                {% if lang == "ja" %}このタブでは、FAQやお役立ち外部リンクなど、その他のツールを利用できます。
-                {% else %}On this tab, you can use various tools such as the FAQ and useful external links.
-                {% endif %}
-            </p>
-            <div class="tools-page__contents-box">
-                <a href="{{ url_for('brawl_videos', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/brawl_videos_banner_' + lang + '.png') }}" alt="ブロスタ動画" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/brawl_videos_banner_slim_' + lang + '.png') }}" alt="ブロスタ動画" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-                <a href="{{ url_for('app_faq', lang=lang) }}">
-                    <div class="tools-page__content tools-page__content--responsive">
-                        <img src="{{ url_for('static', path='/images/banners/app_faq_banner_' + lang + '.png') }}" alt="アプリFAQ" class="tools-page__content-image">
-                        <img src="{{ url_for('static', path='/images/banners/app_faq_banner_slim_' + lang + '.png') }}" alt="アプリFAQ" class="tools-page__content-image--slim">
-                    </div>
-                </a>
-            </div>
-            <div class="hub-suggest hub-suggest--solid">
-                <h2 class="hub-suggest__legend">{% if lang == "ja" %}お役立ち外部リンク{% else %}Useful External Links{% endif %}</h2>
-                <div class="tools-page__contents-box">
-                    <a href="https://store.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_store_banner_' + lang + '.png') }}" alt="Supercell Store" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                    <a href="https://id.supercell.com/{% if lang == 'ja' %}ja{% else %}en{% endif %}/brawlstars/" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_rewards_banner_' + lang + '.png') }}" alt="Supercell ID Rewards" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                    <a href="https://event.supercell.com/brawlstars/{% if lang == 'ja' %}jp{% else %}en{% endif %}/" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_champ_banner_' + lang + '.png') }}" alt="Brawl Stars Championship" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                    <a href="https://fankit.supercell.com/d/YvtsWV4pUQVm/game-assets" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_fankit_banner_' + lang + '.png') }}" alt="Brawl Stars Fan Kit" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                    <a href="https://pinmaker.supercell.com/{% if lang == 'ja' %}jp{% else %}en{% endif %}" target="_blank">
-                        <div class="tools-page__content tools-page__content--small">
-                            <img src="{{ url_for('static', path='/images/banners/link_pinmaker_banner_' + lang + '.png') }}" alt="Brawl Stars Pin Maker" class="tools-page__content-image tools-page__content-image--small">
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        {# バナー広告 #}
         {% include "components/ad_banner.html" %}
     </div>
 </div>
