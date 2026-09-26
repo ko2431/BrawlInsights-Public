@@ -1,0 +1,249 @@
+{# /app/templates/admin/ranked_maps.html #}
+{% extends "base.html" %}
+
+{% block title %}管理者向け / ガチバトルマップ管理{% endblock %}
+{% block og_description %}ガチバトルマップ一覧を管理します。{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/admin.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-page__container{% if not can_edit %} admin-readonly{% endif %}" data-back-fallback="{{ url_for('admin_page', lang=lang) }}" x-data="rankedMapsAdmin()">
+    {% if platform != "web" %}
+    <div class="back-button__container" x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }" x-show="showManualBackButton" style="display: none;">
+        <div class="back-button">＜ 戻る</div>
+    </div>
+    {% endif %}
+    <h1 class="page-title--main">ガチバトルマップ管理</h1>
+    <p class="catalog-note">ガチバトル(soloRanked)のバトル履歴を6時間ごとに集計し、シーズン内の期間とマップを自動で推論します。誤検出のマップは除外できます。最大レベルキャラは自動取得できないため、シーズンごとに入力してください。日時はすべてJSTです。</p>
+
+    <div x-show="status.message" style="display: none;" class="form-field-status server-response" :class="{ 'success': status.success, 'error': !status.success }" x-text="status.message"></div>
+
+    {#^ シーズン選択 #}
+    <div class="rm-admin__season">
+        <select class="catalog-input rm-admin__season-select" @change="location.href = '?season=' + $event.target.value">
+            {% for option in season_options %}
+            <option value="{{ option.season }}" {% if option.season == data.season %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+        </select>
+        <a class="rm-admin__public-link" href="{{ url_for('ranked_maps', lang='ja') }}?season={{ data.season }}" target="_blank" rel="noopener">公開ページを開く</a>
+    </div>
+
+    {#^ シーズン概要 #}
+    <section class="mr-admin__panel">
+        <div class="mr-admin__panel-head">
+            <h2 class="mr-admin__title">シーズン{{ data.season }}の検出状況</h2>
+            <template x-if="data.public"><span class="admin-badge admin-badge--green">公開中</span></template>
+            <template x-if="!data.public && data.has_legacy_image"><span class="admin-badge admin-badge--gray">旧画像を表示</span></template>
+            <template x-if="!data.public && !data.has_legacy_image"><span class="admin-badge admin-badge--gray">非公開</span></template>
+            <template x-if="data.auto_locked"><span class="admin-badge admin-badge--orange">自動更新停止中</span></template>
+        </div>
+        <dl class="mr-admin__facts">
+            <div><dt>シーズン期間</dt><dd x-text="dateLabel(data.start_date) + '〜' + dateLabel(data.end_date)"></dd></div>
+            <div><dt>期間数</dt><dd x-text="data.periods.length"></dd></div>
+            <div><dt>カバー率</dt><dd x-text="data.coverage === null ? '―' : Math.round(data.coverage * 100) + '%'"></dd></div>
+            <div><dt>最終計算</dt><dd x-text="fmt(data.computed_at) || '―'"></dd></div>
+            <div><dt>最新の観測</dt><dd x-text="fmt(data.latest_observation) || '―'"></dd></div>
+        </dl>
+        <p class="mr-admin__muted rm-admin__hint">カバー率は、シーズン中に十分なバトルを観測できた時間の割合です。終了したシーズンは50%未満だと自動では公開しません（旧画像があればそちらを表示）。</p>
+        {% if can_edit %}
+        <div class="mr-admin__actions">
+            <button type="button" class="button button--primary button--small" @click="post({ action: 'redetect' })" :disabled="busy">今すぐ再検出</button>
+            <button type="button" class="button button--secondary button--small" @click="post({ action: 'set_lock', locked: !data.auto_locked })" :disabled="busy" x-text="data.auto_locked ? '自動更新を再開' : '自動更新を停止'"></button>
+            <label class="mr-admin__field rm-admin__inline-field">
+                <span>公開設定</span>
+                <select class="catalog-input" x-model="data.visibility" @change="post({ action: 'set_visibility', visibility: data.visibility })" :disabled="busy">
+                    <option value="auto">自動</option>
+                    <option value="show">常に表示</option>
+                    <option value="hide">表示しない</option>
+                </select>
+            </label>
+        </div>
+        {% endif %}
+    </section>
+
+    {#^ 最大レベルキャラ #}
+    <section class="mr-admin__panel">
+        <div class="mr-admin__panel-head">
+            <h2 class="mr-admin__title">最大レベルキャラ</h2>
+            <template x-if="data.max_power === null"><span class="admin-badge admin-badge--yellow">未設定</span></template>
+            <template x-if="data.max_power !== null && data.max_power.length === 0"><span class="admin-badge admin-badge--gray">対象キャラなし</span></template>
+            <template x-if="data.max_power !== null && data.max_power.length > 0"><span class="admin-badge admin-badge--blue" x-text="data.max_power.length + '体'"></span></template>
+            <template x-if="dirty"><span class="admin-badge admin-badge--orange">未保存</span></template>
+        </div>
+        <div class="rm-admin__chips">
+            <template x-for="(id, index) in selected" :key="id">
+                <div class="rm-admin__chip">
+                    <img :src="portrait(id)" alt="" class="rm-admin__chip-icon" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png'">
+                    <span class="rm-admin__chip-name" x-text="brawlerName(id)"></span>
+                    {% if can_edit %}
+                    <button type="button" class="mr-admin__icon-button" @click="move(index, -1)" :disabled="index === 0" title="左へ">←</button>
+                    <button type="button" class="mr-admin__icon-button" @click="move(index, 1)" :disabled="index === selected.length - 1" title="右へ">→</button>
+                    <button type="button" class="mr-admin__icon-button mr-admin__icon-button--danger" @click="toggleBrawler(id)" title="外す">×</button>
+                    {% endif %}
+                </div>
+            </template>
+            <p class="mr-admin__muted" x-show="selected.length === 0">選択されていません。</p>
+        </div>
+        {% if can_edit %}
+        <div class="mr-admin__actions rm-admin__save-row">
+            <button type="button" class="button button--primary button--small" @click="saveMaxPower(selected)" :disabled="busy || selected.length === 0">選択したキャラを保存</button>
+            <button type="button" class="button button--secondary button--small" @click="saveMaxPower([])" :disabled="busy">0体として保存</button>
+            <button type="button" class="button button--secondary button--small" @click="saveMaxPower(null)" :disabled="busy || data.max_power === null">未設定に戻す</button>
+        </div>
+        <input type="search" class="catalog-input rm-admin__search" placeholder="キャラ名で検索（日本語・英語）" x-model="query">
+        <div class="rm-admin__brawler-grid">
+            <template x-for="brawler in filteredBrawlers()" :key="brawler.id">
+                <button type="button" class="rm-admin__brawler" :class="{ 'rm-admin__brawler--selected': selected.includes(brawler.id) }" @click="toggleBrawler(brawler.id)" :title="brawler.name_ja">
+                    <img :src="portrait(brawler.id)" alt="" loading="lazy" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png'">
+                    <span x-text="brawler.name_ja"></span>
+                </button>
+            </template>
+        </div>
+        {% endif %}
+    </section>
+
+    {#^ 検出結果 #}
+    <section class="mr-admin__panel">
+        <div class="mr-admin__panel-head">
+            <h2 class="mr-admin__title">検出されたマップ</h2>
+        </div>
+        <p class="mr-admin__muted" x-show="data.periods.length === 0">まだ検出されていません。バトルの観測が集まるまでお待ちください。</p>
+        <template x-for="period in data.periods" :key="period.seq">
+            <div class="rm-admin__period">
+                <div class="rm-admin__period-head">
+                    <span class="admin-badge admin-badge--blue" x-text="'期間' + period.seq"></span>
+                    <span class="rm-admin__period-range" x-text="fmt(period.start_at) + ' 〜 ' + (period.end_at ? fmt(period.end_at) : '継続中')"></span>
+                    <span class="mr-admin__muted" x-text="period.map_count + 'マップ'"></span>
+                </div>
+                <template x-for="mode in period.modes" :key="mode.mode_id || mode.name_ja">
+                    <div class="rm-admin__mode">
+                        <div class="rm-admin__mode-name">
+                            <img :src="'/static' + mode.icons[0]" alt="" class="rm-admin__mode-icon" :data-icon-fallbacks="JSON.stringify(mode.icons.slice(1))" onerror="handleModeIconError(this)">
+                            <span x-text="mode.name_ja"></span>
+                        </div>
+                        <div class="rm-admin__maps">
+                            <template x-for="map in mode.maps" :key="map.map_id">
+                                <div class="rm-admin__map">
+                                    <span x-text="map.name_ja"></span>
+                                    <span class="rm-admin__count" x-text="map.battle_count.toLocaleString()"></span>
+                                    {% if can_edit %}
+                                    <button type="button" class="mr-admin__icon-button mr-admin__icon-button--danger" @click="toggleExclude(map, true)" :disabled="busy" title="このシーズンから除外">×</button>
+                                    {% endif %}
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+        <template x-if="data.excluded_maps.length > 0">
+            <div class="rm-admin__excluded">
+                <span class="mr-admin__muted">除外中:</span>
+                <template x-for="map in data.excluded_maps" :key="map.map_id">
+                    <div class="rm-admin__map rm-admin__map--excluded">
+                        <span x-text="map.name_ja"></span>
+                        {% if can_edit %}
+                        <button type="button" class="mr-admin__icon-button" @click="toggleExclude(map, false)" :disabled="busy" title="除外を解除">↺</button>
+                        {% endif %}
+                    </div>
+                </template>
+            </div>
+        </template>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function rankedMapsAdmin() {
+    const data = {{ data | tojson }};
+    const brawlers = {{ brawlers | tojson }};
+    const brawlerById = Object.fromEntries(brawlers.map(item => [item.id, item]));
+    const initial = data.max_power ? [...data.max_power] : [];
+    return {
+        data,
+        brawlers,
+        selected: initial,
+        query: '',
+        busy: false,
+        status: { success: true, message: '' },
+        get dirty() {
+            const saved = this.data.max_power || [];
+            return this.selected.length !== saved.length || this.selected.some((id, index) => id !== saved[index]);
+        },
+        fmt(value) {
+            if (!value) return '';
+            return new Date(value).toLocaleString('ja-JP', {
+                timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            });
+        },
+        dateLabel(value) {
+            const [, month, day] = value.split('-').map(Number);
+            return `${month}/${day}`;
+        },
+        portrait(id) {
+            return `/static/images/brawler_border_portraits/${id}.png`;
+        },
+        brawlerName(id) {
+            const brawler = brawlerById[id];
+            return brawler ? brawler.name_ja : `ID ${id}`;
+        },
+        filteredBrawlers() {
+            const query = this.query.trim().toLowerCase();
+            if (!query) return this.brawlers;
+            return this.brawlers.filter(item =>
+                (item.name_en || '').toLowerCase().includes(query)
+                || (item.name_ja || '').includes(query)
+                || (item.names_ja || []).some(name => name.includes(query))
+            );
+        },
+        toggleBrawler(id) {
+            const index = this.selected.indexOf(id);
+            if (index >= 0) this.selected.splice(index, 1);
+            else this.selected.push(id);
+        },
+        move(index, delta) {
+            const target = index + delta;
+            if (target < 0 || target >= this.selected.length) return;
+            const [item] = this.selected.splice(index, 1);
+            this.selected.splice(target, 0, item);
+        },
+        saveMaxPower(ids) {
+            if (ids === null && !confirm('最大レベルキャラを未設定に戻します。公開ページでは表示されなくなります。よろしいですか？')) return;
+            if (Array.isArray(ids) && ids.length === 0 && !confirm('今シーズンは対象キャラなしとして保存します。よろしいですか？')) return;
+            this.post({ action: 'save_max_power', brawler_ids: ids });
+        },
+        toggleExclude(map, excluded) {
+            const message = excluded
+                ? `「${map.name_ja}」をこのシーズンから除外して再検出します。よろしいですか？`
+                : `「${map.name_ja}」の除外を解除して再検出します。よろしいですか？`;
+            if (!confirm(message)) return;
+            this.post({ action: 'toggle_exclude_map', map_id: map.map_id, excluded });
+        },
+        async post(body) {
+            if (this.busy) return;
+            this.busy = true;
+            try {
+                const response = await fetch("{{ url_for('admin_save_ranked_maps', lang=lang) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ season: this.data.season, ...body }),
+                });
+                const result = await response.json().catch(() => ({}));
+                this.status = { success: !!result.success, message: result.message || '保存に失敗しました。' };
+                if (result.success) {
+                    setTimeout(() => location.reload(), 600);
+                    return;
+                }
+            } catch (e) {
+                this.status = { success: false, message: '通信に失敗しました。' };
+            }
+            this.busy = false;
+        },
+    };
+}
+</script>
+{% endblock %}

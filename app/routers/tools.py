@@ -495,14 +495,35 @@ async def predict_win_rate_api(
 @router.get("/ranked_maps", name="ranked_maps")
 async def ranked_maps(
     request: Request,
-    lang: str
+    lang: str,
+    season: str | None = Query(None),
+    period: str | None = Query(None),
+    db: asyncpg.Connection = Depends(get_shared_db)
 ):
-    
+    from app.services.ranked_map_pool_service import build_ranked_maps_payload, build_ranked_maps_view
+
+    # 不正なクエリは無視して既定の表示にする
+    season_number = int(season) if season and season.isdigit() else None
+    period_number = int(period) if period and period.isdigit() else None
+
+    try:
+        payload = await build_ranked_maps_payload(db)
+        await ensure_catalog(db)
+        brawler_names = {
+            brawler.id: {"ja": brawler.name_ja or brawler.name_en, "en": brawler.name_en}
+            for brawler in await get_available_brawlers(db)
+        }
+        view = build_ranked_maps_view(payload, lang=lang, season=season_number, period=period_number, brawler_names=brawler_names)
+    except Exception as e:
+        logger.error(f"ガチバトルマップ一覧の表示データ取得中にエラー: {e}", exc_info=True)
+        view = {"seasons": [], "selected": None, "current_pending": False}
+
     # テンプレートに渡すコンテキスト
     context = {
         "request": request,
         "lang": lang,
-        "current_page": "tools"
+        "current_page": "tools",
+        "view": view,
     }
 
     try:

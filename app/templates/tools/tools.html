@@ -15,6 +15,7 @@
 {% set external_legend = 'お役立ち外部リンク' if lang == 'ja' else 'Useful External Links' %}
 {% set show_profile_image = (platform == "ios" and version_at_least(app_client_version, "14.0")) or (platform == "android" and version_at_least(app_client_version, "14.0")) or platform == "web" %}
 {% set brawler_notice = '<b>【New】</b>キャラクター図鑑にキャラごとの<b>掲示板</b>が追加。9/28(月)まで、掲示板利用で<b>ブロスタパス+</b>などが当たる。詳細は<a href="/ja/help/announcements#222" style="text-decoration: underline; font-weight: bold;">こちら</a>！' if lang == 'ja' else '<b>【New】</b>The brawler chatboard for each brawler has been added to the Brawler Guide. Until Sep 27 UTC, you can win Brawl Pass Plus and more by using the board. Check <a href="/en/help/announcements#222" style="text-decoration: underline; font-weight: bold;">here</a> for details!' %}
+{% set ranked_notice = '<b>【New】ガチバトルマップ一覧</b>が全面リニューアル。UIが刷新され、情報も自動更新されるようになりました！' if lang == 'ja' else '<b>【New】The Ranked Map List</b> has been completely renewed. The UI has been redesigned, and the information now updates automatically!' %}
 {% set all_notice = '<b>【New】</b>キャラクター図鑑にキャラごとの<b>掲示板</b>が追加。9/28(月)まで、掲示板利用で<b>ブロスタパス+</b>などが当たる。詳細は<a href="/ja/help/announcements#222" style="text-decoration: underline; font-weight: bold;">こちら</a>！' if lang == 'ja' else '<b>【New】</b>The brawler chatboard for each brawler has been added to the Brawler Guide. Until Sep 27 UTC, you can win Brawl Pass Plus and more by using the board. Check <a href="/en/help/announcements#222" style="text-decoration: underline; font-weight: bold;">here</a> for details!' %}
 {% set store_lang = 'ja' if lang == 'ja' else 'en' %}
 {% set event_lang = 'jp' if lang == 'ja' else 'en' %}
@@ -83,7 +84,7 @@
         </div>
 
         {{ hub_panel('tools', 'all', 'このタブでは、ブロスタに関連するさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, a variety of tools related to Brawl Stars are available.', ranked_banners + brawlers_banners + maps_banners + rewards_banners + others_banners, all_notice, external_items=external_links, external_legend=external_legend) }}
-        {{ hub_panel('tools', 'ranked', 'このタブでは、ガチバトルのさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to Ranked.', ranked_banners, suggest_items=ranked_suggest, suggest_legend=looking_legend) }}
+        {{ hub_panel('tools', 'ranked', 'このタブでは、ガチバトルのさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to Ranked.', ranked_banners, ranked_notice, suggest_items=ranked_suggest, suggest_legend=looking_legend) }}
         {{ hub_panel('tools', 'brawlers', 'このタブでは、キャラクター関連のさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to brawlers.', brawlers_banners, brawler_notice, brawlers_suggest, looking_legend) }}
         {{ hub_panel('tools', 'maps', 'このタブでは、マップ周期やトロフィー増減表を利用できます。' if lang == 'ja' else 'On this tab, you can use the map rotation and the trophy change table.', maps_banners, suggest_items=maps_suggest, suggest_legend=looking_legend) }}
         {{ hub_panel('tools', 'rewards', 'このタブでは、ブロスタパスや各種ドロップ／ボックスなどの、さまざまな報酬関連ツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to rewards such as Brawl Pass, drop chances, and more.', rewards_banners, suggest_items=external_links[:3], suggest_legend=looking_legend) }}

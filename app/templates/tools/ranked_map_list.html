@@ -1,15 +1,19 @@
 {# /app/templates/tools/ranked_map_list.html #}
 {% extends "base.html" %}
+{% from "macros/mode_icon.html" import mode_icon_from_paths with context %}
+{% set selected = view.selected %}
 
-{% block title %}{% if lang == "ja" %}ガチバトルマップ一覧{% else %}Ranked Map List{% endif %} - Brawl Insights{% endblock %}
-{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトルのマップ一覧を、マップ画像付きで掲載しています。{% else %}A list of maps for ranked is available with map images.{% endif %}{% endblock %}
+{% block title %}{% if lang == "ja" %}【ブロスタ】ガチバトルマップ一覧{% else %}Ranked Map List{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。実際のバトルデータから毎日自動で更新しています。{% else %}A list of maps in Brawl Stars Ranked with map images, updated daily from real battle data.{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
 {% endblock %}
 
 {% block content %}
-<div class="tools-page__container">
+<div class="tools-page__container"
+     x-data="rankedMapsApp({{ (selected.modes | length) if selected else 0 }})"
+     @keydown.window="handleKeydown($event)">
     {# 戻るボタン #}
     {% if platform != "web" %}
     <div class="back-button__container"
@@ -24,71 +28,117 @@
 
     <p class="tools-page__description">
     {% if lang == "ja" %}
-    現在のガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。現在のガチバトルでは、以下の<b>26マップ</b>からマップがランダムに出現します。<br>
-    <span style="color: var(--c-red); font-weight: bold;">8月20日(木)からの新シーズンで、本来一覧にないマップが出現しているとの情報があり、現在調査中です。申し訳ありませんが、アップデートまでお待ちください。</span>
+    ガチバトルで出現するマップの一覧を、マップ画像付きで掲載しています。マップをタップすると詳細を表示します。
     {% else %}
-    The following is a list of maps selected for the current ranked season, with map images. In the current ranked season, maps are randomly selected from the following <b>26 maps</b>.<br>
-    <span style="color: var(--c-red); font-weight: bold;">There is information that new maps that are not in the list will appear in the new season starting August 20th. We are currently investigating this. We apologize for the inconvenience and please wait for the update.</span>
+    A list of maps in Brawl Stars Ranked with map images, updated daily from real battle data. Tap a map to see its details.
     {% endif %}
     </p>
 
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202607_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+    {% if not selected %}
+    <p class="ranked-maps__empty">{% if lang == "ja" %}マップ情報を準備中です。しばらくお待ちください。{% else %}Map data is being prepared. Please check back later.{% endif %}</p>
+    {% else %}
+
+    {#^ シーズン・期間の選択 #}
+    <div class="ranked-maps-picker">
+        <div class="ranked-maps-picker__row">
+            <label class="ranked-maps-picker__label" for="ranked-maps-season">{% if lang == "ja" %}シーズン{% else %}Season{% endif %}</label>
+            <div class="ranked-maps-picker__select-wrap">
+                <select id="ranked-maps-season" class="ranked-maps-picker__select"
+                        onchange="location.href = '?season=' + this.value">
+                    {% for item in view.seasons %}
+                    <option value="{{ item.season }}" {% if item.selected %}selected{% endif %}>{{ item.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% if selected.periods | length > 1 %}
+        <div class="ranked-maps-picker__row">
+            <span class="ranked-maps-picker__label">{% if lang == "ja" %}期間{% else %}Period{% endif %}</span>
+            <div class="ranked-maps-periods">
+                {% for item in selected.periods %}
+                <a href="?season={{ selected.season }}&period={{ item.seq }}"
+                   class="ranked-maps-periods__item{% if item.selected %} ranked-maps-periods__item--active{% endif %}"
+                   {% if item.selected %}aria-current="page"{% endif %}>{{ item.label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
-    <p class="tools-page__description" style="margin-top: 20px;">{% if lang == "ja" %}以下は、過去のシーズンのマップ一覧です。{% else %}Below is a list of maps from past seasons.{% endif %}</p>
+    {% if view.current_pending %}
+    <p class="ranked-maps__notice">{% if lang == "ja" %}新しいシーズンのマップは集計中です。集計が終わるまで、前のシーズンのマップを表示しています。{% else %}Maps for the new season are still being collected. The previous season is shown until then.{% endif %}</p>
+    {% endif %}
 
+    {% if selected.source == "image" %}
+    {#^ データが無いシーズンは旧画像を表示 #}
     <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202606_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
+        <img src="{{ url_for('static', path=selected.image) }}" alt="{% if lang == 'ja' %}ガチバトルマップ一覧 シーズン{{ selected.season }}{% else %}Ranked Map List Season {{ selected.season }}{% endif %}" class="tools-page__image ranked-maps__legacy-image">
+    </div>
+    {% else %}
+
+    {#^ 最大レベルキャラ #}
+    {% if selected.max_power is not none %}
+    <div class="ranked-maps-max-power">
+        <p class="ranked-maps-max-power__title">{% if lang == "ja" %}最大レベルで使えるキャラ{% else %}Max Power Brawlers{% endif %}</p>
+        {% if selected.max_power %}
+        <div class="ranked-maps-max-power__list">
+            {% for brawler in selected.max_power %}
+            <div class="ranked-maps-max-power__item">
+                <img src="{{ url_for('static', path='/images/brawler_border_portraits/' ~ brawler.id ~ '.png') }}"
+                     alt="{{ brawler.name }}" class="ranked-maps-max-power__icon" loading="lazy"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/player_icon/0.png') }}'">
+                <span class="ranked-maps-max-power__name">{{ brawler.name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="ranked-maps-max-power__none">{% if lang == "ja" %}このシーズンは対象キャラがいません。{% else %}No brawlers this season.{% endif %}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {#^ モード選択スロット #}
+    <div class="map-rotation-slot-tab__container ranked-maps-slots{% if selected.modes | length <= 6 %} ranked-maps-slots--fit{% endif %}">
+        <div class="map-rotation-slot-tab">
+            {% for mode in selected.modes %}
+            <div class="map-rotation-slot"
+                 :class="{ 'map-rotation-slot--active': activeMode === {{ loop.index0 }} }"
+                 @click="activeMode = {{ loop.index0 }}">
+                {{ mode_icon_from_paths(mode.icons, class='map-rotation-slot__icon', alt=(mode.name_ja if lang == 'ja' else mode.name_en)) }}
+                <p class="map-rotation-slot__text">{{ mode.short_ja if lang == "ja" else mode.short_en }}</p>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202605_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202604_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202603_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202602_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202601_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202512_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202511_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202510_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202509_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202508_' + 'ja' + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202507_' + lang + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
-
-    <div class="tools-page__image-box">
-        <img src="{{ url_for('static', path='/images/ranked_maps/ranked_maps_202506_' + lang + '.webp') }}" alt="ガチバトルマップ一覧" class="tools-page__image">    
-    </div>
+    {#^ マップカード #}
+    {% for mode in selected.modes %}
+    <section class="ranked-maps-mode" x-show="activeMode === {{ loop.index0 }}" {% if not loop.first %}style="display: none;"{% endif %}>
+        <h2 class="ranked-maps-mode__title">
+            {{ mode_icon_from_paths(mode.icons, class='ranked-maps-mode__icon', alt='') }}
+            <span>{{ mode.name_ja if lang == "ja" else mode.name_en }}</span>
+            <span class="ranked-maps-mode__count">{% if lang == "ja" %}{{ mode.maps | length }}マップ{% else %}{{ mode.maps | length }} maps{% endif %}</span>
+        </h2>
+        <div class="ranked-map-grid">
+            {% for map in mode.maps %}
+            {% set map_name = map.name_ja if lang == "ja" else map.name_en %}
+            <a class="ranked-map-card{% if mode.theme %} ranked-map-card--{{ mode.theme }}{% endif %}" href="{{ url_for('get_map', lang=lang, id=map.map_id) }}?tab=tools&from=ranked_maps">
+                <div class="ranked-map-card__image-box">
+                    <img src="https://cdn.bsinfox.com/maps/{{ map.map_id }}.png" alt="{{ map_name }}"
+                         class="ranked-map-card__image" loading="lazy" decoding="async"
+                         onerror="this.onerror=null;this.src='https://cdn.brawlify.com/maps/regular/{{ map.map_id }}.png';">
+                </div>
+                <div class="ranked-map-card__footer">
+                    {{ mode_icon_from_paths(mode.icons, class='ranked-map-card__mode-icon', alt='') }}
+                    <span class="ranked-map-card__name" title="{{ map_name }}">{{ map_name }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+    {% endif %}
+    {% endif %}
 
     {# バナー広告 #}
     {% include "components/ad_banner.html" %}
@@ -107,4 +157,23 @@
 
 {% block scripts %}
     {{ super() }}
+<script>
+function rankedMapsApp(modeCount) {
+    return {
+        activeMode: 0,
+        handleKeydown(e) {
+            if (e.metaKey || e.ctrlKey || e.altKey || modeCount < 2) return;
+            const tag = (e.target && e.target.tagName) || '';
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.activeMode = (this.activeMode + 1) % modeCount;
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                this.activeMode = (this.activeMode - 1 + modeCount) % modeCount;
+            }
+        },
+    };
+}
+</script>
 {% endblock %}

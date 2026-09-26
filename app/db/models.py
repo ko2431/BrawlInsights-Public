@@ -842,6 +842,59 @@ class MapRotationEpisode(Base):
     )
 
 
+class RankedMapObservation(Base):
+    """ガチバトル(soloRanked)のマップ出現数を1時間単位で集計したもの。マッププール推論の材料。"""
+    __tablename__ = 'ranked_map_observations'
+
+    hour = Column(DateTime(timezone=True), nullable=False)
+    map_id = Column(Integer, nullable=False)
+    mode_id = Column(Integer, nullable=True)
+    battle_count = Column(Integer, nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('hour', 'map_id', name='ranked_map_observations_pkey'),
+    )
+
+
+class RankedMapPool(Base):
+    """シーズン内の期間ごとのガチバトルのマッププール。シーズン途中でマップが変わると seq が増える。"""
+    __tablename__ = 'ranked_map_pools'
+
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    seq = Column(Integer, nullable=False)
+    start_at = Column(DateTime(timezone=True), nullable=False)
+    end_at = Column(DateTime(timezone=True), nullable=True)
+    maps = Column(JSONB, nullable=False, server_default='[]')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('season', 'seq', name='uq_ranked_map_pools_season_seq'),
+    )
+
+
+class RankedSeason(Base):
+    """ガチバトルのシーズンごとの設定。最大レベルキャラと、マップ検出の補正。"""
+    __tablename__ = 'ranked_seasons'
+
+    season = Column(Integer, primary_key=True, autoincrement=False)
+    # NULL は未設定、[] は対象キャラなし
+    max_power_brawler_ids = Column(JSONB, nullable=True)
+    excluded_map_ids = Column(JSONB, nullable=False, server_default='[]')
+    auto_locked = Column(Boolean, nullable=False, server_default='False')
+    visibility = Column(Text, nullable=False, server_default='auto')
+    coverage = Column(Float, nullable=True)
+    computed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("visibility IN ('auto', 'show', 'hide')", name='ck_ranked_seasons_visibility'),
+    )
+
+
 class Announcement(Base):
     """
     お知らせを格納するテーブル。

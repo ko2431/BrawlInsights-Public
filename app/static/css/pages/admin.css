@@ -1797,3 +1797,205 @@ select.mr-admin__state--manual { color: #1e40af; }
         grid-template-columns: 1fr;
     }
 }
+
+/* ガチバトルマップ管理 */
+.rm-admin__season {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-bottom: 12px;
+}
+.rm-admin__season-select {
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 15px;
+    color: inherit;
+    background: #fff;
+    border: 1px solid var(--color-ddd);
+    border-radius: 9px;
+}
+.dark .rm-admin__season-select {
+    background: #1c1c1c;
+    border-color: #444;
+}
+.rm-admin__public-link {
+    font-size: 13px;
+    text-decoration: underline;
+}
+.rm-admin__hint {
+    margin: 6px 0 8px;
+    font-size: 12px;
+}
+.rm-admin__inline-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+}
+.rm-admin__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.rm-admin__chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px 3px 3px;
+    background: var(--bg-f8f8f8);
+    border: 1px solid var(--color-ddd);
+    border-radius: 10px;
+}
+.rm-admin__chip-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    object-fit: cover;
+}
+.rm-admin__chip-name {
+    margin-right: 2px;
+    font-size: 14px;
+    font-weight: 700;
+}
+.rm-admin__save-row {
+    margin-top: 8px;
+}
+.rm-admin__search {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 320px;
+    margin: 10px 0 8px;
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 14px;
+    color: inherit;
+    background: #fff;
+    border: 1px solid var(--color-ddd);
+    border-radius: 8px;
+}
+.dark .rm-admin__search {
+    background: #1c1c1c;
+    border-color: #444;
+}
+.rm-admin__brawler-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 5px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 2px;
+}
+.rm-admin__brawler {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 2px;
+    color: inherit;
+    font: inherit;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 9px;
+    cursor: pointer;
+}
+.rm-admin__brawler img {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+.rm-admin__brawler span {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.rm-admin__brawler:hover {
+    background: var(--bg-f8f8f8);
+}
+.rm-admin__brawler--selected {
+    background: #eef4ff;
+    border-color: #3b82f6;
+}
+.dark .rm-admin__brawler--selected {
+    background: #1d2a40;
+    border-color: #60a5fa;
+}
+.rm-admin__period + .rm-admin__period {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-ddd);
+}
+.rm-admin__period-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin-bottom: 6px;
+}
+.rm-admin__period-range {
+    font-size: 14px;
+    font-weight: 700;
+}
+.rm-admin__mode {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+}
+.rm-admin__mode-name {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    width: 11em;
+    font-size: 13px;
+    white-space: nowrap;
+    font-weight: 700;
+}
+.rm-admin__mode-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+.rm-admin__maps,
+.rm-admin__excluded {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+.rm-admin__excluded {
+    margin-top: 10px;
+}
+.rm-admin__map {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 3px 2px 8px;
+    font-size: 13px;
+    background: var(--bg-f8f8f8);
+    border: 1px solid var(--color-ddd);
+    border-radius: 8px;
+}
+.rm-admin__map--excluded {
+    opacity: 0.7;
+    text-decoration: line-through;
+}
+.rm-admin__map .mr-admin__icon-button {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+}
+.rm-admin__count {
+    font-size: 11px;
+    color: var(--color-777);
+}
+@media (max-width: 539px) {
+    .rm-admin__mode {
+        flex-direction: column;
+        gap: 3px;
+    }
+}
