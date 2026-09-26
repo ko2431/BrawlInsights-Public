@@ -53,6 +53,7 @@
     {'href': url_for('skin_ranking', lang=lang), 'image': url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png'), 'alt': 'スキン使用率ランキング'},
 ] %}
 {% set maps_suggest = [
+    {'href': url_for('ranked_maps', lang=lang), 'image': url_for('static', path='/images/banners/ranked_maps_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/ranked_maps_banner_slim_' + lang + '.png'), 'alt': 'ガチバトルマップ一覧' if lang == 'ja' else 'Ranked Map List'},
     {'href': url_for('profile_image_tool', lang=lang), 'image': url_for('static', path='/images/banners/profile_image_banner_' + lang + '.png'), 'alt': 'プロフィール画像生成ツール' if lang == 'ja' else 'Profile Image Generator', 'show': show_profile_image},
     {'href': url_for('multiplayer_tier_list', lang=lang), 'image': url_for('static', path='/images/banners/multiplayer_tier_list_banner_' + lang + '.png'), 'alt': 'マルチプレイTier表' if lang == 'ja' else 'Multiplayer Tier List'},
 ] %}
