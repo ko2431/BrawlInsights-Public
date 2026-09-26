@@ -1,8 +1,8 @@
 {# /app/templates/tools/map.html #}
 {% extends "base.html" %}
 
-{% block title %}{% if lang == "ja" %}マップ{% else %}Map{% endif %} / {{ name }} - Brawl Insights{% endblock %}
-{% block og_description %}{% if lang == "ja" %}マップ {{ name }}のページです。{% else %}Map {{ name }} Page.{% endif %}{% endblock %}
+{% block title %}{% if lang == "ja" %}【ブロスタ】{{ name }}のマップ情報とおすすめキャラ{% else %}Map {{ name }} Information and Recommended Brawlers{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのマップ「{{ name }}」のページです。マップの情報や、Tier表・おすすめキャラなどを掲載しています。{% else %}Map {{ name }} Page. Information about the map and its tier list and recommended brawlers are displayed.{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
