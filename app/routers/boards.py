@@ -21,12 +21,15 @@ from app.services.notification_service import (
     BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
     create_message_notifications,
     create_token_gift_notification,
+    VALID_THREAD_NOTIFICATION_MODES,
     empty_board_notification_context,
     get_board_notification_context,
     get_notifications_for_display,
+    get_thread_notification_state,
     handle_message_reaction_notification,
     handle_post_like_notification,
     mark_all_notifications_as_read,
+    set_thread_notification_mode,
 )
 from app.services.token_gift_service import (
     TOKEN_GIFT_COMMENT_MAX_LENGTH,
@@ -429,6 +432,9 @@ class ReportCreateRequest(BaseModel):
 class MessageCreateRequest(BaseModel):
     message: str
     reply_to_message_id: int | None = None
+
+class ThreadNotificationSettingRequest(BaseModel):
+    mode: str
 
 class TokenGiftCreateRequest(BaseModel):
     recipient_user_id: int
@@ -2192,6 +2198,55 @@ async def create_chat_message(
         raise HTTPException(status_code=400, detail=str(e))
     except DataBaseError as e:
         logger.error(f"メッセージ作成中(スレッド:{thread_id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
+@router.get("/chat/{thread_id}/notification-setting", name="get_thread_notification_setting")
+async def get_thread_notification_setting(
+    request: Request,
+    thread_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    """チャット画面のメニュー用に、このスレッドの通知状態を返す（メニューを開いた時のみ呼ばれる）。
+    """
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Login required")
+
+    post = await get_post(db, id=thread_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Chat thread not found")
+
+    try:
+        return await get_thread_notification_state(db, user.id, post)
+    except DataBaseError as e:
+        logger.error(f"スレッド通知設定の取得中(スレッド:{thread_id}, User ID: {user.id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
+@router.post("/chat/{thread_id}/notification-setting", name="update_thread_notification_setting")
+async def update_thread_notification_setting(
+    request: Request,
+    thread_id: int,
+    setting_data: ThreadNotificationSettingRequest,
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    """このスレッドの通知オン/オフ（テーマ掲示板では直近のみに戻すも可）を設定する。
+    """
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Login required")
+    if setting_data.mode not in VALID_THREAD_NOTIFICATION_MODES:
+        raise HTTPException(status_code=400, detail="Invalid mode")
+
+    post = await get_post(db, id=thread_id)
+    if not post or post.is_deleted:
+        raise HTTPException(status_code=404, detail="Chat thread not found")
+
+    try:
+        return await set_thread_notification_mode(db, user.id, post, setting_data.mode)
+    except DataBaseError as e:
+        logger.error(f"スレッド通知設定の更新中(スレッド:{thread_id}, User ID: {user.id})にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
 
 

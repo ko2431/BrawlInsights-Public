@@ -17,6 +17,7 @@ BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT = 3
 NOTIFICATION_TYPE_POST_LIKE = "post_like"
 NOTIFICATION_TYPE_OWN_POST_MESSAGE = "own_post_message"
 NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE = "participated_thread_message"
+NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE = "subscribed_thread_message"
 NOTIFICATION_TYPE_MESSAGE_REPLY = "message_reply"
 NOTIFICATION_TYPE_MESSAGE_REACTION = "message_reaction"
 NOTIFICATION_TYPE_TOKEN_GIFT = "token_gift"
@@ -44,13 +45,34 @@ NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_TOKEN_GIFT: "notification_token_gift_enabled",
 }
 
-VALID_NOTIFICATION_FILTERS = frozenset({"all", *NOTIFICATION_TYPE_SETTING_KEYS, "admin_warning"})
+VALID_NOTIFICATION_FILTERS = frozenset({
+    "all",
+    *NOTIFICATION_TYPE_SETTING_KEYS,
+    NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
+    "admin_warning",
+})
 
 MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
     NOTIFICATION_TYPE_MESSAGE_REPLY,
     NOTIFICATION_TYPE_OWN_POST_MESSAGE,
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+    NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
 )
+
+# スレッド単位の通知オフで抑止する種別（リプライ・リアクションは抑止しない）
+THREAD_MESSAGE_NOTIFICATION_TYPES = frozenset({
+    NOTIFICATION_TYPE_OWN_POST_MESSAGE,
+    NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+})
+
+THREAD_NOTIFICATION_MODE_ON = "on"
+THREAD_NOTIFICATION_MODE_OFF = "off"
+THREAD_NOTIFICATION_MODE_DEFAULT = "default"
+VALID_THREAD_NOTIFICATION_MODES = frozenset({
+    THREAD_NOTIFICATION_MODE_ON,
+    THREAD_NOTIFICATION_MODE_OFF,
+    THREAD_NOTIFICATION_MODE_DEFAULT,
+})
 
 POST_TYPE_LABELS_JA = {
     "team": "チーム募集",
@@ -77,6 +99,10 @@ def _badge_cache_key(user_id: int) -> str:
 
 def _settings_cache_key(user_id: int) -> str:
     return f"notification_settings:{user_id}"
+
+
+def _thread_overrides_cache_key(thread_id: int) -> str:
+    return f"thread_notification_overrides:{thread_id}"
 
 
 async def invalidate_notification_cache(user_id: int) -> None:
@@ -323,6 +349,140 @@ async def handle_post_like_notification(
         await invalidate_notification_cache(row["recipient_user_id"])
 
 
+async def _get_thread_notification_overrides(db: asyncpg.Connection, thread_id: int) -> dict[int, str]:
+    """スレッドに対してユーザーが明示的に設定した通知モードを {user_id: mode} で返す。"""
+    cache_key = _thread_overrides_cache_key(thread_id)
+    cached = await get_cache(cache_key)
+    if cached is not None:
+        return {int(user_id): mode for user_id, mode in cached}
+
+    try:
+        rows = await db.fetch(
+            "SELECT user_id, mode FROM thread_notification_settings WHERE thread_id = $1",
+            thread_id,
+        )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+
+    # JSONのキーは文字列化されるため、ペアのリストでキャッシュする（空でもキャッシュする）
+    await set_cache(cache_key, [[row["user_id"], row["mode"]] for row in rows], ttl=600)
+    return {row["user_id"]: row["mode"] for row in rows}
+
+
+async def _get_thread_notification_default(
+    db: asyncpg.Connection,
+    *,
+    user_id: int,
+    post: Any,
+    settings: dict[str, bool | datetime.datetime | None],
+) -> bool:
+    """スレッド個別設定が無い場合に、そのスレッドの新着メッセージが通知されるかを返す。"""
+    is_theme = is_theme_post_type(post.type)
+    if not is_theme and post.host_id == user_id and _is_type_enabled(settings, NOTIFICATION_TYPE_OWN_POST_MESSAGE):
+        return True
+    if not _is_type_enabled(settings, NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE):
+        return False
+    try:
+        return bool(await db.fetchval(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM messages
+                WHERE thread_id = $1
+                  AND user_id = $2
+                  AND is_deleted = FALSE
+                  AND COALESCE(message_type, 'message') = 'message'
+            )
+            """,
+            post.id,
+            user_id,
+        ))
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+
+
+def _build_thread_notification_state(
+    *,
+    mode: str | None,
+    default_on: bool,
+    post: Any,
+    settings: dict[str, bool | datetime.datetime | None],
+) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        "default_on": default_on,
+        "is_theme": is_theme_post_type(post.type),
+        "recent_limit": BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
+        "reply_enabled": _is_type_enabled(settings, NOTIFICATION_TYPE_MESSAGE_REPLY),
+        "reaction_enabled": _is_type_enabled(settings, NOTIFICATION_TYPE_MESSAGE_REACTION),
+    }
+
+
+async def get_thread_notification_state(db: asyncpg.Connection, user_id: int, post: Any) -> dict[str, Any]:
+    """チャット画面のメニュー表示用に、スレッドの通知状態を返す。"""
+    settings = await get_notification_settings(db, user_id)
+    overrides = await _get_thread_notification_overrides(db, post.id)
+    return _build_thread_notification_state(
+        mode=overrides.get(user_id),
+        default_on=await _get_thread_notification_default(db, user_id=user_id, post=post, settings=settings),
+        post=post,
+        settings=settings,
+    )
+
+
+async def set_thread_notification_mode(db: asyncpg.Connection, user_id: int, post: Any, mode: str) -> dict[str, Any]:
+    """スレッドの通知モードを保存し、更新後の状態を返す。
+
+    指定モードがデフォルト動作と同じ場合は行を削除し、テーブルを最小限に保つ。
+    テーマ掲示板のデフォルト(直近のみ通知)は 'on'(全件通知) とは別扱い。
+    """
+    if mode not in VALID_THREAD_NOTIFICATION_MODES:
+        raise ValueError("Invalid thread notification mode")
+
+    settings = await get_notification_settings(db, user_id)
+    default_on = await _get_thread_notification_default(db, user_id=user_id, post=post, settings=settings)
+    is_theme = is_theme_post_type(post.type)
+    use_default = (
+        mode == THREAD_NOTIFICATION_MODE_DEFAULT
+        or (mode == THREAD_NOTIFICATION_MODE_OFF and not default_on)
+        or (mode == THREAD_NOTIFICATION_MODE_ON and default_on and not is_theme)
+    )
+
+    try:
+        if use_default:
+            await db.execute(
+                "DELETE FROM thread_notification_settings WHERE user_id = $1 AND thread_id = $2",
+                user_id,
+                post.id,
+            )
+        else:
+            await db.execute(
+                """
+                INSERT INTO thread_notification_settings (user_id, thread_id, mode)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (user_id, thread_id)
+                DO UPDATE SET mode = EXCLUDED.mode, updated_at = NOW()
+                """,
+                user_id,
+                post.id,
+                mode,
+            )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+
+    await delete_cache(_thread_overrides_cache_key(post.id))
+    logger.info(
+        f"スレッド通知設定を変更しました (User ID: {user_id}, Thread ID: {post.id}, "
+        f"mode: {mode}, stored: {'default' if use_default else mode})"
+    )
+    return _build_thread_notification_state(
+        mode=None if use_default else mode,
+        default_on=default_on,
+        post=post,
+        settings=settings,
+    )
+
+
 async def _create_brawler_guide_participated_recipient_ids(
     db: asyncpg.Connection,
     *,
@@ -467,6 +627,24 @@ async def create_message_notifications(
 
         for row in participant_rows:
             add_candidate(row["user_id"], NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE)
+
+    # スレッドごとの通知オン/オフを反映（キャッシュ済みのため通常はDBアクセスなし）
+    overrides = await _get_thread_notification_overrides(db, thread_id)
+    for override_user_id, mode in overrides.items():
+        if override_user_id == sender_user_id:
+            continue
+        if mode == THREAD_NOTIFICATION_MODE_OFF:
+            candidate_types = candidates.get(override_user_id)
+            if candidate_types:
+                candidate_types -= THREAD_MESSAGE_NOTIFICATION_TYPES
+                if not candidate_types:
+                    del candidates[override_user_id]
+        elif mode == THREAD_NOTIFICATION_MODE_ON:
+            candidate_types = candidates.setdefault(override_user_id, set())
+            settings = await get_notification_settings(db, override_user_id)
+            # 既存の候補種別がどれも通知される設定なら、そのまま通常の種別で通知する
+            if not any(_is_type_enabled(settings, ntype) for ntype in candidate_types):
+                candidate_types.add(NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE)
 
     for recipient_user_id, candidate_types in candidates.items():
         await _create_notification_with_message_priority(
@@ -649,6 +827,10 @@ def _build_message_title(
 ) -> str:
     post_label_ja = POST_TYPE_LABELS_JA.get(post_type, post_type)
     post_label_en = POST_TYPE_LABELS_EN.get(post_type, post_type)
+    if notification_type == NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE:
+        if lang == "ja":
+            return f"<b>{actor_name}</b>さんが通知オンにした{post_label_ja}のスレッドにメッセージを送りました"
+        return f"<b>{actor_name}</b> messaged in a {post_label_en} thread you turned notifications on for"
     if notification_type == NOTIFICATION_TYPE_OWN_POST_MESSAGE:
         if lang == "ja":
             return f"<b>{actor_name}</b>さんがあなたの{post_label_ja}の投稿に返信しました"
@@ -697,6 +879,8 @@ async def _build_notification_where(
         ntype for ntype in NOTIFICATION_TYPE_SETTING_KEYS
         if _is_type_enabled(settings, ntype)
     ]
+    # スレッドごとに通知オンにしたものは、アカウント全体の通知設定に関わらず表示する
+    enabled_types.append(NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE)
     # 警告は通知設定オフでも一覧に出す。未読バッジは last_read_at ではなく
     # unacked_penalty_count で数える（一覧を開いただけでは消えない）。
     if unread_only:
@@ -980,6 +1164,7 @@ async def _aggregate_notification_rows(
         elif ntype in (
             NOTIFICATION_TYPE_OWN_POST_MESSAGE,
             NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+            NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
             NOTIFICATION_TYPE_MESSAGE_REPLY,
         ):
             message_id = latest_row["message_id"]

@@ -1319,6 +1319,26 @@ class BoardNotification(Base):
     )
 
 
+class ThreadNotificationSetting(Base):
+    """
+    ユーザーがスレッドごとに明示的に設定した通知オン/オフを格納するテーブル。
+    行が無い場合はアカウント全体の通知設定に従うデフォルト動作となる。
+    """
+    __tablename__ = 'thread_notification_settings'
+
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    thread_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    mode = Column(Text, nullable=False)  # 'on' または 'off'
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('user_id', 'thread_id', name='thread_notification_settings_pkey'),
+        CheckConstraint("mode IN ('on', 'off')", name='ck_thread_notification_settings_mode'),
+        Index('idx_thread_notification_settings_thread_id', 'thread_id'),
+    )
+
+
 class UserBlock(Base):
     """
     ユーザー間のブロック関係を格納するテーブル。

@@ -28,6 +28,7 @@
                         <option value="post_like" {% if filter == "post_like" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのいいね{% else %}Likes on your posts{% endif %}</option>
                         <option value="own_post_message" {% if filter == "own_post_message" %}selected{% endif %}>{% if lang == "ja" %}自分の投稿へのメッセージ{% else %}Messages on your posts{% endif %}</option>
                         <option value="participated_thread_message" {% if filter == "participated_thread_message" %}selected{% endif %}>{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ{% else %}Messages on threads you messaged{% endif %}</option>
+                        <option value="subscribed_thread_message" {% if filter == "subscribed_thread_message" %}selected{% endif %}>{% if lang == "ja" %}通知オンにしたスレッドへのメッセージ{% else %}Messages on threads you turned notifications on for{% endif %}</option>
                         <option value="message_reply" {% if filter == "message_reply" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリプライ{% else %}Replies to your messages{% endif %}</option>
                         <option value="message_reaction" {% if filter == "message_reaction" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on your messages{% endif %}</option>
                         <option value="token_gift" {% if filter == "token_gift" %}selected{% endif %}>{% if lang == "ja" %}自分へのトークン進呈{% else %}Token gifts to you{% endif %}</option>
