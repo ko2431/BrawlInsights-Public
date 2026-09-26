@@ -221,7 +221,7 @@ def get_first_thursdays(limit: int = 1) -> list[datetime.date]:
 
 def _get_season_start_dt(year: int, month: int) -> datetime.datetime:
     """
-    指定された年月のガチバトルシーズン開始日時（第3木曜日UTC9時）を計算します。
+    指定された年月のガチバトルシーズン開始日時（第3木曜日UTC8時 = JST17時）を計算します。
 
     Args:
         year (int): 年
@@ -243,8 +243,8 @@ def _get_season_start_dt(year: int, month: int) -> datetime.datetime:
     # 第3木曜日は、最初の木曜日の14日後です
     third_thursday = first_thursday + 14
     
-    # 第3木曜日のUTC午前9時のdatetimeオブジェクトを作成して返します
-    return datetime.datetime(year, month, third_thursday, 9, 0, 0, tzinfo=datetime.timezone.utc)
+    # 第3木曜日のUTC午前8時のdatetimeオブジェクトを作成して返します(以前はUTC9時だったが、アップデートでJST17時に変更された)
+    return datetime.datetime(year, month, third_thursday, 8, 0, 0, tzinfo=datetime.timezone.utc)
 
 def calc_ranked_season(dt: datetime.datetime | None = None) -> int:
     """ガチバトルのシーズン番号を、日時をもとに計算する。
@@ -357,7 +357,7 @@ def get_ranked_seasons_for_filter() -> list[dict]:
     HTMLのプルダウンメニュー用に、シーズン31から現在のシーズンまでのリストを生成します。
     """
     seasons = []
-    # 現在のシーズン番号を取得します（この関数はUTC9時を考慮済み）
+    # 現在のシーズン番号を取得します（この関数はUTC8時の切替を考慮済み）
     current_season_num = calc_ranked_season()
 
     # 現在のシーズンからシーズン31まで、降順でループ処理します
