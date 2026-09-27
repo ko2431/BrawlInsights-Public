@@ -141,3 +141,77 @@ def test_links_team_showdown_maps_to_preceding_solo_map():
     assert items[15001140]["link"] == 15001121
     assert "link" not in items[15000028]
     assert "link" not in items[15000956]
+
+
+def _install_catalog(monkeypatch, modes: list[ModeInfo], maps: list[MapInfo], loaded_at: float) -> None:
+    """メモリ上のカタログを差し替える（掲示板用のメモもカタログの世代で作り直される）。"""
+    from app.services import map_mode_catalog
+
+    monkeypatch.setattr(map_mode_catalog, "_modes_by_id", {mode.id: mode for mode in modes})
+    monkeypatch.setattr(map_mode_catalog, "_maps_by_id", {map_info.id: map_info for map_info in maps})
+    monkeypatch.setattr(map_mode_catalog, "_local_loaded_at", loaded_at)
+
+
+def test_resolve_board_map_merges_duplicate_ids_and_skips_unlisted(monkeypatch):
+    from app.services.all_maps_service import resolve_board_map
+
+    maps = [
+        *MAPS,
+        # 同じモード・同じ名前でIDが連番 → 1つの掲示板にまとめる
+        _map(15000010, 48000005, "重複マップ", disabled=True),
+        _map(15000011, 48000005, "重複マップ"),
+        _map(15000012, 48000005, "HEIST_AUGCOMP2"),
+        # 同じモード・同じ名前でIDが離れている（再登場など）→ これも1つにまとめる
+        _map(15000020, 48000005, "重複マップ"),
+        # 名前が同じでもモードが違えば別の掲示板
+        _map(15000021, 48000000, "重複マップ"),
+    ]
+    _install_catalog(monkeypatch, MODES, maps, loaded_at=1001.0)
+
+    board_map = resolve_board_map(15000011)
+    assert board_map is not None
+    # 掲示板のキーは、まとめたIDのうち最小のもの（新しいIDが増えても変わらない）
+    assert board_map["id"] == 15000010
+    assert resolve_board_map(15000010)["id"] == 15000010
+    assert board_map["off"] is False
+    assert board_map["mode_id"] == 48000005
+    assert board_map["theme"] == "brawlBall"
+    assert resolve_board_map(15000020)["id"] == 15000010
+    assert resolve_board_map(15000021)["id"] == 15000021
+    # 開発用コード名・ERROR名・名前不明モード・存在しないIDは掲示板の対象外
+    assert resolve_board_map(15000012) is None
+    assert resolve_board_map(15000006) is None
+    assert resolve_board_map(15000008) is None
+    assert resolve_board_map(19999999) is None
+    assert resolve_board_map(None) is None
+
+
+def test_map_board_index_json(monkeypatch):
+    import json
+
+    from app.services.all_maps_service import build_map_board_index_json
+    from app.services.map_mode_catalog import DEFAULT_BOARD_COLORS, MODE_BOARD_COLORS
+
+    _install_catalog(monkeypatch, MODES, MAPS, loaded_at=1002.0)
+    index = json.loads(build_map_board_index_json())
+
+    assert [row[0] for row in index["maps"]] == [15000001, 15000002, 15000003, 15000004, 15000005]
+    rows = {row[0]: row for row in index["maps"]}
+    assert rows[15000001] == [15000001, "ごつごつ坑道", "ごつごつ坑道", 48000000, 0]
+    assert rows[15000002][4] == 1  # 無効マップ
+    gem_grab = index["modes"]["48000000"]
+    assert (gem_grab["c1"], gem_grab["c2"]) == MODE_BOARD_COLORS["gemGrab"]
+    assert gem_grab["icons"][0] == "/images/mode_icons/48000000.png"
+    # テーマ未定義のモードは既定色
+    test_mode = index["modes"]["48000099"]
+    assert (test_mode["c1"], test_mode["c2"]) == DEFAULT_BOARD_COLORS
+
+
+def test_mode_board_colors():
+    from app.services.map_mode_catalog import DEFAULT_BOARD_COLORS, MODE_BOARD_COLORS, MODE_THEME_BY_ID, get_mode_board_colors
+
+    assert get_mode_board_colors(48000000) == MODE_BOARD_COLORS["gemGrab"]
+    assert get_mode_board_colors(48000099) == DEFAULT_BOARD_COLORS
+    assert get_mode_board_colors(None) == DEFAULT_BOARD_COLORS
+    # テーマ色が定義されたモードは、すべて掲示板用の色も定義されている
+    assert set(MODE_THEME_BY_ID.values()) <= set(MODE_BOARD_COLORS)

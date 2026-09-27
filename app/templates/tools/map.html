@@ -1,5 +1,6 @@
 {# /app/templates/tools/map.html #}
 {% extends "base.html" %}
+{% from "macros/mode_icon.html" import mode_icon_from_paths with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】{{ name }}のマップ情報とおすすめキャラ{% else %}Map {{ name }} Information and Recommended Brawlers{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタのマップ「{{ name }}」のページです。マップの情報や、Tier表・おすすめキャラなどを掲載しています。{% else %}Map {{ name }} Page. Information about the map and its tier list and recommended brawlers are displayed.{% endif %}{% endblock %}
@@ -21,14 +22,39 @@
     </div>
     {% endif %}
 
-    <h1 class="page-title--main">{{ name }}</h1>
+    {# タイトル: 所属モードのアイコン・テーマ色 + マップ名 #}
+    <header class="map-title{% if mode_theme %} map-title--{{ mode_theme }}{% endif %}" style="--board-c1: {{ board_c1 }}; --board-c2: {{ board_c2 }};">
+        {% if mode_id %}
+        {{ mode_icon_from_paths(mode_icons, class='map-title__mode-icon', alt=mode_name or ('モードアイコン' if lang == 'ja' else 'Mode Icon')) }}
+        {% endif %}
+        <div class="map-title__text">
+            {% if mode_name %}<span class="map-title__mode">{{ mode_name }}</span>{% endif %}
+            <h1 class="map-title__name">{{ name }}</h1>
+        </div>
+    </header>
 
     <img src="https://cdn.bsinfox.com/maps/{{ id }}.png"
          alt="{{ name }}"
          class="map_image"
          onerror="this.onerror=null;this.src='https://cdn.brawlify.com/maps/regular/{{ id }}.png';">
 
-    <h2 class="page-title--sub" style="margin-top: 1.5em;">{% if lang == "ja" %}このマップのTier表{% else %}Tier List for This Map{% endif %}</h2>
+    {% if map_thread_id %}
+    <section class="map-board-section">
+        <h2 class="page-title--sub map-page__section-title">{% if lang == "ja" %}このマップの掲示板{% else %}Board for This Map{% endif %}</h2>
+        <div class="info-block" style="padding: 0;">
+            <p class="info-block__text">
+                {% if lang == "ja" %}このマップの掲示板です。立ち回りやおすすめキャラなど、このマップについて自由に会話したり質問したりできます！
+                {% else %}This is the board for this map. Feel free to talk or ask questions about this map, such as strategies and recommended brawlers!
+                {% endif %}
+            </p>
+        </div>
+        {% with board_thread_id=map_thread_id, board_preview_messages=map_preview_messages %}
+        {% include "components/theme_board_preview.html" %}
+        {% endwith %}
+    </section>
+    {% endif %}
+
+    <h2 class="page-title--sub map-page__section-title">{% if lang == "ja" %}このマップのTier表{% else %}Tier List for This Map{% endif %}</h2>
 
     <form method="get" id="mapTierSortForm" class="filters__container">
         {% for field_name, field_value in (nav_hidden_fields or {}).items() %}

@@ -16,7 +16,9 @@ from app.core.config import settings
 from app.services.brawl_service import get_available_brawlers, update_brawler
 from app.services.map_mode_catalog import (
     collect_unresolved_report,
+    ensure_catalog,
     get_all_maps,
+    get_map_by_id,
     get_all_modes,
     sync_maps_and_modes_from_bsinfo,
     update_map_from_admin,

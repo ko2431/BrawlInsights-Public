@@ -1081,6 +1081,14 @@ class Post(Base):
                 "type = 'theme' AND category = 'brawler' AND is_deleted = FALSE"
             ),
         ),
+        Index(
+            'uq_posts_theme_map_id',
+            text("(custom_settings->>'map_id')"),
+            unique=True,
+            postgresql_where=text(
+                "type = 'theme' AND category = 'map' AND is_deleted = FALSE"
+            ),
+        ),
     )
 
 

@@ -3,16 +3,35 @@
     <div class="info-block" style="padding: 0;">
         <p class="info-block__text">
         {% if lang == "ja" %}
-            <b>キャラクター</b>など、特定のテーマに沿って雑談や質問ができるテーマ掲示板です。今後、<b>マップ</b>などのさらなるテーマが登場予定！
+            <b>キャラクター</b>や<b>マップ</b>など、特定のテーマに沿って雑談や質問ができるテーマ掲示板です。
             <br><span style="color: var(--c-red);">掲示板のテーマに関係ない発言や荒らし行為は禁止されています。マナーを守ってご利用ください。</span>
         {% else %}
-            Chat and ask questions around a specific theme such as <b>Brawlers</b>. More themes such as <b>Maps</b> are planned!
+            A theme board where you can chat and ask questions about specific themes such as <b>Brawlers</b> and <b>Maps</b>.
             <br><span style="color: var(--c-red);">Spam and offensive behavior related to the theme are prohibited. Please follow the rules and use the board responsibly.</span>
         {% endif %}
         </p>
     </div>
 
+    {% if tab in ("latest", "maps") %}
+    {# 最新・マップタブ: 掲示板のカード + 検索時は索引（全キャラ・全マップ）からカードに無いものを追加表示 #}
     {% if posts %}
+    <div class="posts__container view-compact" id="themeBoardPosts">
+        {% include "recruitment_board/fragments/includes/theme_post_cards.html" %}
+    </div>
+    {% else %}
+    <p class="theme-board-empty-text" id="themeBoardEmptyText">
+        {% if tab == "maps" %}
+        {% if lang == "ja" %}まだ発言のあるマップ掲示板はありません。上の検索欄からマップを探して、最初の発言をしてみましょう！{% else %}No map boards have posts yet. Search for a map above and be the first to post!{% endif %}
+        {% else %}
+        {% if lang == "ja" %}まだ発言のあるテーマ掲示板はありません。{% else %}No theme boards have posts yet.{% endif %}
+        {% endif %}
+    </p>
+    {% endif %}
+    <div class="posts__container view-compact" id="themeBoardIndexResults" hidden></div>
+    <p id="themeBoardNoResults" class="theme-board-no-results" hidden>
+        {% if lang == "ja" %}該当する掲示板は見つかりませんでした。{% else %}No matching boards were found.{% endif %}
+    </p>
+    {% elif posts %}
     <div class="posts__container view-compact" id="themeBoardPosts">
         {% include "recruitment_board/fragments/includes/theme_post_cards.html" %}
         <p id="themeBoardNoResults" class="theme-board-no-results" hidden>

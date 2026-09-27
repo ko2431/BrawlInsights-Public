@@ -16,6 +16,8 @@ from app.utils.url_detect import text_contains_detected_url
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 from app.core.board_trending import GENERAL_BOARD_TRENDING
+from app.services.all_maps_service import resolve_board_map
+from app.services.map_mode_catalog import DEFAULT_BOARD_COLORS, ensure_catalog, get_mode_board_colors
 from app.services.admin_notification_service import (
     POST_TYPE_LABELS_JA,
     clip_admin_notification_text,
@@ -27,21 +29,133 @@ from app.services.admin_notification_service import (
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
-async def get_theme_board_posts(
-    db: asyncpg.Connection,
-    *,
-    tab: str,
-    target_user_id: int | None = None,
-    blocked_user_ids: list[int] | None = None,
-) -> list[dict[str, Any]]:
-    """テーマ掲示板の投稿一覧を、最新の通常メッセージ順で返す。
+async def get_or_create_theme_map_post(db: asyncpg.Connection, map_id: int) -> "Post | None":
+    """テーマ掲示板（マップ）用のpostレコードをDBから取得する。存在しなければ作成する。
+    重複登録されたマップIDは、マップ一覧に載る正規のIDの掲示板に寄せる。
+    一覧に載らないマップ（開発用・名前不明など）では作成せず None を返す。
+    結果は6時間Redisにキャッシュされる。
 
     Args:
-        db: データベース接続
-        tab: brawlers / participated / liked
-        target_user_id: 参加・いいね済みタブ用のユーザーID
-        blocked_user_ids: 最新メッセージから除外するユーザーID
+        db (asyncpg.Connection): データベース接続
+        map_id (int): マップID（例: 15000026）
+
+    Raises:
+        DataBaseError: データベースエラー
+
+    Returns:
+        Post | None: テーマ掲示板用のpost。対象マップが一覧に無い場合はNone
     """
+    # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def get_theme_brawler_index_json(db: asyncpg.Connection) -> str:
+    """テーマ掲示板の検索索引（全キャラ）のJSON文字列。Redisに1時間キャッシュする。
+    形: [[id, en, [ja名...], color1, color2], ...]"""
+    cache_key = "theme_board_brawler_index"
+    cached = await get_cache(cache_key)
+    if isinstance(cached, str):
+        return cached
+    try:
+        rows = await db.fetch("SELECT id, en, ja, rarity FROM brawlers ORDER BY id")
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+    items: list[list[Any]] = []
+    for row in rows:
+        names_ja = row["ja"] or []
+        if isinstance(names_ja, str):
+            try:
+                names_ja = json.loads(names_ja)
+            except (json.JSONDecodeError, TypeError):
+                names_ja = []
+        if not isinstance(names_ja, list):
+            names_ja = []
+        color1, color2 = get_theme_brawler_board_colors(row["rarity"])
+        items.append([row["id"], row["en"] or "", names_ja, color1, color2])
+    index_json = json.dumps(items, ensure_ascii=False, separators=(",", ":"))
+    await set_cache(cache_key, index_json, ttl=60 * 60)
+    return index_json
+
+
+def get_theme_brawler_board_colors(rarity: int | None) -> tuple[str, str]:
+    """キャラ掲示板のグラデーション色 (color1, color2)。レアリティ別。"""
+    return THEME_BRAWLER_RARITY_COLORS.get(rarity or 0, THEME_DEFAULT_BOARD_COLORS)
+
+
+def resolve_theme_map_display(map_id: int | None) -> dict[str, Any] | None:
+    """マップ掲示板の表示用情報（名前・モード・アイコン・色）。ensure_catalog 済みであること。"""
+    board_map = resolve_board_map(map_id)
+    if not board_map:
+        return None
+    color1, color2 = get_mode_board_colors(board_map["mode_id"])
+    return {
+        "map_id": board_map["id"],
+        "map_name_ja": board_map["ja"] or board_map["en"] or "",
+        "map_name_en": board_map["en"] or board_map["ja"] or "",
+        "mode_id": board_map["mode_id"],
+        "mode_name_ja": board_map["mode_ja"] or board_map["mode_en"] or "",
+        "mode_name_en": board_map["mode_en"] or board_map["mode_ja"] or "",
+        "mode_icons": board_map["mode_icons"],
+        "board_c1": color1,
+        "board_c2": color2,
+    }
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def _query_theme_board_posts(
+    db: asyncpg.Connection,
+    *,
+    condition: str,
+    extra_filters: str,
+    query_params: list[Any],
+    limit: int,
+) -> list[dict[str, Any]]:
+    """テーマ掲示板の投稿を取得し、表示用の辞書にする。query_params の $1 はブロック中のユーザーID。
+    ensure_catalog 済みであること。"""
+    # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def _get_rotation_board_map_ids(db: asyncpg.Connection) -> list[int]:
+    """マップ周期に含まれるマップの掲示板用ID。現在出現中のマップ → 次に出るマップ…の順に、各枠から交互に並べる。"""
+    from app.services.map_rotation_service import build_map_rotation_payload
+
+    try:
+        payload = await build_map_rotation_payload(db)
+    except Exception as e:
+        logger.warning(f"マップ掲示板の補充用にマップ周期を取得できませんでした: {e}")
+        return []
+
+    queues: list[list[int]] = []
+    for slot in payload.get("slots") or []:
+        slot_map_ids = [item.get("map_id") for item in slot.get("maps") or []]
+        if not slot_map_ids:
+            continue
+        start = int(slot.get("latestIndex") or 0) % len(slot_map_ids)
+        queues.append(slot_map_ids[start:] + slot_map_ids[:start])
+
+    ordered: list[int] = []
+    seen: set[int] = set()
+    for position in range(max((len(queue) for queue in queues), default=0)):
+        for queue in queues:
+            if position >= len(queue) or not queue[position]:
+                continue
+            board_map = resolve_board_map(int(queue[position]))
+            if board_map and board_map["id"] not in seen:
+                seen.add(board_map["id"])
+                ordered.append(board_map["id"])
+    return ordered
+
+
+async def _get_rotation_fill_map_posts(
+    db: asyncpg.Connection,
+    *,
+    exclude_map_ids: set[int],
+    count: int,
+    blocked_ids: list[int],
+) -> list[dict[str, Any]]:
+    """マップタブの件数が少ないときに下へ加える、マップ周期に含まれるまだ書き込みのないマップ掲示板。
+    掲示板が無ければまとめて作成する。ensure_catalog 済みであること。"""
     # [この部分は公開用リポジトリでは非公開にされています]
 
 

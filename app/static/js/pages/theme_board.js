@@ -7,9 +7,17 @@
     const RELOAD_BUTTON_COOLDOWN_MS = 1500;
     const AGO_UPDATE_INTERVAL_MS = 60000;
     const STORAGE_KEY_TAB = 'themeBoardTab';
-    const VALID_TABS = new Set(['brawlers', 'participated', 'liked']);
+    const DEFAULT_TAB = 'latest';
+    const VALID_TABS = new Set(['latest', 'brawlers', 'maps', 'participated', 'liked']);
+    // 索引から検索するタブ（カードに無いキャラ・マップも検索でヒットさせる）
+    const INDEX_SEARCH_TABS = new Set(['latest', 'maps']);
+    // 検索時に、カードに無い掲示板を索引から表示する最大件数
+    const INDEX_RESULT_LIMIT = 30;
 
     let postDelegationBound = false;
+    let indexSearchConfig = null;
+    let themeIndexPromise = null;
+    let indexSearchSeq = 0;
 
     function readStoredPref(key, validValues) {
         try {
@@ -80,14 +88,209 @@
         return hiraToKana((str || '').toLowerCase());
     }
 
+    function currentTab() {
+        return window.themeBoardFragment ? window.themeBoardFragment.tab : null;
+    }
+
+    /**
+     * テーマ掲示板の検索索引（全マップ・全キャラ）を取得する。最初の検索時に1回だけ読み込み、以降は使い回す。
+     * 形: { modes: { id: {ja, en, icons, c1, c2} }, maps: [[id, ja, en, modeId, off], ...],
+     *       brawlers: [[id, en, [ja名...], c1, c2], ...] }
+     */
+    function loadThemeIndex() {
+        if (!themeIndexPromise) {
+            themeIndexPromise = fetch(indexSearchConfig.indexUrl)
+                .then((response) => {
+                    if (!response.ok) throw new Error('theme board index fetch failed');
+                    return response.json();
+                })
+                .then((data) => {
+                    const modes = data.modes || {};
+                    const maps = (data.maps || []).map(([id, ja, en, modeId, off]) => {
+                        const mode = modes[String(modeId)] || {};
+                        return {
+                            id,
+                            ja: ja || en || '',
+                            en: en || ja || '',
+                            mode,
+                            off: Boolean(off),
+                            nameKey: normalizeText(`${ja || ''}\n${en || ''}`),
+                            modeKey: normalizeText(`${mode.ja || ''}\n${mode.en || ''}`),
+                        };
+                    });
+                    const brawlers = (data.brawlers || []).map(([id, en, namesJa, c1, c2]) => ({
+                        id,
+                        en: en || '',
+                        ja: (namesJa && namesJa[0]) || en || '',
+                        c1,
+                        c2,
+                        nameKey: normalizeText([en || '', ...(namesJa || [])].join('\n')),
+                    }));
+                    return { maps, brawlers };
+                })
+                .catch((error) => {
+                    themeIndexPromise = null;
+                    throw error;
+                });
+        }
+        return themeIndexPromise;
+    }
+
+    // 名前の先頭一致（改行区切りの各名前の先頭）なら 0、部分一致なら 1、一致しなければ -1
+    function nameMatchRank(nameKey, query) {
+        const index = nameKey.indexOf(query);
+        if (index === -1) return -1;
+        return index === 0 || nameKey.includes(`\n${query}`) ? 0 : 1;
+    }
+
+    function searchMapIndex(maps, query, excludedIds) {
+        const hits = [];
+        maps.forEach((map, order) => {
+            if (excludedIds.has(String(map.id))) return;
+            const nameRank = nameMatchRank(map.nameKey, query);
+            if (nameRank === -1 && !map.modeKey.includes(query)) return;
+            // 名前の先頭一致 → 名前の部分一致 → モード名一致の順。同順位なら現行マップ → 索引順
+            const rank = nameRank === -1 ? 2 : nameRank;
+            hits.push({ map, rank, order });
+        });
+        hits.sort((a, b) => a.rank - b.rank || Number(a.map.off) - Number(b.map.off) || a.order - b.order);
+        return hits.map((hit) => hit.map);
+    }
+
+    function searchBrawlerIndex(brawlers, query, excludedIds) {
+        const hits = [];
+        brawlers.forEach((brawler, order) => {
+            if (excludedIds.has(String(brawler.id))) return;
+            const rank = nameMatchRank(brawler.nameKey, query);
+            if (rank !== -1) hits.push({ brawler, rank, order });
+        });
+        hits.sort((a, b) => a.rank - b.rank || a.order - b.order);
+        return hits.map((hit) => hit.brawler);
+    }
+
+    /** 索引からヒットした掲示板の簡易カード（アイコン・名前・「掲示板へ」ボタンのみ） */
+    function buildIndexCard({ name, subtitle, icons, iconClass, c1, c2, href }) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'post-card-wrapper theme-board-index-card';
+
+        const card = document.createElement('div');
+        card.className = 'card post-card post-card--theme post-card--tinted';
+        card.style.setProperty('--board-c1', c1 || '#e8e8e8');
+        card.style.setProperty('--board-c2', c2 || '#dcdcdc');
+
+        const header = document.createElement('div');
+        header.className = 'post-card__header';
+        const icon = document.createElement('img');
+        icon.className = `post-card__player-icon ${iconClass}`;
+        icon.alt = name;
+        icon.setAttribute('data-icon-fallbacks', JSON.stringify(icons.slice(1)));
+        icon.setAttribute('onerror', 'handleModeIconError(this)');
+        icon.src = indexSearchConfig.staticPrefix + icons[0];
+        const title = document.createElement('p');
+        title.className = 'post-card__title';
+        title.textContent = name;
+        header.append(icon, title);
+        if (subtitle) {
+            const sub = document.createElement('span');
+            sub.className = 'theme-board-index-card__mode';
+            sub.textContent = subtitle;
+            header.appendChild(sub);
+        }
+
+        const linkContainer = document.createElement('div');
+        linkContainer.className = 'post-card__link-container';
+        const link = document.createElement('a');
+        link.href = href;
+        link.rel = 'nofollow';
+        link.style.display = 'flex';
+        link.style.flex = '1';
+        const button = document.createElement('div');
+        button.className = 'button button--primary post-card__link-button';
+        button.textContent = indexSearchConfig.lang === 'ja' ? '掲示板へ' : 'Go to Board';
+        link.appendChild(button);
+        linkContainer.appendChild(link);
+
+        card.append(header, linkContainer);
+        wrapper.appendChild(card);
+        return wrapper;
+    }
+
+    function buildMapIndexCard(map) {
+        const isJa = indexSearchConfig.lang === 'ja';
+        return buildIndexCard({
+            name: isJa ? map.ja : map.en,
+            subtitle: (isJa ? map.mode.ja : map.mode.en) || '',
+            icons: map.mode.icons && map.mode.icons.length ? map.mode.icons : ['/images/ui/mystery.png'],
+            iconClass: 'post-card__player-icon--mode',
+            c1: map.mode.c1,
+            c2: map.mode.c2,
+            href: `${indexSearchConfig.mapBoardBaseUrl}${map.id}`,
+        });
+    }
+
+    function buildBrawlerIndexCard(brawler) {
+        return buildIndexCard({
+            name: indexSearchConfig.lang === 'ja' ? brawler.ja : brawler.en,
+            subtitle: '',
+            icons: [`/images/brawler_pins/${brawler.id}.png`, '/images/ui/mystery.png'],
+            iconClass: 'post-card__player-icon--brawler',
+            c1: brawler.c1,
+            c2: brawler.c2,
+            href: `${indexSearchConfig.brawlerBoardBaseUrl}${brawler.id}`,
+        });
+    }
+
+    /** 最新・マップタブ: カードに無い掲示板を索引から検索して簡易カードで表示する */
+    function renderIndexResults(tab, query, shown, visibleCardCount) {
+        const container = document.getElementById('themeBoardIndexResults');
+        const emptyText = document.getElementById('themeBoardEmptyText');
+        const noResults = document.getElementById('themeBoardNoResults');
+        const seq = ++indexSearchSeq;
+        if (!container || !indexSearchConfig) return;
+
+        if (query === '') {
+            container.hidden = true;
+            container.replaceChildren();
+            if (emptyText) emptyText.hidden = false;
+            if (noResults) noResults.hidden = true;
+            return;
+        }
+        if (emptyText) emptyText.hidden = true;
+
+        loadThemeIndex()
+            .then(({ maps, brawlers }) => {
+                if (seq !== indexSearchSeq) return;
+                // 最新タブはキャラ → マップの順（キャラは数が少なく、名前での検索が多いため）
+                const cards = [];
+                if (tab === 'latest') {
+                    searchBrawlerIndex(brawlers, query, shown.brawlerIds)
+                        .forEach((brawler) => cards.push(buildBrawlerIndexCard(brawler)));
+                }
+                searchMapIndex(maps, query, shown.mapIds)
+                    .slice(0, Math.max(0, INDEX_RESULT_LIMIT - cards.length))
+                    .forEach((map) => cards.push(buildMapIndexCard(map)));
+                const limited = cards.slice(0, INDEX_RESULT_LIMIT);
+                container.replaceChildren(...limited);
+                container.hidden = limited.length === 0;
+                if (noResults) noResults.hidden = visibleCardCount + limited.length > 0;
+            })
+            .catch(() => {
+                if (seq !== indexSearchSeq) return;
+                container.hidden = true;
+                if (noResults) noResults.hidden = visibleCardCount > 0;
+            });
+    }
+
     function applyThemeBoardSearchFilter() {
         const searchInput = document.getElementById('themeSearchInput');
+        const postsContainer = document.getElementById('themeBoardPosts');
         const cards = document.querySelectorAll('.theme-board-card');
         const noResults = document.getElementById('themeBoardNoResults');
-        if (!searchInput || cards.length === 0) return;
+        if (!searchInput) return;
 
         const query = normalizeText(searchInput.value.trim());
         let visibleCount = 0;
+        const shown = { mapIds: new Set(), brawlerIds: new Set() };
 
         cards.forEach((card) => {
             const nameEn = normalizeText(card.dataset.nameEn || '');
@@ -101,15 +304,29 @@
             const isMatchedJa = namesJa.some((name) => normalizeText(name).includes(query));
             const isVisible = query === '' || isMatchedEn || isMatchedJa;
             card.style.display = isVisible ? '' : 'none';
-            if (isVisible) visibleCount += 1;
+            if (isVisible) {
+                visibleCount += 1;
+                if (card.dataset.mapId) shown.mapIds.add(card.dataset.mapId);
+                if (card.dataset.brawlerId) shown.brawlerIds.add(card.dataset.brawlerId);
+            }
         });
 
-        if (noResults) noResults.hidden = visibleCount !== 0;
+        const tab = currentTab();
+        if (INDEX_SEARCH_TABS.has(tab)) {
+            // 表示するカードが無いときはコンテナごと隠し、余白が二重にならないようにする
+            if (postsContainer) postsContainer.hidden = visibleCount === 0;
+            renderIndexResults(tab, query, shown, visibleCount);
+            return;
+        }
+        if (noResults) noResults.hidden = cards.length === 0 || visibleCount !== 0;
     }
 
     function placeholderForTab(tab, lang) {
         if (tab === 'brawlers') {
             return lang === 'ja' ? 'キャラクター名で検索...' : 'Search by brawler name...';
+        }
+        if (tab === 'maps') {
+            return lang === 'ja' ? 'マップ名・モード名で検索...' : 'Search by map or mode name...';
         }
         return lang === 'ja' ? '掲示板名で検索...' : 'Search by board name...';
     }
@@ -148,9 +365,21 @@
     window.themeBoardFragmentLoader = function themeBoardFragmentLoader(config) {
         const {
             fragmentBaseUrl,
+            indexUrl,
+            mapBoardBaseUrl,
+            brawlerBoardBaseUrl,
+            staticPrefix,
             lang,
             tab: initialTab,
         } = config;
+
+        indexSearchConfig = {
+            indexUrl,
+            mapBoardBaseUrl,
+            brawlerBoardBaseUrl,
+            staticPrefix: (staticPrefix || '/static').replace(/\/+$/, ''),
+            lang,
+        };
 
         let abortController = null;
         let agoIntervalId = null;
@@ -198,8 +427,8 @@
 
             applyStateFromUrl() {
                 const params = new URLSearchParams(window.location.search);
-                this.tab = params.get('tab') || initialTab || 'brawlers';
-                if (!VALID_TABS.has(this.tab)) this.tab = 'brawlers';
+                this.tab = params.get('tab') || initialTab || DEFAULT_TAB;
+                if (!VALID_TABS.has(this.tab)) this.tab = DEFAULT_TAB;
             },
 
             persistPrefs() {
@@ -274,7 +503,7 @@
                     const storedTab = readStoredPref(STORAGE_KEY_TAB, VALID_TABS);
                     if (storedTab) this.tab = storedTab;
                 }
-                if (!VALID_TABS.has(this.tab)) this.tab = 'brawlers';
+                if (!VALID_TABS.has(this.tab)) this.tab = DEFAULT_TAB;
 
                 this.persistPrefs();
                 this.syncShellUi();
@@ -365,7 +594,7 @@
         window.addEventListener('popstate', (event) => {
             if (!window.themeBoardFragment) return;
             if (event.state?.themeBoard) {
-                window.themeBoardFragment.tab = event.state.themeBoard.tab || 'brawlers';
+                window.themeBoardFragment.tab = event.state.themeBoard.tab || DEFAULT_TAB;
             } else {
                 window.themeBoardFragment.applyStateFromUrl();
             }

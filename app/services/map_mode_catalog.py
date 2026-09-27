@@ -69,6 +69,24 @@ MODE_THEME_BY_ID: dict[int, str] = {
     mode_id: theme for theme, mode_ids in _MODE_THEME_GROUPS.items() for mode_id in mode_ids
 }
 
+# マップ掲示板のカード・チャットヘッダーのグラデーション色 (color1, color2)。
+# 色の系統はマップカード（tools.css の --map-card-accent）に倣い、濃さはキャラ掲示板のレアリティ色に揃える
+MODE_BOARD_COLORS: dict[str, tuple[str, str]] = {
+    "gemGrab": ("#ecd4fb", "#e3c4f8"),
+    "brawlBall": ("#d8dafa", "#cacdf7"),
+    "heist": ("#f8d4e9", "#f5c4e0"),
+    "bounty": ("#d4eefa", "#c4e6f7"),
+    "hotZone": ("#fad4d5", "#f7c4c5"),
+    "knockout": ("#faecd0", "#f7e3bd"),
+    "showdown": ("#e2f3d4", "#d6eec4"),
+    "hockey": ("#e5e0f8", "#dbd4f5"),
+    "orange": ("#fae2d0", "#f7d6bd"),
+    "takedown": ("#d4e2f8", "#c4d7f5"),
+    "loneStar": ("#fadada", "#f7cccc"),
+    "emerald": ("#d0f0e8", "#bfe9df"),
+}
+DEFAULT_BOARD_COLORS: tuple[str, str] = ("#e8e8e8", "#dcdcdc")
+
 MODE_ICON_STATIC_PREFIX = "/images/mode_icons/"
 MODE_ICON_MYSTERY_PATH = "/images/ui/mystery.png"
 
@@ -390,6 +408,12 @@ def get_mode_theme(mode_id: int | None) -> str | None:
     if not mode_id:
         return None
     return MODE_THEME_BY_ID.get(mode_id)
+
+
+def get_mode_board_colors(mode_id: int | None) -> tuple[str, str]:
+    """マップ掲示板のグラデーション色 (color1, color2)。テーマ未定義のモードは既定色。"""
+    theme = get_mode_theme(mode_id)
+    return MODE_BOARD_COLORS.get(theme, DEFAULT_BOARD_COLORS) if theme else DEFAULT_BOARD_COLORS
 
 
 def mode_sort_key(mode_id: int | None = None, slug: str | None = None) -> tuple[int, int, str]:

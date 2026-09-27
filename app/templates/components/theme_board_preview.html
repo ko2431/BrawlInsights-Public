@@ -1,0 +1,36 @@
+{# テーマ掲示板のプレビュー（キャラクター図鑑・マップページ共通）
+   引数: board_thread_id（スレッドID）, board_preview_messages（最新メッセージ、新しい順） #}
+<div class="chat-room">
+    {# メッセージプレビュー（最大3件、新しい順 → 古い順で上から表示） #}
+    {% set preview_messages = board_preview_messages | reverse | list %}
+    <div class="brawler-chat-preview__wrapper {% if not preview_messages %}brawler-chat-preview__wrapper--empty{% endif %}">
+        <div class="brawler-chat-preview__list">
+            {% for message in preview_messages %}
+                {% if not message.is_deleted %}
+                    <div class="brawler-chat-preview__bubble {% if current_user and message.user_id == current_user.id %}brawler-chat-preview__bubble--self{% endif %}">
+                        {% if not (current_user and message.user_id == current_user.id) %}
+                            <div class="brawler-chat-preview__icon-wrapper">
+                                <img src="{{ message.user_icon_path }}" alt="icon" class="brawler-chat-preview__icon">
+                            </div>
+                        {% endif %}
+                        <div class="brawler-chat-preview__content-wrapper">
+                            {% if not (current_user and message.user_id == current_user.id) %}
+                                <span class="brawler-chat-preview__user-name">{{ message.user_name if message.user_name else ('Guest' if lang == 'en' else 'ゲスト') }}</span>
+                            {% endif %}
+                            <div class="brawler-chat-preview__content">{{ message.message | censor }}</div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% if board_thread_id %}
+    <a class="chat-link" href="{{ url_for('chat_thread', lang=lang, thread_id=board_thread_id) }}">
+        <div class="chat-link-button">
+            {% if lang == "ja" %}掲示板へ
+            {% else %}Go to Chat
+            {% endif %}
+        </div>
+    </a>
+    {% endif %}
+</div>

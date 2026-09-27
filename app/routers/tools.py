@@ -31,11 +31,11 @@ from app.services.image_generation_service import (
     get_latest_cached_image_generation_job,
 )
 from app.services.user_service import User, try_claim_tutorial_mission, sanitize_faq_item_for_ios
-from app.services.board_service import get_or_create_theme_brawler_post, get_messages
+from app.services.board_service import get_or_create_theme_brawler_post, get_or_create_theme_map_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
 from app.utils.nav_context import nav_template_vars, resolve_nav_context
-from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id
+from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id, get_mode_by_id, get_mode_theme, get_mode_board_colors, mode_icon_candidates
 from app.services.trophy_stats_service import get_trophy_stats
 
 router = APIRouter(
@@ -761,11 +761,39 @@ async def get_map(
     except Exception as e:
         logger.error(f"マップページの統計取得中にエラー (id={id}): {e}", exc_info=True)
 
+    # タイトル用: 所属モードの名前・アイコン・テーマ色
+    mode_id = map_info.mode_id if map_info else None
+    mode_info = get_mode_by_id(mode_id)
+    mode_name = (mode_info.display_name(lang) if mode_info else None) or ""
+    mode_icons = mode_icon_candidates(mode_id, mode_info.slug if mode_info else None)
+    board_c1, board_c2 = get_mode_board_colors(mode_id)
+
+    # マップ掲示板のスレッドを取得（なければ作成）。一覧に載らないマップでは作らない
+    map_thread_id: int | None = None
+    map_preview_messages: list = []
+    try:
+        map_board_post = await get_or_create_theme_map_post(db, id)
+        if map_board_post:
+            map_thread_id = map_board_post.id
+            # プレビュー用に最新3件のメッセージを取得（新しい順）
+            messages_data, _ = await get_messages(db, per_page=3, thread_id=map_thread_id, exclude_warning=True)
+            map_preview_messages = [m.to_dict() for m in messages_data]
+    except Exception as e:
+        logger.warning(f"マップ掲示板用チャットスレッドの取得/作成に失敗: map_id={id}, error={e}")
+
     context = {
         "request": request,
         "lang": lang,
         "id": id,
         "name": name,
+        "mode_id": mode_id,
+        "mode_name": mode_name,
+        "mode_icons": mode_icons,
+        "mode_theme": get_mode_theme(mode_id),
+        "board_c1": board_c1,
+        "board_c2": board_c2,
+        "map_thread_id": map_thread_id,
+        "map_preview_messages": map_preview_messages,
         "brawler_stats": brawler_stats,
         "grouped_brawler_stats": grouped_brawler_stats,
         "current_sort": sort,

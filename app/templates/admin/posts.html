@@ -136,6 +136,7 @@
                 </optgroup>
                 <optgroup label="テーマ掲示板">
                     <option value="theme_brawler">キャラクター</option>
+                    <option value="theme_map">マップ</option>
                 </optgroup>
             </select>
         </label>
@@ -311,7 +312,7 @@
                         {% endif %}
                     </td>
                     <td class="col-message">
-                        <div class="col-message-content">{{ post.comment if post.comment else "(なし)" }}</div>
+                        <div class="col-message-content">{% if post.theme_target %}対象: {{ post.theme_target }}{% else %}{{ post.comment if post.comment else "(なし)" }}{% endif %}</div>
                     </td>
                     <td>{{ post.message_count if post.message_count is not none else "" }}</td>
                     <td>{{ post.like_count if post.like_count is not none else "" }}</td>

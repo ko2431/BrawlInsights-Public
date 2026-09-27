@@ -1,31 +1,43 @@
 {# テーマ掲示板の投稿カード #}
-{% set rarity_colors = {
-    1: {'color1': '#d4f5f7', 'color2': '#c4f0f3'},
-    2: {'color1': '#d4f5d4', 'color2': '#c4f0c4'},
-    3: {'color1': '#d4e0f8', 'color2': '#c4d6f5'},
-    4: {'color1': '#f0d4fb', 'color2': '#eac4f8'},
-    5: {'color1': '#fad4d4', 'color2': '#f5c4c4'},
-    6: {'color1': '#f9f5d4', 'color2': '#f5f0c4'},
-    7: {'color1': '#faefd4', 'color2': '#f5e8c4'}
-} %}
-{% set default_rarity_colors = {'color1': '#e8e8e8', 'color2': '#dcdcdc'} %}
 {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
 {% set mystery_icon = url_for('static', path='/images/ui/mystery.png') %}
 {% for post in posts %}
-        {% set rarity_info = rarity_colors.get(post.brawler_rarity, default_rarity_colors) %}
-        {% set brawler_name = post.brawler_name_ja if lang == "ja" and post.brawler_name_ja else post.brawler_name_en %}
+        {% set is_map_board = post.theme_kind == "map" %}
+        {% if is_map_board %}
+            {% set board_name = post.map_name_ja if lang == "ja" else post.map_name_en %}
+            {% set search_name_en = post.map_name_en %}
+            {# 検索対象: マップ名（日本語）＋所属モード名（日英） #}
+            {% set search_names_ja = [post.map_name_ja, post.mode_name_ja, post.mode_name_en] %}
+        {% else %}
+            {% set board_name = post.brawler_name_ja if lang == "ja" and post.brawler_name_ja else post.brawler_name_en %}
+            {% set search_name_en = post.brawler_name_en %}
+            {% set search_names_ja = post.brawler_names_ja or [] %}
+        {% endif %}
             <div class="post-card-wrapper theme-board-card"
-                 data-name-en="{{ post.brawler_name_en }}"
-                 data-names-ja='{{ (post.brawler_names_ja or []) | tojson }}'>
-                <div class="card post-card post-card--theme post-card--tinted" style="--board-c1: {{ rarity_info.color1 }}; --board-c2: {{ rarity_info.color2 }};">
+                 {% if is_map_board %}data-map-id="{{ post.map_id }}"{% else %}data-brawler-id="{{ post.brawler_id }}"{% endif %}
+                 data-name-en="{{ search_name_en }}"
+                 data-names-ja='{{ search_names_ja | tojson }}'>
+                <div class="card post-card post-card--theme post-card--tinted" style="--board-c1: {{ post.board_c1 }}; --board-c2: {{ post.board_c2 }};">
                     <div class="post-card__header">
+                        {% if is_map_board %}
+                        {% set mode_icons = post.mode_icons or ['/images/ui/mystery.png'] %}
+                        <img src="{{ url_for('static', path=mode_icons[0]) }}"
+                             alt="{{ post.mode_name_ja if lang == 'ja' else post.mode_name_en }}"
+                             class="post-card__player-icon post-card__player-icon--mode"
+                             data-icon-fallbacks='{{ mode_icons[1:] | tojson }}'
+                             onerror="handleModeIconError(this)">
+                        {% else %}
                         <img src="{{ url_for('static', path='/images/brawler_pins/' + (post.brawler_id | string) + '.png') }}"
-                             alt="{{ brawler_name }}"
+                             alt="{{ board_name }}"
                              class="post-card__player-icon post-card__player-icon--brawler"
                              onerror="this.onerror=null; this.src='{{ mystery_icon }}';">
-                        <p class="post-card__title">{{ brawler_name }}</p>
+                        {% endif %}
+                        <p class="post-card__title">{{ board_name }}</p>
                         <div style="display: flex; flex: 1;"></div>
+                        {# 書き込みのない掲示板は、作成日時ではなく経過時間を出さない（まとめて作成した直後に「たった今」が並ぶため） #}
+                        {% if post.latest_message %}
                         <p class="post-card__ago-text" data-created-at="{{ post.activity_at }}">{{ post.ago_ja if lang == "ja" else post.ago_en }}</p>
+                        {% endif %}
                     </div>
                     <div class="post-card__info-and-conditions">
                         <div class="post-card__host-info general-post-card__host-info" style="flex: 1; max-width: 100%;">

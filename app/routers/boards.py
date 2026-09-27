@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import json
 from fastapi import APIRouter, Request, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.websockets import WebSocketState
 from pydantic import BaseModel, Field
 
@@ -14,7 +14,7 @@ from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block, try_progress_tutorial_board
-from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS, get_theme_board_posts, is_theme_post_type
+from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS, get_theme_board_posts, is_theme_post_type, get_or_create_theme_map_post, get_theme_brawler_board_colors, resolve_theme_map_display, invalidate_theme_board_posts_cache, get_theme_brawler_index_json, get_or_create_theme_brawler_post, THEME_CATEGORY_MAP
 from app.services.notification_service import (
     NOTIFICATION_PAGE_SIZE,
     VALID_NOTIFICATION_FILTERS,
@@ -44,6 +44,8 @@ from app.services.token_gift_service import (
     validate_token_gift,
 )
 from app.utils.utils import get_icon_path, get_remote_ip
+from app.services.all_maps_service import build_map_board_index_json
+from app.services.map_mode_catalog import ensure_catalog
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 
 router = APIRouter(
@@ -1273,8 +1275,8 @@ async def general_board(
 #* /---*---*---*---*---*---*---*---*/
 #* テーマ掲示板タブ
 #* /---*---*---*---*---*---*---*---*/
-THEME_BOARD_TABS = frozenset({"brawlers", "participated", "liked"})
-THEME_BOARD_DEFAULT_TAB = "brawlers"
+THEME_BOARD_TABS = frozenset({"latest", "brawlers", "maps", "participated", "liked"})
+THEME_BOARD_DEFAULT_TAB = "latest"
 
 
 def _normalize_theme_board_tab(tab: str) -> str:
@@ -1329,7 +1331,7 @@ async def _fetch_theme_board_posts(
 async def theme_board_fragment(
     request: Request,
     lang: str,
-    tab: str = Query(THEME_BOARD_DEFAULT_TAB, description="表示タブ(brawlers/participated/liked)"),
+    tab: str = Query(THEME_BOARD_DEFAULT_TAB, description="表示タブ(latest/brawlers/maps/participated/liked)"),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -1355,7 +1357,7 @@ async def theme_board_fragment(
 async def theme_board(
     request: Request,
     lang: str,
-    tab: str = Query(THEME_BOARD_DEFAULT_TAB, description="表示タブ(brawlers/participated/liked)"),
+    tab: str = Query(THEME_BOARD_DEFAULT_TAB, description="表示タブ(latest/brawlers/maps/participated/liked)"),
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -1376,6 +1378,79 @@ async def theme_board(
     except Exception as render_err:
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+@router.get("/theme/index", name="theme_board_index")
+async def theme_board_index(
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """テーマ掲示板の検索索引（全マップ・全キャラの名前など）。
+    マップはメモリ上のカタログ、キャラはRedisキャッシュから作るためDB負荷はほぼない。"""
+    await ensure_catalog(db)
+    try:
+        brawlers_json = await get_theme_brawler_index_json(db)
+    except DataBaseError as e:
+        logger.error(f"テーマ掲示板のキャラ索引取得中にデータベースエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error loading index") from e
+    maps_json = build_map_board_index_json()
+    # マップ索引（JSONオブジェクト）の末尾にキャラ索引を足す
+    content = f'{maps_json[:-1]},"brawlers":{brawlers_json}}}'
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
+
+
+@router.get("/theme/brawler/{brawler_id}", name="theme_brawler_board")
+async def theme_brawler_board(
+    request: Request,
+    lang: str,
+    brawler_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """キャラ掲示板を開く（まだ無ければ作成する）。テーマ掲示板の検索結果から使う。"""
+    try:
+        post = await get_or_create_theme_brawler_post(db, brawler_id)
+    except DataBaseError as e:
+        logger.error(f"キャラ掲示板の取得/作成中にデータベースエラー: brawler_id={brawler_id}, error={e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error opening board") from e
+    if not post:
+        return templates.TemplateResponse(
+            "error/generic_404.html",
+            {"request": request, "lang": lang, "current_page": "board"},
+            status_code=404,
+        )
+    return RedirectResponse(
+        url=f"{request.url_for('chat_thread', lang=lang, thread_id=post.id).path}?from=theme",
+        status_code=302,
+    )
+
+
+@router.get("/theme/map/{map_id}", name="theme_map_board")
+async def theme_map_board(
+    request: Request,
+    lang: str,
+    map_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """マップ掲示板を開く（まだ無ければ作成する）。テーマ掲示板の検索結果から使う。"""
+    try:
+        post = await get_or_create_theme_map_post(db, map_id)
+    except DataBaseError as e:
+        logger.error(f"マップ掲示板の取得/作成中にデータベースエラー: map_id={map_id}, error={e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error opening board") from e
+    if not post:
+        return templates.TemplateResponse(
+            "error/generic_404.html",
+            {"request": request, "lang": lang, "current_page": "board"},
+            status_code=404,
+        )
+    return RedirectResponse(
+        url=f"{request.url_for('chat_thread', lang=lang, thread_id=post.id).path}?from=theme",
+        status_code=302,
+    )
 
 
 #* /---*---*---*---*---*---*---*---*/
@@ -1483,18 +1558,35 @@ async def chat_thread(
     # テンプレートに渡すコンテキスト
     # テーマ掲示板（旧キャラクター図鑑スレッド含む）は、テーマ掲示板・通知画面からの遷移時のみ掲示板タブ所属
     brawler_for_chat = None
+    theme_map_for_chat = None
+    theme_board_colors: tuple[str, str] | None = None
     chat_current_page = "board"
     from_theme_board = from_source == "theme"
     from_notifications = from_source == "notifications"
     if is_theme_post_type(post.type):
         chat_current_page = "board" if from_theme_board or from_notifications else "tools"
-        brawler_id_for_chat = post.custom_settings.get("brawler_id") if post.custom_settings else None
-        if brawler_id_for_chat:
-            try:
-                brawler_obj = await get_brawler(int(brawler_id_for_chat), db)
-                brawler_for_chat = brawler_obj.to_dict() if brawler_obj else None
-            except Exception as e:
-                logger.warning(f"chat_thread: brawler情報の取得に失敗: brawler_id={brawler_id_for_chat}, error={e}")
+        custom_settings = post.custom_settings or {}
+        if post.category == THEME_CATEGORY_MAP:
+            map_id_for_chat = custom_settings.get("map_id")
+            if map_id_for_chat:
+                try:
+                    await ensure_catalog(db)
+                    theme_map_for_chat = resolve_theme_map_display(int(map_id_for_chat))
+                except Exception as e:
+                    logger.warning(f"chat_thread: マップ情報の取得に失敗: map_id={map_id_for_chat}, error={e}")
+            if theme_map_for_chat:
+                theme_board_colors = (theme_map_for_chat["board_c1"], theme_map_for_chat["board_c2"])
+        else:
+            brawler_id_for_chat = custom_settings.get("brawler_id")
+            if brawler_id_for_chat:
+                try:
+                    brawler_obj = await get_brawler(int(brawler_id_for_chat), db)
+                    brawler_for_chat = brawler_obj.to_dict() if brawler_obj else None
+                except Exception as e:
+                    logger.warning(f"chat_thread: brawler情報の取得に失敗: brawler_id={brawler_id_for_chat}, error={e}")
+            theme_board_colors = get_theme_brawler_board_colors(brawler_for_chat.get("rarity") if brawler_for_chat else None)
+        if theme_board_colors is None:
+            theme_board_colors = get_theme_brawler_board_colors(None)
 
     host_main_account_tag: str | None = None
     host_main_account_name: str | None = None
@@ -1536,6 +1628,8 @@ async def chat_thread(
         "admob_banner_position": "top",
         "hide_navigation_controls": True,
         "brawler": brawler_for_chat,
+        "theme_map": theme_map_for_chat,
+        "theme_board_colors": theme_board_colors,
         "from_theme_board": from_theme_board,
         "from_notifications": from_notifications,
         "host_main_account_tag": host_main_account_tag,
@@ -2157,6 +2251,8 @@ async def create_chat_message(
                 await user.check_and_claim_advance_mission(db, "chat_general")
             elif is_theme_post_type(post.type):
                 await user.check_and_claim_advance_mission(db, "chat_brawler")
+        if is_theme_post_type(post.type):
+            await invalidate_theme_board_posts_cache()
         
         # WebSocketで新しいメッセージをブロードキャスト
         new_message = await get_message(db, message_id)

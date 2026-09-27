@@ -59,6 +59,73 @@
     box-shadow: 0 1px 3.5px rgba(0, 0, 0, 0.2); /* 影を追加 */
 }
 
+/* =============================================== */
+/* マップ個別ページ                                   */
+/* =============================================== */
+/* タイトル: 所属モードのアイコン + モード名 + マップ名。色はモードのテーマ色（未定義なら灰色） */
+.map-title {
+    --map-card-accent: #8a8a8a;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0 14px;
+    padding: 10px 16px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--map-card-accent) 30%, #fff);
+    background: linear-gradient(135deg, var(--board-c1), var(--board-c2));
+}
+.dark .map-title {
+    border-color: color-mix(in srgb, var(--map-card-accent) 40%, #1c1c1c);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--map-card-accent) 14%, #1c1c1c),
+        color-mix(in srgb, var(--map-card-accent) 22%, #1c1c1c)
+    );
+}
+.map-title__mode-icon {
+    flex-shrink: 0;
+    height: 52px;
+    width: auto;
+}
+.map-title__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+}
+.map-title__mode {
+    padding: 1px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+    color: color-mix(in srgb, var(--map-card-accent) 70%, #000);
+    background: color-mix(in srgb, var(--map-card-accent) 14%, #fff);
+    border: 1px solid color-mix(in srgb, var(--map-card-accent) 35%, #fff);
+}
+.dark .map-title__mode {
+    color: color-mix(in srgb, var(--map-card-accent) 45%, #fff);
+    background: color-mix(in srgb, var(--map-card-accent) 25%, #1c1c1c);
+    border-color: color-mix(in srgb, var(--map-card-accent) 50%, #1c1c1c);
+}
+.map-title__name {
+    margin: 0;
+    font-size: 34px;
+    font-weight: bold;
+    line-height: 1.25;
+    color: #222;
+    overflow-wrap: anywhere;
+}
+.dark .map-title__name {
+    color: #f2f2f2;
+}
+.map-page__section-title {
+    margin-top: 1.5em;
+}
+.map-board-section .chat-room {
+    margin-bottom: 0;
+}
+
 .map_image {
     width: auto;
     max-width: 100%;
@@ -70,6 +137,20 @@
     .map_image {
         width: 100%;
         height: auto;
+    }
+    .map-title {
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 14px;
+    }
+    .map-title__mode-icon {
+        height: 42px;
+    }
+    .map-title__mode {
+        font-size: 12px;
+    }
+    .map-title__name {
+        font-size: 24px;
     }
     .tools-page__description{
         font-size: 13.5px;
@@ -346,18 +427,18 @@
 }
 /* テーマ色が定義されたモードは、その色のごく薄い色で塗る。ホバー時は少しだけ濃くする。
    モードとテーマの対応は map_mode_catalog.MODE_THEME_BY_ID */
-.map-card--gemGrab { --map-card-accent: #9b4fe0; }
-.map-card--brawlBall { --map-card-accent: #5c63e6; }
-.map-card--heist { --map-card-accent: #d6288d; }
-.map-card--bounty { --map-card-accent: #1fa9e6; }
-.map-card--hotZone { --map-card-accent: #e5383b; }
-.map-card--knockout { --map-card-accent: #f2a900; }
-.map-card--showdown { --map-card-accent: #7cc243; }
-.map-card--hockey { --map-card-accent: #b1a3e8; }
-.map-card--orange { --map-card-accent: #f07a1a; }
-.map-card--takedown { --map-card-accent: #2f74e0; }
-.map-card--loneStar { --map-card-accent: #ef8a8a; }
-.map-card--emerald { --map-card-accent: #14a88c; }
+.map-card--gemGrab, .map-title--gemGrab { --map-card-accent: #9b4fe0; }
+.map-card--brawlBall, .map-title--brawlBall { --map-card-accent: #5c63e6; }
+.map-card--heist, .map-title--heist { --map-card-accent: #d6288d; }
+.map-card--bounty, .map-title--bounty { --map-card-accent: #1fa9e6; }
+.map-card--hotZone, .map-title--hotZone { --map-card-accent: #e5383b; }
+.map-card--knockout, .map-title--knockout { --map-card-accent: #f2a900; }
+.map-card--showdown, .map-title--showdown { --map-card-accent: #7cc243; }
+.map-card--hockey, .map-title--hockey { --map-card-accent: #b1a3e8; }
+.map-card--orange, .map-title--orange { --map-card-accent: #f07a1a; }
+.map-card--takedown, .map-title--takedown { --map-card-accent: #2f74e0; }
+.map-card--loneStar, .map-title--loneStar { --map-card-accent: #ef8a8a; }
+.map-card--emerald, .map-title--emerald { --map-card-accent: #14a88c; }
 .map-card[class*="map-card--"] {
     border-color: color-mix(in srgb, var(--map-card-accent) 35%, #fff);
     background: color-mix(in srgb, var(--map-card-accent) 9%, #fff);

@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】テーマ掲示板{% else %}Theme Board{% endif %} - Brawl Insights{% endblock %}
-{% block og_description %}{% if lang == "ja" %}キャラクターなど、ブロスタの特定のテーマに沿って雑談や質問ができるテーマ掲示板です。{% else %}A theme board to chat and ask questions around a specific theme such as Brawlers in Brawl Stars.{% endif %}{% endblock %}
+{% block og_description %}{% if lang == "ja" %}キャラクターやマップなど、ブロスタの特定のテーマに沿って雑談や質問ができるテーマ掲示板です。{% else %}A theme board where you can chat and ask questions about specific themes such as Brawlers and Maps in Brawl Stars.{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/boards.css') }}?v={{ app_version }}">
@@ -21,9 +21,21 @@
         <nav class="sub-tab-nav">
             <ul class="sub-tab-nav__list">
                 <li class="sub-tab-nav__item">
+                    <a href="?tab=latest" data-board-tab="latest" class="sub-tab-nav__link {% if tab == 'latest' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/ui/refresh.png') }}" alt="{% if lang == 'ja' %}最新{% else %}Latest{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}最新{% else %}Latest{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
                     <a href="?tab=brawlers" data-board-tab="brawlers" class="sub-tab-nav__link {% if tab == 'brawlers' %}sub-tab-nav__link--active{% endif %}">
                         <img src="{{ url_for('static', path='/images/ui/brawlers.png') }}" alt="{% if lang == 'ja' %}キャラクター{% else %}Brawlers{% endif %}" class="sub-tab-nav__icon">
                         <span class="sub-tab-nav__text">{% if lang == "ja" %}キャラクター{% else %}Brawlers{% endif %}</span>
+                    </a>
+                </li>
+                <li class="sub-tab-nav__item">
+                    <a href="?tab=maps" data-board-tab="maps" class="sub-tab-nav__link {% if tab == 'maps' %}sub-tab-nav__link--active{% endif %}">
+                        <img src="{{ url_for('static', path='/images/mode_icons/48000000.png') }}" alt="{% if lang == 'ja' %}マップ{% else %}Maps{% endif %}" class="sub-tab-nav__icon">
+                        <span class="sub-tab-nav__text">{% if lang == "ja" %}マップ{% else %}Maps{% endif %}</span>
                     </a>
                 </li>
                 <li class="sub-tab-nav__item">
@@ -47,7 +59,7 @@
                 <input type="search"
                        id="themeSearchInput"
                        class="form-input theme-board-search-input"
-                       placeholder="{% if tab == 'brawlers' %}{% if lang == 'ja' %}キャラクター名で検索...{% else %}Search by brawler name...{% endif %}{% else %}{% if lang == 'ja' %}掲示板名で検索...{% else %}Search by board name...{% endif %}{% endif %}"
+                       placeholder="{% if tab == 'brawlers' %}{% if lang == 'ja' %}キャラクター名で検索...{% else %}Search by brawler name...{% endif %}{% elif tab == 'maps' %}{% if lang == 'ja' %}マップ名・モード名で検索...{% else %}Search by map or mode name...{% endif %}{% else %}{% if lang == 'ja' %}掲示板名で検索...{% else %}Search by board name...{% endif %}{% endif %}"
                        autocomplete="off">
             </form>
             <div class="reload-button__container">
@@ -59,6 +71,10 @@
     <div class="board-shell__posts" id="theme-board-posts-root"
          x-data="themeBoardFragmentLoader({
             fragmentBaseUrl: '{{ url_for('theme_board_fragment', lang=lang) }}',
+            indexUrl: '{{ url_for('theme_board_index', lang=lang) }}',
+            mapBoardBaseUrl: '{{ url_for('theme_board', lang=lang) }}/map/',
+            brawlerBoardBaseUrl: '{{ url_for('theme_board', lang=lang) }}/brawler/',
+            staticPrefix: '{{ url_for('static', path='/') }}',
             lang: '{{ lang }}',
             tab: '{{ tab }}'
          })"
@@ -80,11 +96,11 @@
         <h1 class="page-title--sub">{% if lang == "ja" %}テーマ掲示板について{% else %}About the Theme Board{% endif %}</h1>
         {% if lang == "ja" %}
         <p>
-            <b>キャラクター</b>など、ブロスタの特定のテーマに沿って雑談や質問ができるテーマ掲示板です。今後、<b>マップ</b>などのさらなるテーマが登場予定！
+            <b>キャラクター</b>や<b>マップ</b>など、特定のテーマに沿って雑談や質問ができるテーマ掲示板です。
         </p>
         {% else %}
         <p>
-            Chat and ask questions around a specific theme such as <b>Brawlers</b> in Brawl Stars. More themes such as <b>Maps</b> are planned!
+            A theme board where you can chat and ask questions about specific themes such as <b>Brawlers</b> and <b>Maps</b>.
         </p>
         {% endif %}
     </section>
