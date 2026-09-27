@@ -15,6 +15,7 @@ from app.services.map_mode_catalog import (
     ensure_map_stub,
     get_map_by_id,
     get_mode_by_id,
+    get_mode_theme,
     mode_icon_candidates,
     mode_sort_key,
 )

@@ -14,6 +14,7 @@ VALID_FROM_SOURCES = frozenset({
     "profile",
     "map_rotation",
     "ranked_maps",
+    "all_maps",
     "guide_menu",
     "map",
     "multiplayer_tier",
@@ -25,6 +26,7 @@ FROM_DEFAULT_TAB: dict[str, str | None] = {
     "profile": "home",
     "map_rotation": "tools",
     "ranked_maps": "tools",
+    "all_maps": "tools",
     "guide_menu": "tools",
     "map": None,
     "multiplayer_tier": "stats",
@@ -236,6 +238,8 @@ def _build_fallback_url(
         return f"{prefix}/tools/map_rotation"
     if from_source == "ranked_maps":
         return f"{prefix}/tools/ranked_maps"
+    if from_source == "all_maps":
+        return f"{prefix}/tools/all_maps"
     if from_source == "guide_menu":
         return f"{prefix}/tools/brawler_guide/menu"
     if from_source == "map":

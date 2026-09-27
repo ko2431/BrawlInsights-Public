@@ -534,6 +534,54 @@ async def ranked_maps(
 
 
 #* /---*---*---*---*---*---*---*---*/
+#* マップ一覧
+#* /---*---*---*---*---*---*---*---*/
+@router.get("/all_maps", name="all_maps")
+async def all_maps(
+    request: Request,
+    lang: str,
+    mode: str | None = Query(None, description="初期表示するモードID"),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    from app.services.all_maps_service import build_all_maps_data, build_rotation_hint
+    from app.services.map_rotation_service import build_map_rotation_payload
+
+    try:
+        await ensure_catalog(db)
+        maps_data = build_all_maps_data()
+    except Exception as e:
+        logger.error(f"マップ一覧の表示データ取得中にエラー: {e}", exc_info=True)
+        maps_data = {"modes": [], "maps": []}
+
+    # マップ周期が取れない場合は、周期セクション無しで表示する
+    try:
+        rotation_hint = build_rotation_hint(await build_map_rotation_payload(db))
+    except Exception as e:
+        logger.error(f"マップ一覧のマップ周期取得中にエラー: {e}", exc_info=True)
+        rotation_hint = []
+
+    # 不正なクエリは無視して「すべて」を表示する
+    mode_ids = {item["id"] for item in maps_data["modes"]}
+    selected_mode = int(mode) if mode and mode.isdigit() and int(mode) in mode_ids else None
+
+    # テンプレートに渡すコンテキスト
+    context = {
+        "request": request,
+        "lang": lang,
+        "current_page": "tools",
+        "maps_data": maps_data,
+        "rotation_hint": rotation_hint,
+        "selected_mode": selected_mode,
+    }
+
+    try:
+        return templates.TemplateResponse("tools/all_maps.html", context)
+    except Exception as render_err: # テンプレートレンダリングエラーも捕捉
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+#* /---*---*---*---*---*---*---*---*/
 #* トロフィー増減表
 #* /---*---*---*---*---*---*---*---*/
 @router.get("/trophy_table", name="trophy_table")

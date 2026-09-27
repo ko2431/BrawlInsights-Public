@@ -1,0 +1,151 @@
+{# /app/templates/tools/all_maps.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】マップ一覧{% else %}All Maps{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのマップ一覧です。現在出現していないマップを含め、すべてのマップを画像付きで確認できます。マップをタップすると詳細を表示します。{% else %}A list of all maps in Brawl Stars, including maps not currently in rotation. You can view all maps with images. Tap a map to see its details.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% set sections = [
+    ('rotation', 'rotation', 'マップ周期に含まれるマップ', 'Maps in Rotation'),
+    ('offRotation', 'off-rotation', 'マップ周期に含まれないマップ', 'Maps Not in Rotation'),
+    ('disabled', 'disabled', '無効のマップ', 'Disabled Maps'),
+] %}
+
+{% block content %}
+<div class="tools-page__container"
+     x-data="allMapsApp({ lang: '{{ lang }}', initialMode: {{ selected_mode | tojson }}, staticPrefix: {{ url_for('static', path='/') | string | tojson | forceescape }} })"
+     @keydown.window="handleKeydown($event)">
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main">{% if lang == "ja" %}マップ一覧{% else %}All Maps{% endif %}</h1>
+
+    <p class="tools-page__description">
+    {% if lang == "ja" %}
+    ブロスタのマップ一覧です。現在出現していないマップを含め、すべてのマップを画像付きで確認できます。マップをタップすると詳細を表示します。
+    {% else %}
+    A list of all maps in Brawl Stars, including maps not currently in rotation. You can view all maps with images. Tap a map to see its details.
+    {% endif %}
+    </p>
+
+    {#^ モード選択・検索 #}
+    <div class="filters__container all-maps-filters">
+        <div class="filter-form">
+            <label for="allMapsModeSelect" class="filter-form__label">{% if lang == "ja" %}モード:{% else %}Mode:{% endif %}</label>
+            <select id="allMapsModeSelect" class="filter-form__select" @change="setMode($event.target.value)">
+                <option value="" {% if not selected_mode %}selected{% endif %}>{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
+                {% for mode in maps_data.modes %}
+                {% set mode_name = (mode.ja if lang == "ja" else mode.en) or mode.en or mode.ja or mode.id %}
+                <option value="{{ mode.id }}" {% if selected_mode == mode.id %}selected{% endif %}>{{ mode_name }}{% if mode.off %}{% if lang == "ja" %}（無効）{% else %} (Disabled){% endif %}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <form class="filter-form" onsubmit="return false;">
+            <input type="search"
+                   class="form-input"
+                   id="allMapsSearchInput"
+                   x-ref="searchInput"
+                   autocomplete="off"
+                   :value="query"
+                   @input="setQuery($event.target.value)"
+                   placeholder="{% if lang == 'ja' %}マップ名で検索...{% else %}Search by map name...{% endif %}">
+        </form>
+    </div>
+
+    {#^ 選択中のモード #}
+    <h2 class="map-mode-heading all-maps-heading">
+        <template x-if="selectedMode">
+            <img :src="modeIconSrc(selectedMode)"
+                 :data-icon-fallbacks="modeIconFallbacks(selectedMode)"
+                 @error="window.handleModeIconError($event.target)"
+                 class="map-mode-heading__icon" alt="">
+        </template>
+        <span x-text="headingName()">{% if lang == "ja" %}すべて{% else %}All{% endif %}</span>
+        <span class="map-mode-heading__count" x-text="countText(view.total)"></span>
+    </h2>
+
+    {#^ マップカード（周期に含まれる → 含まれない → 無効） #}
+    {% for key, modifier, title_ja, title_en in sections %}
+    <section class="all-maps-section" x-show="sectionCount('{{ key }}') > 0" x-cloak>
+        <h3 class="all-maps-section__heading">
+            <button type="button"
+                    class="all-maps-section__title all-maps-section__title--{{ modifier }}"
+                    :class="{ 'all-maps-section__title--collapsed': collapsed.{{ key }} }"
+                    :aria-expanded="collapsed.{{ key }} ? 'false' : 'true'"
+                    @click="toggleSection('{{ key }}')">
+                <span class="all-maps-section__label">{{ title_ja if lang == "ja" else title_en }}</span>
+                <span class="all-maps-section__count" x-text="countText(sectionCount('{{ key }}'))"></span>
+                <span class="all-maps-section__chevron" aria-hidden="true"></span>
+            </button>
+        </h3>
+        <div class="map-card-grid" x-show="!collapsed.{{ key }}" :style="gridStyle()">
+            <template x-for="map in visibleItems('{{ key }}')" :key="map.id">
+                <a class="map-card" :class="cardClass(map)" :href="mapLink(map)">
+                    <div class="map-card__image-box">
+                        {% if key == 'rotation' %}
+                        <span class="map-card__badge" :class="{ 'map-card__badge--active': isActive(map) }" x-text="badge(map)"></span>
+                        {% endif %}
+                        <img :src="mapImage(map)" :alt="mapName(map)"
+                             class="map-card__image" loading="lazy" decoding="async"
+                             @load="onMapImageLoad($event, map)"
+                             @error="onMapImageError($event, map)">
+                    </div>
+                    <div class="map-card__footer">
+                        <img :src="modeIconSrc(map.mode)"
+                             :data-icon-fallbacks="modeIconFallbacks(map.mode)"
+                             @error="window.handleModeIconError($event.target)"
+                             class="map-card__mode-icon" alt="">
+                        <span class="map-card__name" :title="mapName(map)" x-text="mapName(map)"></span>
+                    </div>
+                </a>
+            </template>
+        </div>
+    </section>
+    {% endfor %}
+
+    <p class="all-maps__no-results" x-show="view.total === 0" x-cloak>
+        {% if lang == "ja" %}該当するマップは見つかりませんでした。{% else %}No matching maps were found.{% endif %}
+    </p>
+    {# ここが画面に近づいたら、続きのカードを描画する #}
+    <div class="all-maps__sentinel" x-ref="sentinel"></div>
+
+    {#^ フッターテキスト #}
+    <p class="info-block__text block" style="margin-top: 10px;">
+        {% if lang == "ja" %}
+            出現日時は<a href="{{ url_for('map_rotation', lang=lang) }}" style="text-decoration: underline;">マップ周期</a>をもとにしています。ブロスタのアップデートやバグ等により、マップ周期は突然変更されることがあるため、必ずその日時にそのマップが出現することを保証するものではありません。
+        {% else %}
+            Appearance times are based on the <a href="{{ url_for('map_rotation', lang=lang) }}" style="text-decoration: underline;">Map Rotation</a> (UTC). Due to Brawl Stars updates or bugs, the map rotation may change suddenly, so a map is not guaranteed to appear at that time.
+        {% endif %}
+    </p>
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {# 戻るボタン #}
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+
+<script type="application/json" id="allMapsData">{{ {"modes": maps_data.modes, "maps": maps_data.maps, "rotation": rotation_hint} | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/all_maps.js') }}?v={{ app_version }}"></script>
+{% endblock %}

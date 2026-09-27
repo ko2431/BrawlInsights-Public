@@ -43,6 +43,32 @@ MODE_ORDER_PRIORITY_INDEX: dict[int, int] = {
     mode_id: index for index, mode_id in enumerate(MODE_ORDER_PRIORITY_IDS)
 }
 
+# マップカードのテーマ色。5対5・2対2などの派生モードは親モードの色に合わせる。未定義のモードは既定色
+_MODE_THEME_GROUPS: dict[str, tuple[int, ...]] = {
+    "gemGrab": (48000000, 48000033, 48000046, 48000065),
+    "brawlBall": (48000005, 48000032, 48000049),
+    # 強奪・殲滅・爆弾金庫荒らし
+    "heist": (48000002, 48000025, 48000031, 48000066, 48000070),
+    # 賞金稼ぎ・ブロスタバスケ・ブロスタアリーナ・トレジャーハント・ソウルコレクター
+    "bounty": (48000003, 48000022, 48000052, 48000048, 48000056, 48000040),
+    # ホットゾーン・デュエル・ビッグゲーム・ボス系
+    "hotZone": (48000017, 48000051, 48000024, 48000007, 48000010, 48000008, 48000061, 48000077),
+    "knockout": (48000020, 48000035, 48000050, 48000043),
+    # バトルロイヤル系・ブロスタバレー・フードファイト・ミステリーロイヤル・デュオ メガボス・メガボス Duo（20プレイヤー）
+    "showdown": (48000006, 48000009, 48000038, 48000042, 48000044, 48000067, 48000078,
+                 48000023, 48000080, 48000072, 48000069, 48000084),
+    "hockey": (48000045, 48000053, 48000057),
+    # スピリットウォー・かくれんぼ・シャドースマッシュ
+    "orange": (48000011, 48000083, 48000073, 48000074),
+    "takedown": (48000014,),
+    "loneStar": (48000015,),
+    # スーパーボール・トークンラン・ドッジボール・Subwayラン・プレゼント泥棒・ラブラブボンバー
+    "emerald": (48000076, 48000055, 48000063, 48000064, 48000016, 48000068),
+}
+MODE_THEME_BY_ID: dict[int, str] = {
+    mode_id: theme for theme, mode_ids in _MODE_THEME_GROUPS.items() for mode_id in mode_ids
+}
+
 MODE_ICON_STATIC_PREFIX = "/images/mode_icons/"
 MODE_ICON_MYSTERY_PATH = "/images/ui/mystery.png"
 
@@ -357,6 +383,13 @@ def iter_modes() -> list[ModeInfo]:
 
 def iter_maps() -> list[MapInfo]:
     return list(_maps_by_id.values())
+
+
+def get_mode_theme(mode_id: int | None) -> str | None:
+    """マップカードのテーマ色キー。未定義なら None（既定色）。"""
+    if not mode_id:
+        return None
+    return MODE_THEME_BY_ID.get(mode_id)
 
 
 def mode_sort_key(mode_id: int | None = None, slug: str | None = None) -> tuple[int, int, str]:

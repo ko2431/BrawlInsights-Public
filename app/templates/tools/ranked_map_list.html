@@ -114,23 +114,23 @@
     {#^ マップカード #}
     {% for mode in selected.modes %}
     <section class="ranked-maps-mode" x-show="activeMode === {{ loop.index0 }}" {% if not loop.first %}style="display: none;"{% endif %}>
-        <h2 class="ranked-maps-mode__title">
-            {{ mode_icon_from_paths(mode.icons, class='ranked-maps-mode__icon', alt='') }}
+        <h2 class="map-mode-heading">
+            {{ mode_icon_from_paths(mode.icons, class='map-mode-heading__icon', alt='') }}
             <span>{{ mode.name_ja if lang == "ja" else mode.name_en }}</span>
-            <span class="ranked-maps-mode__count">{% if lang == "ja" %}{{ mode.maps | length }}マップ{% else %}{{ mode.maps | length }} maps{% endif %}</span>
+            <span class="map-mode-heading__count">{% if lang == "ja" %}{{ mode.maps | length }}マップ{% else %}{{ mode.maps | length }} maps{% endif %}</span>
         </h2>
-        <div class="ranked-map-grid">
+        <div class="map-card-grid">
             {% for map in mode.maps %}
             {% set map_name = map.name_ja if lang == "ja" else map.name_en %}
-            <a class="ranked-map-card{% if mode.theme %} ranked-map-card--{{ mode.theme }}{% endif %}" href="{{ url_for('get_map', lang=lang, id=map.map_id) }}?tab=tools&from=ranked_maps">
-                <div class="ranked-map-card__image-box">
+            <a class="map-card{% if mode.theme %} map-card--{{ mode.theme }}{% endif %}" href="{{ url_for('get_map', lang=lang, id=map.map_id) }}?tab=tools&from=ranked_maps">
+                <div class="map-card__image-box">
                     <img src="https://cdn.bsinfox.com/maps/{{ map.map_id }}.png" alt="{{ map_name }}"
-                         class="ranked-map-card__image" loading="lazy" decoding="async"
+                         class="map-card__image" loading="lazy" decoding="async"
                          onerror="this.onerror=null;this.src='https://cdn.brawlify.com/maps/regular/{{ map.map_id }}.png';">
                 </div>
-                <div class="ranked-map-card__footer">
-                    {{ mode_icon_from_paths(mode.icons, class='ranked-map-card__mode-icon', alt='') }}
-                    <span class="ranked-map-card__name" title="{{ map_name }}">{{ map_name }}</span>
+                <div class="map-card__footer">
+                    {{ mode_icon_from_paths(mode.icons, class='map-card__mode-icon', alt='') }}
+                    <span class="map-card__name" title="{{ map_name }}">{{ map_name }}</span>
                 </div>
             </a>
             {% endfor %}

@@ -265,96 +265,6 @@
 .ranked-maps-mode {
     margin-top: 12px;
 }
-.ranked-maps-mode__title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 0 8px;
-    font-size: 18px;
-}
-.ranked-maps-mode__icon {
-    height: 26px;
-    width: auto;
-}
-.ranked-maps-mode__count {
-    font-size: 13px;
-    font-weight: normal;
-    color: var(--color-777);
-}
-.ranked-map-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-}
-.ranked-map-card {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    overflow: hidden;
-    border-radius: 12px;
-    border: 1px solid var(--color-ddd);
-    background: var(--bg-f8f8f8);
-    color: inherit;
-    text-decoration: none;
-    transition: background-color 0.15s ease;
-}
-.ranked-map-card:hover {
-    background: #ececec;
-}
-.dark .ranked-map-card:hover {
-    background: #2e2e2e;
-}
-/* 定番モードはテーマ色のごく薄い色で塗る。ホバー時は少しだけ濃くする */
-.ranked-map-card--gemGrab { --ranked-card-accent: #9b4fe0; }
-.ranked-map-card--brawlBall { --ranked-card-accent: #5c63e6; }
-.ranked-map-card--heist { --ranked-card-accent: #d6288d; }
-.ranked-map-card--bounty { --ranked-card-accent: #1fa9e6; }
-.ranked-map-card--hotZone { --ranked-card-accent: #e5383b; }
-.ranked-map-card--knockout { --ranked-card-accent: #f2a900; }
-.ranked-map-card[class*="ranked-map-card--"] {
-    border-color: color-mix(in srgb, var(--ranked-card-accent) 35%, #fff);
-    background: color-mix(in srgb, var(--ranked-card-accent) 9%, #fff);
-}
-.ranked-map-card[class*="ranked-map-card--"]:hover {
-    background: color-mix(in srgb, var(--ranked-card-accent) 16%, #fff);
-}
-.dark .ranked-map-card[class*="ranked-map-card--"] {
-    border-color: color-mix(in srgb, var(--ranked-card-accent) 40%, #1c1c1c);
-    background: color-mix(in srgb, var(--ranked-card-accent) 14%, #1c1c1c);
-}
-.dark .ranked-map-card[class*="ranked-map-card--"]:hover {
-    background: color-mix(in srgb, var(--ranked-card-accent) 22%, #1c1c1c);
-}
-.ranked-map-card__image-box {
-    aspect-ratio: 5 / 8;
-    padding: 6px 6px 0;
-}
-.ranked-map-card__image {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-.ranked-map-card__footer {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 0;
-    padding: 6px 8px 7px;
-}
-.ranked-map-card__mode-icon {
-    flex-shrink: 0;
-    height: 20px;
-    width: auto;
-}
-.ranked-map-card__name {
-    min-width: 0;
-    overflow: hidden;
-    font-size: 14px;
-    font-weight: bold;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
 
 @media (max-width: 539px) {
     .ranked-maps-picker__label {
@@ -390,25 +300,282 @@
     .ranked-maps-slots--fit .map-rotation-slot {
         flex: 1 1 0;
     }
-    .ranked-map-grid {
+}
+
+/* =============================================== */
+/* マップカード（ガチバトルマップ一覧・マップ一覧で共通） */
+/* =============================================== */
+.map-mode-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+.map-mode-heading__icon {
+    height: 26px;
+    width: auto;
+}
+.map-mode-heading__count {
+    font-size: 13px;
+    font-weight: normal;
+    color: var(--color-777);
+}
+.map-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+.map-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--color-ddd);
+    background: var(--bg-f8f8f8);
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+}
+.map-card:hover {
+    background: #ececec;
+}
+.dark .map-card:hover {
+    background: #2e2e2e;
+}
+/* テーマ色が定義されたモードは、その色のごく薄い色で塗る。ホバー時は少しだけ濃くする。
+   モードとテーマの対応は map_mode_catalog.MODE_THEME_BY_ID */
+.map-card--gemGrab { --map-card-accent: #9b4fe0; }
+.map-card--brawlBall { --map-card-accent: #5c63e6; }
+.map-card--heist { --map-card-accent: #d6288d; }
+.map-card--bounty { --map-card-accent: #1fa9e6; }
+.map-card--hotZone { --map-card-accent: #e5383b; }
+.map-card--knockout { --map-card-accent: #f2a900; }
+.map-card--showdown { --map-card-accent: #7cc243; }
+.map-card--hockey { --map-card-accent: #b1a3e8; }
+.map-card--orange { --map-card-accent: #f07a1a; }
+.map-card--takedown { --map-card-accent: #2f74e0; }
+.map-card--loneStar { --map-card-accent: #ef8a8a; }
+.map-card--emerald { --map-card-accent: #14a88c; }
+.map-card[class*="map-card--"] {
+    border-color: color-mix(in srgb, var(--map-card-accent) 35%, #fff);
+    background: color-mix(in srgb, var(--map-card-accent) 9%, #fff);
+}
+.map-card[class*="map-card--"]:hover {
+    background: color-mix(in srgb, var(--map-card-accent) 16%, #fff);
+}
+.dark .map-card[class*="map-card--"] {
+    border-color: color-mix(in srgb, var(--map-card-accent) 40%, #1c1c1c);
+    background: color-mix(in srgb, var(--map-card-accent) 14%, #1c1c1c);
+}
+.dark .map-card[class*="map-card--"]:hover {
+    background: color-mix(in srgb, var(--map-card-accent) 22%, #1c1c1c);
+}
+.map-card__image-box {
+    position: relative;
+    /* モードによってマップの縦横比が違うため、グリッド側から上書きできるようにする */
+    aspect-ratio: var(--map-card-aspect, 5 / 8);
+    padding: 6px 6px 0;
+}
+.map-card__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.map-card__footer {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 6px 8px 7px;
+}
+/* 画像の左上に浮かせるラベル（出現時期など） */
+.map-card__badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    max-width: calc(100% - 8px);
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(70, 70, 70, 0.85);
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.map-card__badge--active {
+    background: #e5383b;
+}
+.map-card__mode-icon {
+    flex-shrink: 0;
+    height: 20px;
+    width: auto;
+}
+.map-card__name {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 539px) {
+    .map-card-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 7px;
     }
-    .ranked-map-card {
+    .map-card {
         border-radius: 10px;
     }
-    .ranked-map-card__image-box {
+    .map-card__image-box {
         padding: 4px 4px 0;
     }
-    .ranked-map-card__footer {
+    .map-card__badge {
+        top: 3px;
+        left: 3px;
+        max-width: calc(100% - 6px);
+        padding: 0 5px;
+        font-size: 9px;
+    }
+    .map-card__footer {
         gap: 3px;
         padding: 4px 5px 5px;
     }
-    .ranked-map-card__mode-icon {
+    .map-card__mode-icon {
         height: 15px;
     }
-    .ranked-map-card__name {
+    .map-card__name {
         font-size: 11.5px;
+    }
+}
+
+
+/* =============================================== */
+/* マップ一覧                                        */
+/* =============================================== */
+.all-maps-filters {
+    gap: 8px;
+}
+.all-maps-filters .filter-form__select {
+    flex: 0 1 auto;
+    max-width: 100%;
+}
+.all-maps-filters .form-input {
+    font-size: 15px;
+}
+.all-maps-heading {
+    margin-top: 14px;
+}
+.all-maps-section {
+    margin-top: 12px;
+}
+.all-maps-section__heading {
+    margin: 0 0 8px;
+}
+/* セクション見出し。色付きの点と下線で区別し、クリックで折りたたむ */
+.all-maps-section__title {
+    --section-accent: #9a9a9a;
+    --section-text: #555;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 4px 2px 7px;
+    border: none;
+    border-bottom: 2px solid color-mix(in srgb, var(--section-accent) 45%, transparent);
+    background: none;
+    color: var(--section-text);
+    font: inherit;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+}
+.all-maps-section__title::before {
+    content: "";
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--section-accent);
+}
+.all-maps-section__title:hover .all-maps-section__label {
+    opacity: 0.75;
+}
+.all-maps-section__title--rotation {
+    --section-accent: #2e9e4f;
+    --section-text: #1d6b32;
+}
+.all-maps-section__title--off-rotation {
+    --section-accent: #e0a800;
+    --section-text: #8a5d00;
+}
+.all-maps-section__title--disabled {
+    --section-accent: #9a9a9a;
+    --section-text: #666;
+}
+.dark .all-maps-section__title--rotation {
+    --section-accent: #4cc26f;
+    --section-text: #8fdca6;
+}
+.dark .all-maps-section__title--off-rotation {
+    --section-accent: #e8b52a;
+    --section-text: #ffd98a;
+}
+.dark .all-maps-section__title--disabled {
+    --section-accent: #777;
+    --section-text: #aaa;
+}
+.all-maps-section__count {
+    margin-left: auto;
+    color: var(--color-777);
+    font-size: 12px;
+    font-weight: normal;
+    white-space: nowrap;
+}
+.all-maps-section__chevron {
+    flex-shrink: 0;
+    width: 7px;
+    height: 7px;
+    margin: 0 4px 3px 2px;
+    border-right: 2px solid var(--color-777);
+    border-bottom: 2px solid var(--color-777);
+    transform: rotate(45deg);
+    transition: transform 0.15s ease, margin 0.15s ease;
+}
+.all-maps-section__title--collapsed .all-maps-section__chevron {
+    margin-bottom: 0;
+    transform: rotate(-45deg);
+}
+.all-maps__no-results {
+    margin: 30px 0;
+    text-align: center;
+    color: #888;
+    font-size: 15px;
+    font-weight: 500;
+}
+.dark .all-maps__no-results {
+    color: #aaa;
+}
+.all-maps__sentinel {
+    height: 1px;
+}
+/* Alpine の初期化前に空のセクションが見えないようにする */
+.all-maps-section[x-cloak],
+.all-maps__no-results[x-cloak] {
+    display: none !important;
+}
+
+@media (max-width: 539px) {
+    .all-maps-section__title {
+        font-size: 14.5px;
     }
 }
 
