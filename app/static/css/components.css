@@ -338,12 +338,9 @@
 .data-table {
     /* データ表示用テーブルの基本スタイル */
     width: 100%; /* 親要素の幅に合わせる */
-    border-collapse: collapse; /* 隣接するセルのボーダーを結合 */
-    border: 1px solid #eee; /* テーブル全体の枠線 */
+    border: 1px solid #e0e0e0; /* テーブル全体の枠線 */
     margin-bottom: 1rem; /* テーブル下のマージン */
     background-color: #fff; /* 背景色 */
-    /* border-radius: 8px; テーブル全体に角丸は難しい場合が多い */
-    /* overflow: hidden; */
 }
 .dark .data-table {
     border-color: #363636;
@@ -354,7 +351,9 @@
 .data-table td {
     /* セル共通のスタイル */
     padding: 5px 8px; /* セル内の余白 */
-    border: 1px solid #e0e0e0; /* セルの罫線 */
+    border: none;
+    border-top: 1px solid #e0e0e0; /* セルの罫線 (上・左のみ。外周はテーブル側の枠線) */
+    border-left: 1px solid #e0e0e0;
     text-align: left; /* テキスト左揃え */
     vertical-align: middle; /* 垂直方向中央揃え */
     font-size: 15px; /* 基本フォントサイズ */
@@ -399,6 +398,39 @@
     /* 行ホバー時のスタイル */
     /* background-color: #f0f8ff; */ /* 必要であれば */
 /*}
+
+/* 角丸テーブル共通
+   - border-collapse: separate でないと border-radius が効かないため、セル罫線は上・左のみに持たせ、
+     1行目の上罫線・1列目の左罫線を消してテーブル外周の枠線と重ならないようにする
+   - 最終行・最終列を判定しない方式のため、x-show で末尾の行が非表示になっても二重線にならない
+   - Alpine の <template> (x-for / x-if) が先頭に来る場合は、その直後の要素を先頭扱いにする */
+.data-table,
+.trophy-table,
+.map-rotation-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 10px;
+    overflow: hidden; /* 角のセル背景をクリップ */
+}
+.data-table tr > :first-child,
+.data-table tr > template:first-child + *,
+.trophy-table tr > :first-child,
+.trophy-table tr > template:first-child + *,
+.map-rotation-table tr > :first-child,
+.map-rotation-table tr > template:first-child + * {
+    border-left: none;
+}
+.data-table > :first-child > tr:first-child > *,
+.data-table > :first-child > template:first-child + tr > *,
+.data-table > template:first-child + * > tr:first-child > *,
+.trophy-table > :first-child > tr:first-child > *,
+.trophy-table > :first-child > template:first-child + tr > *,
+.trophy-table > template:first-child + * > tr:first-child > *,
+.map-rotation-table > :first-child > tr:first-child > *,
+.map-rotation-table > :first-child > template:first-child + tr > *,
+.map-rotation-table > template:first-child + * > tr:first-child > * {
+    border-top: none;
+}
 
 /* テーブルを横スクロール可能にするラッパー */
 .table-wrapper {

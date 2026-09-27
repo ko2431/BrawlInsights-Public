@@ -961,14 +961,17 @@
 
 .trophy-table,
 .map-rotation-table {
+    /* 角丸まわりの共通設定は components.css */
     width: 100%;
-    border-collapse: collapse;
+    border: 1px solid var(--color-ddd);
     margin-top: 15px;
     font-size: 14px;
 }
 .trophy-table th, .trophy-table td,
 .map-rotation-table th, .map-rotation-table td {
-    border: 1px solid var(--color-ddd);
+    border: none;
+    border-top: 1px solid var(--color-ddd);
+    border-left: 1px solid var(--color-ddd);
     padding: 2px;
     text-align: center;
 }
