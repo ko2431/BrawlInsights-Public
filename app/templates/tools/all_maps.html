@@ -93,7 +93,7 @@
                 <a class="map-card" :class="cardClass(map)" :href="mapLink(map)">
                     <div class="map-card__image-box">
                         {% if key == 'rotation' %}
-                        <span class="map-card__badge" :class="{ 'map-card__badge--active': isActive(map) }" x-text="badge(map)"></span>
+                        <span class="map-card__badge" :class="{ 'map-card__badge--active': isActive(map) }"><span class="map-card__badge-text" x-text="badge(map)"></span><template x-if="isPredicted(map)"><span class="map-card__badge-text">{% if lang == "ja" %}（予想）{% else %}&nbsp;(Predicted){% endif %}</span></template></span>
                         {% endif %}
                         <img :src="mapImage(map)" :alt="mapName(map)"
                              class="map-card__image" loading="lazy" decoding="async"

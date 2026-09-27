@@ -88,6 +88,8 @@ def test_build_rotation_hint_keeps_unknown_positions():
     assert hints[0]["maps"] == [15000001, None, 15000003]
     assert hints[0]["latestIndex"] == 2
     assert hints[1]["latestIndex"] == 0
+    assert hints[0]["predicted"] == []
+    assert hints[1]["predicted"] == [0]
     assert build_rotation_hint(None) == []
 
 

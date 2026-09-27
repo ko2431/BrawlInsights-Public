@@ -479,16 +479,23 @@
     left: 4px;
     max-width: calc(100% - 8px);
     padding: 1px 7px;
-    border-radius: 999px;
+    border-radius: 9px;
     background: rgba(70, 70, 70, 0.85);
     color: #fff;
     font-size: 11px;
     font-weight: bold;
     line-height: 1.6;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+/* 日時と「（予想）」はそれぞれ改行せず、幅が足りない時だけ「（予想）」を次の行に送る */
+.map-card__badge-text {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 .map-card__badge--active {
     background: #e5383b;
@@ -523,6 +530,7 @@
         left: 3px;
         max-width: calc(100% - 6px);
         padding: 0 5px;
+        border-radius: 7px;
         font-size: 9px;
     }
     .map-card__footer {
@@ -958,6 +966,71 @@
 .map-rotation-slot-info__time__text,
 .map-rotation-slot-info__days__text {
     font-weight: bold;
+}
+
+/* 表示形式（グリッド／表）の切り替え。切り替え時間・周期日数の右端に置く */
+.map-rotation-view-toggle {
+    display: flex;
+    margin-left: auto;
+    padding: 2px;
+    gap: 2px;
+    border-radius: 9px;
+    border: 1px solid var(--color-ddd);
+    background-color: var(--bg-f8f8f8);
+}
+.map-rotation-view-toggle__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.map-rotation-view-toggle__button svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+.map-rotation-view-toggle__button:hover {
+    color: #555;
+}
+.map-rotation-view-toggle__button--active,
+.map-rotation-view-toggle__button--active:hover {
+    background-color: var(--color-444);
+    color: #fff;
+    cursor: default;
+}
+.dark .map-rotation-view-toggle__button {
+    color: #777;
+}
+.dark .map-rotation-view-toggle__button:hover {
+    color: #bbb;
+}
+.dark .map-rotation-view-toggle__button--active,
+.dark .map-rotation-view-toggle__button--active:hover {
+    background-color: #555;
+    color: #fff;
+}
+
+.map-rotation-grid {
+    margin: 10px 0;
+}
+/* 未確定枠は個別ページが無いのでリンクにしない */
+.map-card.map-card--unknown {
+    cursor: default;
+}
+.map-card.map-card--unknown:hover {
+    background: var(--bg-f8f8f8);
+}
+.map-rotation-grid[x-cloak],
+.map-rotation-table__container[x-cloak],
+.map-rotation-view-note[x-cloak] {
+    display: none;
 }
 
 .winstreak-nav-container {

@@ -58,15 +58,17 @@
             const periodMs = (slot.durationMinutes || 1440) * 60 * 1000;
             const steps = Math.max(0, Math.floor((nowTime - origin) / periodMs));
             const length = maps.length;
+            const predicted = new Set(slot.predicted || []);
             for (let i = 0; i < length; i++) {
                 const index = ((slot.latestIndex || 0) + steps + i) % length;
                 // 現在枠は周期に無いマップでも観測値を優先する(同期が遅れて観測が古い場合は周期から予測)
-                const mapId = (i === 0 && steps === 0 && slot.currentMapId) ? slot.currentMapId : maps[index];
+                const observed = i === 0 && steps === 0 && slot.currentMapId;
+                const mapId = observed ? slot.currentMapId : maps[index];
                 if (!mapId) continue;
                 const time = origin + (steps + i) * periodMs;
                 const current = info.get(mapId);
                 if (!current || time < current.time || (time === current.time && slot.order < current.order)) {
-                    info.set(mapId, { time, order: slot.order, active: i === 0 });
+                    info.set(mapId, { time, order: slot.order, active: i === 0, predicted: !observed && predicted.has(index) });
                 }
             }
         });
@@ -302,6 +304,12 @@
 
             badge(map) {
                 return badges.get(map.id) || '';
+            },
+
+            // 出現日時が確定ではなく予想の場合
+            isPredicted(map) {
+                const entry = cardRotation.get(map.id);
+                return !!(entry && entry.predicted);
             },
 
             isActive(map) {

@@ -76,10 +76,50 @@
                 <span x-text="cycleDayText()"></span><span style="font-size: smaller;" x-text="isJa ? '周期' : ' Cycle'"></span>
             </p>
         </div>
+        <div class="map-rotation-view-toggle" role="group" aria-label="{% if lang == 'ja' %}表示形式{% else %}View{% endif %}">
+            <button type="button" class="map-rotation-view-toggle__button"
+                    :class="{ 'map-rotation-view-toggle__button--active': viewMode === 'grid' }"
+                    :aria-pressed="viewMode === 'grid' ? 'true' : 'false'"
+                    @click="setViewMode('grid')"
+                    title="{% if lang == 'ja' %}グリッド表示{% else %}Grid view{% endif %}"
+                    aria-label="{% if lang == 'ja' %}グリッド表示{% else %}Grid view{% endif %}">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="7" height="7" rx="1.8"/><rect x="11" y="2" width="7" height="7" rx="1.8"/><rect x="2" y="11" width="7" height="7" rx="1.8"/><rect x="11" y="11" width="7" height="7" rx="1.8"/></svg>
+            </button>
+            <button type="button" class="map-rotation-view-toggle__button"
+                    :class="{ 'map-rotation-view-toggle__button--active': viewMode === 'table' }"
+                    :aria-pressed="viewMode === 'table' ? 'true' : 'false'"
+                    @click="setViewMode('table')"
+                    title="{% if lang == 'ja' %}表形式{% else %}Table view{% endif %}"
+                    aria-label="{% if lang == 'ja' %}表形式{% else %}Table view{% endif %}">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="3" width="16" height="3.2" rx="1.2"/><rect x="2" y="8.4" width="16" height="3.2" rx="1.2"/><rect x="2" y="13.8" width="16" height="3.2" rx="1.2"/></svg>
+            </button>
+        </div>
+    </div>
+
+    {#^ 周期グリッド #}
+    <div class="map-card-grid map-rotation-grid" x-show="viewMode === 'grid'" x-cloak :style="gridStyle()">
+        <template x-for="(row, index) in getRotationTable()" :key="activeSlot + '-' + index">
+            <a class="map-card" :class="cardClass(row.map)" :href="row.map.id ? getMapLink(row.map) : null">
+                <div class="map-card__image-box">
+                    <span class="map-card__badge" :class="{ 'map-card__badge--active': index === 0 }"><span class="map-card__badge-text" x-text="row.badgeLabel"></span><template x-if="row.predicted"><span class="map-card__badge-text">{% if lang == "ja" %}（予想）{% else %}&nbsp;(Predicted){% endif %}</span></template></span>
+                    <img :src="mapImage(row.map)" :alt="row.mapLabel"
+                         class="map-card__image" loading="lazy" decoding="async"
+                         @load="onMapImageLoad($event, row.map)"
+                         @error="onMapImageError($event, row.map)">
+                </div>
+                <div class="map-card__footer">
+                    <img :src="modeIconSrc(row.map)"
+                         :data-icon-fallbacks="JSON.stringify(modeIconFallbacks(row.map))"
+                         @error="window.handleModeIconError($event.target)"
+                         class="map-card__mode-icon" alt="">
+                    <span class="map-card__name" :title="row.mapLabel" x-text="row.mapLabel"></span>
+                </div>
+            </a>
+        </template>
     </div>
 
     {#^ 周期表 #}
-    <div class="map-rotation-table__container">
+    <div class="map-rotation-table__container" x-show="viewMode === 'table'" x-cloak>
         <table class="map-rotation-table">
             <thead>
                 <tr>
@@ -123,11 +163,13 @@
     {#^ フッターテキスト #}
     <p class="info-block__text block" style="margin-top: 10px;">
         {% if lang == "ja" %}
-            各マップ名をクリックすることで、<b>マップ画像</b>と<b>Tier表</b>を見ることができます（一部新マップは閲覧できないことがあります）。
+            <span class="map-rotation-view-note" x-show="viewMode === 'table'" x-cloak>各マップ名をクリックすることで、<b>マップ画像</b>と<b>Tier表</b>を見ることができます（一部新マップは閲覧できないことがあります）。</span>
+            <span class="map-rotation-view-note" x-show="viewMode === 'grid'" x-cloak>各マップ名をクリックすることで、そのマップの<b>Tier表</b>を見ることができます。</span>
             <br>ブロスタのアップデートやバグ等により、マップ周期は突然変更されることがあります。そのため、このマップ周期表は必ずその日にそのマップが出現することを保証するものではありません。
             {% if platform == "web" %}<br>PCの場合、キーボードの←→キーを押すことでスロットの切り替えができます。{% endif %}
         {% else %}
-            By clicking on each map name, you can view the <b>map image</b> and <b>tier list</b>. (Some new maps may not be available for viewing.)
+            <span class="map-rotation-view-note" x-show="viewMode === 'table'" x-cloak>By clicking on each map name, you can view the <b>map image</b> and <b>tier list</b>. (Some new maps may not be available for viewing.)</span>
+            <span class="map-rotation-view-note" x-show="viewMode === 'grid'" x-cloak>By clicking on each map name, you can view the <b>tier list</b> of that map.</span>
             <br>Due to Brawl Stars updates or bugs, the map rotation may change suddenly. This map rotation does not guarantee that a specific map will appear on that day.
             {% if platform == "web" %}<br>On PC, you can switch slots using the left and right arrow keys on your keyboard.{% endif %}
         {% endif %}
@@ -149,7 +191,15 @@
 
 <script>
 var MAP_ROTATION_FRIENDS_ICON = "{{ url_for('static', path='/images/ui/friends_old.png') }}";
+var MAP_ROTATION_VIEW_KEY = 'brawlInsightsMapRotationView';
 function mapRotationApp() {
+    // 前回選んだ表示形式（既定はグリッド）
+    let savedView = null;
+    try {
+        savedView = localStorage.getItem(MAP_ROTATION_VIEW_KEY);
+    } catch (e) {
+        // ストレージが使えない環境では既定の表示にする
+    }
     return {
         isJa: '{{ lang }}' === 'ja',
         lang: '{{ lang }}',
@@ -161,7 +211,11 @@ function mapRotationApp() {
         mysteryUrl: "{{ url_for('static', path='/images/ui/mystery.png') }}",
         friendsIcon: MAP_ROTATION_FRIENDS_ICON,
         payload: {{ rotation_payload | default({}) | tojson | safe }},
+        modeThemes: {{ mode_themes | default({}) | tojson | safe }},
         slots: [],
+        viewMode: savedView === 'table' ? 'table' : 'grid',
+        // モードごとのマップ画像の縦横比(読み込んだ画像から求める)。グリッドのカードの高さを合わせる
+        modeAspects: {},
 
         init() {
             const source = (this.payload && this.payload.slots) || [];
@@ -253,6 +307,15 @@ function mapRotationApp() {
 
         // === Methods ===
 
+        setViewMode(mode) {
+            this.viewMode = mode === 'table' ? 'table' : 'grid';
+            try {
+                localStorage.setItem(MAP_ROTATION_VIEW_KEY, this.viewMode);
+            } catch (e) {
+                // 保存できなくても表示の切り替えはできる
+            }
+        },
+
         handleKeydown(e) {
             if (e.metaKey || e.ctrlKey || !this.slots.length) return;
             if (e.key === 'ArrowRight') {
@@ -312,8 +375,13 @@ function mapRotationApp() {
                 // 同期が遅れて観測が古い場合(steps > 0)は、現在枠も周期から予測する
                 const observed = i === 0 && steps === 0 && slot.currentMap;
                 const current = observed ? slot.currentMap : map;
+                const predicted = !observed && current.state === 'predicted';
+                const activeLabel = this.isJa ? '現在出現中' : 'Active';
                 list.push({
-                    dateLabel: i === 0 ? (this.isJa ? '現在出現中' : 'Active') : this.formatDate(targetDate),
+                    dateLabel: i === 0 ? activeLabel : this.formatDate(targetDate),
+                    // グリッドのバッジは時刻を 17:00 形式にする。予想の場合はバッジに「予想」を添える
+                    badgeLabel: i === 0 ? activeLabel : this.formatDate(targetDate, true),
+                    predicted,
                     map: current,
                     mapLabel: this.mapLabel(current),
                     stateLabel: observed ? '' : this.stateLabel(current.state),
@@ -322,13 +390,16 @@ function mapRotationApp() {
             return list;
         },
 
-        formatDate(dateObj) {
+        // clock: 日本語の時刻を「17:00〜」形式にする（グリッドのバッジ用）
+        formatDate(dateObj, clock = false) {
             const parts = this.zonedParts(dateObj);
             const today = this.zonedParts(new Date());
             const tomorrowDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
             const tomorrow = this.zonedParts(tomorrowDate);
             const minute = parts.minute ? `${parts.minute}分` : '';
-            const timeJa = `${parts.hour}時${minute}〜`;
+            const timeJa = clock
+                ? `${parts.hour}:${String(parts.minute).padStart(2, '0')}〜`
+                : `${parts.hour}時${minute}〜`;
             const hour12 = parts.hour % 12 || 12;
             const suffix = parts.hour < 12 ? 'AM' : 'PM';
             const timeEn = parts.minute ? `${hour12}:${String(parts.minute).padStart(2, '0')}${suffix}-` : `${hour12}${suffix}-`;
@@ -384,6 +455,35 @@ function mapRotationApp() {
             }
             urls.push(this.mysteryUrl);
             return urls.filter(url => url !== primary);
+        },
+
+        cardClass(map) {
+            const theme = map && map.mode_id ? this.modeThemes[String(map.mode_id)] : null;
+            return [theme ? `map-card--${theme}` : '', map && map.id ? '' : 'map-card--unknown'].join(' ');
+        },
+        mapImage(map) {
+            if (!map || !map.id) return this.mysteryUrl;
+            return `https://cdn.bsinfox.com/maps/${map.id}.png`;
+        },
+        onMapImageError(event, map) {
+            const img = event.target;
+            if (!map || !map.id || img.dataset.fallbackApplied === '1') return;
+            img.dataset.fallbackApplied = '1';
+            img.src = `https://cdn.brawlify.com/maps/regular/${map.id}.png`;
+        },
+        onMapImageLoad(event, map) {
+            const img = event.target;
+            if (!map || !map.id || !map.mode_id || map.mode_id in this.modeAspects) return;
+            if (!img.naturalWidth || !img.naturalHeight) return;
+            this.modeAspects[map.mode_id] = `${img.naturalWidth} / ${img.naturalHeight}`;
+        },
+        // スロット内のマップが1モードだけなら、そのモードの縦横比にする（複数モードの場合は既定の比率で揃える）。
+        // 文字列で返すと x-show の display:none まで上書きされるため、オブジェクトで返す
+        gridStyle() {
+            const slot = this.slots[this.activeSlot];
+            const modeIds = new Set((slot ? slot.maps : []).filter(map => map.id && map.mode_id).map(map => map.mode_id));
+            const aspect = modeIds.size === 1 ? this.modeAspects[[...modeIds][0]] : null;
+            return { '--map-card-aspect': aspect || '' };
         },
 
         // リンク生成

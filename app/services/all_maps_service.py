@@ -163,6 +163,8 @@ def build_rotation_hint(rotation_payload: dict[str, Any] | None) -> list[dict[st
             "currentMapId": slot.get("currentMapId"),
             # 未確定枠(null)も周期の位置合わせに必要なので残す
             "maps": [item.get("map_id") for item in maps],
+            # 予想(未検証)の枠の位置。出現日時に「予想」と添える。state 無しはマップ周期ページと同じく予想扱い
+            "predicted": [index for index, item in enumerate(maps) if (item.get("state") or "predicted") == "predicted"],
         })
     return hints
 

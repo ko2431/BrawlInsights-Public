@@ -35,7 +35,7 @@ from app.services.board_service import get_or_create_theme_brawler_post, get_or_
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
 from app.utils.nav_context import nav_template_vars, resolve_nav_context
-from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id, get_mode_by_id, get_mode_theme, get_mode_board_colors, mode_icon_candidates
+from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id, get_mode_by_id, get_mode_theme, get_mode_board_colors, mode_icon_candidates, MODE_THEME_BY_ID
 from app.services.trophy_stats_service import get_trophy_stats
 
 router = APIRouter(
@@ -332,6 +332,8 @@ async def map_rotation(
         logger.error(f"マップ周期のカタログ取得中にエラー: {e}", exc_info=True)
         map_catalog = {}
         mode_slug_to_id = {}
+    # グリッド表示のカード色（モードID → テーマ色キー）
+    mode_themes = {str(mode_id): theme for mode_id, theme in MODE_THEME_BY_ID.items()}
     try:
         from app.services.map_rotation_service import build_map_rotation_payload
         rotation_payload = await build_map_rotation_payload(db)
@@ -345,6 +347,7 @@ async def map_rotation(
         "current_page": "tools",
         "map_catalog": map_catalog,
         "mode_slug_to_id": mode_slug_to_id,
+        "mode_themes": mode_themes,
         "rotation_payload": rotation_payload,
     }
 
