@@ -54,11 +54,11 @@ async def build_map_rotation_payload(db: asyncpg.Connection) -> dict[str, Any]:
     rows = await db.fetch(
         """
         SELECT s.id, s.name_ja, s.name_en, s.icons, s.icon_path, s.duration_minutes AS slot_duration,
-               c.status, c.cycle_length, c.duration_minutes, c.anchor_start, c.maps,
+               c.status, c.source, c.confirmed_at, c.cycle_length, c.duration_minutes, c.anchor_start, c.maps,
                o.start_time, o.end_time, o.map_id
         FROM map_rotation_slots s
         JOIN LATERAL (
-            SELECT status, cycle_length, duration_minutes, anchor_start, maps
+            SELECT status, source, confirmed_at, cycle_length, duration_minutes, anchor_start, maps
             FROM map_rotation_cycles
             WHERE slot_id = s.id AND status IN ('working', 'confirmed')
             ORDER BY CASE status WHEN 'working' THEN 0 ELSE 1 END
