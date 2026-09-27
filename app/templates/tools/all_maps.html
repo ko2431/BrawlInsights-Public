@@ -46,7 +46,7 @@
                 <option value="" {% if not selected_mode %}selected{% endif %}>{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
                 {% for mode in maps_data.modes %}
                 {% set mode_name = (mode.ja if lang == "ja" else mode.en) or mode.en or mode.ja or mode.id %}
-                <option value="{{ mode.id }}" {% if selected_mode == mode.id %}selected{% endif %}>{{ mode_name }}{% if mode.off %}{% if lang == "ja" %}（無効）{% else %} (Disabled){% endif %}{% endif %}</option>
+                <option value="{{ mode.id }}" {% if selected_mode == mode.id %}selected{% endif %}>{{ mode_name }}</option>
                 {% endfor %}
             </select>
         </div>
