@@ -1360,7 +1360,7 @@ body.modal-open {
     border-radius: 10px;
     border: 2.5px solid transparent;
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s ease;
     gap: 4px;
     background: linear-gradient(135deg, var(--board-c1), var(--board-c2));
 }
@@ -1387,6 +1387,13 @@ body.modal-open {
 }
 .general-board-category-item .general-icon--tiktok {
     filter: brightness(0);
+}
+/* ホバー: グラデーション背景を保ったまま、薄いオーバーレイで色味を少し変える */
+.general-board-category-item:not(.selected):hover {
+    box-shadow: inset 0 0 0 100px rgba(0, 0, 0, 0.04);
+}
+.general-board-category-item--dark:not(.selected):hover {
+    box-shadow: inset 0 0 0 100px rgba(255, 255, 255, 0.08);
 }
 .general-board-category-item.selected {
     border-color: #ff5353;

@@ -395,10 +395,17 @@ th {
     background-color: #f0f0f0;
     color: #555;
     cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 .dark .player-dist-slot {
     background-color: #262626;
     color: #ccc;
+}
+.player-dist-slot:not(.player-dist-slot--active):hover {
+    background-color: #e8e8e8;
+}
+.dark .player-dist-slot:not(.player-dist-slot--active):hover {
+    background-color: #333;
 }
 .player-dist-slot--active {
     background-color: #fff;

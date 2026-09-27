@@ -851,10 +851,17 @@
     justify-content: center;
     padding: 5px 5px 0;
     min-width: 65px;
+    transition: background-color 0.2s ease;
 }
 .dark .map-rotation-slot {
     background-color: #262626;
     color: #ccc;
+}
+.map-rotation-slot:not(.map-rotation-slot--active):hover {
+    background-color: #e8e8e8;
+}
+.dark .map-rotation-slot:not(.map-rotation-slot--active):hover {
+    background-color: #333;
 }
 .map-rotation-slot--active {
     background-color: #fff;
@@ -1113,10 +1120,28 @@
     background-color: #f0f0f0;
     color: #555;
     cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 .dark .winstreak-item {
     background-color: #262626;
     color: #ccc;
+}
+/* レア度タブ(drop-box-rarity-item)は独自の背景色を持つため除外 */
+.winstreak-item:not(.winstreak-item--active):not(.drop-box-rarity-item):hover {
+    background-color: #e8e8e8;
+}
+.dark .winstreak-item:not(.winstreak-item--active):not(.drop-box-rarity-item):hover {
+    background-color: #333;
+}
+/* レア度タブ: 色付き背景を保ったまま、薄いオーバーレイで少し濃くする */
+.drop-box-rarity-item {
+    transition: box-shadow 0.2s ease;
+}
+.drop-box-rarity-item:not(.winstreak-item--active):hover {
+    box-shadow: inset 0 0 0 100px rgba(0, 0, 0, 0.04);
+}
+.dark .drop-box-rarity-item:not(.winstreak-item--active):hover {
+    box-shadow: inset 0 0 0 100px rgba(255, 255, 255, 0.05);
 }
 .winstreak-item--active {
     background-color: #fff;
@@ -1551,11 +1576,18 @@
     cursor: pointer;
     margin-left: 4px;
     white-space: nowrap;
+    transition: background-color 0.2s ease;
 }
 .dark .drop-box-table__expand-button {
     background-color: #262626;
     border-color: #555;
     color: #eee;
+}
+.drop-box-table__expand-button:hover {
+    background-color: #f5f5f5;
+}
+.dark .drop-box-table__expand-button:hover {
+    background-color: #333;
 }
 .drop-box-table__targets-cell {
     padding: 8px 10px;
@@ -2357,6 +2389,13 @@
     text-align: center;
     cursor: pointer;
     user-select: none;
+    transition: background-color 0.2s ease;
+}
+.chat-link-button:hover {
+    background-color: #d0d0d0;
+}
+.dark .chat-link-button:hover {
+    background-color: #3a3a3a;
 }
 
 @media (max-width: 539px) {
