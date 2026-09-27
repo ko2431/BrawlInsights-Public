@@ -966,12 +966,25 @@
 .map-rotation-slot-info__time__text,
 .map-rotation-slot-info__days__text {
     font-weight: bold;
+    line-height: 1.2;
 }
 
 /* 表示形式（グリッド／表）の切り替え。切り替え時間・周期日数の右端に置く */
+.map-rotation-view {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+.map-rotation-view__label {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--color-777);
+    white-space: nowrap;
+}
 .map-rotation-view-toggle {
     display: flex;
-    margin-left: auto;
+    align-self: stretch;
     padding: 2px;
     gap: 2px;
     border-radius: 9px;
@@ -1018,7 +1031,44 @@
 }
 
 .map-rotation-grid {
+    --map-rotation-arrow-gap: 18px;
+    column-gap: var(--map-rotation-arrow-gap);
+    /* 各行の最後のカードの右にも「＞」を置くため、その分だけ右を空ける */
+    padding-right: var(--map-rotation-arrow-gap);
     margin: 10px 0;
+}
+.map-rotation-grid__item {
+    position: relative;
+    display: flex;
+    min-width: 0;
+}
+.map-rotation-grid__item > .map-card {
+    flex: 1;
+}
+/* カード間の「＞」。カードは overflow: hidden なので、外側の要素に付ける */
+.map-rotation-grid__item::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: calc(var(--map-rotation-arrow-gap) / -2);
+    width: 6px;
+    height: 6px;
+    border-top: 2px solid #b5b5b5;
+    border-right: 2px solid #b5b5b5;
+    transform: translate(calc(50% - 1px), -50%) rotate(45deg);
+    pointer-events: none;
+}
+.dark .map-rotation-grid__item::after {
+    border-color: #666;
+}
+@media (max-width: 539px) {
+    .map-rotation-grid {
+        --map-rotation-arrow-gap: 13px;
+    }
+    .map-rotation-grid__item::after {
+        width: 5px;
+        height: 5px;
+    }
 }
 /* 未確定枠は個別ページが無いのでリンクにしない */
 .map-card.map-card--unknown {

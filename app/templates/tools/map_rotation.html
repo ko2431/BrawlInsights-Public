@@ -76,45 +76,51 @@
                 <span x-text="cycleDayText()"></span><span style="font-size: smaller;" x-text="isJa ? '周期' : ' Cycle'"></span>
             </p>
         </div>
-        <div class="map-rotation-view-toggle" role="group" aria-label="{% if lang == 'ja' %}表示形式{% else %}View{% endif %}">
-            <button type="button" class="map-rotation-view-toggle__button"
-                    :class="{ 'map-rotation-view-toggle__button--active': viewMode === 'grid' }"
-                    :aria-pressed="viewMode === 'grid' ? 'true' : 'false'"
-                    @click="setViewMode('grid')"
-                    title="{% if lang == 'ja' %}グリッド表示{% else %}Grid view{% endif %}"
-                    aria-label="{% if lang == 'ja' %}グリッド表示{% else %}Grid view{% endif %}">
-                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="7" height="7" rx="1.8"/><rect x="11" y="2" width="7" height="7" rx="1.8"/><rect x="2" y="11" width="7" height="7" rx="1.8"/><rect x="11" y="11" width="7" height="7" rx="1.8"/></svg>
-            </button>
-            <button type="button" class="map-rotation-view-toggle__button"
-                    :class="{ 'map-rotation-view-toggle__button--active': viewMode === 'table' }"
-                    :aria-pressed="viewMode === 'table' ? 'true' : 'false'"
-                    @click="setViewMode('table')"
-                    title="{% if lang == 'ja' %}表形式{% else %}Table view{% endif %}"
-                    aria-label="{% if lang == 'ja' %}表形式{% else %}Table view{% endif %}">
-                <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="3" width="16" height="3.2" rx="1.2"/><rect x="2" y="8.4" width="16" height="3.2" rx="1.2"/><rect x="2" y="13.8" width="16" height="3.2" rx="1.2"/></svg>
-            </button>
+        <div class="map-rotation-view">
+            <span class="map-rotation-view__label" id="mapRotationViewLabel">{% if lang == "ja" %}表示{% else %}View{% endif %}</span>
+            <div class="map-rotation-view-toggle" role="group" aria-labelledby="mapRotationViewLabel">
+                <button type="button" class="map-rotation-view-toggle__button"
+                        :class="{ 'map-rotation-view-toggle__button--active': viewMode === 'grid' }"
+                        :aria-pressed="viewMode === 'grid' ? 'true' : 'false'"
+                        @click="setViewMode('grid')"
+                        title="{% if lang == 'ja' %}グリッド表示{% else %}Grid view{% endif %}"
+                        aria-label="{% if lang == 'ja' %}グリッド表示{% else %}Grid view{% endif %}">
+                    <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="7" height="7" rx="1.8"/><rect x="11" y="2" width="7" height="7" rx="1.8"/><rect x="2" y="11" width="7" height="7" rx="1.8"/><rect x="11" y="11" width="7" height="7" rx="1.8"/></svg>
+                </button>
+                <button type="button" class="map-rotation-view-toggle__button"
+                        :class="{ 'map-rotation-view-toggle__button--active': viewMode === 'table' }"
+                        :aria-pressed="viewMode === 'table' ? 'true' : 'false'"
+                        @click="setViewMode('table')"
+                        title="{% if lang == 'ja' %}表形式{% else %}Table view{% endif %}"
+                        aria-label="{% if lang == 'ja' %}表形式{% else %}Table view{% endif %}">
+                    <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="3" width="16" height="3.2" rx="1.2"/><rect x="2" y="8.4" width="16" height="3.2" rx="1.2"/><rect x="2" y="13.8" width="16" height="3.2" rx="1.2"/></svg>
+                </button>
+            </div>
         </div>
     </div>
 
     {#^ 周期グリッド #}
+    {# 周期の並び順がわかるよう、各カードの右に「＞」を付ける（周期なので最後のカードにも付ける） #}
     <div class="map-card-grid map-rotation-grid" x-show="viewMode === 'grid'" x-cloak :style="gridStyle()">
         <template x-for="(row, index) in getRotationTable()" :key="activeSlot + '-' + index">
-            <a class="map-card" :class="cardClass(row.map)" :href="row.map.id ? getMapLink(row.map) : null">
-                <div class="map-card__image-box">
-                    <span class="map-card__badge" :class="{ 'map-card__badge--active': index === 0 }"><span class="map-card__badge-text" x-text="row.badgeLabel"></span><template x-if="row.predicted"><span class="map-card__badge-text">{% if lang == "ja" %}（予想）{% else %}&nbsp;(Predicted){% endif %}</span></template></span>
-                    <img :src="mapImage(row.map)" :alt="row.mapLabel"
-                         class="map-card__image" loading="lazy" decoding="async"
-                         @load="onMapImageLoad($event, row.map)"
-                         @error="onMapImageError($event, row.map)">
-                </div>
-                <div class="map-card__footer">
-                    <img :src="modeIconSrc(row.map)"
-                         :data-icon-fallbacks="JSON.stringify(modeIconFallbacks(row.map))"
-                         @error="window.handleModeIconError($event.target)"
-                         class="map-card__mode-icon" alt="">
-                    <span class="map-card__name" :title="row.mapLabel" x-text="row.mapLabel"></span>
-                </div>
-            </a>
+            <div class="map-rotation-grid__item">
+                <a class="map-card" :class="cardClass(row.map)" :href="row.map.id ? getMapLink(row.map) : null">
+                    <div class="map-card__image-box">
+                        <span class="map-card__badge" :class="{ 'map-card__badge--active': index === 0 }"><span class="map-card__badge-text" x-text="row.badgeLabel"></span><template x-if="row.predicted"><span class="map-card__badge-text">{% if lang == "ja" %}（予想）{% else %}&nbsp;(Predicted){% endif %}</span></template></span>
+                        <img :src="mapImage(row.map)" :alt="row.mapLabel"
+                             class="map-card__image" loading="lazy" decoding="async"
+                             @load="onMapImageLoad($event, row.map)"
+                             @error="onMapImageError($event, row.map)">
+                    </div>
+                    <div class="map-card__footer">
+                        <img :src="modeIconSrc(row.map)"
+                             :data-icon-fallbacks="JSON.stringify(modeIconFallbacks(row.map))"
+                             @error="window.handleModeIconError($event.target)"
+                             class="map-card__mode-icon" alt="">
+                        <span class="map-card__name" :title="row.mapLabel" x-text="row.mapLabel"></span>
+                    </div>
+                </a>
+            </div>
         </template>
     </div>
 
