@@ -53,6 +53,7 @@
 ] %}
 {% set brawlers_suggest = [
     {'href': url_for('skin_ranking', lang=lang), 'image': url_for('static', path='/images/banners/skin_ranking_banner_' + lang + '.png'), 'alt': 'スキン使用率ランキング'},
+    {'href': url_for('title_ranking', lang=lang), 'image': url_for('static', path='/images/banners/title_ranking_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/title_ranking_banner_slim_' + lang + '.png'), 'alt': 'キャッチフレーズ使用率ランキング'},
 ] %}
 {% set maps_suggest = [
     {'href': url_for('ranked_maps', lang=lang), 'image': url_for('static', path='/images/banners/ranked_maps_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/ranked_maps_banner_slim_' + lang + '.png'), 'alt': 'ガチバトルマップ一覧' if lang == 'ja' else 'Ranked Map List'},
