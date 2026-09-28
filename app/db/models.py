@@ -20,6 +20,8 @@ from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
+from app.core.text_search import search_normalize_sql
+
 # 全てのモデルクラスが継承する基本クラス。
 # Alembicは、このBaseを継承しているクラスをテーブルとして認識します。
 Base = declarative_base()
@@ -107,6 +109,8 @@ class User(Base):
                 'penalty_level BETWEEN 10 AND 60 AND NOT is_invalid'
             ),
         ),
+        # なんでも掲示板の「@ユーザー名」検索（正規化後の完全一致）。式は text_search.search_normalize_sql と一致させること
+        Index('idx_users_name_search_norm', text(search_normalize_sql('name'))),
     )
 
     # リレーションシップ
@@ -1073,6 +1077,13 @@ class Post(Base):
             postgresql_where=text('host_id IS NOT NULL'),
         ),
         Index('idx_posts_type_category', 'type', 'category'),
+        # なんでも掲示板の本文検索（正規化後の LIKE '%語%'）。pg_bigm なので1〜2文字でも効く
+        Index(
+            'idx_posts_general_comment_search_bigm',
+            text(f"({search_normalize_sql('comment')}) gin_bigm_ops"),
+            postgresql_using='gin',
+            postgresql_where=text("type = 'general'"),
+        ),
         Index(
             'uq_posts_theme_brawler_id',
             text("(custom_settings->>'brawler_id')"),

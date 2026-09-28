@@ -1,6 +1,17 @@
 {# /app/templates/recruitment_board/fragments/general_posts_fragment.html #}
 <div class="board-fragment__content" data-notification-badge data-show-notification-badge="{{ 'true' if fragment_show_notification_badge else 'false' }}" data-notification-badge-text="{{ fragment_notification_badge_text }}">
+    {% if search_mode and not append_mode %}
+    {# 検索結果の件数 #}
+    <p class="general-board-search-summary">
+    {% if search_mode == "user" %}
+        {% if lang == "ja" %}<b>{{ search_user_name }}</b>さんの投稿：<b>{{ "{:,}".format(total_posts) }}</b>件{% else %}Posts by <b>{{ search_user_name }}</b>: <b>{{ "{:,}".format(total_posts) }}</b>{% endif %}
+    {% else %}
+        {% if lang == "ja" %}「<b>{{ q }}</b>」の検索結果：<b>{{ "{:,}".format(total_posts) }}</b>件{% else %}Results for "<b>{{ q }}</b>": <b>{{ "{:,}".format(total_posts) }}</b>{% endif %}
+    {% endif %}
+    </p>
+    {% endif %}
     {% if posts %}
+    {% if not search_mode %}
     {# フィルター下の説明文 #}
     <div class="info-block" style="padding: 0;">
         <p class="info-block__text">
@@ -13,12 +24,15 @@
         {% endif %}
         </p>
     </div>
+    {% endif %}
 
     {# 投稿を表示 #}
     <div class="posts__container view-compact">
         {% include "recruitment_board/fragments/includes/general_post_cards.html" %}
     </div>
     {% include "recruitment_board/fragments/includes/board_load_more.html" %}
+    {% elif search_mode %}
+    <p class="general-board-search-empty">{% if lang == "ja" %}{% if search_mode == "user" %}<b>{{ search_user_name }}</b>さんの投稿は見つかりませんでした。{% else %}「<b>{{ q }}</b>」を含む投稿は見つかりませんでした。{% endif %}{% else %}{% if search_mode == "user" %}No posts by <b>{{ search_user_name }}</b> were found.{% else %}No posts matched "<b>{{ q }}</b>".{% endif %}{% endif %}</p>
     {% elif tab == "own" %}
     <p style="margin-top: 20px; font-size: 15px; font-weight: bold;">{% if lang == "ja" %}投稿すると、自分の投稿がここに表示されます。{% else %}When you submit a post, your post will appear here.{% endif %}</p>
     {% elif tab == "liked" %}

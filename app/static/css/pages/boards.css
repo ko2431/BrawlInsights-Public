@@ -1232,8 +1232,11 @@ body.modal-open {
     }
     .reload-button__container {
         font-size: 14px;
-        padding: 4px 6px;
         border-radius: 7px;
+        padding: 4px 6px;
+    }
+    .board-filters__container--general .reload-button__container {
+        border-radius: 9px;
     }
     .filter-form__label {
         font-size: 15px;
@@ -1773,4 +1776,234 @@ body.modal-open {
 /* display: grid が hidden 属性より優先されないようにする */
 .posts__container[hidden] {
     display: none;
+}
+
+/* --- なんでも掲示板の検索 --- */
+/* PC・タブレット: [フィルター: select] [検索ボックス] [更新] */
+.general-board-filter-row .general-board-filter-form {
+    flex: 0 1 auto;
+}
+/* フィルター・検索ボックス・検索ボタン・更新ボタンの高さを揃える */
+.general-board-filter-row {
+    --general-board-control-height: 32px;
+}
+.general-board-filter-form__select {
+    max-width: 100%;
+    min-width: 0;
+    height: var(--general-board-control-height);
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+.general-board-filter-row .reload-button__container {
+    height: var(--general-board-control-height);
+    box-sizing: border-box;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+.general-board-search-toggle {
+    display: none;
+}
+.general-board-search-form {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 6px;
+    margin: 0;
+}
+.general-board-search-field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+.general-board-search-input {
+    height: var(--general-board-control-height);
+    padding: 4px 30px 4px 12px;
+    border-radius: 10px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+/* ブラウザ標準のクリアボタンは独自の×と重複するため消す */
+.general-board-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+.general-board-search-clear {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: #e4e4e4;
+    color: #666;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.dark .general-board-search-clear {
+    background-color: #555;
+    color: #ddd;
+}
+.general-board-search-clear[hidden] {
+    display: none;
+}
+.general-board-search-clear:hover {
+    background-color: #d2d2d2;
+}
+.dark .general-board-search-clear:hover {
+    background-color: #666;
+}
+.general-board-search-clear__icon {
+    width: 10px;
+    height: 10px;
+}
+.general-board-search-submit,
+.general-board-search-toggle {
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: var(--general-board-control-height);
+    box-sizing: border-box;
+    padding: 0;
+    border: 1px solid #222;
+    border-radius: 9px;
+    background-color: #444;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.35s ease;
+}
+.general-board-search-submit {
+    width: 34px;
+}
+.general-board-search-submit {
+    display: inline-flex;
+}
+.general-board-search-submit:hover,
+.general-board-search-toggle:hover {
+    background-color: #555;
+}
+.dark .general-board-search-submit,
+.dark .general-board-search-toggle {
+    background-color: #333;
+    border-color: #111;
+}
+.dark .general-board-search-submit:hover,
+.dark .general-board-search-toggle:hover {
+    background-color: #444;
+}
+.general-board-search-submit__icon {
+    width: 18px;
+    height: 18px;
+}
+/* 検索結果の件数・0件表示 */
+.general-board-search-summary {
+    margin: 2px 0 6px;
+    font-size: 14px;
+}
+.general-board-search-summary b {
+    word-break: break-all;
+}
+.general-board-search-empty {
+    margin-top: 20px;
+    font-size: 15px;
+    font-weight: bold;
+    word-break: break-all;
+}
+/* ヒット箇所: 文字全体を四角く塗る蛍光マーカー */
+mark.general-board-search-hit {
+    color: inherit;
+    background-color: #fff066;
+    border-radius: 0;
+    padding: 0;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+.dark mark.general-board-search-hit {
+    background-color: rgba(255, 214, 0, 0.42);
+}
+/* 投稿者名のタップで「@名前」検索 */
+.general-post-card__author-name--searchable {
+    cursor: pointer;
+    border-radius: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+}
+.general-post-card__author-name--searchable:hover {
+    opacity: 0.65;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* スマホ: 「フィルター:」を隠し、[フィルター][検索 ＞][更新] の並び。「検索」で検索行を下に展開 */
+@media (max-width: 539px) {
+    .general-board-filter-row {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+    .general-board-filter-row .general-board-filter-form {
+        flex: 1;
+        order: 1;
+    }
+    .general-board-filter-row .reload-button__container {
+        order: 3;
+    }
+    .general-board-filter-form__label {
+        display: none;
+    }
+    .general-board-filter-form__select {
+        flex: 1;
+    }
+    .general-board-search-toggle {
+        display: inline-flex;
+        order: 2;
+        gap: 5px;
+        padding: 0 9px 0 10px;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: 1;
+        white-space: nowrap;
+    }
+    /* ＞ → 開くと V（下向き）に回転 */
+    .general-board-search-toggle__chevron {
+        width: 6px;
+        height: 6px;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: translateX(-1px) rotate(-45deg);
+        transition: transform 0.25s ease;
+    }
+    .general-board-search-toggle[aria-expanded="true"] .general-board-search-toggle__chevron {
+        transform: translateY(-2px) rotate(45deg);
+    }
+    /* 検索中は青（ホバー時も維持） */
+    .general-board-search-toggle.general-board-search-toggle--active,
+    .general-board-search-toggle.general-board-search-toggle--active:hover {
+        background-color: #1a73e8;
+        border-color: #125bb8;
+    }
+    .dark .general-board-search-toggle.general-board-search-toggle--active,
+    .dark .general-board-search-toggle.general-board-search-toggle--active:hover {
+        background-color: #1a5fc0;
+        border-color: #0f3f82;
+    }
+    .general-board-search-form {
+        display: none;
+        order: 10;
+        flex-basis: 100%;
+    }
+    .general-board-search-form--open {
+        display: flex;
+    }
+    .general-board-search-input {
+        font-size: 16px; /* iOS のフォーカス時ズームを防ぐ */
+    }
 }

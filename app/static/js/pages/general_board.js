@@ -17,8 +17,160 @@
         'brawl_info', 'x', 'discord', 'youtube', 'tiktok',
     ]);
 
+    // 検索（サーバー側 app/core/text_search.py と同じ規則で正規化する）
+    const SEARCH_MAX_LENGTH = 50;
+    const SEARCH_MAX_TERMS = 5;
+    const MOBILE_MAX_WIDTH_QUERY = '(max-width: 539px)';
+    const SEARCH_HIT_CLASS = 'general-board-search-hit';
+    const HIGHLIGHTED_ATTR = 'data-search-highlighted';
+    // 半角・全角の濁点／半濁点（直前の文字と合わせて NFKC する）
+    const COMBINING_KANA_MARK_RE = /[\u3099\u309A\uFF9E\uFF9F]/;
+
     let fabCooldownTimer = null;
     let postDelegationBound = false;
+
+    /** NFKC → ASCII 大文字を小文字 → カタカナをひらがな */
+    function normalizeSearchText(text) {
+        let out = '';
+        for (const ch of String(text).normalize('NFKC')) {
+            const code = ch.codePointAt(0);
+            if (code >= 0x41 && code <= 0x5A) out += String.fromCharCode(code + 0x20);
+            else if (code >= 0x30A1 && code <= 0x30F6) out += String.fromCharCode(code - 0x60);
+            else out += ch;
+        }
+        return out;
+    }
+
+    function normalizeQuery(q) {
+        return String(q || '').trim().slice(0, SEARCH_MAX_LENGTH).trim();
+    }
+
+    function isUserSearch(q) {
+        return q.startsWith('@') || q.startsWith('＠');
+    }
+
+    /** 本文検索の語（正規化済み）。@検索や空の場合は空配列 */
+    function getSearchTerms(q) {
+        const normalizedQuery = normalizeQuery(q);
+        if (!normalizedQuery || isUserSearch(normalizedQuery)) return [];
+        const terms = [];
+        for (const part of normalizedQuery.replace(/\u3000/g, ' ').split(/\s+/)) {
+            const term = normalizeSearchText(part);
+            if (!term.trim() || terms.includes(term)) continue;
+            terms.push(term);
+            if (terms.length >= SEARCH_MAX_TERMS) break;
+        }
+        return terms;
+    }
+
+    /**
+     * テキストを正規化し、正規化後の各文字が元テキストのどの範囲に対応するかを返す。
+     * 濁点などの結合文字は直前の文字とまとめて正規化する（ｶﾞ → が）。
+     */
+    function buildNormalizedIndex(text) {
+        let normalized = '';
+        const starts = [];
+        const ends = [];
+        const chars = Array.from(text);
+        let pos = 0;
+        for (let i = 0; i < chars.length; i++) {
+            let cluster = chars[i];
+            while (i + 1 < chars.length && COMBINING_KANA_MARK_RE.test(chars[i + 1])) {
+                cluster += chars[++i];
+            }
+            const start = pos;
+            pos += cluster.length;
+            const normalizedCluster = normalizeSearchText(cluster);
+            for (let j = 0; j < normalizedCluster.length; j++) {
+                starts.push(start);
+                ends.push(pos);
+            }
+            normalized += normalizedCluster;
+        }
+        return { normalized, starts, ends };
+    }
+
+    function findHitRanges(text, terms) {
+        const { normalized, starts, ends } = buildNormalizedIndex(text);
+        const ranges = [];
+        terms.forEach((term) => {
+            let from = 0;
+            while (term && from <= normalized.length - term.length) {
+                const index = normalized.indexOf(term, from);
+                if (index < 0) break;
+                ranges.push([starts[index], ends[index + term.length - 1]]);
+                from = index + term.length;
+            }
+        });
+        ranges.sort((a, b) => a[0] - b[0]);
+        const merged = [];
+        ranges.forEach(([start, end]) => {
+            const last = merged[merged.length - 1];
+            if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+            else merged.push([start, end]);
+        });
+        return merged;
+    }
+
+    function highlightTextNode(node, terms) {
+        const text = node.nodeValue;
+        const ranges = findHitRanges(text, terms);
+        if (!ranges.length) return null;
+        const fragment = document.createDocumentFragment();
+        let firstMark = null;
+        let cursor = 0;
+        ranges.forEach(([start, end]) => {
+            if (start > cursor) fragment.appendChild(document.createTextNode(text.slice(cursor, start)));
+            const mark = document.createElement('mark');
+            mark.className = SEARCH_HIT_CLASS;
+            mark.textContent = text.slice(start, end);
+            fragment.appendChild(mark);
+            if (!firstMark) firstMark = mark;
+            cursor = end;
+        });
+        if (cursor < text.length) fragment.appendChild(document.createTextNode(text.slice(cursor)));
+        node.parentNode.replaceChild(fragment, node);
+        return firstMark;
+    }
+
+    /** 投稿カードのコメント内の検索ヒット箇所を蛍光ペン風にハイライトする（再実行しても二重にならない） */
+    function highlightSearchHits(root, q) {
+        const terms = getSearchTerms(q);
+        if (!root || !terms.length) return;
+        root.querySelectorAll(`.post-card__comment-text:not([${HIGHLIGHTED_ATTR}])`).forEach((el) => {
+            el.setAttribute(HIGHLIGHTED_ATTR, '1');
+            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            const textNodes = [];
+            while (walker.nextNode()) textNodes.push(walker.currentNode);
+            let firstMark = null;
+            textNodes.forEach((node) => {
+                const mark = highlightTextNode(node, terms);
+                if (!firstMark) firstMark = mark;
+            });
+            // 最初のヒットがスクロール領域外なら、領域内だけをスクロールして見せる
+            const scrollArea = el.closest('.post-card__host-info-scroll-area');
+            if (firstMark && scrollArea && scrollArea.scrollHeight > scrollArea.clientHeight) {
+                const markTop = firstMark.getBoundingClientRect().top - scrollArea.getBoundingClientRect().top + scrollArea.scrollTop;
+                if (markTop + firstMark.offsetHeight > scrollArea.clientHeight) {
+                    scrollArea.scrollTop = Math.max(0, markTop - 8);
+                }
+            }
+        });
+    }
+
+    function isMobileLayout() {
+        return window.matchMedia?.(MOBILE_MAX_WIDTH_QUERY).matches ?? false;
+    }
+
+    function setSearchRowOpen(open, { focus = false } = {}) {
+        const form = document.getElementById('generalSearchForm');
+        const toggle = document.getElementById('generalSearchToggle');
+        if (form) form.classList.toggle('general-board-search-form--open', open);
+        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open && focus) {
+            document.getElementById('generalSearchInput')?.focus();
+        }
+    }
 
     function readStoredPref(key, validValues) {
         try {
@@ -128,6 +280,7 @@
             lang,
             tab: initialTab,
             filter: initialFilter,
+            q: initialQuery = '',
             limit,
             region,
             eliminateDuplicates,
@@ -155,6 +308,7 @@
             hasError: false,
             tab: initialTab,
             filter: initialFilter,
+            q: normalizeQuery(initialQuery),
             limit,
             region,
             eliminateDuplicates,
@@ -163,6 +317,7 @@
                 return {
                     tab: this.tab,
                     filter: this.filter,
+                    q: this.q || undefined,
                     limit: this.limit,
                     region: this.region,
                     eliminate_duplicates: String(this.eliminateDuplicates).toLowerCase(),
@@ -184,14 +339,25 @@
 
                 const filterSelect = document.getElementById('filterSelect');
                 const tabInput = document.querySelector('#filterForm input[name="tab"]');
+                const filterQueryInput = document.querySelector('#filterForm input[name="q"]');
                 if (filterSelect) filterSelect.value = this.filter;
                 if (tabInput) tabInput.value = this.tab;
+                if (filterQueryInput) filterQueryInput.value = this.q;
+
+                const searchInput = document.getElementById('generalSearchInput');
+                const clearButton = document.getElementById('generalSearchClear');
+                const toggle = document.getElementById('generalSearchToggle');
+                if (searchInput) searchInput.value = this.q;
+                if (clearButton) clearButton.hidden = !(this.q || searchInput?.value);
+                if (toggle) toggle.classList.toggle('general-board-search-toggle--active', Boolean(this.q));
+                if (this.q) setSearchRowOpen(true);
             },
 
             applyStateFromUrl() {
                 const params = new URLSearchParams(window.location.search);
                 this.tab = params.get('tab') || initialTab || 'latest';
                 this.filter = params.get('filter') || initialFilter || DEFAULT_FILTER;
+                this.q = normalizeQuery(params.get('q'));
             },
 
             persistPrefs() {
@@ -225,6 +391,7 @@
                     container.innerHTML = html;
                     injectFragmentScripts(container);
                     startAgoUpdater(container);
+                    highlightSearchHits(container, this.q);
                     this.syncShellUi();
 
                     if (updateHistory) {
@@ -260,10 +427,22 @@
                 return this.load({ updateHistory: true });
             },
 
+            setSearch(newQuery) {
+                const q = normalizeQuery(newQuery);
+                if (q === this.q) {
+                    this.syncShellUi();
+                    return Promise.resolve();
+                }
+                this.q = q;
+                return this.load({ updateHistory: true });
+            },
+
             navigateAfterPost(postedCategory) {
                 if (this.tab !== 'own') {
                     this.tab = 'latest';
                 }
+                // 投稿後は自分の投稿が見えるよう検索を解除する
+                this.q = '';
                 if (this.filter === FILTER_INCLUDE_ALL) {
                     // オフトピック含む表示中はカテゴリに関わらずそのまま
                 } else if (this.filter === FILTER_EXCLUDE_OFFTOPIC) {
@@ -281,6 +460,8 @@
                 window.generalBoardFragment = this;
 
                 const params = new URLSearchParams(window.location.search);
+                // 検索状態は URL のみで保持する（localStorage には保存しない）
+                this.q = normalizeQuery(params.get('q'));
                 if (!params.has('tab')) {
                     const storedTab = readStoredPref(STORAGE_KEY_TAB, VALID_TABS);
                     if (storedTab) this.tab = storedTab;
@@ -303,7 +484,11 @@
             return window.BoardFragmentPagination.enhanceBoardFragmentLoader(loader, {
                 fragmentBaseUrl,
                 lang,
-                updatePostAgoTexts,
+                // 「さらに表示」で追加されたカードにも検索ハイライトを付ける
+                updatePostAgoTexts: (root, currentLang) => {
+                    updatePostAgoTexts(root, currentLang);
+                    highlightSearchHits(root, loader.q);
+                },
                 getContentRoot: () => document.querySelector('#general-board-posts-root [x-ref="content"]'),
             });
         }
@@ -318,7 +503,28 @@
         const { lang, blockUserUrl } = config;
         postDelegationBound = true;
 
+        const searchByAuthor = (authorEl) => {
+            const name = authorEl?.dataset.authorName;
+            if (!name || !window.generalBoardFragment) return;
+            setSearchRowOpen(true);
+            window.generalBoardFragment.setSearch(`@${name}`);
+            document.querySelector('.board-filters__container--general')?.scrollIntoView({ block: 'nearest' });
+        };
+        root.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const authorEl = event.target.closest('.general-post-card__author-name[data-author-name]');
+            if (!authorEl) return;
+            event.preventDefault();
+            searchByAuthor(authorEl);
+        });
+
         root.addEventListener('click', async (event) => {
+            const authorEl = event.target.closest('.general-post-card__author-name[data-author-name]');
+            if (authorEl) {
+                searchByAuthor(authorEl);
+                return;
+            }
+
             const deleteBtn = event.target.closest('.post-card__delete-button');
             if (deleteBtn) {
                 const postId = deleteBtn.dataset.postId;
@@ -436,6 +642,46 @@
             });
         }
 
+        const searchForm = document.getElementById('generalSearchForm');
+        const searchInput = document.getElementById('generalSearchInput');
+        const searchClear = document.getElementById('generalSearchClear');
+        const searchToggle = document.getElementById('generalSearchToggle');
+        if (searchForm && searchInput) {
+            searchForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                if (!window.generalBoardFragment) return;
+                window.generalBoardFragment.setSearch(searchInput.value);
+                // スマホではキーボードを閉じて結果を見やすくする
+                if (isMobileLayout()) searchInput.blur();
+            });
+            searchInput.addEventListener('input', () => {
+                if (searchClear) searchClear.hidden = !(searchInput.value || window.generalBoardFragment?.q);
+            });
+        }
+        if (searchClear && searchInput) {
+            searchClear.addEventListener('click', () => {
+                searchInput.value = '';
+                searchClear.hidden = true;
+                if (isMobileLayout()) setSearchRowOpen(false);
+                else searchInput.focus();
+                window.generalBoardFragment?.setSearch('');
+            });
+        }
+        if (searchToggle && searchForm) {
+            searchToggle.addEventListener('click', () => {
+                const willOpen = !searchForm.classList.contains('general-board-search-form--open');
+                if (willOpen) {
+                    setSearchRowOpen(true, { focus: true });
+                    return;
+                }
+                // 閉じるときは検索も解除する（非表示のまま絞り込まれた状態を残さない）
+                setSearchRowOpen(false);
+                if (searchInput) searchInput.value = '';
+                if (searchClear) searchClear.hidden = true;
+                window.generalBoardFragment?.setSearch('');
+            });
+        }
+
         const reloadButton = document.querySelector('.reload-button__container');
         if (reloadButton) {
             reloadButton.addEventListener('click', async () => {
@@ -459,6 +705,7 @@
                 const state = event.state.generalBoard;
                 window.generalBoardFragment.tab = state.tab || 'latest';
                 window.generalBoardFragment.filter = state.filter || DEFAULT_FILTER;
+                window.generalBoardFragment.q = normalizeQuery(state.q);
             } else {
                 window.generalBoardFragment.applyStateFromUrl();
             }

@@ -10,6 +10,7 @@ from app.core.templating import censor_filter
 from app.db.db import get_shared_db, get_db_connection_for_bg_task
 from app.db import db as db_module
 from app.core.logger import logger
+from app.core.text_search import GeneralBoardSearch, parse_general_board_search
 from app.core.templating import templates
 from app.core import cache as cache_module
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, get_brawler
@@ -1026,6 +1027,18 @@ GENERAL_BOARD_ALL_FILTERS = frozenset({"all", "all_except_offtopic"})
 GENERAL_BOARD_DEFAULT_FILTER = "all"
 GENERAL_BOARD_TABS = frozenset({"latest", "trending", "own", "participated", "liked"})
 LEGACY_GENERAL_TAB_FILTERS = {"trending": "trending", "only_own_posts": "own", "only_liked_posts": "liked"}
+GENERAL_BOARD_SEARCH_QUERY = Query("", max_length=100, description="検索クエリ（本文。@から始まる場合は投稿者名の完全一致）")
+
+
+def _general_board_search_context(search: GeneralBoardSearch | None) -> dict:
+    """なんでも掲示板の検索状態をテンプレート用に返す。"""
+    if not search:
+        return {"q": "", "search_mode": None, "search_user_name": ""}
+    return {
+        "q": search.raw,
+        "search_mode": search.mode,
+        "search_user_name": search.user_name,
+    }
 
 
 def _normalize_general_board_query(
@@ -1062,6 +1075,7 @@ async def _fetch_general_board_posts(
     filter: str,
     region: str,
     eliminate_duplicates: bool,
+    search: GeneralBoardSearch | None = None,
 ) -> tuple[dict, dict, int]:
     """なんでも掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
@@ -1089,6 +1103,7 @@ async def _fetch_general_board_posts(
                 region=None if region.lower() == "all" else region,
                 category=category_filter,
                 exclude_category=exclude_category,
+                search=search,
             )
         else:
             posts_filter = None
@@ -1120,6 +1135,7 @@ async def _fetch_general_board_posts(
                 author_user_id=author_user_id,
                 author_ip=author_ip,
                 filter=posts_filter,
+                search=search,
             )
     except BrawlStarsAPIError:
         posts_data = []
@@ -1163,6 +1179,7 @@ async def general_board_fragment(
     filter: str = Query(GENERAL_BOARD_DEFAULT_FILTER, description="投稿タイプのカテゴリーフィルター"),
     region: str = Query("all", description="表示する地域"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    q: str = GENERAL_BOARD_SEARCH_QUERY,
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
     user: User | None = getattr(request.state, "current_user", None)
@@ -1177,6 +1194,7 @@ async def general_board_fragment(
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
 
     tab, filter, _, _ = _normalize_general_board_query(filter, tab)
+    search = parse_general_board_search(q)
     posts, blocked_ids, total_posts = await _fetch_general_board_posts(
         db,
         request,
@@ -1186,6 +1204,7 @@ async def general_board_fragment(
         filter=filter,
         region=region,
         eliminate_duplicates=eliminate_duplicates,
+        search=search,
     )
 
     fetched_count = len(posts)
@@ -1201,6 +1220,7 @@ async def general_board_fragment(
         "main_account": main_account,
         "posts": posts,
         "blocked_ids": blocked_ids,
+        **_general_board_search_context(search),
         **_board_pagination_context(page, limit, fetched_count, total_posts),
     }
     await _attach_fragment_notification_badge(context, db, user, page=page)
@@ -1227,6 +1247,7 @@ async def general_board(
     filter: str = Query(GENERAL_BOARD_DEFAULT_FILTER, description="投稿タイプのカテゴリーフィルター"),
     region: str = Query("all", description="表示する地域"),
     eliminate_duplicates: bool = Query(False, description="重複を排除するかどうか"),
+    q: str = GENERAL_BOARD_SEARCH_QUERY,
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
     # ユーザー情報とメインアカウント情報を取得
@@ -1256,6 +1277,7 @@ async def general_board(
         "tab": tab,
         "filter": filter,
         "eliminate_duplicates": eliminate_duplicates,
+        **_general_board_search_context(parse_general_board_search(q)),
         "main_account": main_account,
         "is_permitted_to_post": is_permitted_to_post,
         "cooldown_seconds": int(cooldown_seconds),

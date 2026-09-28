@@ -54,14 +54,15 @@
                 </li>
             </ul>
         </nav>
-        <div class="board-filters__filter-row" style="margin-top: 10px;">
-            <form method="get" id="filterForm" class="filter-form" style="margin-top: 0;">
+        <div class="board-filters__filter-row general-board-filter-row" style="margin-top: 10px;">
+            <form method="get" id="filterForm" class="filter-form general-board-filter-form" style="margin-top: 0;">
                 <input type="hidden" name="tab" value="{{ tab }}">
                 <input type="hidden" name="limit" value="{{ limit }}">
                 <input type="hidden" name="region" value="{{ region }}">
                 <input type="hidden" name="eliminate_duplicates" value="{{ eliminate_duplicates }}">
-                <label for="filterSelect" class="filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
-                <select name="filter" id="filterSelect" class="filter-form__select" style="max-width: calc(100% - 90px);">
+                <input type="hidden" name="q" value="{{ q }}">
+                <label for="filterSelect" class="filter-form__label general-board-filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
+                <select name="filter" id="filterSelect" class="filter-form__select general-board-filter-form__select">
                     <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
                     <option value="all_except_offtopic" {% if filter == "all_except_offtopic" %}selected{% endif %}>{% if lang == "ja" %}すべて表示（オフトピック除く）{% else %}Show All (excl. Off Topic){% endif %}</option>
                     <option value="chat" {% if filter == "chat" %}selected{% endif %}>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</option>
@@ -74,6 +75,34 @@
                     <option value="tiktok" {% if filter == "tiktok" %}selected{% endif %}>TikTok</option>
                 </select>
                 <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
+            </form>
+            {# スマホのみ: 検索行の開閉ボタン（開くと ＞ が V に回転） #}
+            <button type="button" id="generalSearchToggle" class="general-board-search-toggle{% if q %} general-board-search-toggle--active{% endif %}"
+                    aria-controls="generalSearchForm" aria-expanded="{{ 'true' if q else 'false' }}">
+                <span>{% if lang == "ja" %}検索{% else %}Search{% endif %}</span>
+                <span class="general-board-search-toggle__chevron" aria-hidden="true"></span>
+            </button>
+            {# 検索（PC・タブレットは常時表示、スマホは開閉ボタンで下に展開） #}
+            <form method="get" id="generalSearchForm" class="general-board-search-form{% if q %} general-board-search-form--open{% endif %}" role="search">
+                <div class="general-board-search-field">
+                    <input type="search"
+                           id="generalSearchInput"
+                           name="q"
+                           class="form-input general-board-search-input"
+                           value="{{ q }}"
+                           maxlength="50"
+                           enterkeyhint="search"
+                           autocomplete="off"
+                           placeholder="{% if lang == 'ja' %}キーワード / @ユーザー名{% else %}Keyword / @username{% endif %}"
+                           aria-label="{% if lang == 'ja' %}投稿を検索{% else %}Search posts{% endif %}">
+                    <button type="button" id="generalSearchClear" class="general-board-search-clear" {% if not q %}hidden{% endif %}
+                            aria-label="{% if lang == 'ja' %}検索を解除{% else %}Clear search{% endif %}">
+                        <svg class="general-board-search-clear__icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+                    </button>
+                </div>
+                <button type="submit" class="general-board-search-submit" aria-label="{% if lang == 'ja' %}検索{% else %}Search{% endif %}">
+                    <img src="{{ url_for('static', path='/images/ui/search.png') }}" alt="" class="general-board-search-submit__icon">
+                </button>
             </form>
             <div class="reload-button__container">
                 <p>{% if lang == "ja" %}更新{% else %}Reload{% endif %}</p>

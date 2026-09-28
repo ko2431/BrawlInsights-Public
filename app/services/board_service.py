@@ -16,6 +16,7 @@ from app.utils.url_detect import text_contains_detected_url
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 from app.core.board_trending import GENERAL_BOARD_TRENDING
+from app.core.text_search import GeneralBoardSearch, LIKE_ESCAPE_SQL, escape_like_literal, search_normalize_sql
 from app.services.all_maps_service import resolve_board_map
 from app.services.map_mode_catalog import DEFAULT_BOARD_COLORS, ensure_catalog, get_mode_board_colors
 from app.services.admin_notification_service import (
@@ -203,58 +204,103 @@ async def get_last_post(db: asyncpg.Connection, ip: str, type: str | None = None
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 
-async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, type: str | None = None,
-                    region: str | None = None, target_user: User | None = None, target_player: Player | None = None,
-                    category: str | None = None, mode: str | None = None, hashtag: str | None = None, include_deleted_post: bool = False,
-                    eliminate_duplicates: bool = False, author_user_id: int | None = None, author_ip: str | None = None,
-                    filter: str | None = None, exclude_category: str | None = None,
-                    only_joinable: bool = False, viewer_ip: str | None = None) -> tuple[list[Post], int]:
-    """投稿を、条件に合わせて新しい順に取得する。3秒間のキャッシュを使用する。
+# [この部分は公開用リポジトリでは非公開にされています]
 
-    Args:
-        db (asyncpg.Connection): データベース接続
-        page (int): 何ページ目か。デフォルトは1。
-        per_page (int): 1ページあたりの表示数。デフォルトは100。
-        type (str | None): 取得する投稿のタイプ。"team", "friend", "club"のどれか。デフォルトはNoneで、Noneの場合はすべて取得する。
-        region (str | None): 取得する募集の地域。デフォルトはNoneで、Noneの場合はすべて取得する。
-        target_user (User | None): 条件判定用のユーザー。指定すると、そのユーザーが参加可能な募集のみを取得する。デフォルトはNoneで、Noneの場合は条件判定を行わない。
-        target_player (Player | None): 条件判定用のユーザーのメインアカウントのプレイヤー情報。こちらも指定すれば条件判定に用いられる。
-        category (str | None): 指定した場合、該当カテゴリーの募集のみ取得される。デフォルトはNone。
-        mode (str | None): 指定した場合、該当モードの募集のみ取得される。デフォルトはNone。
-        hashtag (str | None): 指定した場合、該当ハッシュタグが含まれている募集のみ取得される。デフォルトはNone。
-        include_deleted_post (bool): 削除されている投稿も取得対象とするかどうか。デフォルトはFalse。
-        eliminate_duplicates (bool): Trueの場合、募集のプレイヤーまたはクラブが重複する投稿について、最新の1件のみを取得し、残りは排除する。デフォルトはFalse。
-        author_user_id (int | None): 指定した場合、そのユーザーIDがホストの投稿のみを取得する。
-        author_ip (str | None): 指定した場合、そのIPアドレスがホストの投稿のみを取得する。author_user_idと同時に指定するとOR条件になる。
-        filter (str | None): 絞り込み種別。'only_instant_recruitment' / 'only_later_recruitment' / 'only_participated_threads' / 'only_liked_posts' など。
-        exclude_category (str | None): 指定した場合、該当カテゴリーの投稿を除外する。デフォルトはNone。
-        only_joinable (bool): Trueの場合、参加可能な投稿のみに絞り込む。filter と同時指定可能。
-        viewer_ip (str | None): 閲覧者IP。参加可否フィルタで自身の投稿（host_ip一致）を残すために用いる。
-        
-    Raises:
-        BrawlStarsAPIError: APIエラー
-        DataBaseError: データベースエラー
+_TRENDING_ARCHIVE_LOCK_TTL_SECONDS = 120
 
-    Returns:
-        tuple[list[Post], int]: 取得した投稿のリストと、検索結果総数。
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
 
-async def get_trending_general_posts(
+async def _rank_general_posts_by_trending_score(
     db: asyncpg.Connection,
-    per_page: int = 60,
-    page: int = 1,
-    region: str | None = None,
-    category: str | None = None,
-    exclude_category: str | None = None,
-) -> tuple[list[Post], int]:
-    """なんでも掲示板の投稿を話題順で取得する。候補は直近 candidate_max_age_days 日以内。
+    where_sql: str,
+    query_params: list[Any],
+    *,
+    limit: int | None = None,
+    timeout: float | None = None,
+) -> list[tuple[int, float]]:
+    """候補投稿（posts p）を話題スコア順に並べ、(投稿ID, スコア) のリストを返す。
 
     スコア = (weight_likes * ln(1+いいね) + weight_comments * ln(1+コメント))
              / (経過時間[h] + age_offset_hours) ^ gravity
-    集約SQLと共有キャッシュを使い、リクエストごとのN+1を避える。
+    いいね・コメントは候補IDで絞ってから件数を集計し、JOIN による行の膨張を避ける。
+    同点（主にいいね・コメント0件）は新しい順。
     """
-    # [この部分は公開用リポジトリでは非公開にされています]
+    cfg = GENERAL_BOARD_TRENDING
+    score_expr = f"""(
+            {cfg.weight_likes} * LN(1 + COALESCE(l.cnt, 0))
+            + {cfg.weight_comments} * LN(1 + COALESCE(cm.cnt, 0))
+        ) / POWER(
+            GREATEST(EXTRACT(EPOCH FROM (NOW() - c.created_at)) / 3600.0, 0) + {cfg.age_offset_hours},
+            {cfg.gravity}
+        )"""
+    limit_sql = f"LIMIT {int(limit)}" if limit else ""
+    sql = f"""
+        WITH cand AS MATERIALIZED (
+            SELECT p.id, p.created_at FROM posts p WHERE {where_sql}
+        ),
+        l AS (
+            SELECT pv.post_id, COUNT(*) AS cnt
+            FROM post_votes pv
+            WHERE pv.vote_type = 1 AND pv.post_id IN (SELECT id FROM cand)
+            GROUP BY pv.post_id
+        ),
+        cm AS (
+            SELECT m.thread_id, COUNT(*) AS cnt
+            FROM messages m
+            WHERE NOT m.is_deleted AND m.thread_id IN (SELECT id FROM cand)
+            GROUP BY m.thread_id
+        )
+        SELECT c.id, {score_expr} AS score
+        FROM cand c
+        LEFT JOIN l ON l.post_id = c.id
+        LEFT JOIN cm ON cm.thread_id = c.id
+        ORDER BY score DESC, c.created_at DESC, c.id DESC
+        {limit_sql}
+    """
+    rows = await db.fetch(sql, *query_params, timeout=timeout)
+    return [(row["id"], float(row["score"])) for row in rows]
+
+
+def _general_trending_base_where(
+    region: str | None,
+    category: str | None,
+    exclude_category: str | None,
+) -> tuple[list[str], list[Any]]:
+    query_params: list[Any] = []
+    where_clauses = ["p.type = 'general'", "p.is_deleted = FALSE"]
+    if region:
+        query_params.append(region)
+        where_clauses.append(f"p.region = ${len(query_params)}")
+    if category:
+        query_params.append(category)
+        where_clauses.append(f"p.category = ${len(query_params)}")
+    if exclude_category:
+        query_params.append(exclude_category)
+        where_clauses.append(f"(p.category IS DISTINCT FROM ${len(query_params)})")
+    return where_clauses, query_params
+
+
+async def _get_trending_general_archive(
+    db: asyncpg.Connection,
+    base_where: list[str],
+    base_params: list[Any],
+    filter_key: str,
+) -> dict[str, Any]:
+    """直近 recent_window_days 日より古い投稿（アーカイブ）の話題順ランキングを取得する。
+
+    古い投稿のスコアはほぼ変動しないため archive_refresh_seconds ごとに再計算する。
+    期限切れ時は1プロセスだけが再計算し（Redis ロック）、他は古いデータを使う。
+    全件の ID は archive_chunk_size 件ずつ分割して保存し、ページ表示時は必要なチャンクだけ読む。
+
+    Returns:
+        {"version", "computed_at", "cutoff", "total", "merge_items": [[id, score], ...]}
+    """
+    cfg = GENERAL_BOARD_TRENDING
+    meta_key = f"trending_general_archive:{filter_key}"
+    empty = {"version": "none", "computed_at": 0, "cutoff": None, "total": 0, "merge_items": []}
+
+    r = get_redis()
+    if not r:
+        # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_today_post_count_by_user(db: asyncpg.Connection, user_id: int | None) -> int:
     """ユーザーが今日(UTC)投稿した数を取得する。
