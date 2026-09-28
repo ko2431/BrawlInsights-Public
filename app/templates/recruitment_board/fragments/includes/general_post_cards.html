@@ -57,7 +57,7 @@
                                 {% if post.data.host_user_name %}
                                 <span class="general-post-card__author-name general-post-card__author-name--searchable" data-author-name="{{ post.data.host_user_name }}" role="button" tabindex="0" title="{% if lang == 'ja' %}このユーザーの投稿を検索{% else %}Search this user's posts{% endif %}">{{ post.data.host_user_name }}</span>
                                 {% else %}
-                                <span class="general-post-card__author-name">{% if lang == "ja" %}匿名{% else %}Anonymous{% endif %}</span>
+                                <span class="general-post-card__author-name">{% if lang == "ja" %}ゲスト{% else %}Guest{% endif %}</span>
                                 {% endif %}
                             </p>
                             <div class="post-card__host-info-scroll-area" style="max-height: 110px;">
