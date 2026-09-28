@@ -135,7 +135,7 @@ body {
         Roboto,
         "Noto Sans JP",
         sans-serif;
-    line-height: 1.6; /* 基本の行間 */
+    line-height: 1.5; /* 基本の行間 */
     color: var(--color-000); /* 基本の文字色 */
     background-color: var(--bg-main); /* 基本の背景色 */
     font-weight: 400;

@@ -76,7 +76,7 @@
                 </div>
                 <a href="{{ url_for('announcements', lang=lang) }}" class="button button--secondary announcements-button" style="max-height: 32px; border-radius: 10px; margin-bottom: 6px;">{% if lang == "ja" %}すべて見る{% else %}View All{% endif %}</a>
             </div>
-            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 2px;">
+            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 2px; line-height: 1.55;">
                 {% for announcement in announcements %}
                     <a href="{{ url_for('announcements', lang=lang) }}#{{ announcement.id }}" class="announcement-title">
                         <div>
