@@ -13,6 +13,7 @@ from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis, is_transient_redis_error, log_transient_redis_warning
 from app.utils.utils import format_utc_date, parse_utc_datetime, format_utc_datetime, is_expired, parse_utc_date
 from app.models.missing import MISSING
+from app.services import main_account_reward_service
 from app.services.admin_notification_service import (
     clip_admin_notification_text,
     emit_admin_notification,
@@ -81,187 +82,72 @@ def get_elixir_sell_options(held: int) -> list[int]:
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
-        # ギフトコードを適用
-        #* 複数の特典のあるギフトコードの場合、このコードに書いてある順番で特典を記述することを想定。
-        msg_ja, msg_en = "", ""
-        for key, value in self.reward.items():
-            if key == "user_id": # これが指定されている場合、指定されたユーザーID以外の使用は拒絶する
-                try:
-                    if user.id != int(value):
-                        return False, "このコードを使用する権限がありません。", "You are not authorized to use this code."
-                except (TypeError, ValueError) as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-            elif key == "user_ids": # これが指定されている場合、指定されたユーザーID以外の使用は拒絶する
-                try:
-                    if user.id not in [int(id) for id in value.split(",")]:
-                        return False, "このコードを使用する権限がありません。", "You are not authorized to use this code."
-                except (TypeError, ValueError) as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-            elif key == "user_name": # これが指定されている場合、指定されたユーザー名以外の使用は拒絶する
-                if user.name != str(value):
-                    return False, "このコードを使用する権限がありません。", "You are not authorized to use this code."
-            elif key == "giveaway": # これが指定されている場合、プレゼント企画参加コードとみなす
-                count = self.usage_log.count(user_id)
-                msg_ja = f"プレゼント企画への<b>{count + 1}口目</b>の応募が完了しました。最大で{self.usage_limit_per_user}口まで応募できます！"
-                msg_en = f"Your <b>{count + 1} entry</b> for the giveaway has been submitted. You can submit up to {self.usage_limit_per_user} entries!"
-            elif key == "msg": # メッセージを出力する(両方の言語に同じものを入れる) メッセージ系は言語指定なしと言語指定ありの両方がある場合上書きする。
-                msg_ja, msg_en = str(value), str(value)
-            elif key == "msg_ja":
-                msg_ja = str(value)
-            elif key == "msg_en":
-                msg_en = str(value)
-            elif key == "claim_tokens": # トークンを受け取る(デイリー上限考慮なし)
-                try:
-                    success = await user.claim_tokens(db, int(value))
-                except ValueError as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-                except DataBaseError as e:
-                    raise DataBaseError(e) from e
-                if not success:
-                    return False, "トークン所持上限に達しているため、このコードは使用できません。トークンを消費してから使用してください。", "This code cannot be used because the token holding limit has been reached. Consume the token before using it."
-                else:
-                    msg_ja += f"<br>トークンを{value}個受け取りました ({user.tokens - int(value)} → {user.tokens})"
-                    msg_en += f"<br>Received {value} Token(s) ({user.tokens - int(value)} → {user.tokens})"
-            elif key == "spend_tokens": # トークンを消費する
-                try:
-                    success = await user.spend_tokens(db, int(value))
-                except ValueError as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-                except DataBaseError as e:
-                    raise DataBaseError(e) from e
-                if not success:
-                    return False, "トークンが足りないため、このコードは使用できません。トークンを獲得してから使用してください。トークンの入手方法はこの上の<b>トークン</b>セクションをご確認ください。", "This code cannot be used due to insufficient tokens. Earn tokens before using them."
-                else:
-                    msg_ja += f"<br>トークンを{value}個消費しました ({user.tokens + int(value)} → {user.tokens})"
-                    msg_en += f"<br>Consumed {value} Token(s) ({user.tokens + int(value)} → {user.tokens})"
-            elif key == "claim_elixirs": # 自動追跡エリクサーを受け取る(広告削除ユーザーでも変換しない)
-                try:
-                    elixir_count = int(value)
-                    before_elixirs = user.auto_track_elixirs or 0
-                    success = await user.claim_elixirs(db, elixir_count)
-                except ValueError as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-                except DataBaseError as e:
-                    raise DataBaseError(e) from e
 
-                if not success:
-                    return False, "報酬の受け取り処理に失敗しました。しばらく待ってから再度お試しください。", "Failed to claim the reward. Please try again later."
+class GiftCode:
+    """get_gift_codeでギフトコード情報を返すときに使う。
+    """
+    def __init__(self, dbrow: asyncpg.Record):
+        self.code: str = dbrow["code"]
+        self.reward: dict = dbrow["reward"]
+        self.is_admin_only: bool = dbrow["is_admin_only"]
+        self.num_of_uses: int = dbrow["num_of_uses"]
+        self.usage_log: list[int] = dbrow["usage_log"]
+        self.usage_limit_per_user: int = dbrow["usage_limit_per_user"]
+        self.usage_limit_total: int = dbrow["usage_limit_total"]
+        self.is_invalid: bool = dbrow["is_invalid"]
+        self.start_datetime: datetime.datetime | None = dbrow["start_datetime"]
+        self.expiration_datetime: datetime.datetime | None = dbrow["expiration_datetime"]
 
-                msg_ja += f"<br>{elixir_count}自動追跡エリクサーを受け取りました ({before_elixirs} → {user.auto_track_elixirs})"
-                msg_en += f"<br>Received {elixir_count} Auto-Tracking Elixir(s) ({before_elixirs} → {user.auto_track_elixirs})"
-            elif key == "claim_tickets": # チケットを受け取る(広告削除ユーザーは即座にトークンへ変換)
-                try:
-                    ticket_count = int(value)
-                    before_tickets = user.ad_skip_tickets
-                    before_tokens = user.tokens
-                    success = await user.claim_tickets(db, ticket_count)
-                except ValueError as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-                except DataBaseError as e:
-                    raise DataBaseError(e) from e
+    def is_not_yet_started(self) -> bool:
+        """利用開始日時が未来ならTrue。未指定ならFalse。"""
+        start = _to_utc(self.start_datetime)
+        if start is None:
+            return False
+        return datetime.datetime.now(datetime.timezone.utc) < start
 
-                if not success:
-                    return False, "報酬の受け取り処理に失敗しました。しばらく待ってから再度お試しください。", "Failed to claim the reward. Please try again later."
+    async def use(self, db: asyncpg.Connection, user_id: int) -> tuple[bool, str | None, str | None]:
+        """ギフトコードを使用します。使用できなかった場合は、途中まで適用した特典も含めてロールバックします。
 
-                if user.is_delete_ads:
-                    converted_tokens = ticket_count * 10
-                    msg_ja += f"<br>チケット{ticket_count}枚の代替報酬として、トークンを{converted_tokens}個受け取りました ({before_tokens} → {user.tokens})"
-                    msg_en += f"<br>Received {converted_tokens} Token(s) instead of {ticket_count} Ticket(s) ({before_tokens} → {user.tokens})"
-                else:
-                    msg_ja += f"<br>チケットを{ticket_count}枚受け取りました ({before_tickets} → {user.ad_skip_tickets})"
-                    msg_en += f"<br>Received {ticket_count} Ticket(s) ({before_tickets} → {user.ad_skip_tickets})"
-            elif key in _GIFT_MAIN_ACCOUNT_REWARD_KEYS:
-                try:
-                    applied = await _apply_main_account_gift_reward(db, user, self.code, key, value)
-                except (TypeError, ValueError) as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-                except DataBaseError as e:
-                    raise DataBaseError(e) from e
-                if applied:
-                    applied_ja, applied_en = applied
-                    msg_ja += f"<br>{applied_ja}"
-                    msg_en += f"<br>{applied_en}"
-            else:
-                try:
-                    # 上限を増やす系のギフトは、もともと上限がない(無制限)の場合は完全にスキップする。
-                    if key == "saved_accounts_limit" and user.saved_accounts_limit is not None: # ブックマーク上限をvalueだけ増やす(上限考慮なし)
-                        user.saved_accounts_limit += int(value)
-                        msg_ja += f"<br>ブックマーク上限を{value}増やしました (現在の上限: {user.saved_accounts_limit})"
-                        msg_en += f"<br>Increased Bookmark Limit (Current Limit: {user.saved_accounts_limit})"
-                    elif key == "saved_accounts_limit_max24" and user.saved_accounts_limit is not None: # ブックマーク上限をvalueだけ増やす(上限24)
-                        user.saved_accounts_limit += int(value)
-                        if user.saved_accounts_limit > 24:
-                            user.saved_accounts_limit = 24
-                        msg_ja += f"<br>ブックマーク上限を{value}増やしました (現在の上限: {user.saved_accounts_limit})"
-                        msg_en += f"<br>Increased Bookmark Limit (Current Limit: {user.saved_accounts_limit})"
-                    elif key == "viewed_accounts_limit" and user.viewed_accounts_limit is not None: # 閲覧履歴上限をvalueだけ増やす(上限考慮なし)
-                        user.viewed_accounts_limit += int(value)
-                        msg_ja += f"<br>閲覧履歴上限を{value}増やしました (現在の上限: {user.viewed_accounts_limit})"
-                        msg_en += f"<br>Increased Viewing History Limit (Current Limit: {user.viewed_accounts_limit})"
-                    elif key == "viewed_accounts_limit_max25" and user.viewed_accounts_limit is not None: # 閲覧履歴上限をvalueだけ増やす(上限25)
-                        user.viewed_accounts_limit += int(value)
-                        if user.viewed_accounts_limit > 25:
-                            user.viewed_accounts_limit = 25
-                        msg_ja += f"<br>閲覧履歴上限を{value}増やしました (現在の上限: {user.viewed_accounts_limit})"
-                        msg_en += f"<br>Increased Viewing History Limit (Current Limit: {user.viewed_accounts_limit})"
-                    elif key == "is_delete_ads": # 広告を削除するかどうかの設定を上書きする
-                        was_delete_ads = bool(user.is_delete_ads)
-                        user.is_delete_ads = bool(value)
-                        msg_ja += f"<br>広告の非表示設定を{"有効" if user.is_delete_ads else "無効"}に変更しました"
-                        msg_en += f"<br>Changed AD Hiding Settings (Current Value: {user.is_delete_ads})"
-                    elif key == "is_admin": # 管理者どうかの設定を上書きする
-                        user.is_admin = bool(value)
-                        msg_ja += f"<br>管理者かどうかの設定を{user.is_admin}に変更しました"
-                        msg_en += f"<br>Changed Admin Settings (Current Value: {user.is_admin})"
-                    elif key == "is_invalid": # 無効なアカウントかどうかの設定を上書きする
-                        user.is_invalid = bool(value)
-                        msg_ja += f"<br>無効なアカウントかどうかの設定を{user.is_invalid}に変更しました"
-                        msg_en += f"<br>Changed Invalid Settings (Current Value: {user.is_invalid})"
-                    elif key == "is_prohibit_posting": # 投稿禁止かどうかの設定を上書きする
-                        user.is_prohibit_posting = bool(value)
-                        msg_ja += f"<br>投稿禁止設定を{user.is_prohibit_posting}に変更しました"
-                        msg_en += f"<br>Changed Prohibit_Posting Settings (Current Value: {user.is_prohibit_posting})"
-                    elif key == "custom_settings": # カスタム設定を上書きする
-                        user.custom_settings = dict(value)
-                        msg_ja += f"<br>カスタム設定を{user.custom_settings}に上書きしました"
-                        msg_en += f"<br>Changed Custom Settings (Current Value: {user.custom_settings})"
-                    elif key == "custom_settings_merge": # カスタム設定を結合(被った項目は上書き)する
-                        user.custom_settings = user.custom_settings | dict(value)
-                        msg_ja += f"<br>カスタム設定を{user.custom_settings}に変更しました"
-                        msg_en += f"<br>Changed Custom Settings (Current Value: {user.custom_settings})"
-                    elif key == "token_limit" and user.token_limit is not None: # トークン所持上限をvalueだけ増やす
-                        user.token_limit += int(value)
-                        msg_ja += f"<br>トークン所持上限を{value}増やしました ({user.token_limit - int(value)} → {user.token_limit})"
-                        msg_en += f"<br>Increased Token Limit ({user.token_limit - int(value)} → {user.token_limit})"
-                    elif key == "token_limit_overwrite": # トークン所持上限を上書きする
-                        user.token_limit = int(value) if value is not None else None
-                        msg_ja += f"<br>トークン所持上限を{user.token_limit}に上書きしました"
-                        msg_en += f"<br>Changed Token Limit (Current Limit: {user.token_limit})"
-                    else:
-                        continue
-                except (TypeError, ValueError) as e:
-                    logger.warning(f"ギフトコード: {self.code}の報酬: {key} - {value}の値が不正(エラー: {e})です。この報酬の付与をスキップします。")
-                    continue
-                try:
-                    await user.update(db)
-                except DataBaseError as e:
-                    raise DataBaseError(e) from e
-                if key == "is_delete_ads" and user.is_delete_ads and not was_delete_ads:
-                    try:
-                        sold_tickets, converted_tokens = await user.convert_all_tickets_to_tokens(db, token_rate=6)
-                    except DataBaseError as e:
-                        raise DataBaseError(e) from e
-                    if sold_tickets > 0:
-                        msg_ja += f"<br>所持チケット{sold_tickets}枚を自動売却し、トークンを{converted_tokens}個受け取りました"
-                        msg_en += f"<br>Automatically sold {sold_tickets} Ticket(s) and received {converted_tokens} Token(s)"
-                
+        Args:
+            db (asyncpg.Connection): データベース接続
+            user_id (int): ユーザーID
+
+        Raises:
+            DataBaseError: データベースエラー
+            ValueError: 利用開始前で存在しないものとして扱う場合
+
+        Returns:
+            tuple[bool, str | None]: ギフトコードを使用する権限がなく使用処理を行わなかった場合はFalse, 使用した場合はTrue。
+                                また、ギフトコード使用後の日本語メッセージ、英語メッセージ。
+        """
+        try:
+            async with db.transaction():
+                result = await self._use(db, user_id)
+                if not result[0]:
+                    raise _GiftCodeUseRollback(result)
+        except _GiftCodeUseRollback as rollback:
+            return rollback.result
+        return result
+
+    async def _use(self, db: asyncpg.Connection, user_id: int) -> tuple[bool, str | None, str | None]:
+        """ギフトコードを使用します。useからトランザクション内で呼ぶこと。
+
+        Args:
+            db (asyncpg.Connection): データベース接続
+            user_id (int): ユーザーID
+
+        Raises:
+            DataBaseError: データベースエラー
+            ValueError: 利用開始前で存在しないものとして扱う場合
+
+        Returns:
+            tuple[bool, str | None]: ギフトコードを使用する権限がなく使用処理を行わなかった場合はFalse, 使用した場合はTrue。
+                                また、ギフトコード使用後の日本語メッセージ、英語メッセージ。
+        """
+        # [この部分は公開用リポジトリでは非公開にされています]
+
+        # [この部分は公開用リポジトリでは非公開にされています]
+
         # 利用ログと利用回数を更新
         self.num_of_uses += 1
         self.usage_log.append(user_id)

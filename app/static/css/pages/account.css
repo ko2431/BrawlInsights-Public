@@ -452,6 +452,25 @@
     width: auto;
 }
 
+.main-account-change-note {
+    margin: 0 0 6px;
+    font-size: 0.85em;
+    color: var(--color-666, #666);
+}
+
+/* 同じメインアカウントの別アカウントで報酬受け取り済みのチュートリアルミッション */
+.tutorial-mission-claimed-badge {
+    flex-shrink: 0;
+    margin-right: 6px;
+    padding: 0 6px;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: bold;
+    white-space: nowrap;
+    opacity: 0.75;
+}
+
 .tutorial-mission-title {
     display: flex;
     align-items: center;

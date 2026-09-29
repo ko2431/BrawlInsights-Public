@@ -11,9 +11,10 @@ from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
+from app.services.user_service import User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
 from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
 from app.services import minigame_service
+from app.services import main_account_reward_service
 from app.services.minigame_service import (
     AD_SKIP_TICKET_COST,
     DEFAULT_AD_DAILY_LIMIT,
@@ -39,6 +40,12 @@ router = APIRouter(
 # [この部分は公開用リポジトリでは非公開にされています]
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+    main_account_change_cooldown_message = None
+    if current_user_obj:
+        main_account_change_available_at = get_main_account_change_available_at(current_user_obj)
+        if main_account_change_available_at:
+            main_account_change_cooldown_message = format_main_account_change_cooldown_message(main_account_change_available_at, lang)
 
     # [この部分は公開用リポジトリでは非公開にされています]
 
@@ -738,9 +745,22 @@ async def claim_rewarded_token_process(
 
     try:
         # Userクラスのclaim_tokensメソッドを呼び出す (claimed=15, daily_limit=5)
-        success = await current_user.claim_tokens(db, claimed=15, daily_limit=5)
+        # 1日の上限は同じメインアカウントを持つアカウント全体でも共有する
+        claim_status = await main_account_reward_service.claim_with_main_account_limit(
+            db,
+            main_account=current_user.main_account,
+            reward_key=main_account_reward_service.REWARD_AD_TOKEN,
+            limit=5,
+            daily=True,
+            user_id=current_user.id,
+            grant=lambda: current_user.claim_tokens(db, claimed=15, daily_limit=5),
+        )
 
-        if success:
+        if claim_status == main_account_reward_service.CLAIM_MAIN_ACCOUNT_LIMIT:
+            message = main_account_reward_service.MAIN_ACCOUNT_DAILY_CLAIMED_JA if lang == "ja" else main_account_reward_service.MAIN_ACCOUNT_DAILY_CLAIMED_EN
+            return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
+
+        if claim_status == main_account_reward_service.CLAIM_SUCCESS:
             message = "15トークンを獲得しました。" if lang == "ja" else "You earned 15 tokens!"
             return JSONResponse({
                 "success": True, 
@@ -781,9 +801,21 @@ async def claim_rewarded_ticket_process(
     try:
         before_ticket_balance = current_user.ad_skip_tickets
         before_token_balance = current_user.tokens
-        success = await current_user.claim_tickets(db, claimed=2, daily_limit=1)
+        claim_status = await main_account_reward_service.claim_with_main_account_limit(
+            db,
+            main_account=current_user.main_account,
+            reward_key=main_account_reward_service.REWARD_AD_TICKET,
+            limit=1,
+            daily=True,
+            user_id=current_user.id,
+            grant=lambda: current_user.claim_tickets(db, claimed=2, daily_limit=1),
+        )
 
-        if not success:
+        if claim_status == main_account_reward_service.CLAIM_MAIN_ACCOUNT_LIMIT:
+            message = main_account_reward_service.MAIN_ACCOUNT_DAILY_CLAIMED_JA if lang == "ja" else main_account_reward_service.MAIN_ACCOUNT_DAILY_CLAIMED_EN
+            return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
+
+        if claim_status != main_account_reward_service.CLAIM_SUCCESS:
             message = "今日はすでに視聴済みです。" if lang == "ja" else "You have already watched today's ad."
             return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -1272,16 +1304,25 @@ async def claim_bonus_mission(
                 content={"success": False, "message": "本日分のベーシックミッションは既にクリア済みです。" if lang == "ja" else "Today's basic mission is already cleared."}
             )
             
-        # user_service.py の claim_tokens メソッドを呼び出す
-        # 10トークン付与、daily_limitは関係ないのでNone
-        success = await current_user.claim_tokens(db, claimed=10, daily_limit=None)
-        
-        if success:
-            # last_bonus_mission_date の更新
-            current_user.last_bonus_mission_date = today_utc
-            update_query = "UPDATE users SET last_bonus_mission_date = $1 WHERE id = $2"
-            await db.execute(update_query, today_utc, current_user.id)
-            
+        # 10トークン付与と last_bonus_mission_date の更新を原子的に行う
+        # 1日1回の上限は同じメインアカウントを持つアカウント全体でも共有する
+        claim_status = await main_account_reward_service.claim_with_main_account_limit(
+            db,
+            main_account=current_user.main_account,
+            reward_key=main_account_reward_service.REWARD_BASIC_MISSION,
+            limit=1,
+            daily=True,
+            user_id=current_user.id,
+            grant=lambda: current_user.claim_basic_mission(db, claimed=10, today=today_utc),
+        )
+
+        if claim_status == main_account_reward_service.CLAIM_MAIN_ACCOUNT_LIMIT:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "message": main_account_reward_service.MAIN_ACCOUNT_DAILY_CLAIMED_JA if lang == "ja" else main_account_reward_service.MAIN_ACCOUNT_DAILY_CLAIMED_EN}
+            )
+
+        if claim_status == main_account_reward_service.CLAIM_SUCCESS:
             # ログ出力用: どのミッションをクリアしたか名前を取得する
             offset_day = ((today_utc.day - 1 + current_user.id) % 31) + 1
             mission_name = BASIC_MISSIONS.get(offset_day, {}).get("ja", "不明なミッション")
@@ -1334,6 +1375,14 @@ async def claim_app_login_mission(
                 else f"Mission completed. You earned {APP_LOGIN_MISSION_REWARD} tokens."
             )
             return JSONResponse(status_code=status.HTTP_200_OK, content={"success": True, "message": message})
+        if result == "main_account_claimed":
+            # ミッションは達成扱い(トークンのみ付与なし)のため success を返し、画面を達成済み表示にする
+            message = (
+                "ミッションを達成しました。このメインアカウントでは、別のアカウントで報酬を受け取り済みのため、トークンは付与されません。"
+                if lang == "ja"
+                else "Mission completed. No tokens were given because the reward has already been claimed by another account linked to this main account."
+            )
+            return JSONResponse(status_code=status.HTTP_200_OK, content={"success": True, "message": message, "rewarded": False})
         if result == "already_cleared":
             message = (
                 "このミッションは既にクリア済みです。"

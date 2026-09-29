@@ -88,6 +88,7 @@ class User(Base):
     notification_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
     notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
     admin_notifications_dashboard_read_at = Column(DateTime(timezone=True), nullable=True)
+    last_main_account_changed_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -1923,4 +1924,26 @@ class WorkerTaskRun(Base):
             unique=True,
             postgresql_where=text("status IN ('queued', 'running')"),
         ),
+    )
+
+
+class MainAccountRewardClaim(Base):
+    """
+    メインアカウント(ブロスタタグ)単位の報酬受け取り台帳。
+    同じメインアカウントを持つ複数ユーザー間で、トークン等の獲得上限を共有するために使う。
+    period はデイリー報酬なら 'YYYY-MM-DD'(UTC)、1回限りの報酬なら 'once'。
+    """
+    __tablename__ = 'main_account_reward_claims'
+
+    main_account = Column(Text, nullable=False)
+    reward_key = Column(Text, nullable=False)
+    period = Column(Text, nullable=False)
+    count = Column(Integer, nullable=False, server_default='0')
+    last_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('main_account', 'reward_key', 'period', name='pk_main_account_reward_claims'),
+        CheckConstraint('count >= 0', name='ck_main_account_reward_claims_count_nonnegative'),
+        Index('ix_main_account_reward_claims_updated_at', 'updated_at'),
     )

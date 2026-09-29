@@ -44,9 +44,20 @@ from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_
                 # Redisにキーがなければ、DBを確認してトークンを付与する
                 if not already_checked_today:
                     async with get_db_connection_for_bg_task() as db_conn:
-                        claimed = await current_user_for_state.claim_tokens(db=db_conn, claimed=5)
-                        if claimed:
+                        # 同じメインアカウントの別アカウントで受け取り済みの場合は付与しない
+                        claim_status = await main_account_reward_service.claim_with_main_account_limit(
+                            db_conn,
+                            main_account=current_user_for_state.main_account,
+                            reward_key=main_account_reward_service.REWARD_DAILY_LOGIN,
+                            limit=1,
+                            daily=True,
+                            user_id=current_user_for_state.id,
+                            grant=lambda: current_user_for_state.claim_tokens(db=db_conn, claimed=5),
+                        )
+                        if claim_status == main_account_reward_service.CLAIM_SUCCESS:
                             logger.debug(f"ユーザー '{current_user_for_state.name}' にデイリー初回アクセストークンを5付与しました。")
+                        elif claim_status == main_account_reward_service.CLAIM_MAIN_ACCOUNT_LIMIT:
+                            logger.debug(f"ユーザー '{current_user_for_state.name}' は同じメインアカウントの別アカウントで受け取り済みのため、デイリー初回アクセストークンを付与できません。")
                         else:
                             logger.debug(f"ユーザー '{current_user_for_state.name}' はトークン所持数が上限に達しているため、デイリー初回アクセストークンを付与できません。")
 

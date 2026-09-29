@@ -21,6 +21,7 @@ from app.services.brawl_service import (
 )
 from app.services.minigame_assets import BACK_SYMBOL, CARD_ASSETS, MYSTERY_IMAGE, static_url_path
 from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
+from app.services import main_account_reward_service
 from app.services.admin_notification_service import (
     clip_admin_notification_text,
     emit_admin_notification,
@@ -107,6 +108,23 @@ GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scrat
                     lang,
                     "本日の割引の上限に達しました。リセットまでお待ちください。",
                     "You have reached today's discount limit. Please wait until reset.",
+                )
+            )
+        # 広告参加(割引)の1日の上限は、同じメインアカウントを持つアカウント全体で共有する
+        # (トランザクション内のため、以降で失敗した場合は枠の確保もロールバックされる)
+        if method == "ad" and not await main_account_reward_service.reserve_main_account_reward(
+            db,
+            main_account=user.main_account,
+            reward_key=main_account_reward_service.REWARD_MINIGAME_AD,
+            limit=ad_limit,
+            daily=True,
+            user_id=user.id,
+        ):
+            raise ValueError(
+                _message(
+                    lang,
+                    "このメインアカウントでは、別のアカウントで本日の割引の上限に達しています。",
+                    "Today's discount limit has already been reached by another account linked to this main account.",
                 )
             )
         if tickets_spent > 0:
