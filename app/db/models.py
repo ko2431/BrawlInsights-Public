@@ -581,6 +581,24 @@ class Accessory(Base):
     is_invalid = Column(Boolean, nullable=False, server_default='False')  # ゲーム内削除などで表示対象外にするフラグ
 
 
+class Buffy(Base):
+    """
+    バフィーのマスターデータ。ワーカーがBSInfoから日次で同期する(IDはスキンと同じ29xxxxxx系)。
+    """
+    __tablename__ = 'buffies'
+
+    id = Column(Integer, primary_key=True)            # バフィーID
+    brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=False)
+    type = Column(Text, nullable=False)               # "default" / "gadget" / "starPower" / "hypercharge" / "bling" / "ghostly"
+    en = Column(Text, nullable=True)                  # 英語名 (BSInfo同期: "SHELLY'S GADGET BUFFIE")
+    ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期: "シェリーのガジェットバフィー")
+    is_invalid = Column(Boolean, nullable=False, server_default='False')  # ゲーム内削除などで表示対象外にするフラグ
+
+    __table_args__ = (
+        Index('idx_buffies_brawler', 'brawler_id'),
+    )
+
+
 class Skin(Base):
     """
     スキン情報。PlayerBrawlerデータから自動で新規追加される。

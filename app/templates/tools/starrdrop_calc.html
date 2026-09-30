@@ -1,7 +1,8 @@
 {# /app/templates/tools/starrdrop_calc.html #}
 {% extends "base.html" %}
+{% from "tools/includes/drop_box_menu.html" import drop_box_nav, drop_box_menu with context %}
 
-{% block title %}{% if lang == "ja" %}【ブロスタ】各種ドロップ／ボックス期待値計算機{% else %}Drop / Box EV Calculator{% endif %} - Brawl Insights{% endblock %}
+{% block title %}{% if lang == "ja" %}【ブロスタ】ボックス期待値計算機{% else %}Box EV Calculator{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタの各種ドロップ／ボックスの報酬量期待値計算機です。代替報酬も考慮した、高度な計算が可能です。{% else %}An expected value calculator for various drop / box rewards. Advanced calculations that account for substitute rewards are possible.{% endif %}{% endblock %}
 
 {% block head_extra %}
@@ -9,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="tools-page__container" x-data="dropBoxEvCalculatorApp()" x-init="init()">
+<div class="tools-page__container" x-data="dropBoxEvCalculatorApp()" x-init="init()" @keydown.window="handleBoxMenuKeydown($event)">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -19,7 +20,9 @@
     </div>
     {% endif %}
 
-    <h1 class="page-title--main">{% if lang == "ja" %}各種ドロップ／ボックス期待値計算機{% else %}Drop / Box EV Calculator{% endif %}</h1>
+    <h1 class="page-title--main drop-box-page-title--main">{% if lang == "ja" %}ボックス期待値計算機{% else %}Box EV Calculator{% endif %}</h1>
+
+    {{ drop_box_nav('calc') }}
 
     <p class="tools-page__description">
         {% if lang == "ja" %}
@@ -29,28 +32,7 @@
         {% endif %}
     </p>
 
-    <div class="map-rotation-slot-tab__container drop-box-slot-tab__container" x-show="Object.keys(boxes).length > 0" x-cloak>
-        <div class="map-rotation-slot-tab drop-box-slot-tab">
-            <template x-for="boxKey in activeBoxOrder" :key="boxKey">
-                <div class="map-rotation-slot drop-box-slot"
-                     x-show="boxes[boxKey]"
-                     :class="{ 'map-rotation-slot--active': selectedBoxKey === boxKey }"
-                     @click="selectBox(boxKey)">
-                    <img :src="boxes[boxKey].icon"
-                         :alt="getBoxName(boxKey)"
-                         class="map-rotation-slot__icon drop-box-slot__icon"
-                         :class="`drop-box-slot__icon--${boxKey}`">
-                    <p class="map-rotation-slot__text drop-box-slot__text" x-text="getBoxName(boxKey)"></p>
-                </div>
-            </template>
-        </div>
-        <button type="button"
-                class="drop-box-slot-tab__expand"
-                x-show="hasHiddenBoxes"
-                @click="toggleBoxListExpanded()"
-                x-text="showExpandedBoxList ? (isJa ? '表示を減らす' : 'Show less') : (isJa ? '表示を増やす' : 'Show more')">
-        </button>
-    </div>
+    {{ drop_box_menu() }}
 
     <div class="tools-page__section" style="margin-top: 0;">
         <div class="filters__container cost-calc-filters">
@@ -88,7 +70,7 @@
                     <template x-for="typeKey in availableSubstituteTypeKeys" :key="`sub-${typeKey}`">
                         <div class="form-checkbox-group">
                             <input type="checkbox" class="form-checkbox" :checked="!!substitutes[typeKey]" @change="toggleSubstitute(typeKey)">
-                            <label class="form-checkbox-label" x-text="getRewardName(typeKey)"></label>
+                            <label class="form-checkbox-label" x-text="getBoxRewardName(typeKey)"></label>
                         </div>
                     </template>
                 </div>
@@ -111,7 +93,20 @@
             <div class="drop-rewards">
                 <template x-for="typeKey in resultTypeKeys" :key="`result-${typeKey}`">
                     <div class="cost">
-                        <img :src="getRewardType(typeKey).icon" :alt="getRewardName(typeKey)" class="cost-image drop-reward-image">
+                        <template x-if="getBoxRewardIcons(typeKey).length <= 1">
+                            <img :src="getBoxRewardIcon(typeKey)" :alt="getBoxRewardName(typeKey)" class="cost-image drop-reward-image">
+                        </template>
+                        {# 複数レア度にまたがる報酬は、小さくしたレア度アイコンを1つ分の枠にまとめて並べる #}
+                        <template x-if="getBoxRewardIcons(typeKey).length > 1">
+                            <div class="drop-reward-image-group"
+                                 :class="`drop-reward-image-group--count-${Math.min(getBoxRewardIcons(typeKey).length, 6)}`"
+                                 role="img"
+                                 :aria-label="getBoxRewardName(typeKey)">
+                                <template x-for="(icon, iconIndex) in getBoxRewardIcons(typeKey)" :key="`result-${typeKey}-${iconIndex}`">
+                                    <img :src="icon" alt="" class="drop-reward-image-group__icon">
+                                </template>
+                            </div>
+                        </template>
                         <p class="cost-text drop-reward-text" x-html="formatNumber(expectedValues[typeKey] || 0)"></p>
                     </div>
                 </template>
@@ -135,22 +130,21 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/drop_box_menu.js') }}?v={{ app_version }}"></script>
     
     <script>
         function dropBoxEvCalculatorApp() {
-            return {
+            return withDropBoxMenu({
                 isJa: '{{ lang }}' === 'ja',
                 data: {{ drop_boxes_data | tojson | safe }},
                 initialBox: {{ initial_box | tojson | safe }},
-                boxOrderCompact: ['starrdrop', 'chaosdrop', 'rankeddrop', 'coffinbox', 'angelicdrop', 'demonicdrop', 'sushi', 'megabox', 'mechabox', 'boombox', 'cosmobox', 'vincebox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
-                boxOrderExpanded: ['starrdrop', 'chaosdrop', 'rankeddrop', 'coffinbox', 'nanodrop', 'smoothiedrop', 'angelicdrop', 'demonicdrop', 'novadrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'siriusbox', 'najiabox', 'damianbox', 'starrnovabox', 'boltbox', 'noribox', 'wendybox', 'cosmobox', 'vincebox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
-                showExpandedBoxList: false,
                 selectedBoxKey: 'starrdrop',
 
-                starrDrops: '',
+                // 初期状態で0だと結果が空になるため、通常の個数は1から始める
+                starrDrops: 1,
                 mythicDrops: '',
                 legendaryDrops: '',
-                openCount: '',
+                openCount: 1,
 
                 substitutes: {},
                 expectedValues: {},
@@ -160,30 +154,10 @@
                     this.initRewardTypeIndexMap();
                     if (this.initialBox && this.boxes[this.initialBox]) {
                         this.selectedBoxKey = this.initialBox;
-                        if (!this.boxOrderCompact.includes(this.initialBox)) {
-                            this.showExpandedBoxList = true;
-                        }
+                        this.expandBoxListFor(this.initialBox);
                     }
                     this.ensureSubstituteState();
                     this.calculateEV();
-                },
-
-                get activeBoxOrder() {
-                    return this.showExpandedBoxList ? this.boxOrderExpanded : this.boxOrderCompact;
-                },
-
-                get hasHiddenBoxes() {
-                    return this.boxOrderExpanded.some((key) => !this.boxOrderCompact.includes(key));
-                },
-
-                toggleBoxListExpanded() {
-                    this.showExpandedBoxList = !this.showExpandedBoxList;
-                    if (!this.showExpandedBoxList && !this.boxOrderCompact.includes(this.selectedBoxKey)) {
-                        const fallback = this.boxOrderCompact.find((key) => this.boxes[key]);
-                        if (fallback) {
-                            this.selectBox(fallback);
-                        }
-                    }
                 },
 
                 initRewardTypeIndexMap() {
@@ -238,28 +212,52 @@
                         }
                     } else {
                         addRewards(this.selectedBox.rewards);
+                        addRewards(this.selectedBox.premium_rewards);
                     }
 
                     return this.orderTypeKeys(Array.from(typeSet));
                 },
 
                 get availableSubstituteTypeKeys() {
-                    const candidates = this.availableRewardTypeKeys.filter((typeKey) => {
-                        const rewardType = this.rewardTypes[typeKey];
-                        return !!(rewardType && rewardType.substitute && rewardType.substitute.type);
-                    });
+                    const candidates = this.availableRewardTypeKeys.filter((typeKey) => this.getSelectedBoxRewards()
+                        .some((reward) => reward.type === typeKey && this.getRewardSubstitute(reward)));
                     return this.orderTypeKeys(candidates);
+                },
+
+                // 選択中のボックスの全報酬の行(レア度・確定枠を含む)
+                getSelectedBoxRewards() {
+                    if (!this.selectedBox) return [];
+                    const rewards = [];
+                    const addRewards = (list) => { if (Array.isArray(list)) rewards.push(...list.filter((reward) => reward && reward.type)); };
+                    if (this.selectedBox.has_rarity_selector && this.selectedBox.rarities) {
+                        for (const rarityKey of this.allRarityKeys) {
+                            const rarity = this.selectedBox.rarities[rarityKey];
+                            if (!rarity) continue;
+                            addRewards(rarity.rewards);
+                            addRewards(rarity.premium_rewards);
+                        }
+                    } else {
+                        addRewards(this.selectedBox.rewards);
+                        addRewards(this.selectedBox.premium_rewards);
+                    }
+                    return rewards;
+                },
+
+                getRewardSubstitute(reward) {
+                    if (reward && reward.substitute && reward.substitute.type) return reward.substitute;
+                    const rewardType = this.rewardTypes[reward ? reward.type : ''] || {};
+                    return rewardType.substitute && rewardType.substitute.type ? rewardType.substitute : null;
                 },
 
                 get resultTypeKeys() {
                     const resultKeys = [];
-                    for (const typeKey of this.availableRewardTypeKeys) {
-                        const rewardType = this.rewardTypes[typeKey] || {};
-                        const substitute = rewardType.substitute;
-                        if (this.substitutes[typeKey] && substitute && substitute.type) {
+                    // 代替報酬の種類は報酬の行ごとに異なる場合があるため、行ごとに集める
+                    for (const reward of this.getSelectedBoxRewards()) {
+                        const substitute = this.getRewardSubstitute(reward);
+                        if (this.substitutes[reward.type] && substitute && substitute.type) {
                             resultKeys.push(substitute.type);
                         } else {
-                            resultKeys.push(typeKey);
+                            resultKeys.push(reward.type);
                         }
                     }
                     // Deduplicate while preserving order
@@ -310,6 +308,46 @@
                     };
                 },
 
+                // 選択中のボックスで、その報酬種類の行がすべて同じ特定キャラを指す場合(新キャラのボックス等)はその行を返す
+                getBoxTargetRewardRow(typeKey) {
+                    const box = this.selectedBox;
+                    if (!box) return null;
+                    const rows = [];
+                    const addRows = (rewards) => {
+                        if (!Array.isArray(rewards)) return;
+                        rewards.forEach((reward) => {
+                            if (reward && reward.type === typeKey) rows.push(reward);
+                        });
+                    };
+                    addRows(box.rewards);
+                    addRows(box.premium_rewards);
+                    Object.values(box.rarities || {}).forEach((rarity) => {
+                        addRows(rarity && rarity.rewards);
+                        addRows(rarity && rarity.premium_rewards);
+                    });
+                    if (rows.length === 0 || !rows[0].icon) return null;
+                    return rows.every((row) => row.icon === rows[0].icon) ? rows[0] : null;
+                },
+
+                getBoxRewardIcon(typeKey) {
+                    const row = this.getBoxTargetRewardRow(typeKey);
+                    return row ? row.icon : this.getRewardType(typeKey).icon;
+                },
+
+                getBoxRewardIcons(typeKey) {
+                    const row = this.getBoxTargetRewardRow(typeKey);
+                    if (row) return [row.icon];
+                    const rewardType = this.getRewardType(typeKey);
+                    if (Array.isArray(rewardType.icons) && rewardType.icons.length > 0) return rewardType.icons;
+                    return rewardType.icon ? [rewardType.icon] : [];
+                },
+
+                getBoxRewardName(typeKey) {
+                    const row = this.getBoxTargetRewardRow(typeKey);
+                    const rowName = row ? (this.isJa ? row.display_name_ja : row.display_name_en) : '';
+                    return rowName || this.getRewardName(typeKey);
+                },
+
                 getRewardName(typeKey) {
                     const rewardType = this.getRewardType(typeKey);
                     return this.isJa ? (rewardType.name_ja || typeKey) : (rewardType.name_en || typeKey);
@@ -338,6 +376,27 @@
                     }
                     const parsed = Number(trimmed);
                     return Number.isFinite(parsed) ? parsed : 0;
+                },
+
+                // 代替報酬1個分の量。範囲指定(例: 100-1000)のスキンは、排出対象スキンのレア度構成が分かればその平均で計算する
+                getSubstituteAmount(reward, substitute) {
+                    const targets = reward && Array.isArray(reward.skin_targets) ? reward.skin_targets : [];
+                    const isRange = typeof substitute.amount === 'string' && substitute.amount.includes('-');
+                    if (!isRange || targets.length === 0 || !String(reward.type || '').endsWith('Skins')) {
+                        return this.parseAmount(substitute.amount);
+                    }
+                    const bandTypes = ['rareSkins', 'superRareSkins', 'epicSkins', 'mythicSkins', 'legendarySkins', 'hyperchargeSkins'];
+                    let total = 0;
+                    for (const skin of targets) {
+                        const rarity = Number(skin && skin.rarity);
+                        const bandType = Number.isFinite(rarity) && rarity > 0 ? bandTypes[Math.floor((rarity - 1) / 10)] : null;
+                        const bandSubstitute = bandType && this.rewardTypes[bandType] ? this.rewardTypes[bandType].substitute : null;
+                        if (!bandSubstitute || bandSubstitute.type !== substitute.type) {
+                            return this.parseAmount(substitute.amount);
+                        }
+                        total += this.parseAmount(bandSubstitute.amount);
+                    }
+                    return total / targets.length;
                 },
 
                 toPositiveNumber(value) {
@@ -375,14 +434,14 @@
                         const amount = this.parseAmount(reward.amount);
                         if (probability <= 0 || amount <= 0) continue;
 
-                        const rewardTypeDef = this.rewardTypes[reward.type] || {};
-                        const substitute = rewardTypeDef.substitute;
+                        // ボックスごとに異なる代替報酬は報酬の行の substitute で上書きされている
+                        const substitute = this.getRewardSubstitute(reward);
 
                         let finalType = reward.type;
                         let finalAmount = amount;
                         if (this.substitutes[reward.type] && substitute && substitute.type) {
                             finalType = substitute.type;
-                            finalAmount = this.parseAmount(substitute.amount);
+                            finalAmount = this.getSubstituteAmount(reward, substitute);
                         }
 
                         if (!totals[finalType]) totals[finalType] = 0;
@@ -486,7 +545,7 @@
                     }
                     return str;
                 }
-            }
+            });
         }
     </script>
 {% endblock %}

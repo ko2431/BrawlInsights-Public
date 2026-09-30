@@ -1,11 +1,19 @@
+import asyncio
+import base64
 import asyncpg
+import bisect
 import json
 import copy
+import operator
+import random
+import time
 from pathlib import Path
-from fastapi import APIRouter, Request, HTTPException, Query, Depends
+from types import SimpleNamespace
+from fastapi import APIRouter, Request, HTTPException, Query, Depends, Body
 from fastapi.responses import JSONResponse, RedirectResponse
 import datetime
 from itertools import groupby
+from typing import Any, Callable, Iterable
 from pydantic import BaseModel, Field
 
 from app.core.logger import logger
@@ -15,7 +23,7 @@ from app.core.cache import get_cache, set_cache
 from app.services.brawl_service import (Player, get_player, get_player_from_db, calc_num_of_available_brawlers, get_available_brawlers,
                                         get_brawler_analysis, get_current_ranked_pool, get_brawler,
                                         get_ban_suggestions, get_pick_suggestions, predict_win_rate,
-                                        get_accessory_stats, get_max_accessory_counts, get_all_skins,
+                                        get_accessory_stats, get_max_accessory_counts, get_all_skins, get_all_pins, get_all_player_icons, get_all_accessories, get_all_sprays, get_all_buffies,
                                         get_player_name, get_player_icon_from_db)
 from app.services import bsinfoapi
 from app.services.image_generation_service import (
@@ -45,32 +53,12 @@ router = APIRouter(
 
 DROP_BOXES_PATH = Path(__file__).resolve().parent.parent / "data" / "drop_boxes.json"
 TROPHY_REWARDS_PATH = Path(__file__).resolve().parent.parent / "data" / "trophy_rewards.json"
-LANDSCAPE_ONLY_PROFILE_IMAGE_TYPES: set[str] = {"equipment_skins"}
-DEFAULT_BRAWLER_GUIDE_ID = 16000000
-_PG_INT4_MAX = 2_147_483_647
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+CHOICE_REVEAL_BOX_KEYS: set[str] = {"nanodrop", "smoothiedrop"}
+VALUE_EFFECT_BOX_KEYS: set[str] = {"angelicdrop", "demonicdrop"}
+# [この部分は公開用リポジトリでは非公開にされています]
 
-
-def load_drop_boxes_data() -> dict:
-    with DROP_BOXES_PATH.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_trophy_rewards_data() -> dict:
-    with TROPHY_REWARDS_PATH.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def normalize_trophy_rewards_data(request: Request, raw_data: dict) -> dict:
-    data = copy.deepcopy(raw_data)
-    for reward_type in data.get("reward_types", {}).values():
-        reward_type["icon"] = build_static_url(request, reward_type.get("icon"))
-    return data
-
-
-def build_static_url(request: Request, path: str | None) -> str:
-    if not path:
-        return str(request.url_for("static", path="images/ui/starrdrop.png"))
-    if path.startswith("http:// [この部分は公開用リポジトリでは非公開にされています]
+# [この部分は公開用リポジトリでは非公開にされています]
 
     # テンプレートに渡すコンテキスト
     context = {
@@ -314,6 +302,486 @@ async def starrdrop_calc(
     except Exception as render_err: # テンプレートレンダリングエラーも捕捉
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+# ボックスシミュレーターの所持状況(排出済みのアイテム)。サーバーでは保持せず、端末に保存したものを開封のたびに受け取る。
+# 種類ごとに「基準ID からのずれ」をビット位置にしたビットセットを base64 にして送り合う(全アイテムを出し切っても約1.5KB)
+BOX_INVENTORY_VERSION = 1
+BOX_INVENTORY_ID_BASES: dict[str, int] = {
+    "brawler": 16000000,
+    "skin": 29000000,
+    "gadget": 23000000,
+    "starPower": 23000000,
+    "hypercharge": 23000000,
+    "buffy": 29000000,
+    "pin": 52000000,
+    "playerIcon": 28000000,
+    "spray": 68000000,
+    "nanoPower": 16000000,
+    "fusion": 16000000,
+}
+# 種類ごとのビット数の上限(2KB)。不正に大きなデータを受け取らないようにする
+BOX_INVENTORY_MAX_BITS = 1 << 14
+BOX_INVENTORY_MAX_ENCODED_LENGTH = (BOX_INVENTORY_MAX_BITS // 8 + 2) // 3 * 4
+
+
+def _encode_box_inventory(picked_target_keys: set[tuple[str, Any]]) -> dict[str, Any]:
+    bitsets: dict[str, bytearray] = {}
+    for kind, target_id in picked_target_keys:
+        base = BOX_INVENTORY_ID_BASES.get(kind)
+        if base is None or not isinstance(target_id, int):
+            continue
+        offset = target_id - base
+        if not 0 <= offset < BOX_INVENTORY_MAX_BITS:
+            continue
+        bitset = bitsets.setdefault(kind, bytearray())
+        byte_index = offset // 8
+        if len(bitset) <= byte_index:
+            bitset.extend(b"\x00" * (byte_index + 1 - len(bitset)))
+        bitset[byte_index] |= 1 << (offset % 8)
+
+    items = {
+        kind: base64.urlsafe_b64encode(bytes(bitset)).decode("ascii").rstrip("=")
+        for kind, bitset in bitsets.items()
+    }
+    upgrades = {
+        str(brawler_id): level
+        for brawler_id, level in _get_starrnova_upgrade_levels(picked_target_keys).items()
+        if level > BOX_STARRNOVA_UPGRADE_START_LEVEL
+    }
+    return {"v": BOX_INVENTORY_VERSION, "items": items, "upgrades": upgrades}
+
+
+def _decode_box_inventory(raw: Any) -> set[tuple[str, Any]]:
+    """端末から受け取った所持状況を排出済みのキーの集合に戻す。形式が不正な部分は無視する"""
+    picked_target_keys: set[tuple[str, Any]] = set()
+    if not isinstance(raw, dict) or raw.get("v") != BOX_INVENTORY_VERSION:
+        return picked_target_keys
+
+    items = raw.get("items")
+    if isinstance(items, dict):
+        for kind, encoded in items.items():
+            base = BOX_INVENTORY_ID_BASES.get(kind)
+            if base is None or not isinstance(encoded, str) or len(encoded) > BOX_INVENTORY_MAX_ENCODED_LENGTH:
+                continue
+            try:
+                bitset = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+            except (ValueError, TypeError):
+                continue
+            for byte_index, byte in enumerate(bitset):
+                if not byte:
+                    continue
+                for bit in range(8):
+                    if byte & (1 << bit):
+                        picked_target_keys.add((kind, base + byte_index * 8 + bit))
+
+    upgrades = raw.get("upgrades")
+    if isinstance(upgrades, dict):
+        for brawler_id_text, level in upgrades.items():
+            if not str(brawler_id_text).isdigit() or not isinstance(level, int):
+                continue
+            brawler_id = int(brawler_id_text)
+            if brawler_id not in BOX_STARRNOVA_UPGRADE_SKIN_IDS:
+                continue
+            level = min(level, BOX_STARRNOVA_UPGRADE_MAX_LEVEL)
+            if level > BOX_STARRNOVA_UPGRADE_START_LEVEL:
+                picked_target_keys.add((BOX_STARRNOVA_UPGRADE_KIND, f"{brawler_id}:{level}"))
+    return picked_target_keys
+
+
+# 所持状況パネルの項目の並び順
+BOX_INVENTORY_STAT_KINDS: list[str] = [
+    "brawler", "skin", "gadget", "starPower", "hypercharge", "buffy",
+    "pin", "playerIcon", "spray", "nanoPower", "fusion", BOX_STARRNOVA_UPGRADE_KIND,
+]
+# 抽選対象の総数は全ボックスの全報酬から集めるため重く、一定時間使い回す
+BOX_INVENTORY_UNIVERSE_TTL_SECONDS = 600
+_box_inventory_universe_cache: dict[str, Any] = {"expires_at": 0.0, "value": None}
+
+
+def _get_reward_target_universe(reward: dict[str, Any], dynamic_targets: dict[str, Any]) -> tuple[str, set[Any]] | None:
+    """報酬1つ分の抽選候補 (kind, IDの集合)。シミュレーターの抽選と同じ条件で候補を集める"""
+    reward_type = str(reward.get("type") or "")
+    if reward_type.endswith("Skins"):
+        return "skin", {skin.id for skin in _get_skin_target_candidates(reward, reward_type, dynamic_targets)}
+    if "Pins" in reward_type:
+        explicit_candidates, general_candidates = _get_pin_target_candidates(reward, reward_type, dynamic_targets)
+        return "pin", {pin.id for pin, _target in explicit_candidates} | {pin.id for pin in general_candidates}
+    if reward_type == "profileIcons":
+        icons_by_id = dynamic_targets.get("player_icons_by_id", {})
+        explicit_ids = {
+            int(target["id"]) for target in reward.get("icon_targets", [])
+            if isinstance(target, dict) and str(target.get("id", "")).isdigit() and int(target["id"]) in icons_by_id
+        }
+        if explicit_ids:
+            return "playerIcon", explicit_ids
+        return "playerIcon", {
+            icon.id for icon in dynamic_targets.get("player_icons", [])
+            if _is_general_player_icon(icon) and _reward_price_matches(icon, reward)
+        }
+    if reward_type == "sprays":
+        sprays_by_id = dynamic_targets.get("sprays_by_id", {})
+        explicit_ids = {
+            int(target["id"]) for target in reward.get("spray_targets", [])
+            if isinstance(target, dict) and str(target.get("id", "")).isdigit() and int(target["id"]) in sprays_by_id
+        }
+        if explicit_ids:
+            return "spray", explicit_ids
+        return "spray", {spray.id for spray in dynamic_targets.get("sprays", []) if _is_general_spray(spray)}
+    if reward_type.endswith("Brawlers"):
+        target_ids = {
+            int(target["id"]) for target in reward.get("brawler_targets", [])
+            if isinstance(target, dict) and str(target.get("id", "")).isdigit()
+        }
+        return "brawler", {
+            brawler.id for brawler in dynamic_targets.get("brawlers", [])
+            if (
+                brawler.id in target_ids and getattr(brawler, "is_temporary", False) is not True
+                if target_ids
+                else _is_box_brawler_candidate(brawler, reward_type)
+            )
+        }
+    if reward_type in {"gadgets", "starPowers", "hypercharges"}:
+        accessory_type, kind = {
+            "gadgets": ("gadget", "gadget"),
+            "starPowers": ("starPower", "starPower"),
+            "hypercharges": ("hyperCharge", "hypercharge"),
+        }[reward_type]
+        return kind, {
+            accessory.id for accessory in dynamic_targets.get("accessories", [])
+            if getattr(accessory, "type", None) == accessory_type and getattr(accessory, "is_invalid", False) is not True
+        }
+    if reward_type == "buffies":
+        return "buffy", {buffy.id for buffy in _get_buffy_target_candidates(dynamic_targets)}
+    if reward_type in BOX_BRAWLER_BOOST_CONFIGS:
+        return BOX_BRAWLER_BOOST_CONFIGS[reward_type]["kind"], {
+            brawler.id for brawler in _get_brawler_boost_target_candidates(reward_type, dynamic_targets)
+        }
+    return None
+
+
+def _iter_box_rewards(box: dict[str, Any]):
+    yield from box.get("rewards", [])
+    yield from box.get("premium_rewards", [])
+    for rarity in (box.get("rarities") or {}).values():
+        if isinstance(rarity, dict):
+            yield from rarity.get("rewards", [])
+            yield from rarity.get("premium_rewards", [])
+
+
+def _get_box_inventory_universe(raw_data: dict[str, Any], dynamic_targets: dict[str, Any]) -> dict[str, set[Any]]:
+    """シミュレーターで開封できる全ボックスの全報酬について、抽選候補を種類ごとに合わせた集合(=所持状況の総数)"""
+    now = time.monotonic()
+    cached = _box_inventory_universe_cache.get("value")
+    if cached is not None and now < _box_inventory_universe_cache.get("expires_at", 0.0):
+        return cached
+
+    universe: dict[str, set[Any]] = {}
+    seen_signatures: set[str] = set()
+    has_starrnova_upgrade = False
+    for box in _get_simulatable_boxes(raw_data).values():
+        for reward in _iter_box_rewards(box):
+            if not isinstance(reward, dict):
+                continue
+            if reward.get("type") == "starrnovaSpike":
+                has_starrnova_upgrade = True
+                continue
+            # 確率や数量だけが違う同じ条件の報酬は、候補も同じなので1回だけ集める
+            signature = json.dumps(
+                {key: value for key, value in reward.items() if key not in {"probability", "amount"}},
+                sort_keys=True,
+                default=str,
+            )
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            reward_universe = _get_reward_target_universe(reward, dynamic_targets)
+            if reward_universe:
+                kind, target_ids = reward_universe
+                universe.setdefault(kind, set()).update(target_ids)
+    if has_starrnova_upgrade:
+        universe[BOX_STARRNOVA_UPGRADE_KIND] = set()
+
+    _box_inventory_universe_cache["value"] = universe
+    _box_inventory_universe_cache["expires_at"] = now + BOX_INVENTORY_UNIVERSE_TTL_SECONDS
+    return universe
+
+
+def _build_box_inventory_stats(
+    picked_target_keys: set[tuple[str, Any]],
+    dynamic_targets: dict[str, Any],
+    raw_data: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """所持状況パネル用の集計。total はいずれかのボックスで抽選対象になり得るアイテムの数"""
+    universe = _get_box_inventory_universe(raw_data, dynamic_targets)
+    owned_ids: dict[str, set[Any]] = {}
+    for kind, target_id in picked_target_keys:
+        owned_ids.setdefault(kind, set()).add(target_id)
+
+    stats: list[dict[str, Any]] = []
+    for kind in BOX_INVENTORY_STAT_KINDS:
+        if kind not in universe:
+            continue
+        if kind == BOX_STARRNOVA_UPGRADE_KIND:
+            upgrade_levels = _get_starrnova_upgrade_levels(picked_target_keys)
+            stats.append({
+                "key": kind,
+                "owned": sum(level - BOX_STARRNOVA_UPGRADE_START_LEVEL for level in upgrade_levels.values()),
+                "total": (BOX_STARRNOVA_UPGRADE_MAX_LEVEL - BOX_STARRNOVA_UPGRADE_START_LEVEL) * len(upgrade_levels),
+            })
+            continue
+        stats.append({
+            "key": kind,
+            "owned": len(owned_ids.get(kind, set()) & universe[kind]),
+            "total": len(universe[kind]),
+        })
+    return stats
+
+
+def _annotate_box_inventory_deltas(
+    result: dict[str, Any],
+    owned_before_open: set[tuple[str, Any]],
+    universe: dict[str, set[Any]],
+) -> None:
+    """新しく排出されたアイテムの報酬に、排出状況へ追加する内容(inventory_delta)を付ける。
+    counted は所持状況パネルの集計(いずれかのボックスで排出対象のもの)に数えるかどうか"""
+    for event in result.get("events", []):
+        target_item = event.get("target_item")
+        if event.get("type") != "reward" or event.get("substitute_for") or not isinstance(target_item, dict):
+            continue
+        kind = target_item.get("kind")
+        target_id = target_item.get("id")
+        if not kind or target_id is None or (kind, target_id) in owned_before_open:
+            continue
+        event["inventory_delta"] = {
+            "kind": kind,
+            "id": target_id,
+            "counted": kind == BOX_STARRNOVA_UPGRADE_KIND or target_id in universe.get(kind, set()),
+        }
+
+
+async def _load_box_simulator_dynamic_targets(db: asyncpg.Connection) -> dict[str, Any]:
+    """具体的なアイテムの抽選に使うマスターデータ(いずれもキャッシュされている)"""
+    all_skins = await get_all_skins(db)
+    all_pins = await get_all_pins(db)
+    all_player_icons = await get_all_player_icons(db)
+    all_sprays = await get_all_sprays(db)
+    all_accessories = await get_all_accessories(db)
+    all_buffies = await get_all_buffies(db)
+    all_brawlers = await get_available_brawlers(db)
+    return {
+        "skins_by_id": all_skins,
+        "skins": list(all_skins.values()),
+        "pins_by_id": all_pins,
+        "pins": list(all_pins.values()),
+        "player_icons_by_id": all_player_icons,
+        "player_icons": list(all_player_icons.values()),
+        "sprays_by_id": all_sprays,
+        "sprays": list(all_sprays.values()),
+        "accessories": list(all_accessories.values()),
+        "buffies": list(all_buffies.values()),
+        "brawlers": all_brawlers,
+        "default_skin_ids": _get_default_skin_ids(all_skins.values()),
+    }
+
+
+def _build_player_owned_target_keys(player: Player, dynamic_targets: dict[str, Any]) -> set[tuple[str, Any]]:
+    """メインアカウントの所持状況を排出済みのキーにする(ピンズ等の所持状況が取得できないものは含まない)"""
+    buffy_ids_by_brawler_type = {
+        (buffy.brawler_id, buffy.type): buffy.id
+        for buffy in dynamic_targets.get("buffies", [])
+        if getattr(buffy, "type", None) in BOX_BUFFY_TYPES
+    }
+    picked_target_keys: set[tuple[str, Any]] = set()
+    for brawler in player.brawlers or []:
+        brawler_id = getattr(brawler, "id", None)
+        if not isinstance(brawler_id, int):
+            continue
+        picked_target_keys.add(("brawler", brawler_id))
+        for skin_id in getattr(brawler, "owned_skin_ids", None) or []:
+            picked_target_keys.add(("skin", skin_id))
+        if getattr(brawler, "skin_id", None):
+            picked_target_keys.add(("skin", brawler.skin_id))
+        for kind, attribute in (("gadget", "gadget_ids"), ("starPower", "star_power_ids"), ("hypercharge", "hyper_charge_ids")):
+            for accessory_id in getattr(brawler, attribute, None) or []:
+                picked_target_keys.add((kind, accessory_id))
+        for buffy_type, attribute in (("gadget", "buffie_gadget"), ("starPower", "buffie_star_power"), ("hypercharge", "buffie_hyper_charge")):
+            buffy_id = buffy_ids_by_brawler_type.get((brawler_id, buffy_type))
+            if getattr(brawler, attribute, False) and buffy_id is not None:
+                picked_target_keys.add(("buffy", buffy_id))
+    return picked_target_keys
+
+
+@router.get("/box_simulator", name="box_simulator")
+async def box_simulator(
+    request: Request,
+    lang: str,
+    box: str | None = Query(None, description="初期表示するドロップ/ボックス"),
+):
+    raw_data = load_drop_boxes_data()
+    simulatable_boxes = _get_simulatable_boxes(raw_data)
+    drop_boxes_data = normalize_drop_boxes_data(
+        request,
+        {
+            **raw_data,
+            "boxes": simulatable_boxes,
+        },
+    )
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "drop_boxes_data": drop_boxes_data,
+        "initial_box": box,
+        "max_open_count": BOX_SIM_MAX_OPEN_COUNT,
+        # 排出状況のビットセットを端末側で更新するための基準ID
+        "inventory_id_bases": BOX_INVENTORY_ID_BASES,
+        "inventory_max_bits": BOX_INVENTORY_MAX_BITS,
+        "current_page": "tools",
+    }
+
+    try:
+        return templates.TemplateResponse("tools/box_simulator.html", context)
+    except Exception as render_err:
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page")
+
+
+@router.post("/api/box_simulator/open", name="box_simulator_open_api")
+async def box_simulator_open_api(
+    request: Request,
+    lang: str,
+    box: str = Query(..., description="開封するドロップ/ボックス"),
+    count: int = Query(1, description="まとめて開封する個数(ドロップのみ)"),
+    payload: dict[str, Any] | None = Body(None),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    try:
+        raw_data = load_drop_boxes_data()
+        simulatable_boxes = _get_simulatable_boxes(raw_data)
+        if box not in simulatable_boxes:
+            return JSONResponse({"success": False, "message": "Box not found"}, status_code=404)
+        open_count = max(1, min(BOX_SIM_MAX_OPEN_COUNT, count))
+        dynamic_targets = await _load_box_simulator_dynamic_targets(db)
+        # 所持状況を引き継ぐ場合は、これまでの排出済みのアイテムを入手済みとして抽選する
+        persist_inventory = isinstance(payload, dict) and payload.get("persist") is True
+        picked_target_keys = _decode_box_inventory(payload.get("inventory")) if persist_inventory else set()
+        # 抽選で排出済みの集合に追記されるため、開封前の状態を控えておく
+        owned_before_open = set(picked_target_keys)
+        simulation_data = {
+            **raw_data,
+            "boxes": simulatable_boxes,
+        }
+        if open_count > 1:
+            result = simulate_drop_box_multi_open(
+                request,
+                simulation_data,
+                box,
+                open_count,
+                dynamic_targets=dynamic_targets,
+                picked_target_keys=picked_target_keys,
+            )
+        else:
+            result = simulate_drop_box_open(
+                request,
+                simulation_data,
+                box,
+                dynamic_targets=dynamic_targets,
+                picked_target_keys=picked_target_keys,
+            )
+        # 運の良さ判定に失敗しても開封結果は返す
+        try:
+            result["luck"] = await evaluate_box_luck(box, simulatable_boxes[box], result, dynamic_targets, open_count)
+        except Exception as luck_err:
+            logger.warning(f"Failed to evaluate box luck: box={box} open_count={open_count} error={luck_err}", exc_info=True)
+        response_data: dict[str, Any] = {"success": True, "result": result}
+        if persist_inventory:
+            # 排出状況は、端末側で報酬が表示された時点で1つずつ反映する(演出を最後まで見なかった分は引かなかった扱い)。
+            # そのため開封前の集計と、報酬ごとに増える分を返す
+            _annotate_box_inventory_deltas(result, owned_before_open, _get_box_inventory_universe(raw_data, dynamic_targets))
+            response_data["inventory_stats"] = _build_box_inventory_stats(owned_before_open, dynamic_targets, raw_data)
+        return JSONResponse(response_data)
+    except Exception as e:
+        logger.error(f"Error in box_simulator_open_api: {e}", exc_info=True)
+        return JSONResponse({"success": False, "message": "Failed to simulate box"}, status_code=500)
+
+
+@router.post("/api/box_simulator/inventory/stats", name="box_simulator_inventory_stats_api")
+async def box_simulator_inventory_stats_api(
+    request: Request,
+    lang: str,
+    payload: dict[str, Any] | None = Body(None),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """所持状況パネルを開いたとき・リセットしたときの集計"""
+    try:
+        dynamic_targets = await _load_box_simulator_dynamic_targets(db)
+        picked_target_keys = _decode_box_inventory(payload.get("inventory") if isinstance(payload, dict) else None)
+        return JSONResponse({
+            "success": True,
+            "inventory_stats": _build_box_inventory_stats(picked_target_keys, dynamic_targets, load_drop_boxes_data()),
+        })
+    except Exception as e:
+        logger.error(f"Error in box_simulator_inventory_stats_api: {e}", exc_info=True)
+        return JSONResponse({"success": False, "message": "Failed to load inventory stats"}, status_code=500)
+
+
+@router.post("/api/box_simulator/inventory/import", name="box_simulator_inventory_import_api")
+async def box_simulator_inventory_import_api(
+    request: Request,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """メインアカウントの所持キャラ・スキン・ガジェット等を、所持状況として読み込む。
+    DBに保存済みのプレイヤーデータを使い、公式APIは呼ばない"""
+    is_ja = lang == "ja"
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        return JSONResponse({
+            "success": False,
+            "message": "ログインが必要です。" if is_ja else "Please log in.",
+        }, status_code=401)
+    if not user.main_account:
+        return JSONResponse({
+            "success": False,
+            "message": "メインアカウントが設定されていません。" if is_ja else "No main account is set.",
+        }, status_code=400)
+    try:
+        # 最新の所持状況を反映するため公式API等から取得する(数秒かかる)。取得できなければDBの保存済みデータを使う
+        player: Player | None = None
+        try:
+            player = await get_player(user.main_account, db)
+        except BrawlStarsAPIError as api_err:
+            logger.warning(f"排出状況のインポートで最新のプレイヤーデータを取得できませんでした。保存済みデータを使います: tag={user.main_account} error={api_err}")
+        if not player or not player.brawlers:
+            player = await get_player_from_db(user.main_account, db)
+        if not player or not player.brawlers:
+            return JSONResponse({
+                "success": False,
+                "message": (
+                    "メインアカウントのデータがまだありません。プレイヤーページで一度表示してから、もう一度お試しください。"
+                    if is_ja else
+                    "No data for your main account yet. Open its player page once, then try again."
+                ),
+            }, status_code=404)
+        dynamic_targets = await _load_box_simulator_dynamic_targets(db)
+        picked_target_keys = _build_player_owned_target_keys(player, dynamic_targets)
+        return JSONResponse({
+            "success": True,
+            "inventory": _encode_box_inventory(picked_target_keys),
+            "inventory_stats": _build_box_inventory_stats(picked_target_keys, dynamic_targets, load_drop_boxes_data()),
+            "account": {
+                "tag": player.tag,
+                "name": player.name,
+                "last_updated_at": format_utc_datetime(player.last_updated_at) if player.last_updated_at else None,
+            },
+        })
+    except Exception as e:
+        logger.error(f"Error in box_simulator_inventory_import_api: user={user.name} tag={user.main_account} error={e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "message": "読み込みに失敗しました。" if is_ja else "Failed to load your account.",
+        }, status_code=500)
 
 
 #* /---*---*---*---*---*---*---*---*/
@@ -618,7 +1086,17 @@ async def starrdrop_chances(
     box: str | None = Query(None, description="初期表示するドロップ/ボックス")
 ):
     skins_dict = await get_all_skins(db)
-    drop_boxes_data = normalize_drop_boxes_data(request, load_drop_boxes_data(), skins_dict)
+    raw_drop_boxes_data = load_drop_boxes_data()
+    drop_boxes_data = normalize_drop_boxes_data(request, raw_drop_boxes_data, skins_dict)
+    # 出現キャラが指定されていないキャラ報酬の排出対象。取得に失敗しても確率表自体は表示する
+    try:
+        brawlers = await get_available_brawlers(db)
+        drop_boxes_data["brawler_targets_by_type"] = build_box_brawler_targets_by_type(
+            request, raw_drop_boxes_data.get("reward_types", {}), brawlers, skins_dict.values()
+        )
+    except Exception as e:
+        logger.warning(f"Failed to build brawler targets for starrdrop_chances: {e}", exc_info=True)
+        drop_boxes_data["brawler_targets_by_type"] = {}
 
     # テンプレートに渡すコンテキスト
     context = {

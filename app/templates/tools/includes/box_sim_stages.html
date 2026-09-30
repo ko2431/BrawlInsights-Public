@@ -1,0 +1,146 @@
+{# ボックスシミュレーターの開封演出カード。1個開封(画面全体)と複数個開封(分割した各マス)で同じ見た目を共有する。
+   ev: 演出イベントのJS式、st: その演出の状態オブジェクトのJS式 #}
+
+{% macro rarity_card(ev, st) %}
+<div class="box-sim-reveal__card box-sim-reveal__card--rarity" :class="`box-sim-reveal__card--rarity-${getDisplayedRarityKey({{ ev }}, {{ st }})}`">
+    <div class="box-sim-rarity-stage">
+        <div class="box-sim-rarity-stage__pattern"></div>
+        <div class="box-sim-rarity-stage__glow"></div>
+        <div class="box-sim-rarity-stage__center">
+            <div class="box-sim-rarity-stage__ring"></div>
+            <div class="box-sim-rarity-stage__ring box-sim-rarity-stage__ring--outer"></div>
+            <div class="box-sim-rarity-stage__burst"></div>
+            <div class="box-sim-rarity-stage__icon-shell">
+                <img :src="getRarityRevealImage({{ ev }}, {{ st }})" :alt="getDisplayedRarityName({{ ev }}, {{ st }})" class="box-sim-reveal__rarity-image box-sim-rarity-stage__image"
+                     :class="{ 'box-sim-rarity-stage__image--upgraded': {{ st }}.lastOutcome === 'upgraded' }"
+                     :onerror="`this.onerror=null;this.src='${getRarityRevealFallbackImage({{ ev }})}';`">
+            </div>
+        </div>
+
+        <div class="box-sim-rarity-stage__chances">
+            <p class="box-sim-rarity-stage__chance-label" x-text="isJa ? 'アップグレードチャンス' : 'UPGRADE CHANCES'"></p>
+            <div class="box-sim-rarity-stage__dots" :aria-label="getUpgradeChanceLabel({{ ev }}, {{ st }})">
+                <template x-for="(slot, slotIndex) in getUpgradeSlots({{ ev }}, {{ st }})" :key="`${ {{ ev }}?.event_index}-${slotIndex}`">
+                    <span class="box-sim-rarity-stage__dot"
+                          :class="{
+                              'box-sim-rarity-stage__dot--upgraded': slot.state === 'upgraded',
+                              'box-sim-rarity-stage__dot--spent': slot.state === 'spent',
+                              'box-sim-rarity-stage__dot--remaining': slot.state === 'remaining'
+                          }"></span>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro chaos_card(ev, st) %}
+<div class="box-sim-reveal__card box-sim-reveal__card--rarity box-sim-reveal__card--chaos" :class="`box-sim-reveal__card--rarity-${getChaosDisplayedRarityKey({{ st }})}`">
+    <div class="box-sim-chaos-stage">
+        <div class="box-sim-rarity-stage__pattern"></div>
+        <div class="box-sim-rarity-stage__glow"></div>
+        <div class="box-sim-chaos-stage__drops"
+             :class="`box-sim-chaos-stage__drops--${getChaosDisplayedCount({{ st }})}`"
+             :style="getChaosDropsGridStyle({{ st }})">
+            <template x-for="(drop, dropIndex) in getChaosDisplayedDrops({{ st }})" :key="`chaos-drop-${dropIndex}`">
+                <div class="box-sim-chaos-stage__drop"
+                     :class="{
+                         'box-sim-chaos-stage__drop--hit': {{ st }}.lastOutcome === 'split' || {{ st }}.lastOutcome === 'upgrade',
+                         'box-sim-chaos-stage__drop--locked': {{ st }}.resolved
+                     }">
+                    <img :src="getChaosRevealImage({{ st }})" :alt="getRarityName(getChaosDisplayedRarityKey({{ st }}))" class="box-sim-chaos-stage__image"
+                         :class="getChaosImageClass({{ st }})"
+                         :onerror="`this.onerror=null;this.src='${getRarityRevealFallbackImage({{ ev }})}';`">
+                </div>
+            </template>
+        </div>
+        <div class="box-sim-chaos-stage__chances">
+            <p class="box-sim-rarity-stage__chance-label" x-text="isJa ? 'アップグレードチャンス' : 'UPGRADE CHANCES'"></p>
+            <div class="box-sim-rarity-stage__dots" :aria-label="getChaosChanceLabel({{ st }})">
+                <template x-for="(slot, slotIndex) in getChaosChanceSlots({{ st }})" :key="`chaos-slot-${slotIndex}`">
+                    <span class="box-sim-rarity-stage__dot"
+                          :class="{
+                              'box-sim-rarity-stage__dot--upgraded': slot.state === 'upgrade',
+                              'box-sim-sushi-stage__dot--split': slot.state === 'split',
+                              'box-sim-rarity-stage__dot--spent': slot.state === 'hold',
+                              'box-sim-rarity-stage__dot--remaining': slot.state === 'pending'
+                          }"></span>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro sushi_card(ev, st) %}
+<div class="box-sim-reveal__card box-sim-reveal__card--sushi-split">
+    <div class="box-sim-sushi-stage">
+        <div class="box-sim-sushi-stage__board"></div>
+        <div class="box-sim-sushi-stage__glow"></div>
+        <div class="box-sim-sushi-stage__pieces" :class="`box-sim-sushi-stage__pieces--${getSushiDisplayedCount({{ st }})}`">
+            <template x-for="(piece, pieceIndex) in getSushiDisplayedPieces({{ st }})" :key="`sushi-piece-${pieceIndex}`">
+                <div class="box-sim-sushi-stage__piece"
+                     :class="{
+                         'box-sim-sushi-stage__piece--splitting': {{ st }}.lastOutcome === 'split',
+                         'box-sim-sushi-stage__piece--locked': {{ st }}.resolved
+                     }"
+                     :style="getSushiPieceStyle(pieceIndex, {{ st }})">
+                    <img :src="selectedBox ? selectedBox.icon : ''" alt="" class="box-sim-sushi-stage__piece-image">
+                </div>
+            </template>
+        </div>
+        <div class="box-sim-sushi-stage__chances">
+            <p class="box-sim-sushi-stage__chance-label" x-text="isJa ? '分裂チャンス' : 'SPLIT CHANCES'"></p>
+            <div class="box-sim-sushi-stage__dots" :aria-label="getSushiChanceLabel({{ st }})">
+                <template x-for="(slot, slotIndex) in getSushiChanceSlots({{ st }})" :key="`sushi-slot-${slotIndex}`">
+                    <span class="box-sim-sushi-stage__dot"
+                          :class="{
+                              'box-sim-sushi-stage__dot--split': slot.state === 'split',
+                              'box-sim-sushi-stage__dot--spent': slot.state === 'spent',
+                              'box-sim-sushi-stage__dot--remaining': slot.state === 'remaining'
+                          }"></span>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro choice_card(ev, st) %}
+<div class="box-sim-reveal__card box-sim-reveal__card--choice" :class="`box-sim-reveal__card--choice-${ {{ ev }}?.box_key || 'default'}`">
+    <div class="box-sim-choice-stage">
+        <div class="box-sim-choice-stage__backdrop"></div>
+        <div class="box-sim-choice-stage__meter">
+            <span x-text="getChoiceSelectionText({{ st }})"></span>
+        </div>
+        <div class="box-sim-choice-stage__capsules">
+            <template x-for="capsule in getChoiceCapsules({{ st }})" :key="`choice-capsule-${capsule.slot_index}`">
+                <button type="button"
+                        class="box-sim-choice-stage__capsule"
+                        :class="getChoiceCapsuleClass(capsule, {{ st }})"
+                        :aria-disabled="({{ st }}.resolved || isChoiceCapsuleSelected(capsule.slot_index, {{ st }})).toString()"
+                        @click="onChoiceCapsuleClick($event, capsule.slot_index, {{ st }})">
+                    <span class="box-sim-choice-stage__glow"></span>
+                    <img :src="selectedBox ? selectedBox.icon : ''" alt="" class="box-sim-choice-stage__capsule-image">
+                    <span class="box-sim-choice-stage__result" x-show="isChoiceCapsuleSelected(capsule.slot_index, {{ st }})">
+                        <span x-show="getChoiceCapsuleItemCount(capsule.slot_index, {{ st }}) > 0" x-text="`+${getChoiceCapsuleItemCount(capsule.slot_index, {{ st }})}`"></span>
+                        <span x-show="getChoiceCapsuleItemCount(capsule.slot_index, {{ st }}) <= 0" x-text="isJa ? 'ハズレ' : 'Trash'"></span>
+                    </span>
+                </button>
+            </template>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{# 開封数の選択。フォーカスやタップが表示領域のタップ(開封)として扱われないよう伝播を止める #}
+{% macro open_count_select(modifier, max_open_count) %}
+<label class="box-sim-count box-sim-count--{{ modifier }}" @click.stop>
+    <span class="box-sim-count__label">{% if lang == "ja" %}開封数{% else %}Open{% endif %}</span>
+    <select class="box-sim-count__select" x-model.number="openCount">
+        {% for count in range(1, max_open_count + 1) %}
+        <option value="{{ count }}">{% if lang == "ja" %}{{ count }}個{% else %}×{{ count }}{% endif %}</option>
+        {% endfor %}
+    </select>
+</label>
+{% endmacro %}

@@ -1,0 +1,2463 @@
+{# /app/templates/tools/box_simulator.html #}
+{% extends "base.html" %}
+{% from "tools/includes/drop_box_menu.html" import drop_box_nav, drop_box_menu with context %}
+{% import "tools/includes/box_sim_stages.html" as stages with context %}
+
+{% block title %}{% if lang == "ja" %}【ブロスタ】ボックスシミュレーター{% else %}Box Simulator{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのボックスシミュレーターです。スタードロップや各種ドロップ・イベントボックスについて、引いた結果をシミュレーションできます。自分のアカウントの所持状況データをインポートしたり、累計排出資源を確認したりできる高度な機能も備えています。{% else %}This is the box simulator for Brawl Stars. You can simulate the results of opening drops and event boxes. It also has advanced features such as importing your account's collection data and checking the total resources you've obtained.{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/tools.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="tools-page__container" x-data="boxSimulatorApp()" x-init="init()" @keydown.window="handleWindowKeydown($event)">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <h1 class="page-title--main drop-box-page-title--main box-simulator-page-title--main">{% if lang == "ja" %}ボックスシミュレーター{% else %}Box Simulator{% endif %}</h1>
+
+    {{ drop_box_nav('simulator') }}
+
+    <p class="tools-page__description">
+        {% if lang == "ja" %}
+            ブロスタのボックスシミュレーターです。上のメニューからドロップ・ボックスを切り替えられます。下のメニューから高度な確認・設定ができます。
+        {% else %}
+            This is the box simulator for Brawl Stars. You can switch between drops and boxes using the menu above, and use the menu below for advanced status and settings.
+        {% endif %}
+    </p>
+
+    {{ drop_box_menu() }}
+
+    {# 表示領域全体をタップして進行する。高さは固定し、フェーズ切替で下の広告位置がずれないようにする #}
+    <div class="box-sim-stage"
+         :class="{ 'box-sim-stage--busy': phase === 'loading' }"
+         x-show="selectedBox"
+         x-cloak
+         tabindex="0"
+         @click="handleStageTap()"
+         @keydown.enter.self.prevent="handleStageTap()">
+        <div class="box-sim-stage__screen">
+            {# 演出も動画もないボックスは、読み込みが早く終わっても揺れる演出を最低限続ける(opening) #}
+            <template x-if="phase === 'idle' || phase === 'loading' || phase === 'opening'">
+                <div class="box-sim-reveal__card box-sim-reveal__card--intro" :class="{ 'box-sim-reveal__card--loading': phase === 'loading' || phase === 'opening' }">
+                    <div class="box-sim-reveal__box-icon-wrap">
+                        <img :src="selectedBox.icon" :alt="getSelectedBoxName()" class="box-sim-reveal__box-icon">
+                        <span class="box-sim-reveal__count-badge"
+                              x-show="getRequestedOpenCount() > 1"
+                              x-text="`×${getRequestedOpenCount()}`"></span>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="phase === 'idle' || phase === 'error'">
+                {{ stages.open_count_select('floating', max_open_count) }}
+            </template>
+
+            <template x-if="phase === 'error'">
+                <div class="box-sim-reveal__card box-sim-reveal__card--error">
+                    <p class="box-sim-reveal__error" x-text="errorMessage"></p>
+                </div>
+            </template>
+
+            <template x-if="phase === 'video'">
+                <div class="box-sim-reveal__card box-sim-reveal__card--video">
+                    {# 余白を黒ベタにせず、再生中のフレームを極小canvasに写してぼかし拡大した背景にする(追加通信なし) #}
+                    <canvas x-ref="boxVideoBackdrop" class="box-sim-reveal__video-backdrop" width="32" height="18" aria-hidden="true"></canvas>
+                    <video x-ref="boxVideo"
+                           class="box-sim-reveal__video"
+                           :poster="selectedBox ? selectedBox.icon : ''"
+                           playsinline
+                           preload="metadata"
+                           muted
+                           autoplay
+                           @ended="finishBoxVideo()"
+                           @error="finishBoxVideo()">
+                        <source :src="getBoxVideoUrl()" type="video/mp4">
+                    </video>
+                </div>
+            </template>
+
+            <template x-if="phase === 'reveal' && currentEvent && currentEvent.type === 'split'">
+                <div class="box-sim-reveal__card box-sim-reveal__card--split">
+                    <p class="box-sim-reveal__eyebrow" x-text="isJa ? '分裂イベント' : 'Split event'"></p>
+                    <h3 class="box-sim-reveal__title" x-text="isJa ? 'ボックスが分裂した！' : 'The box split!'"></h3>
+                    <p class="box-sim-reveal__split-count" x-text="`${currentEvent?.from_count} → ${currentEvent?.to_count}`"></p>
+                    <p class="box-sim-reveal__desc" x-text="isJa ? 'このあと中身を順番に表示します。' : 'Rewards will continue after the split.'"></p>
+                </div>
+            </template>
+
+            <template x-if="phase === 'reveal' && currentEvent && currentEvent.type === 'sushi_split'">
+                {{ stages.sushi_card('currentEvent', 'sushiSplitState') }}
+            </template>
+
+            <template x-if="phase === 'reveal' && currentEvent && currentEvent.type === 'choice_reveal'">
+                {{ stages.choice_card('currentEvent', 'choiceRevealState') }}
+            </template>
+
+            <template x-if="phase === 'reveal' && currentEvent && currentEvent.type === 'chaos_reveal'">
+                {{ stages.chaos_card('currentEvent', 'chaosRevealState') }}
+            </template>
+
+            <template x-if="phase === 'reveal' && currentEvent && currentEvent.type === 'rarity'">
+                {{ stages.rarity_card('currentEvent', 'rarityRevealState') }}
+            </template>
+
+            {# 複数個開封: 表示領域を開封数ぶんに分割し、各マスで演出を同時に進める #}
+            <template x-if="phase === 'multi'">
+                <div class="box-sim-multi"
+                     x-ref="multiGrid"
+                     :class="{ 'box-sim-multi--compact': multiLayout.scale < 0.6 }"
+                     :style="getMultiGridStyle()">
+                    <template x-for="cell in multiCells" :key="`multi-cell-${cell.openIndex}`">
+                        <div class="box-sim-multi__cell" :class="`box-sim-multi__cell--${cell.type || 'none'}`">
+                            <template x-if="cell.type === 'video'">
+                                <div class="box-sim-reveal__card box-sim-reveal__card--video">
+                                    <canvas class="box-sim-reveal__video-backdrop" width="32" height="18" aria-hidden="true"></canvas>
+                                    <video class="box-sim-reveal__video"
+                                           x-show="cell.videoSrc"
+                                           :src="cell.videoSrc || null"
+                                           playsinline
+                                           preload="auto"
+                                           muted
+                                           @ended="onMultiVideoEnded(cell)"
+                                           @error="onMultiVideoEnded(cell)"></video>
+                                    <img class="box-sim-multi__video-poster" x-show="!cell.videoSrc" :src="selectedBox ? selectedBox.icon : ''" alt="">
+                                </div>
+                            </template>
+                            <template x-if="cell.type && cell.type !== 'video'">
+                                <div class="box-sim-multi__viewport">
+                                    <template x-if="cell.type === 'rarity'">
+                                        {{ stages.rarity_card('cell.event', 'cell.state') }}
+                                    </template>
+                                    <template x-if="cell.type === 'chaos_reveal'">
+                                        {{ stages.chaos_card('cell.event', 'cell.state') }}
+                                    </template>
+                                    <template x-if="cell.type === 'sushi_split'">
+                                        {{ stages.sushi_card('cell.event', 'cell.state') }}
+                                    </template>
+                                    <template x-if="cell.type === 'choice_reveal'">
+                                        {{ stages.choice_card('cell.event', 'cell.state') }}
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="phase === 'reveal' && currentEvent && currentEvent.type === 'reward'">
+                <div class="box-sim-reveal__card box-sim-reveal__card--reward" :class="getItemTintClass(currentEvent)">
+                    <div class="box-sim-reveal__progress" x-show="result && result.total_reveals">
+                        <span x-text="getRevealProgressText()"></span>
+                    </div>
+                    {# 報酬ごとにimg要素を作り直す。src の差し替えだと新しい画像の読み込みが終わるまで前の報酬の画像が残るため #}
+                    {# ナノパワー・フュージョンは共通のアイコンの右下に対象キャラのピンを重ねる。重ねない報酬では包みの要素を display: contents にし、画像の大きさの調整に影響させない #}
+                    <template x-for="rewardEvent in [currentEvent]" :key="`reward-image-${currentEventIndex}`">
+                        <div class="box-sim-reveal__reward-visual"
+                             :class="{
+                                 'box-sim-reveal__reward-visual--badged': getEventBadgeImage(rewardEvent) !== '',
+                                 'box-sim-reveal__reward-visual--upgrade': rewardEvent?.target_item?.kind === 'starrnovaUpgrade'
+                             }">
+                            <img :src="getEventDisplayImage(rewardEvent)" :alt="getRewardName(rewardEvent)" class="box-sim-reveal__reward-icon"
+                                 :class="getRewardIconSizeClass(rewardEvent)"
+                                 :onerror="`this.onerror=null;this.src='${getEventFallbackImage(rewardEvent)}';`">
+                            <template x-if="getEventBadgeImage(rewardEvent) !== ''">
+                                <img :src="getEventBadgeImage(rewardEvent)" alt="" class="box-sim-reveal__reward-badge" onerror="this.style.display='none';">
+                            </template>
+                        </div>
+                    </template>
+                    {# 同じ報酬が続いてもタップしたと分かるよう、報酬ごとに作り直して数量のアニメーションを毎回再生する #}
+                    <template x-for="amountEvent in [currentEvent]" :key="`reward-amount-${currentEventIndex}`">
+                        <p class="box-sim-reveal__reward-amount" x-show="shouldShowAmount(amountEvent)" x-text="amountEvent?.amount"></p>
+                    </template>
+                    {# 固有名があるアイテム(スキン・キャラクター・ガジェット等)は名前を大きく、種別を下に小さく表示する #}
+                    <h3 class="box-sim-reveal__title" x-text="getTargetItemName(currentEvent) || getRewardName(currentEvent)"></h3>
+                    <p class="box-sim-reveal__target-name"
+                       x-show="getTargetItemName(currentEvent) !== ''"
+                       x-text="getRewardName(currentEvent)"></p>
+                    <p class="box-sim-reveal__substitute-note"
+                       x-show="currentEvent?.substitute_for"
+                       x-text="getSubstituteNote(currentEvent)"></p>
+                    <div class="box-sim-reveal__badges" x-show="shouldShowRarityBadge(currentEvent) || currentEvent?.is_premium || currentEvent?.substitute_for">
+                        <p class="box-sim-reveal__rarity"
+                           :class="`box-sim-reveal__rarity--${currentEvent?.rarity_key || ''} box-sim-reveal__rarity--box-${currentEvent?.box_key || ''}`"
+                           x-show="shouldShowRarityBadge(currentEvent)"
+                           x-text="getRarityName(currentEvent?.rarity_key)"></p>
+                        <p class="box-sim-reveal__premium" x-show="currentEvent?.is_premium" x-text="isJa ? '確定枠' : 'Guaranteed slot'"></p>
+                        <p class="box-sim-reveal__substitute" x-show="currentEvent?.substitute_for" x-text="isJa ? '代替報酬' : 'Substitute'"></p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="phase === 'done'">
+                <div class="box-sim-summary">
+                    <div class="box-sim-summary__header">
+                        <div class="box-sim-summary__heading">
+                            <h3 class="box-sim-summary__title">
+                                {% if lang == "ja" %}今回の結果{% else %}Opening Summary{% endif %}
+                                <span class="box-sim-summary__open-count"
+                                      x-show="getResultOpenCount() > 1"
+                                      x-text="isJa ? `(${getResultOpenCount()}個開封)` : `(×${getResultOpenCount()})`"></span>
+                            </h3>
+                            <div class="box-sim-summary__luck" x-show="result && result.luck">
+                                <span class="box-sim-summary__luck-grade"
+                                      :class="`box-sim-summary__luck-grade--${result?.luck?.grade || ''}`"
+                                      x-text="result?.luck?.grade"></span>
+                                <p class="box-sim-summary__luck-text">
+                                    <span x-text="getLuckText()"></span>
+                                    {# 排出状況を引き継いで開封したときは、判定の基準を説明する #}
+                                    <button type="button" class="box-sim-summary__luck-info"
+                                            x-show="lastOpenUsedInventory"
+                                            @click.stop="showLuckInventoryInfo()"
+                                            :aria-label="isJa ? '運の良さの判定について' : 'About the luck rating'">
+                                        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="4.8" r="1" fill="currentColor"/><path d="M8 7.2v4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                                    </button>
+                                </p>
+                            </div>
+                        </div>
+                        {{ stages.open_count_select('inline', max_open_count) }}
+                    </div>
+
+                    <div class="box-sim-summary__grid">
+                        <template x-for="item in getDisplayedSummaryItems()" :key="item.summary_key || item.reward_type">
+                            <div class="box-sim-summary__item" :class="getItemTintClass(item)">
+                                <div class="box-sim-summary__item-visual" :class="{ 'box-sim-summary__item-visual--upgrade': item?.target_item?.kind === 'starrnovaUpgrade' }">
+                                    <img :src="getSummaryItemImage(item)" :alt="getSummaryItemName(item)" class="box-sim-summary__item-icon"
+                                         :onerror="`this.onerror=null;this.src='${getSummaryItemFallbackImage(item)}';`">
+                                    <template x-if="getEventBadgeImage(item) !== ''">
+                                        <img :src="getEventBadgeImage(item)" alt="" class="box-sim-summary__item-badge" onerror="this.style.display='none';">
+                                    </template>
+                                </div>
+                                <p class="box-sim-summary__item-amount" x-show="shouldShowAmount(item)" x-text="item.amount"></p>
+                                <p class="box-sim-summary__item-name" x-text="getSummaryItemName(item)"></p>
+                                <p class="box-sim-summary__item-subname"
+                                   x-show="getSummaryItemSubname(item) !== ''"
+                                   x-text="getSummaryItemSubname(item)"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <p class="box-sim-stage__hint" :class="{ 'box-sim-stage__hint--hidden': getStageHintText() === '', 'box-sim-stage__hint--beside-end': phase === 'done' }">
+                <span x-text="getStageHintText() || '\u00a0'"></span>
+            </p>
+
+            {# 結果まとめから初期画面に戻る。表示領域のタップ(もう一度引く)として扱われないよう伝播を止める #}
+            <button type="button"
+                    class="box-sim-stage__skip box-sim-stage__back"
+                    x-show="phase === 'done'"
+                    @click.stop="endOpeningSession()"
+                    @keydown.enter.stop>
+                <svg class="box-sim-stage__skip-icon box-sim-stage__end-icon" viewBox="0 0 12 12" aria-hidden="true">
+                    <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                </svg>
+                <span x-text="isJa ? '開封を終了' : 'End'"></span>
+            </button>
+
+            {# 連打で見そびれた報酬に戻る。表示領域のタップ(次へ)として扱われないよう伝播を止める #}
+            <button type="button"
+                    class="box-sim-stage__skip box-sim-stage__back"
+                    x-show="canGoBackReward()"
+                    @click.stop="goBackReward()"
+                    @keydown.enter.stop
+                    :aria-label="isJa ? '前の報酬に戻る' : 'Back to previous reward'">
+                <svg class="box-sim-stage__skip-icon box-sim-stage__back-icon" viewBox="0 0 16 12" aria-hidden="true">
+                    <path d="M1 1.4v9.2a.6.6 0 0 0 .93.5L8 6.5V10.6a.6.6 0 0 0 .93.5l6.8-4.6a.6.6 0 0 0 0-1L8.93.9A.6.6 0 0 0 8 1.4v4.1L1.93.9A.6.6 0 0 0 1 1.4z" fill="currentColor"/>
+                </svg>
+                <span x-text="isJa ? '戻る' : 'Back'"></span>
+            </button>
+
+            {# 残りの報酬を飛ばして結果まとめへ進む。表示領域のタップ(次へ)として扱われないよう伝播を止める #}
+            <button type="button"
+                    class="box-sim-stage__skip"
+                    x-show="canSkipRewards()"
+                    @click.stop="skipRewards()"
+                    @keydown.enter.stop
+                    :aria-label="isJa ? '結果まとめまでスキップ' : 'Skip to summary'">
+                <span x-text="isJa ? 'スキップ' : 'Skip'"></span>
+                <svg class="box-sim-stage__skip-icon" viewBox="0 0 16 12" aria-hidden="true">
+                    <path d="M1 1.4v9.2a.6.6 0 0 0 .93.5L8 6.5V10.6a.6.6 0 0 0 .93.5l6.8-4.6a.6.6 0 0 0 0-1L8.93.9A.6.6 0 0 0 8 1.4v4.1L1.93.9A.6.6 0 0 0 1 1.4z" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    {# 排出状況(排出済みのアイテム)。端末に保存し、全ボックスで共有する #}
+    <section class="box-sim-inventory" x-cloak>
+        <button type="button" class="box-sim-inventory__header" @click="toggleInventoryPanel()" :aria-expanded="inventoryPanelOpen.toString()">
+            <span class="box-sim-inventory__title">{% if lang == "ja" %}排出状況の確認と設定{% else %}Drop Status &amp; Settings{% endif %}</span>
+            <span class="box-sim-inventory__header-summary" x-text="getInventoryHeaderSummary()"></span>
+            <span class="box-sim-inventory__chevron" :class="{ 'box-sim-inventory__chevron--open': inventoryPanelOpen }" aria-hidden="true"></span>
+        </button>
+        <div class="box-sim-inventory__body" x-show="inventoryPanelOpen">
+            <div class="box-sim-inventory__modes" role="radiogroup">
+                <button type="button" class="box-sim-inventory__mode" role="radio"
+                        :class="{ 'box-sim-inventory__mode--active': inventoryPersist }"
+                        :aria-checked="inventoryPersist.toString()"
+                        @click="setInventoryPersist(true)">{% if lang == "ja" %}引き継ぐ{% else %}Keep{% endif %}</button>
+                <button type="button" class="box-sim-inventory__mode" role="radio"
+                        :class="{ 'box-sim-inventory__mode--active': !inventoryPersist }"
+                        :aria-checked="(!inventoryPersist).toString()"
+                        @click="setInventoryPersist(false)">{% if lang == "ja" %}毎回リセット{% else %}Reset each time{% endif %}</button>
+            </div>
+            <p class="box-sim-inventory__description" x-show="inventoryPersist">
+                {% if current_user %}
+                {% if lang == "ja" %}シミュレーターで排出されたスキン等は入手済みとして次の開封に引き継がれ、重複して出現しなくなります。よりリアルにシミュレーターをお使いいただけるモードです。下のボタンよりあなたのメインアカウントのゲーム内のデータをインポートしたり、排出状況をリセットしたりすることができます。排出状況はアカウントではなく、端末に保存されています。{% else %}Skins and other items you get in the simulator are kept as owned for the next opens and won't drop again, for a more realistic simulation. Use the buttons below to import your main account's in-game data or reset the drop status. The drop status is saved on this device, not in your account.{% endif %}
+                {% else %}
+                {% if lang == "ja" %}シミュレーターで排出されたスキン等は入手済みとして次の開封に引き継がれ、重複して出現しなくなります。よりリアルにシミュレーターをお使いいただけるモードです。<a href="{{ url_for('login_page', lang=lang) }}">ログイン</a>すると、あなたのメインアカウントのゲーム内のデータをインポートできるようになります。排出状況は端末に保存され、下のボタンよりリセットできます。{% else %}Skins and other items you get in the simulator are kept as owned for the next opens and won't drop again, for a more realistic simulation. <a href="{{ url_for('login_page', lang=lang) }}">Log in</a> to import your main account's in-game data. The drop status is saved on this device and can be reset with the button below.{% endif %}
+                {% endif %}
+            </p>
+            <p class="box-sim-inventory__description" x-show="!inventoryPersist">
+                {% if lang == "ja" %}毎回、何も持っていない状態から開封します。これまでの排出状況は引き続き保持されているため、設定を「引き継ぐ」に戻すと以前の状態から再開できます。{% else %}Each open starts with nothing owned. Your drop status is still kept, so switch the setting back to "Keep" to continue from where you left off.{% endif %}
+            </p>
+
+            <template x-if="inventoryPersist">
+                <div>
+                    <p class="box-sim-inventory__account" x-show="inventoryAccount" x-text="getInventoryAccountText()"></p>
+                    <div class="box-sim-inventory__stats" :class="{ 'box-sim-inventory__stats--loading': inventoryBusy }">
+                        <template x-for="stat in getInventoryStats()" :key="stat.key">
+                            <div class="box-sim-inventory__stat" :class="`box-sim-inventory__stat--${stat.key}`">
+                                <span class="box-sim-inventory__stat-name" x-text="getInventoryStatName(stat.key)"></span>
+                                <span class="box-sim-inventory__stat-count">
+                                    <span x-text="stat.owned.toLocaleString()"></span><template x-if="stat.total !== null"><span class="box-sim-inventory__stat-total" x-text="` / ${stat.total.toLocaleString()}`"></span></template>
+                                </span>
+                                <span class="box-sim-inventory__stat-bar" x-show="stat.total">
+                                    <span class="box-sim-inventory__stat-bar-fill" :style="`width: ${getInventoryStatPercent(stat)}%`"></span>
+                                </span>
+                            </div>
+                        </template>
+                    </div>
+                    <p class="box-sim-inventory__note">
+                        {% if lang == "ja" %}※総数は、いずれかのボックスで排出対象になり得るものの数です。{% else %}* Totals are the number of items that can drop from any box.{% endif %}
+                    </p>
+                    <p class="box-sim-inventory__open-count" x-text="getInventoryTotalOpenCountText()"></p>
+                    {# ボックスごとの累計開封数。場所を取らないよう、ボックス名は出さずにアイコンのみ並べる #}
+                    <div class="box-sim-inventory__box-counts">
+                        <template x-for="boxKey in getInventoryBoxKeys()" :key="`inventory-count-${boxKey}`">
+                            <div class="box-sim-inventory__box-count"
+                                 :class="{ 'box-sim-inventory__box-count--empty': getInventoryBoxOpenCount(boxKey) === 0 }"
+                                 :title="getBoxName(boxKey)">
+                                <img :src="boxes[boxKey]?.icon" :alt="getBoxName(boxKey)" class="box-sim-inventory__box-count-icon" loading="lazy"
+                                     :style="getInventoryIconStyle(boxKey)">
+                                <span x-text="getInventoryBoxOpenCountText(boxKey)"></span>
+                            </div>
+                        </template>
+                    </div>
+                    {# 累計排出資源。ボックスと同じくアイコン+数量で並べる #}
+                    <p class="box-sim-inventory__open-count">{% if lang == "ja" %}累計排出資源{% else %}Total resources{% endif %}</p>
+                    <div class="box-sim-inventory__box-counts">
+                        <template x-for="resourceKey in inventoryResourceKeys" :key="`inventory-resource-${resourceKey}`">
+                            <div class="box-sim-inventory__box-count"
+                                 :class="{ 'box-sim-inventory__box-count--empty': getInventoryResourceAmount(resourceKey) === 0 }"
+                                 :title="getRewardTypeName(resourceKey)">
+                                <img :src="getRewardIcon(resourceKey)" :alt="getRewardTypeName(resourceKey)" class="box-sim-inventory__box-count-icon" loading="lazy"
+                                     :style="getInventoryIconStyle(resourceKey)">
+                                <span x-text="getInventoryResourceAmount(resourceKey).toLocaleString()"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="box-sim-inventory__actions">
+                        {% if current_user %}
+                        <button type="button" class="box-sim-inventory__action" :disabled="inventoryBusy" @click="importInventoryFromAccount()">
+                            {% if lang == "ja" %}メインアカウントから読み込む{% else %}Load from main account{% endif %}
+                        </button>
+                        {% endif %}
+                        <button type="button" class="box-sim-inventory__action box-sim-inventory__action--reset" :disabled="inventoryBusy" @click="resetInventory()">
+                            {% if lang == "ja" %}リセット{% else %}Reset{% endif %}
+                        </button>
+                    </div>
+                    {# 読み込み結果にプレイヤー名を太字で含めるため HTML で表示する(文言はエスケープ済み) #}
+                    <p class="box-sim-inventory__message" x-show="inventoryMessage" x-html="inventoryMessage"></p>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;">
+        <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/drop_box_menu.js') }}?v={{ app_version }}"></script>
+    <script>
+        function boxSimulatorApp() {
+            // ボックスごとの開封状態(切り替えても保持する)。クライアント内のみで完結し、サーバーへの追加リクエストは発生しない
+            const boxSessions = {};
+            const SESSION_FIELDS = [
+                'phase', 'errorMessage', 'result', 'currentEventIndex',
+                'rarityRevealState', 'sushiSplitState', 'chaosRevealState', 'choiceRevealState', 'hasPlayedBoxVideo',
+                'multiCells',
+                // 表示済みの報酬の排出状況への反映記録。ボックスを切り替えても別のボックスの結果と混ざらないようにする
+                'inventoryCommit', 'lastOpenUsedInventory',
+            ];
+            // 開封状態は、他のページへ移動して戻ってきても続きから再開できるよう、タブ単位の一時保存領域に書き出す
+            const SESSION_STORAGE_KEY = 'brawlInsightsBoxSimSessions';
+            // 保存する開封状態の合計の上限(文字数)。超える場合は表示中のボックス以外の古いものから捨てる
+            const SESSION_STORAGE_MAX_LENGTH = 1000000;
+            // 複数個開封で、画面を分割して同時に進める演出の種類
+            const MULTI_STAGE_EVENT_TYPES = ['rarity', 'chaos_reveal', 'sushi_split', 'choice_reveal'];
+            // 分割した各マスで演出を縮小表示するときの、縮小前に必要な最小サイズ(px)。[幅, 高さ]
+            const MULTI_STAGE_MIN_SIZES = {
+                desktop: {
+                    rarity: [280, 330],
+                    sushi_split: [350, 330],
+                    choice_reveal: [520, 300],
+                },
+                mobile: {
+                    rarity: [240, 290],
+                    sushi_split: [330, 280],
+                    choice_reveal: [290, 260],
+                },
+            };
+            // カオスドロップは分裂しても並べ方が変わらないよう、最初から8個に分裂できる大きさで並べる
+            const MULTI_CHAOS_MIN_SIZE = [480, 300];
+            // 所持状況の保存先
+            const INVENTORY_STORAGE_KEY = 'brawlInsightsBoxSimInventory';
+            // 排出状況のボックス・資源アイコンの表示倍率。画像ごとに余白や形が違うため、見える部分(不透明部分)の面積が
+            // 揃うように画像を計測して決めた値(天使ドロップ・ノヴァドロップの見た目の大きさが基準)。未登録の画像は1倍。
+            // ナノ・スムージーの缶は詰まった形で大きく見えるため、計測値より少し小さくしている
+            const INVENTORY_ICON_SCALES = {
+                starrdrop: 1.12, chaosdrop: 1.12, rankeddrop: 0.96, coffinbox: 0.91, nanodrop: 1.00, smoothiedrop: 1.00,
+                angelicdrop: 0.98, demonicdrop: 1.07, novadrop: 1.02, present: 0.92, sushi: 0.86, megabox: 0.88,
+                deadbox: 1.00, halloweenbox: 1.02, mechabox: 0.87, lovebox: 0.97, boombox: 0.86,
+                minabox: 1.07, ziggybox: 1.07, gigibox: 1.06, piercebox: 1.07, glowbertbox: 1.09, siriusbox: 1.03,
+                najiabox: 0.87, damianbox: 0.91, starrnovabox: 1.13, boltbox: 1.11, noribox: 1.07, wendybox: 1.12,
+                cosmobox: 1.13, vincebox: 1.08, smalltrophybox: 0.83, bigtrophybox: 0.85, megatrophybox: 0.83,
+                omegatrophybox: 0.97, ultratrophybox: 0.96,
+                gems: 0.87, coins: 0.84, powerPoints: 0.88, credits: 0.79, bling: 0.84, xpDoublers: 1.00,
+                proPassXp: 0.98, proPassSkinUpgrade: 1.00,
+            };
+            // 排出状況は種類ごとに「基準IDからのずれ」をビット位置にしたビットセット(base64url)。サーバーと同じ形式で更新する
+            const INVENTORY_ID_BASES = {{ inventory_id_bases | tojson }};
+            const INVENTORY_MAX_BITS = {{ inventory_max_bits | tojson }};
+            const decodeBitset = (encoded) => {
+                try {
+                    const binary = atob(String(encoded || '').replace(/-/g, '+').replace(/_/g, '/'));
+                    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+                } catch (error) {
+                    return new Uint8Array(0);
+                }
+            };
+            const encodeBitset = (bytes) => btoa(String.fromCharCode(...bytes))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            const addInventoryItem = (inventory, kind, id) => {
+                const next = {
+                    v: 1,
+                    items: { ...((inventory && inventory.items) || {}) },
+                    upgrades: { ...((inventory && inventory.upgrades) || {}) },
+                };
+                // ノヴァドロップのアップグレードは「キャラID:上がった後のレベル」で、キャラごとのレベルとして持つ
+                if (kind === 'starrnovaUpgrade') {
+                    const [brawlerId, level] = String(id).split(':');
+                    next.upgrades[brawlerId] = Math.max(Number(next.upgrades[brawlerId]) || 0, Number(level) || 0);
+                    return next;
+                }
+                const base = INVENTORY_ID_BASES[kind];
+                const offset = Number(id) - base;
+                if (base === undefined || !Number.isInteger(offset) || offset < 0 || offset >= INVENTORY_MAX_BITS) return next;
+                const current = decodeBitset(next.items[kind]);
+                const bytes = new Uint8Array(Math.max(current.length, Math.floor(offset / 8) + 1));
+                bytes.set(current);
+                bytes[Math.floor(offset / 8)] |= 1 << (offset % 8);
+                next.items[kind] = encodeBitset(bytes);
+                return next;
+            };
+            const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+            })[char]);
+            // 寿司ロールの最大分裂数。ここまで分裂したら分裂判定は終わり
+            const SUSHI_MAX_COUNT = 8;
+            // 開封動画の縦横比(幅 / 高さ)
+            const BOX_VIDEO_ASPECT_RATIO = 1.44;
+            const MULTI_GRID_GAP = 6;
+            const MOBILE_MEDIA_QUERY = '(max-width: 679px)';
+            let multiResizeObserver = null;
+            // 報酬画像は表示中の報酬から数個先まで先読みし、切り替え時に前の画像が残らないようにする
+            const REWARD_IMAGE_PRELOAD_AHEAD = 4;
+            const preloadedImageUrls = new Set();
+            const preloadImage = (url) => {
+                if (!url || preloadedImageUrls.has(url)) return;
+                preloadedImageUrls.add(url);
+                const image = new Image();
+                image.decoding = 'async';
+                image.src = url;
+                // デコードまで済ませておくと、表示した瞬間に描画される
+                if (typeof image.decode === 'function') {
+                    image.decode().catch(() => preloadedImageUrls.delete(url));
+                }
+            };
+            // 複数個開封で同じ動画を何本も再生するため、動画は種類ごとに1回だけ取得してBlob URLを使い回す
+            const sharedVideoSources = {};
+            const loadSharedVideoSource = (url) => {
+                if (!sharedVideoSources[url]) {
+                    sharedVideoSources[url] = fetch(url)
+                        .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(`HTTP ${response.status}`))))
+                        .then((blob) => URL.createObjectURL(blob))
+                        .catch(() => {
+                            delete sharedVideoSources[url];
+                            return url;
+                        });
+                }
+                return sharedVideoSources[url];
+            };
+            // 連打で動画を即スキップ・結果画面を即閉じしないための猶予(ms)
+            const VIDEO_SKIP_GUARD_MS = 600;
+            // 演出も動画もないボックスで、開封(読み込み開始)から報酬を表示するまで揺れる演出を続ける最短時間
+            const MIN_OPENING_EFFECT_MS = 1000;
+            let openingEffectTimer = null;
+            const SUMMARY_TAP_GUARD_MS = 700;
+            // iPadOSはデスクトップ版のUA(Macintosh)を名乗るため、タッチ対応かどうかで見分ける
+            const IS_IOS_WEBKIT = /iPad|iPhone|iPod/.test(navigator.userAgent)
+                || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+            // iOSでのみ使う、開封動画の背景色データ。必要になったときに1回だけ取得する
+            let videoBackdropDataPromise = null;
+            const loadVideoBackdropData = () => {
+                if (!videoBackdropDataPromise) {
+                    videoBackdropDataPromise = fetch('{{ url_for("static", path="/data/box_video_backdrops.json") }}?v={{ app_version }}')
+                        .then((response) => (response.ok ? response.json() : null))
+                        .catch(() => null);
+                }
+                return videoBackdropDataPromise;
+            };
+
+            return withDropBoxMenu({
+                isJa: '{{ lang }}' === 'ja',
+                initialBox: {{ initial_box | tojson | safe }},
+                data: {{ drop_boxes_data | tojson | safe }},
+                openApiBase: '{{ url_for("box_simulator_open_api", lang=lang) }}',
+                inventoryStatsApi: '{{ url_for("box_simulator_inventory_stats_api", lang=lang) }}',
+                inventoryImportApi: '{{ url_for("box_simulator_inventory_import_api", lang=lang) }}',
+                // 所持状況(排出済みのアイテム)。サーバーから受け取った形式のまま端末に保存し、開封のたびに送る
+                inventoryPersist: true,
+                inventory: null,
+                inventoryStats: null,
+                inventoryOpenCounts: {},
+                // 累計排出資源(報酬が表示された時点で加算する)
+                inventoryResources: {},
+                inventoryResourceKeys: ['gems', 'coins', 'powerPoints', 'credits', 'bling', 'xpDoublers', 'proPassXp', 'proPassSkinUpgrade'],
+                inventoryAccount: null,
+                inventoryPanelOpen: false,
+                inventoryBusy: false,
+                inventoryMessage: '',
+                lastOpenUsedInventory: false,
+                // 表示中の開封結果の排出状況を反映した進み具合(報酬が表示された分だけ反映する)
+                inventoryCommit: null,
+                maxOpenCount: {{ max_open_count | tojson }},
+                // 開封数はボックスを切り替えても引き継ぐ
+                openCount: 1,
+                multiCells: [],
+                multiLayout: { cellWidth: 0, cellHeight: 0, scale: 1 },
+                selectedBoxKey: '',
+                phase: 'idle',
+                errorMessage: '',
+                result: null,
+                currentEventIndex: -1,
+                rarityRevealState: null,
+                sushiSplitState: null,
+                chaosRevealState: null,
+                choiceRevealState: null,
+                hasPlayedBoxVideo: false,
+                requestSeq: 0,
+                phaseChangedAt: 0,
+                loadingStartedAt: 0,
+
+                init() {
+                    const firstBox = this.activeBoxOrder.find((key) => this.boxes[key]) || Object.keys(this.boxes)[0] || '';
+                    this.selectedBoxKey = this.initialBox && this.boxes[this.initialBox] ? this.initialBox : firstBox;
+                    this.expandBoxListFor(this.initialBox);
+                    this.loadInventory();
+                    this.loadStoredBoxSessions();
+                    this.restoreBoxSession(this.selectedBoxKey);
+                    this.$watch('phase', (phase) => {
+                        this.phaseChangedAt = Date.now();
+                        if (phase !== 'multi') this.disconnectMultiLayout();
+                    });
+                    // ページを離れるとき(他のページへの移動・アプリの切り替え等)に開封状態を書き出す
+                    window.addEventListener('pagehide', () => this.storeBoxSessions());
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'hidden') this.storeBoxSessions();
+                    });
+                },
+
+                loadStoredBoxSessions() {
+                    try {
+                        const stored = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+                        if (!stored || stored.v !== 1 || !stored.sessions) return;
+                        // 開封数の選択も戻す(結果まとめの開封数と表示を合わせる)
+                        if (stored.openCount) this.openCount = stored.openCount;
+                        Object.entries(stored.sessions).forEach(([boxKey, session]) => {
+                            if (this.boxes[boxKey] && session && session.result) boxSessions[boxKey] = session;
+                        });
+                    } catch (error) {
+                        // 保存領域が使えない環境では、ページ内でのみ保持する
+                    }
+                },
+
+                storeBoxSessions() {
+                    this.saveBoxSession(this.selectedBoxKey);
+                    // 表示中のボックスを優先し、残りは保存した順(古いものが後ろ)で上限まで詰める
+                    const keys = Object.keys(boxSessions)
+                        .sort((a, b) => (a === this.selectedBoxKey ? -1 : b === this.selectedBoxKey ? 1 : (boxSessions[b].savedAt || 0) - (boxSessions[a].savedAt || 0)));
+                    const sessions = {};
+                    let length = 0;
+                    keys.forEach((boxKey) => {
+                        const json = JSON.stringify(boxSessions[boxKey]);
+                        if (length + json.length > SESSION_STORAGE_MAX_LENGTH) return;
+                        length += json.length;
+                        sessions[boxKey] = JSON.parse(json);
+                    });
+                    try {
+                        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ v: 1, sessions, openCount: this.openCount }));
+                    } catch (error) {
+                        // 保存できなくても、このページを開いている間は保持される
+                    }
+                },
+
+                // 結果まとめから初期画面(開封前)に戻る。排出状況・累計開封数は報酬の表示時に反映済みなので変わらない
+                endOpeningSession() {
+                    if (this.phase !== 'done') return;
+                    this.requestSeq += 1;
+                    delete boxSessions[this.selectedBoxKey];
+                    this.resetOpeningState();
+                    this.storeBoxSessions();
+                },
+
+                selectBox(boxKey) {
+                    if (boxKey === this.selectedBoxKey || !this.boxes[boxKey]) return;
+                    this.saveBoxSession(this.selectedBoxKey);
+                    // 通信中の結果が切り替え後のボックスに反映されないよう無効化する
+                    this.requestSeq += 1;
+                    this.selectedBoxKey = boxKey;
+                    this.restoreBoxSession(boxKey);
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('box', boxKey);
+                    history.replaceState({}, '', url);
+                },
+
+                saveBoxSession(boxKey) {
+                    if (!boxKey) return;
+                    // 開封前・通信中・エラーは保持する価値がないので初期状態に戻す
+                    if (['idle', 'loading', 'error'].includes(this.phase)) {
+                        delete boxSessions[boxKey];
+                        return;
+                    }
+                    // 動画再生中・開封の揺れる演出中に離れた場合は、戻ったときに最初の演出から再開する
+                    if (this.phase === 'video' || this.phase === 'opening' || (this.phase === 'multi' && this.isMultiVideoStage())) {
+                        clearTimeout(openingEffectTimer);
+                        this.beginRevealSequence();
+                    }
+                    const session = { savedAt: Date.now() };
+                    SESSION_FIELDS.forEach((field) => {
+                        session[field] = this[field];
+                    });
+                    boxSessions[boxKey] = session;
+                },
+
+                restoreBoxSession(boxKey) {
+                    const session = boxSessions[boxKey];
+                    if (!session) {
+                        this.resetOpeningState();
+                        return;
+                    }
+                    SESSION_FIELDS.forEach((field) => {
+                        if (field in session) this[field] = session[field];
+                    });
+                    if (this.phase === 'multi') {
+                        this.$nextTick(() => this.observeMultiLayout());
+                    }
+                },
+
+                resetOpeningState() {
+                    this.phase = 'idle';
+                    this.errorMessage = '';
+                    this.result = null;
+                    this.currentEventIndex = -1;
+                    this.rarityRevealState = this.createInitialRarityRevealState();
+                    this.sushiSplitState = this.createInitialSushiSplitState();
+                    this.chaosRevealState = this.createInitialChaosRevealState();
+                    this.choiceRevealState = this.createInitialChoiceRevealState();
+                    this.hasPlayedBoxVideo = false;
+                    this.multiCells = [];
+                    clearTimeout(openingEffectTimer);
+                },
+
+                // スペースキーは表示領域のタップと同じ扱い(PCで連続して進めやすくする)。左右矢印キーはボックス切り替え
+                handleWindowKeydown(e) {
+                    if (e.key !== ' ') {
+                        this.handleBoxMenuKeydown(e);
+                        return;
+                    }
+                    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || !this.selectedBox) return;
+                    // ボタン・リンク等にフォーカスがある場合は、その要素本来のスペースキー操作を優先する
+                    const el = document.activeElement;
+                    if (isDropBoxMenuEditableElement(el) || (el && el.closest('button, a, [role="button"]'))) return;
+                    e.preventDefault();
+                    // 長押しのキーリピートで連続して進まないようにする
+                    if (e.repeat) return;
+                    this.handleStageTap();
+                },
+
+                handleStageTap() {
+                    const elapsed = Date.now() - this.phaseChangedAt;
+                    switch (this.phase) {
+                        case 'idle':
+                        case 'error':
+                            this.startOpening();
+                            return;
+                        case 'done':
+                            if (elapsed < SUMMARY_TAP_GUARD_MS) return;
+                            this.startOpening();
+                            return;
+                        case 'video':
+                            if (elapsed < VIDEO_SKIP_GUARD_MS) return;
+                            this.finishBoxVideo();
+                            return;
+                        case 'opening':
+                            this.finishOpeningEffect();
+                            return;
+                        case 'multi':
+                            if (this.isMultiVideoStage()) {
+                                if (elapsed < VIDEO_SKIP_GUARD_MS) return;
+                                this.finishMultiStage();
+                                return;
+                            }
+                            this.advanceMultiStage();
+                            return;
+                        case 'reveal':
+                            this.advanceEvent();
+                            return;
+                        default:
+                            return;
+                    }
+                },
+
+                getStageHintText() {
+                    const ja = this.isJa;
+                    switch (this.phase) {
+                        case 'idle':
+                            return ja ? 'タップして開封' : 'Tap to open';
+                        case 'error':
+                            return ja ? 'タップして再試行' : 'Tap to retry';
+                        case 'video':
+                        case 'opening':
+                            return ja ? 'タップでスキップ' : 'Tap to skip';
+                        case 'done':
+                            return ja ? 'タップしてもう一度引く' : 'Tap to open again';
+                        case 'multi':
+                            return this.getMultiStageHintText();
+                        case 'reveal':
+                            break;
+                        default:
+                            return '';
+                    }
+                    const event = this.currentEvent;
+                    if (event && event.type === 'choice_reveal' && !this.choiceRevealState.resolved) {
+                        const count = this.choiceRevealState.choiceCount;
+                        return ja ? `${count}個選んでください` : `Choose ${count}`;
+                    }
+                    if (event && event.type === 'rarity' && !this.rarityRevealState.resolved) {
+                        return ja ? 'タップしてアップグレード' : 'Tap to upgrade';
+                    }
+                    if (event && event.type === 'sushi_split' && !this.sushiSplitState.resolved) {
+                        return ja ? 'タップして分裂判定' : 'Tap to roll split';
+                    }
+                    if (event && event.type === 'chaos_reveal' && !this.chaosRevealState.resolved) {
+                        return ja ? 'タップしてアップグレード' : 'Tap to upgrade';
+                    }
+                    if (this.hasNextEvent()) {
+                        return ja ? 'タップして次へ' : 'Tap for next';
+                    }
+                    return ja ? 'タップして結果を見る' : 'Tap to view summary';
+                },
+
+                createInitialRarityRevealState() {
+                    return {
+                        targetRarityKey: 'rare',
+                        displayedRarityKey: 'rare',
+                        tapsUsed: 0,
+                        maxTaps: 4,
+                        jumpPlan: [],
+                        resolved: false,
+                        lastOutcome: '',
+                    };
+                },
+
+                createInitialSushiSplitState() {
+                    return {
+                        cycles: [],
+                        cycleIndex: 0,
+                        tapsUsedInCycle: 0,
+                        displayedCount: 1,
+                        resolved: false,
+                        lastOutcome: '',
+                    };
+                },
+
+                createInitialChaosRevealState() {
+                    return {
+                        steps: [],
+                        tapsUsed: 0,
+                        displayedCount: 1,
+                        displayedRarityKey: 'rare',
+                        finalCount: 1,
+                        finalRarityKey: 'superRare',
+                        resolved: false,
+                        lastOutcome: '',
+                    };
+                },
+
+                createInitialChoiceRevealState() {
+                    return {
+                        capsules: [],
+                        selectedSlots: [],
+                        selectedItemCounts: {},
+                        pickItemCounts: [],
+                        choiceCount: 3,
+                        totalItems: 1,
+                        maxItemsPerCapsule: 3,
+                        resolved: false,
+                    };
+                },
+
+                get boxes() {
+                    return this.data.boxes || {};
+                },
+
+                get rewardTypes() {
+                    return this.data.reward_types || {};
+                },
+
+                get selectedBox() {
+                    return this.boxes[this.selectedBoxKey] || null;
+                },
+
+                get currentEvent() {
+                    if (!this.result || !Array.isArray(this.result.events)) return null;
+                    return this.result.events[this.currentEventIndex] || null;
+                },
+
+                async startOpening() {
+                    const boxKey = this.selectedBoxKey;
+                    if (!boxKey) return;
+                    this.requestSeq += 1;
+                    const requestId = this.requestSeq;
+                    this.resetOpeningState();
+                    this.phase = 'loading';
+                    this.loadingStartedAt = Date.now();
+
+                    const params = new URLSearchParams({ box: boxKey });
+                    const openCount = this.getRequestedOpenCount();
+                    if (openCount > 1) params.set('count', String(openCount));
+
+                    const persist = this.inventoryPersist;
+                    const usedInventory = persist && this.hasInventoryItems();
+                    try {
+                        const response = await fetch(`${this.openApiBase}?${params.toString()}`, {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ persist, inventory: persist ? this.inventory : null }),
+                        });
+                        const data = await response.json();
+                        // 通信中にボックスが切り替えられた場合は結果を破棄する
+                        if (requestId !== this.requestSeq) return;
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Failed to simulate');
+                        }
+                        // 排出状況と累計開封数は、報酬が表示された時点で1つずつ反映する(commitInventoryEvent)
+                        this.inventoryCommit = persist
+                            ? { boxKey, committedEvents: {}, committedOpens: {} }
+                            : null;
+                        if (persist && Array.isArray(data.inventory_stats)) {
+                            this.inventoryStats = data.inventory_stats;
+                        }
+                        this.lastOpenUsedInventory = usedInventory;
+                        this.result = data.result;
+                        this.startReveal();
+                    } catch (error) {
+                        if (requestId !== this.requestSeq) return;
+                        console.error('Box simulator failed:', error);
+                        this.phase = 'error';
+                        this.errorMessage = this.isJa
+                            ? '結果の取得に失敗しました。'
+                            : 'Failed to get the result.';
+                    }
+                },
+
+                loadInventory() {
+                    try {
+                        const saved = JSON.parse(localStorage.getItem(INVENTORY_STORAGE_KEY) || 'null');
+                        if (!saved || saved.v !== 1) return;
+                        this.inventoryPersist = saved.persist !== false;
+                        this.inventory = saved.inventory || null;
+                        this.inventoryStats = Array.isArray(saved.stats) ? saved.stats : null;
+                        this.inventoryOpenCounts = saved.openCounts && typeof saved.openCounts === 'object' ? saved.openCounts : {};
+                        this.inventoryResources = saved.resources && typeof saved.resources === 'object' ? saved.resources : {};
+                        this.inventoryAccount = saved.account || null;
+                    } catch (error) {
+                        // 保存領域が使えない環境では、端末に保存せずに動かす
+                    }
+                },
+
+                saveInventory() {
+                    try {
+                        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify({
+                            v: 1,
+                            persist: this.inventoryPersist,
+                            inventory: this.inventory,
+                            stats: this.inventoryStats,
+                            openCounts: this.inventoryOpenCounts,
+                            resources: this.inventoryResources,
+                            account: this.inventoryAccount,
+                        }));
+                    } catch (error) {
+                        // 保存できなくても、このページを開いている間は引き継がれる
+                    }
+                },
+
+                // 表示された報酬1つ分を排出状況・累計開封数に反映する。同じ報酬は1回だけ反映する
+                commitInventoryEvent(eventIndex, save = true) {
+                    const commit = this.inventoryCommit;
+                    const event = this.result && Array.isArray(this.result.events) ? this.result.events[eventIndex] : null;
+                    if (!commit || !event || event.type !== 'reward' || commit.committedEvents[eventIndex]) return;
+                    commit.committedEvents[eventIndex] = true;
+
+                    // 複数個開封では、そのドロップの報酬が初めて見えた時点で1個開封したものとして数える
+                    const openIndex = Number(event.open_index) || 0;
+                    if (!commit.committedOpens[openIndex]) {
+                        commit.committedOpens[openIndex] = true;
+                        this.inventoryOpenCounts[commit.boxKey] = (Number(this.inventoryOpenCounts[commit.boxKey]) || 0) + 1;
+                    }
+
+                    // 資源(代替報酬として出た分を含む)は累計排出資源に加算する
+                    if (this.inventoryResourceKeys.includes(event.reward_type)) {
+                        this.inventoryResources[event.reward_type] = (Number(this.inventoryResources[event.reward_type]) || 0)
+                            + (Number(event.amount) || 0);
+                    }
+
+                    const delta = event.inventory_delta;
+                    if (delta) {
+                        this.inventory = addInventoryItem(this.inventory, delta.kind, delta.id);
+                        const stat = delta.counted ? this.getInventoryStats().find((item) => item.key === delta.kind) : null;
+                        if (stat) stat.owned += 1;
+                    }
+                    if (save) this.saveInventory();
+                },
+
+                commitAllInventoryEvents() {
+                    if (!this.inventoryCommit || !this.result || !Array.isArray(this.result.events)) return;
+                    this.result.events.forEach((_event, index) => this.commitInventoryEvent(index, false));
+                    this.saveInventory();
+                },
+
+                hasInventoryItems() {
+                    return Array.isArray(this.inventoryStats) && this.inventoryStats.some((stat) => Number(stat.owned) > 0);
+                },
+
+                setInventoryPersist(persist) {
+                    this.inventoryPersist = persist;
+                    this.inventoryMessage = '';
+                    this.saveInventory();
+                    if (persist && !this.inventoryStats) this.refreshInventoryStats();
+                },
+
+                toggleInventoryPanel() {
+                    this.inventoryPanelOpen = !this.inventoryPanelOpen;
+                    // 総数を表示するため、まだ集計を持っていなければ取得する
+                    if (this.inventoryPanelOpen && this.inventoryPersist && !this.inventoryStats) this.refreshInventoryStats();
+                },
+
+                async postInventoryApi(url, body = null) {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body || {}),
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || (this.isJa ? '読み込みに失敗しました。' : 'Failed to load.'));
+                    }
+                    return data;
+                },
+
+                async refreshInventoryStats() {
+                    if (this.inventoryBusy) return;
+                    this.inventoryBusy = true;
+                    try {
+                        const data = await this.postInventoryApi(this.inventoryStatsApi, { inventory: this.inventory });
+                        this.inventoryStats = data.inventory_stats;
+                        this.saveInventory();
+                    } catch (error) {
+                        console.error('Failed to load inventory stats:', error);
+                    } finally {
+                        this.inventoryBusy = false;
+                    }
+                },
+
+                async importInventoryFromAccount() {
+                    if (this.inventoryBusy) return;
+                    if (!window.confirm(this.isJa
+                        ? 'あなたのメインアカウントのゲーム内の所持状況データをインポートしますか？現在の排出状況データは上書きされ、累計開封数はリセットされます。'
+                        : 'Import the in-game collection data of your main account? Your current drop status will be overwritten.')) return;
+                    this.inventoryBusy = true;
+                    this.inventoryMessage = '';
+                    try {
+                        const data = await this.postInventoryApi(this.inventoryImportApi);
+                        this.inventory = data.inventory;
+                        this.inventoryStats = data.inventory_stats;
+                        this.inventoryAccount = data.account || null;
+                        this.inventoryOpenCounts = {};
+                        this.inventoryResources = {};
+                        this.saveInventory();
+                        const playerName = escapeHtml(this.inventoryAccount ? (this.inventoryAccount.name || this.inventoryAccount.tag) : '');
+                        this.inventoryMessage = this.isJa
+                            ? `あなたのメインアカウント（<b>${playerName}</b>）のゲーム内の所持状況データをインポートしました。ピンズ・アイコン・スプレー等はゲーム内から所持状況を取得できないため、未所持として扱われます。`
+                            : `Imported the in-game collection data of your main account (<b>${playerName}</b>). Pins, icons, sprays, etc. are treated as not owned, as their ownership can't be retrieved from the game.`;
+                    } catch (error) {
+                        this.inventoryMessage = escapeHtml(error.message);
+                    } finally {
+                        this.inventoryBusy = false;
+                    }
+                },
+
+                async resetInventory() {
+                    if (this.inventoryBusy) return;
+                    if (!window.confirm(this.isJa
+                        ? '排出状況と累計開封数をリセットします。よろしいですか？'
+                        : 'Reset the drop status and total opened counts?')) return;
+                    this.inventory = null;
+                    this.inventoryAccount = null;
+                    this.inventoryOpenCounts = {};
+                    this.inventoryResources = {};
+                    this.inventoryMessage = '';
+                    // 所持数を0にした集計を先に表示し、総数は取得して埋める
+                    this.inventoryStats = Array.isArray(this.inventoryStats)
+                        ? this.inventoryStats.map((stat) => ({ ...stat, owned: 0 }))
+                        : null;
+                    this.saveInventory();
+                    await this.refreshInventoryStats();
+                },
+
+                showLuckInventoryInfo() {
+                    window.alert(this.isJa
+                        ? '運の良さは、何も所持していない状態を基準に判定されています。すでにコンプリート済みのアイテムが出現して代替報酬が排出された場合、代替報酬は本来のアイテムより価値の低いものが出現することが多いため、運の良さの高い評価はやや出にくくなります。'
+                        : 'Luck is rated as if you owned nothing. When an item you have already completed is drawn and replaced with a fallback reward, the fallback is often worth less than the original item, so high luck ratings become slightly harder to get.');
+                },
+
+                getInventoryStats() {
+                    return Array.isArray(this.inventoryStats) ? this.inventoryStats : [];
+                },
+
+                getInventoryStatName(key) {
+                    const names = {
+                        brawler: ['キャラクター', 'Brawlers'],
+                        skin: ['スキン', 'Skins'],
+                        gadget: ['ガジェット', 'Gadgets'],
+                        starPower: ['スターパワー', 'Star Powers'],
+                        hypercharge: ['ハイパーチャージ', 'Hypercharges'],
+                        buffy: ['バフィー', 'Buffies'],
+                        pin: ['ピンズ', 'Pins'],
+                        playerIcon: ['プロフィールアイコン', 'Profile Icons'],
+                        spray: ['スプレー', 'Sprays'],
+                        nanoPower: ['ナノパワー', 'Nano Powers'],
+                        fusion: ['フュージョン', 'Fusions'],
+                        starrnovaUpgrade: ['アップグレード', 'Upgrades'],
+                    };
+                    const name = names[key];
+                    return name ? name[this.isJa ? 0 : 1] : key;
+                },
+
+                getInventoryStatPercent(stat) {
+                    if (!stat || !stat.total) return 0;
+                    return Math.min(100, Math.round((Number(stat.owned) || 0) / stat.total * 1000) / 10);
+                },
+
+                getInventoryHeaderSummary() {
+                    if (!this.inventoryPersist) return this.isJa ? '設定：毎回リセット' : 'Setting: Reset each time';
+                    return this.isJa ? '設定：引き継ぐ' : 'Setting: Keep';
+                },
+
+                getInventoryAccountText() {
+                    const account = this.inventoryAccount;
+                    if (!account) return '';
+                    const name = account.name || account.tag;
+                    return this.isJa ? `${name} の所持状況をインポートして開始済み` : `Started by importing ${name}'s collection`;
+                },
+
+                // 累計開封数は開封した個数(12個まとめて開封したら12)。ボックスの種類を問わず1個は1個として数える
+                getInventoryTotalOpenCountText() {
+                    const total = Object.values(this.inventoryOpenCounts).reduce((sum, count) => sum + (Number(count) || 0), 0);
+                    return this.isJa ? `累計開封数：${total.toLocaleString()}個` : `Total opened: ${total.toLocaleString()}`;
+                },
+
+                // ボックス選択メニューを全て表示したときと同じ順番
+                getInventoryBoxKeys() {
+                    return this.boxOrderExpanded.filter((key) => this.boxes[key]);
+                },
+
+                getInventoryIconStyle(key) {
+                    return `--inventory-icon-scale: ${INVENTORY_ICON_SCALES[key] || 1}`;
+                },
+
+                getInventoryResourceAmount(resourceKey) {
+                    return Number(this.inventoryResources[resourceKey]) || 0;
+                },
+
+                getInventoryBoxOpenCount(boxKey) {
+                    return Number(this.inventoryOpenCounts[boxKey]) || 0;
+                },
+
+                getInventoryBoxOpenCountText(boxKey) {
+                    const count = this.getInventoryBoxOpenCount(boxKey).toLocaleString();
+                    return this.isJa ? `${count}個` : count;
+                },
+
+                startReveal() {
+                    if (!this.result || !Array.isArray(this.result.events) || this.result.events.length === 0) {
+                        this.finishReveal();
+                        return;
+                    }
+                    // 演出・動画の間に最初の報酬画像を読み込んでおく
+                    this.preloadUpcomingRewardImages();
+                    if (this.isMultiResult()) {
+                        this.startMultiStage();
+                        return;
+                    }
+                    if (this.shouldPlayBoxVideo()) {
+                        this.phase = 'video';
+                        this.hasPlayedBoxVideo = true;
+                        this.$nextTick(() => {
+                            const video = this.$refs.boxVideo;
+                            if (!video) {
+                                this.finishBoxVideo();
+                                return;
+                            }
+                            this.startVideoBackdrop();
+                            const playPromise = video.play();
+                            if (playPromise && typeof playPromise.catch === 'function') {
+                                playPromise.catch(() => {
+                                    this.finishBoxVideo();
+                                });
+                            }
+                        });
+                        return;
+                    }
+                    this.beginRevealAfterOpeningEffect();
+                },
+
+                startVideoBackdrop() {
+                    const video = this.$refs.boxVideo;
+                    const canvas = this.$refs.boxVideoBackdrop;
+                    if (!video || !canvas || typeof canvas.getContext !== 'function') return;
+                    const context = canvas.getContext('2d');
+                    if (!context) return;
+                    // iOS/iPadOS(WebKit)では再生中の動画をcanvasに描画すると動画自体が表示されなくなるため、動画には触れず事前計算した色で背景を作る
+                    if (IS_IOS_WEBKIT) {
+                        this.drawPrecomputedBackdrop(canvas, context, this.getBoxVideoUrl(), () => this.phase === 'video');
+                        return;
+                    }
+                    const draw = () => {
+                        if (this.phase !== 'video' || !video.isConnected) return;
+                        if (video.readyState >= 2) {
+                            try {
+                                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                canvas.classList.add('box-sim-reveal__video-backdrop--ready');
+                            } catch (error) {
+                                return;
+                            }
+                        }
+                        requestAnimationFrame(draw);
+                    };
+                    requestAnimationFrame(draw);
+                },
+
+                // 事前計算した動画の平均色(scripts/generate_box_video_backdrops.js)を並べて拡大し、CSSのぼかしでなめらかなグラデーションにする
+                drawPrecomputedBackdrop(canvas, context, videoUrl, isActive) {
+                    if (!videoUrl) return;
+                    const fileName = decodeURIComponent(videoUrl.split('/').pop());
+                    loadVideoBackdropData().then((backdropData) => {
+                        const colors = backdropData && backdropData.videos ? backdropData.videos[fileName] : '';
+                        const cols = Number(backdropData && backdropData.cols) || 0;
+                        const rows = Number(backdropData && backdropData.rows) || 0;
+                        if (!colors || colors.length !== cols * rows * 6) return;
+                        if (!isActive() || !canvas.isConnected) return;
+                        const sample = document.createElement('canvas');
+                        sample.width = cols;
+                        sample.height = rows;
+                        const sampleContext = sample.getContext('2d');
+                        const pixels = sampleContext.createImageData(cols, rows);
+                        for (let i = 0; i < cols * rows; i++) {
+                            for (let c = 0; c < 3; c++) {
+                                pixels.data[i * 4 + c] = parseInt(colors.substr(i * 6 + c * 2, 2), 16);
+                            }
+                            pixels.data[i * 4 + 3] = 255;
+                        }
+                        sampleContext.putImageData(pixels, 0, 0);
+                        context.imageSmoothingEnabled = true;
+                        context.drawImage(sample, 0, 0, canvas.width, canvas.height);
+                        canvas.classList.add('box-sim-reveal__video-backdrop--ready');
+                    });
+                },
+
+                shouldPlayBoxVideo() {
+                    return !!this.getBoxVideoUrl() && !this.hasPlayedBoxVideo;
+                },
+
+                finishBoxVideo() {
+                    if (this.phase !== 'video') return;
+                    this.beginRevealSequence();
+                },
+
+                // 動画も開封演出(レア度のアップグレード等)もない場合は、開封からの揺れる演出を最短時間まで続けてから報酬を表示する
+                beginRevealAfterOpeningEffect() {
+                    const firstEvent = this.result && Array.isArray(this.result.events) ? this.result.events[0] : null;
+                    const hasStageEffect = !!(firstEvent && firstEvent.type !== 'reward');
+                    const remaining = MIN_OPENING_EFFECT_MS - (Date.now() - this.loadingStartedAt);
+                    if (hasStageEffect || remaining <= 0) {
+                        this.beginRevealSequence();
+                        return;
+                    }
+                    this.phase = 'opening';
+                    const requestId = this.requestSeq;
+                    clearTimeout(openingEffectTimer);
+                    openingEffectTimer = setTimeout(() => {
+                        if (requestId === this.requestSeq) this.finishOpeningEffect();
+                    }, remaining);
+                },
+
+                finishOpeningEffect() {
+                    if (this.phase !== 'opening') return;
+                    clearTimeout(openingEffectTimer);
+                    this.beginRevealSequence();
+                },
+
+                beginRevealSequence() {
+                    this.phase = 'reveal';
+                    this.currentEventIndex = 0;
+                    this.prepareCurrentEventState();
+                },
+
+                hasNextEvent() {
+                    return !!(this.result && Array.isArray(this.result.events) && this.currentEventIndex < this.result.events.length - 1);
+                },
+
+                advanceEvent() {
+                    if (this.currentEvent && this.currentEvent.type === 'choice_reveal' && !this.choiceRevealState.resolved) {
+                        return;
+                    }
+                    if (this.currentEvent && this.currentEvent.type === 'rarity' && !this.rarityRevealState.resolved) {
+                        this.handleRarityTap(this.currentEvent);
+                        return;
+                    }
+                    if (this.currentEvent && this.currentEvent.type === 'sushi_split' && !this.sushiSplitState.resolved) {
+                        this.handleSushiSplitTap(this.currentEvent);
+                        return;
+                    }
+                    if (this.currentEvent && this.currentEvent.type === 'chaos_reveal' && !this.chaosRevealState.resolved) {
+                        this.handleChaosRevealTap(this.currentEvent);
+                        return;
+                    }
+
+                    if (this.hasNextEvent()) {
+                        this.currentEventIndex += 1;
+                        this.prepareCurrentEventState();
+                        return;
+                    }
+
+                    this.finishReveal();
+                },
+
+                finishReveal() {
+                    // 結果まとめでは全ての報酬が見えるので、まだ反映していない分をまとめて反映する
+                    this.commitAllInventoryEvents();
+                    this.phase = 'done';
+                },
+
+                getRequestedOpenCount() {
+                    const count = Math.floor(Number(this.openCount) || 1);
+                    return Math.max(1, Math.min(this.maxOpenCount, count));
+                },
+
+                getResultOpenCount() {
+                    return this.result ? Math.max(1, Number(this.result.open_count) || 1) : 1;
+                },
+
+                isMultiResult() {
+                    return !!(this.result && Array.isArray(this.result.opens) && this.result.opens.length > 1);
+                },
+
+                // 複数個開封: 開封ごとの演出を分割表示する。演出のないドロップ(プレゼント等)はそのまま報酬の表示へ進む
+                startMultiStage() {
+                    const cells = this.result.opens.map((openResult) => this.createMultiCell(openResult));
+                    if (!cells.some((cell) => cell.type)) {
+                        this.beginRevealAfterOpeningEffect();
+                        return;
+                    }
+                    this.multiCells = cells;
+                    this.phase = 'multi';
+                    const hasVideo = cells.some((cell) => cell.type === 'video');
+                    if (hasVideo) this.hasPlayedBoxVideo = true;
+                    this.$nextTick(() => {
+                        this.observeMultiLayout();
+                        if (hasVideo) this.loadMultiVideos();
+                    });
+                },
+
+                createMultiCell(openResult) {
+                    const openIndex = Number(openResult.open_index) || 0;
+                    const videoUrl = this.getBoxVideoUrl(openResult);
+                    if (videoUrl) {
+                        return { openIndex, type: 'video', videoUrl, videoSrc: '', ended: false, event: null, state: null };
+                    }
+                    const events = Array.isArray(openResult.events) ? openResult.events : [];
+                    const event = events.find((item) => item && MULTI_STAGE_EVENT_TYPES.includes(item.type));
+                    if (!event) {
+                        return { openIndex, type: '', videoUrl: '', videoSrc: '', ended: true, event: null, state: null };
+                    }
+                    return { openIndex, type: event.type, videoUrl: '', videoSrc: '', ended: false, event, state: this.createStageState(event) };
+                },
+
+                createStageState(event) {
+                    switch (event.type) {
+                        case 'rarity':
+                            return this.createRarityRevealState(event);
+                        case 'chaos_reveal':
+                            return this.createChaosRevealState(event);
+                        case 'sushi_split':
+                            return this.createSushiSplitState(event);
+                        case 'choice_reveal':
+                            return this.createChoiceRevealState(event);
+                        default:
+                            return null;
+                    }
+                },
+
+                isMultiVideoStage() {
+                    return this.multiCells.some((cell) => cell.type === 'video');
+                },
+
+                getPendingMultiCells() {
+                    return this.multiCells.filter((cell) => cell.state && !cell.state.resolved);
+                },
+
+                // タップ1回で、演出が終わっていない全マスを1段階ずつ進める。全マス終わっていれば報酬の表示へ進む
+                advanceMultiStage() {
+                    const pendingCells = this.getPendingMultiCells();
+                    if (pendingCells.length === 0) {
+                        this.finishMultiStage();
+                        return;
+                    }
+                    pendingCells.forEach((cell) => {
+                        switch (cell.type) {
+                            case 'rarity':
+                                this.handleRarityTap(cell.event, cell.state);
+                                return;
+                            case 'chaos_reveal':
+                                this.handleChaosRevealTap(cell.event, cell.state);
+                                return;
+                            case 'sushi_split':
+                                this.handleSushiSplitTap(cell.event, cell.state);
+                                return;
+                            case 'choice_reveal':
+                                this.selectRandomChoiceCapsule(cell.state);
+                                return;
+                            default:
+                                return;
+                        }
+                    });
+                },
+
+                finishMultiStage() {
+                    if (this.phase !== 'multi') return;
+                    this.multiCells = [];
+                    this.beginRevealSequence();
+                },
+
+                getMultiStageHintText() {
+                    const ja = this.isJa;
+                    if (this.isMultiVideoStage()) return ja ? 'タップでスキップ' : 'Tap to skip';
+                    const pendingCells = this.getPendingMultiCells();
+                    if (pendingCells.length === 0) return ja ? 'タップして報酬を見る' : 'Tap to see rewards';
+                    switch (pendingCells[0].type) {
+                        case 'rarity':
+                            return ja ? 'タップしてアップグレード' : 'Tap to upgrade';
+                        case 'chaos_reveal':
+                            return ja ? 'タップしてアップグレード' : 'Tap to upgrade';
+                        case 'sushi_split':
+                            return ja ? 'タップして分裂判定' : 'Tap to roll split';
+                        case 'choice_reveal':
+                            return ja ? 'タップしてまとめて選ぶ' : 'Tap to pick for all';
+                        default:
+                            return ja ? 'タップして次へ' : 'Tap for next';
+                    }
+                },
+
+                async loadMultiVideos() {
+                    const requestId = this.requestSeq;
+                    const urls = [...new Set(this.multiCells.filter((cell) => cell.type === 'video').map((cell) => cell.videoUrl))];
+                    const sources = await Promise.all(urls.map((url) => loadSharedVideoSource(url)));
+                    // 読み込み中にスキップ・ボックス切り替えされた場合は何もしない
+                    if (requestId !== this.requestSeq || this.phase !== 'multi') return;
+                    this.multiCells.forEach((cell) => {
+                        if (cell.type === 'video') cell.videoSrc = sources[urls.indexOf(cell.videoUrl)];
+                    });
+                    this.$nextTick(() => this.startMultiVideos());
+                },
+
+                startMultiVideos() {
+                    const grid = this.$refs.multiGrid;
+                    if (this.phase !== 'multi' || !grid) return;
+                    grid.querySelectorAll('.box-sim-multi__cell').forEach((cellElement, index) => {
+                        const cell = this.multiCells[index];
+                        const video = cellElement.querySelector('video');
+                        if (!cell || !video) return;
+                        const canvas = cellElement.querySelector('canvas');
+                        const context = canvas && typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+                        // 同時に何本も再生するため、動画のフレームは描画せず事前計算した色で背景を作る
+                        if (context) {
+                            this.drawPrecomputedBackdrop(canvas, context, cell.videoUrl, () => this.phase === 'multi');
+                        }
+                        const playPromise = video.play();
+                        if (playPromise && typeof playPromise.catch === 'function') {
+                            playPromise.catch(() => this.onMultiVideoEnded(cell));
+                        }
+                    });
+                },
+
+                onMultiVideoEnded(cell) {
+                    if (this.phase !== 'multi' || !cell || cell.ended) return;
+                    cell.ended = true;
+                    if (this.multiCells.every((item) => item.type !== 'video' || item.ended)) {
+                        this.finishMultiStage();
+                    }
+                },
+
+                observeMultiLayout() {
+                    const grid = this.$refs.multiGrid;
+                    this.disconnectMultiLayout();
+                    if (this.phase !== 'multi' || !grid) return;
+                    this.updateMultiLayout();
+                    if (typeof ResizeObserver === 'undefined') return;
+                    multiResizeObserver = new ResizeObserver(() => this.updateMultiLayout());
+                    multiResizeObserver.observe(grid);
+                },
+
+                disconnectMultiLayout() {
+                    if (!multiResizeObserver) return;
+                    multiResizeObserver.disconnect();
+                    multiResizeObserver = null;
+                },
+
+                // 分割数ごとに、各マスの演出が最も大きく表示できる行数・列数を選ぶ
+                updateMultiLayout() {
+                    const grid = this.$refs.multiGrid;
+                    const count = this.multiCells.length;
+                    if (!grid || count === 0) return;
+                    // clientWidth は整数に丸められ、実際より大きくなると最終列が折り返して見切れる。
+                    // タップ中の縮小(transform)の影響も受けないよう、計算済みスタイルの小数の幅から枠線・余白を引き、端数ぶんの余裕も取る
+                    const gridStyle = getComputedStyle(grid);
+                    const sumStyles = (keys) => keys.reduce((sum, key) => sum + (parseFloat(gridStyle[key]) || 0), 0);
+                    const isBorderBox = gridStyle.boxSizing === 'border-box';
+                    const width = parseFloat(gridStyle.width) - 1
+                        - (isBorderBox ? sumStyles(['borderLeftWidth', 'borderRightWidth', 'paddingLeft', 'paddingRight']) : 0);
+                    const height = parseFloat(gridStyle.height) - 1
+                        - (isBorderBox ? sumStyles(['borderTopWidth', 'borderBottomWidth', 'paddingTop', 'paddingBottom']) : 0);
+                    if (width <= 0 || height <= 0) return;
+
+                    const type = this.multiCells.find((cell) => cell.type)?.type || '';
+                    const sizeSet = window.matchMedia(MOBILE_MEDIA_QUERY).matches ? MULTI_STAGE_MIN_SIZES.mobile : MULTI_STAGE_MIN_SIZES.desktop;
+                    const [minWidth, minHeight] = type === 'chaos_reveal'
+                        ? MULTI_CHAOS_MIN_SIZE
+                        : (sizeSet[type] || sizeSet.rarity);
+                    let best = null;
+                    for (let cols = 1; cols <= count; cols += 1) {
+                        const rows = Math.ceil(count / cols);
+                        const cellWidth = (width - MULTI_GRID_GAP * (cols - 1)) / cols;
+                        const cellHeight = (height - MULTI_GRID_GAP * (rows - 1)) / rows;
+                        if (cellWidth <= 0 || cellHeight <= 0) continue;
+                        // 動画は縦横比を保った表示サイズ、演出は縮小率で比べる
+                        const size = type === 'video'
+                            ? Math.min(cellWidth / BOX_VIDEO_ASPECT_RATIO, cellHeight)
+                            : Math.min(1, cellWidth / minWidth, cellHeight / minHeight);
+                        const emptyCells = cols * rows - count;
+                        if (!best || size > best.size + 0.001 || (Math.abs(size - best.size) <= 0.001 && emptyCells < best.emptyCells)) {
+                            best = { cellWidth, cellHeight, size, emptyCells };
+                        }
+                    }
+                    if (!best) return;
+                    this.multiLayout = {
+                        cellWidth: Math.floor(best.cellWidth),
+                        cellHeight: Math.floor(best.cellHeight),
+                        scale: type === 'video' ? 1 : Math.round(best.size * 1000) / 1000,
+                    };
+                },
+
+                getMultiGridStyle() {
+                    const { cellWidth, cellHeight, scale } = this.multiLayout;
+                    if (!cellWidth || !cellHeight) return `--box-sim-multi-gap: ${MULTI_GRID_GAP}px; visibility: hidden;`;
+                    return [
+                        `--box-sim-multi-gap: ${MULTI_GRID_GAP}px`,
+                        `--box-sim-multi-cell-width: ${cellWidth}px`,
+                        `--box-sim-multi-cell-height: ${cellHeight}px`,
+                        `--box-sim-multi-scale: ${scale}`,
+                    ].join('; ');
+                },
+
+                preloadUpcomingRewardImages() {
+                    if (!this.result || !Array.isArray(this.result.events)) return;
+                    const events = this.result.events;
+                    let preloadCount = 0;
+                    for (let index = Math.max(0, this.currentEventIndex); index < events.length && preloadCount < REWARD_IMAGE_PRELOAD_AHEAD; index += 1) {
+                        const event = events[index];
+                        if (!event || event.type !== 'reward') continue;
+                        preloadCount += 1;
+                        preloadImage(this.getEventDisplayImage(event));
+                        preloadImage(this.getEventBadgeImage(event));
+                    }
+                },
+
+                // 報酬を確認中で、まだ後に報酬が残っているときだけスキップできる(最後の1個は次のタップで結果まとめになるため不要)
+                canSkipRewards() {
+                    if (this.phase !== 'reveal' || !this.currentEvent || this.currentEvent.type !== 'reward') return false;
+                    return this.result.events.slice(this.currentEventIndex + 1).some((event) => event && event.type === 'reward');
+                },
+
+                skipRewards() {
+                    if (!this.canSkipRewards()) return;
+                    this.finishReveal();
+                },
+
+                // 報酬を確認中に、1つ前の報酬へ戻る。レア度のアップグレード等の演出には戻らず、報酬だけをさかのぼる
+                getPreviousRewardIndex() {
+                    if (this.phase !== 'reveal' || !this.currentEvent || this.currentEvent.type !== 'reward') return -1;
+                    for (let index = this.currentEventIndex - 1; index >= 0; index -= 1) {
+                        const event = this.result.events[index];
+                        if (event && event.type === 'reward') return index;
+                    }
+                    return -1;
+                },
+
+                canGoBackReward() {
+                    return this.getPreviousRewardIndex() >= 0;
+                },
+
+                goBackReward() {
+                    const previousIndex = this.getPreviousRewardIndex();
+                    if (previousIndex < 0) return;
+                    this.currentEventIndex = previousIndex;
+                    this.prepareCurrentEventState();
+                },
+
+                prepareCurrentEventState() {
+                    this.commitInventoryEvent(this.currentEventIndex);
+                    this.preloadUpcomingRewardImages();
+                    if (!this.currentEvent) {
+                        this.rarityRevealState = this.createInitialRarityRevealState();
+                        this.sushiSplitState = this.createInitialSushiSplitState();
+                        this.chaosRevealState = this.createInitialChaosRevealState();
+                        this.choiceRevealState = this.createInitialChoiceRevealState();
+                        return;
+                    }
+                    if (this.currentEvent.type === 'rarity') {
+                        this.initializeRarityReveal(this.currentEvent);
+                        this.sushiSplitState = this.createInitialSushiSplitState();
+                        this.chaosRevealState = this.createInitialChaosRevealState();
+                        this.choiceRevealState = this.createInitialChoiceRevealState();
+                        return;
+                    }
+                    if (this.currentEvent.type === 'sushi_split') {
+                        this.rarityRevealState = this.createInitialRarityRevealState();
+                        this.initializeSushiSplit(this.currentEvent);
+                        this.chaosRevealState = this.createInitialChaosRevealState();
+                        this.choiceRevealState = this.createInitialChoiceRevealState();
+                        return;
+                    }
+                    if (this.currentEvent.type === 'chaos_reveal') {
+                        this.rarityRevealState = this.createInitialRarityRevealState();
+                        this.sushiSplitState = this.createInitialSushiSplitState();
+                        this.initializeChaosReveal(this.currentEvent);
+                        this.choiceRevealState = this.createInitialChoiceRevealState();
+                        return;
+                    }
+                    if (this.currentEvent.type === 'choice_reveal') {
+                        this.rarityRevealState = this.createInitialRarityRevealState();
+                        this.sushiSplitState = this.createInitialSushiSplitState();
+                        this.chaosRevealState = this.createInitialChaosRevealState();
+                        this.initializeChoiceReveal(this.currentEvent);
+                        return;
+                    }
+                    this.rarityRevealState = this.createInitialRarityRevealState();
+                    this.sushiSplitState = this.createInitialSushiSplitState();
+                    this.chaosRevealState = this.createInitialChaosRevealState();
+                    this.choiceRevealState = this.createInitialChoiceRevealState();
+                },
+
+                getBoxName(boxKey) {
+                    const box = this.boxes[boxKey];
+                    if (!box) return boxKey;
+                    return this.isJa ? box.name_ja : box.name_en;
+                },
+
+                getSelectedBoxName() {
+                    return this.getBoxName(this.selectedBoxKey);
+                },
+
+                // openResult: 複数個開封のときの開封1個分(天使・悪魔ドロップはその開封の報酬で動画が変わる)
+                getBoxVideoUrl(openResult = null) {
+                    const valueEffectVideo = this.getValueEffectVideoUrl(openResult);
+                    if (valueEffectVideo) return valueEffectVideo;
+
+                    const videoMap = {
+                        megabox: '/videos/ScreenRecording_08-28-2026%2020-49-09_1.mp4',
+                        boombox: '/videos/boom_box.mp4',
+                        boltbox: '/videos/bolt_box.mp4',
+                        damianbox: '/videos/damian_box.mp4',
+                        deadbox: '/videos/dead_box.mp4',
+                        halloweenbox: '/videos/pumpkin_box.mp4',
+                        lovebox: '/videos/love_box.mp4',
+                        mechabox: '/videos/mecha_box.mp4',
+                        najiabox: '/videos/najia_box.mp4',
+                        noribox: '/videos/nori_box.mp4',
+                        siriusbox: '/videos/sirius_box.mp4',
+                        starrnovabox: '/videos/star_nova_box.mp4',
+                        wendybox: '/videos/wendy_box.mp4',
+                        smalltrophybox: '/videos/small_seasonal.mp4',
+                        bigtrophybox: '/videos/big_seasonal.mp4',
+                        megatrophybox: '/videos/mega_seasonal.mp4',
+                        omegatrophybox: '/videos/omega_seasonal.mp4',
+                        ultratrophybox: '/videos/ultra_seasonal.mp4',
+                        rankeddrop: {
+                            ja: '/videos/ranked_drop.mp4',
+                            en: '/videos/ranked_drop_en.mp4',
+                        },
+                        coffinbox: '/videos/coffin_box.mp4',
+                        cosmobox: '/videos/cosmo_drop.mp4',
+                        vincebox: '/videos/vince_box.mp4',
+                    };
+                    return this.getLocalizedVideoUrl(videoMap[this.selectedBoxKey]);
+                },
+
+                getLocalizedVideoUrl(videoUrls) {
+                    if (!videoUrls) return '';
+                    if (typeof videoUrls === 'string') return videoUrls;
+                    return this.isJa
+                        ? (videoUrls.ja || videoUrls.en || '')
+                        : (videoUrls.en || videoUrls.ja || '');
+                },
+
+                getValueEffectVideoUrl(openResult = null) {
+                    const videoMap = {
+                        angelicdrop: {
+                            short: {
+                                ja: '/videos/angelic_drop_1s.mp4',
+                                en: '/videos/angelic_drop_1s_en.mp4',
+                            },
+                            middle: {
+                                ja: '/videos/angelic_drop_3s.mp4',
+                                en: '/videos/angelic_drop_3s_en.mp4',
+                            },
+                            long: {
+                                ja: '/videos/angelic_drop_6s.mp4',
+                                en: '/videos/angelic_drop_6s_en.mp4',
+                            },
+                        },
+                        demonicdrop: {
+                            short: {
+                                ja: '/videos/demonic_drop_1s.mp4',
+                                en: '/videos/demonic_drop_1s_en.mp4',
+                            },
+                            middle: {
+                                ja: '/videos/demonic_drop_3s.mp4',
+                                en: '/videos/demonic_drop_3s_en.mp4',
+                            },
+                            long: {
+                                ja: '/videos/demonic_drop_6s.mp4',
+                                en: '/videos/demonic_drop_6s_en.mp4',
+                            },
+                        },
+                    };
+                    const boxVideos = videoMap[this.selectedBoxKey];
+                    if (!boxVideos) return '';
+                    if (openResult) {
+                        return this.getLocalizedVideoUrl(boxVideos[openResult.opening_effect_tier || '']);
+                    }
+                    if (!this.result || !Array.isArray(this.result.events)) return '';
+                    const rewardEvent = this.result.events.find((event) => event && event.type === 'reward');
+                    const tier = rewardEvent && rewardEvent.opening_effect_tier ? rewardEvent.opening_effect_tier : '';
+                    return this.getLocalizedVideoUrl(boxVideos[tier]);
+                },
+
+                getRewardIcon(typeKey) {
+                    const rewardType = this.rewardTypes[typeKey] || {};
+                    return rewardType.icon || '{{ url_for("static", path="/images/ui/starrdrop.png") }}';
+                },
+
+                getEventDisplayImage(event) {
+                    return event && event.target_item && event.target_item.image
+                        ? event.target_item.image
+                        : this.getRewardIcon(event ? event.reward_type : '');
+                },
+
+                // アイコンの右下に重ねる画像(ナノパワー・フュージョンの対象キャラのピン)
+                getEventBadgeImage(event) {
+                    return event && event.target_item && event.target_item.badge_image ? event.target_item.badge_image : '';
+                },
+
+                getEventFallbackImage(event) {
+                    return event && event.target_item && event.target_item.fallback_image
+                        ? event.target_item.fallback_image
+                        : '{{ url_for("static", path="/images/ui/mystery.png") }}';
+                },
+
+                getRarityRevealImage(event, state = null) {
+                    const rarityKey = this.getDisplayedRarityKey(event, state);
+                    if (!event || !rarityKey) return '{{ url_for("static", path="/images/ui/starrdrop.png") }}';
+                    if (event.box_key === 'chaosdrop') {
+                        const chaosMap = {
+                            rare: '/static/images/ui/chaosdrop.png',
+                            superRare: '/static/images/ui/Super_Rare_Chaos_Drop.png',
+                            epic: '/static/images/ui/Epic_Chaos_Drop.png',
+                            mythic: '/static/images/ui/Mythic_Chaos_Drop.png',
+                            legendary: '/static/images/ui/Legendary_Chaos_Drop.png',
+                            ultra: '/static/images/ui/Ultra_Chaos_Drop.png',
+                        };
+                        if (chaosMap[rarityKey]) return chaosMap[rarityKey];
+                    }
+                    return this.getSelectedBoxRarityIcon();
+                },
+
+                getRarityRevealFallbackImage(event) {
+                    if (event && event.box_key === 'chaosdrop') {
+                        return '{{ url_for("static", path="/images/ui/chaosdrop.png") }}';
+                    }
+                    return '{{ url_for("static", path="/images/ui/starrdrop.png") }}';
+                },
+
+                getSelectedBoxRarityIcon() {
+                    if (this.selectedBoxKey === 'chaosdrop') {
+                        return '{{ url_for("static", path="/images/ui/chaosdrop.png") }}';
+                    }
+                    return '{{ url_for("static", path="/images/ui/starrdrop.png") }}';
+                },
+
+                getRewardTypeName(typeKey) {
+                    const rewardType = this.rewardTypes[typeKey] || {};
+                    return this.isJa ? (rewardType.name_ja || typeKey) : (rewardType.name_en || typeKey);
+                },
+
+                getCosmeticDisplayName(targetItem, fallback) {
+                    if (!targetItem) return fallback || '';
+                    const rawName = this.isJa
+                        ? (targetItem.name_ja || targetItem.name_en || fallback || '')
+                        : (targetItem.name_en || targetItem.name_ja || fallback || '');
+                    const kind = targetItem.kind || '';
+                    if (kind === 'pin') {
+                        return rawName.replace(/\s*520\d+\s*$/g, '').replace(/^Pin\s*520\d+$/i, 'Pin').trim() || (this.isJa ? 'ピンズ' : 'Pin');
+                    }
+                    if (kind === 'spray') {
+                        return rawName.replace(/\s*680\d+\s*$/g, '').replace(/^Spray\s*680\d+$/i, 'Spray').trim() || (this.isJa ? 'スプレー' : 'Spray');
+                    }
+                    if (kind === 'playerIcon') {
+                        return rawName.replace(/\s*280\d+\s*$/g, '').replace(/^Profile Icon\s*280\d+$/i, 'Profile Icon').trim() || (this.isJa ? 'プロフィールアイコン' : 'Profile Icon');
+                    }
+                    return rawName;
+                },
+
+                getSpecificTargetTypeName(item) {
+                    if (!item || !item.target_item) return '';
+                    const target = item.target_item;
+                    const rarity = Number(target.rarity);
+                    if (target.kind === 'pin' && item.reward_type !== 'eventPins') {
+                        if (rarity === 10) return this.isJa ? 'ノーマルピンズ' : 'Normal Pin';
+                        if (rarity === 20) return this.isJa ? 'レアピンズ' : 'Rare Pin';
+                        if (rarity === 30) return this.isJa ? 'ハイパーレアピンズ' : 'Epic Pin';
+                    }
+                    if (target.kind === 'skin') {
+                        if (rarity >= 1 && rarity <= 10) return this.isJa ? 'レアスキン' : 'Rare Skin';
+                        if (rarity >= 11 && rarity <= 20) return this.isJa ? 'スーパーレアスキン' : 'Super Rare Skin';
+                        if (rarity >= 21 && rarity <= 30) return this.isJa ? 'ハイパーレアスキン' : 'Epic Skin';
+                        if (rarity >= 31 && rarity <= 40) return this.isJa ? 'ウルトラレアスキン' : 'Mythic Skin';
+                        if (rarity >= 41 && rarity <= 50) return this.isJa ? 'レジェンドレアスキン' : 'Legendary Skin';
+                        if (rarity >= 51 && rarity <= 60) return this.isJa ? 'ハイパーチャージスキン' : 'Hypercharge Skin';
+                    }
+                    return '';
+                },
+
+                getSummaryItemImage(item) {
+                    return item && item.target_item && item.target_item.image
+                        ? item.target_item.image
+                        : this.getRewardIcon(item ? item.reward_type : '');
+                },
+
+                getSummaryItemFallbackImage(item) {
+                    return item && item.target_item && item.target_item.fallback_image
+                        ? item.target_item.fallback_image
+                        : '{{ url_for("static", path="/images/ui/mystery.png") }}';
+                },
+
+                // 報酬ごとの背景色(薄め)。レア度のあるアイテムはレア度の色、通貨等は種類ごとの色
+                getItemTintKey(item) {
+                    if (!item) return '';
+                    const target = item.target_item || null;
+                    const kind = target ? target.kind : '';
+                    const rarity = target ? Number(target.rarity) : NaN;
+                    if (kind === 'skin' && Number.isFinite(rarity) && rarity > 0) {
+                        if (rarity <= 10) return 'green';
+                        if (rarity <= 20) return 'blue';
+                        if (rarity <= 30) return 'violet';
+                        if (rarity <= 40) return 'red';
+                        if (rarity <= 50) return 'yellow';
+                        if (rarity <= 60) return 'purple';
+                        if (rarity <= 70) return 'yellowgreen';
+                        if (rarity <= 80) return 'platinum';
+                        return 'yellow';
+                    }
+                    if (kind === 'pin') {
+                        return { 10: 'cyan', 20: 'green', 30: 'violet', 40: 'yellow' }[rarity] || '';
+                    }
+                    if (kind === 'brawler' && Number.isFinite(rarity)) {
+                        return { 1: 'cyan', 2: 'green', 3: 'blue', 4: 'violet', 5: 'red', 6: 'yellow', 7: 'amber' }[rarity] || '';
+                    }
+                    if (kind === 'spray' || kind === 'playerIcon') return '';
+                    const typeTints = {
+                        coins: 'yellow',
+                        starPowers: 'yellow',
+                        powerPoints: 'peony',
+                        hypercharges: 'purple',
+                        hyperchargeSkins: 'purple',
+                        starrnovaSpike: 'purple',
+                        credits: 'sky',
+                        bling: 'platinum',
+                        gems: 'green',
+                        gadgets: 'green',
+                        buffies: 'crystal',
+                        nanoPowers: 'lime',
+                        fusions: 'orange',
+                        proPassSkinUpgrade: 'yellowgreen',
+                        rareBrawlers: 'green',
+                        superRareBrawlers: 'blue',
+                        epicBrawlers: 'violet',
+                        mythicBrawlers: 'red',
+                        legendaryBrawlers: 'yellow',
+                        ultralegendaryBrawlers: 'amber',
+                        rareSkins: 'green',
+                        superRareSkins: 'blue',
+                        epicSkins: 'violet',
+                        mythicSkins: 'red',
+                        legendarySkins: 'yellow',
+                        normalPins: 'cyan',
+                        rarePins: 'green',
+                        epicPins: 'violet',
+                    };
+                    return typeTints[item.reward_type] || '';
+                },
+
+                getItemTintClass(item) {
+                    const key = this.getItemTintKey(item);
+                    return key ? `box-sim-tint--${key}` : '';
+                },
+
+                getRewardIconSizeClass(event) {
+                    const kind = event && event.target_item ? event.target_item.kind : '';
+                    // キャラクターもデフォルトスキンの画像を使うため、スキンと同じ大きさにする
+                    if (kind === 'skin' || kind === 'brawler') return 'box-sim-reveal__reward-icon--skin';
+                    // ナノパワー・フュージョンは対象キャラのピンを重ねるため、通常のアイテムより大きくする
+                    if (kind === 'nanoPower' || kind === 'fusion') return 'box-sim-reveal__reward-icon--boost';
+                    // ノヴァドロップのアップグレードは対象キャラのスキンを大きく見せる
+                    if (kind === 'starrnovaUpgrade') return 'box-sim-reveal__reward-icon--upgrade';
+                    if (kind) return 'box-sim-reveal__reward-icon--item';
+                    return '';
+                },
+
+                // 寿司ロールはレア度=分裂個数で、個数は進行バッジで分かるためレア度バッジを出さない
+                shouldShowRarityBadge(event) {
+                    if (!event || event.box_key === 'sushi') return false;
+                    return this.getRarityName(event.rarity_key) !== '';
+                },
+
+                // ピンズ・スプレー・アイコンの名前は内部的なものなので表示しない
+                hasInternalTargetName(item) {
+                    const kind = item && item.target_item ? item.target_item.kind : '';
+                    return ['pin', 'spray', 'playerIcon'].includes(kind);
+                },
+
+                // スキン・キャラクター等の1個単位のアイテム(代替報酬があるもの)は数量1を表示しない
+                shouldShowAmount(item) {
+                    if (!item) return false;
+                    const rewardType = this.rewardTypes[item.reward_type] || {};
+                    return !(rewardType.substitute && Number(item.amount) === 1);
+                },
+
+                getSummaryItemName(item) {
+                    if (!item) return '';
+                    if (this.hasInternalTargetName(item)) return this.getRewardName(item);
+                    if (item.target_item) {
+                        return this.getCosmeticDisplayName(item.target_item, this.getRewardTypeName(item.reward_type));
+                    }
+                    return this.getRewardTypeName(item.reward_type);
+                },
+
+                getSummaryItemSubname(item) {
+                    if (!item || !item.target_item || this.hasInternalTargetName(item)) return '';
+                    const specificName = this.getSpecificTargetTypeName(item);
+                    if (specificName) return specificName;
+                    return this.isJa
+                        ? (item.display_name_ja || this.getRewardTypeName(item.reward_type))
+                        : (item.display_name_en || this.getRewardTypeName(item.reward_type));
+                },
+
+                getGenericCosmeticTypeName(item) {
+                    const kind = item && item.target_item ? item.target_item.kind : '';
+                    if (kind === 'spray') return this.isJa ? 'スプレー' : 'Spray';
+                    if (kind === 'playerIcon') return this.isJa ? 'プロフィールアイコン' : 'Profile Icon';
+                    if (kind === 'pin' && item.reward_type === 'eventPins') return this.isJa ? 'ピンズ' : 'Pin';
+                    return '';
+                },
+
+                getRewardName(event) {
+                    if (!event) return '';
+                    // 「イベントスプレー」等の区分はユーザーには不要なので、種別名だけを表示する
+                    const genericName = this.getGenericCosmeticTypeName(event);
+                    if (genericName) return genericName;
+                    const specificName = this.getSpecificTargetTypeName(event);
+                    if (specificName) return specificName;
+                    return this.isJa
+                        ? (event.display_name_ja || this.getRewardTypeName(event.reward_type))
+                        : (event.display_name_en || this.getRewardTypeName(event.reward_type));
+                },
+
+                // 入手済みのアイテムが抽選され、代替報酬に置き換わったことの説明
+                getSubstituteNote(event) {
+                    const original = event && event.substitute_for;
+                    if (!original) return '';
+                    const originalItem = {
+                        reward_type: original.reward_type,
+                        target_item: original.target_item || null,
+                        display_name_ja: original.display_name_ja,
+                        display_name_en: original.display_name_en,
+                    };
+                    const itemName = this.getTargetItemName(originalItem) || this.getRewardName(originalItem);
+                    const units = Number(original.amount) || 1;
+                    const countText = units > 1 ? ` ×${units}` : '';
+                    return this.isJa
+                        ? `${itemName}${countText}の代替報酬として付与`
+                        : `Given as a substitute for ${itemName}${countText}`;
+                },
+
+                getTargetItemName(event) {
+                    if (!event || !event.target_item || this.hasInternalTargetName(event)) return '';
+                    return this.getCosmeticDisplayName(event.target_item, '');
+                },
+
+                getRarityName(rarityKey) {
+                    if (!rarityKey || !this.selectedBox || !this.selectedBox.rarities) return '';
+                    const rarity = this.selectedBox.rarities[rarityKey];
+                    if (!rarity) return '';
+                    return this.isJa ? (rarity.name_ja || '') : (rarity.name_en || '');
+                },
+
+                getRarityTier(rarityKey) {
+                    const order = ['rare', 'superRare', 'epic', 'mythic', 'legendary', 'ultra'];
+                    const index = order.indexOf(rarityKey);
+                    return index >= 0 ? index : 0;
+                },
+
+                getTierToRarityKey(tier) {
+                    const order = ['rare', 'superRare', 'epic', 'mythic', 'legendary', 'ultra'];
+                    return order[Math.max(0, Math.min(order.length - 1, tier))] || 'rare';
+                },
+
+                initializeChoiceReveal(event) {
+                    this.choiceRevealState = this.createChoiceRevealState(event);
+                },
+
+                createChoiceRevealState(event) {
+                    const capsules = Array.isArray(event && event.capsules) ? event.capsules : [];
+                    return {
+                        capsules,
+                        selectedSlots: [],
+                        selectedItemCounts: {},
+                        pickItemCounts: Array.isArray(event && event.pick_item_counts) ? event.pick_item_counts : [],
+                        choiceCount: Math.max(1, Number(event && event.choice_count || 3) || 3),
+                        totalItems: Math.max(1, Number(event && event.total_items || 1) || 1),
+                        maxItemsPerCapsule: Math.max(1, Number(event && event.max_items_per_capsule || 3) || 3),
+                        resolved: capsules.length === 0,
+                    };
+                },
+
+                getChoiceCapsules(state = this.choiceRevealState) {
+                    return state.capsules || [];
+                },
+
+                isChoiceCapsuleSelected(slotIndex, state = this.choiceRevealState) {
+                    return state.selectedSlots.includes(Number(slotIndex));
+                },
+
+                onChoiceCapsuleClick(event, slotIndex, state = this.choiceRevealState) {
+                    if (state.resolved) return;
+                    event.stopPropagation();
+                    this.selectChoiceCapsule(slotIndex, state);
+                },
+
+                selectChoiceCapsule(slotIndex, state = this.choiceRevealState) {
+                    const normalizedSlot = Number(slotIndex);
+                    if (state.resolved || this.isChoiceCapsuleSelected(normalizedSlot, state)) return;
+                    if (state.selectedSlots.length >= state.choiceCount) return;
+                    const pickIndex = state.selectedSlots.length;
+                    state.selectedItemCounts = {
+                        ...state.selectedItemCounts,
+                        [normalizedSlot]: this.getChoicePickItemCount(pickIndex, state),
+                    };
+                    state.selectedSlots = [...state.selectedSlots, normalizedSlot];
+                    state.resolved = state.selectedSlots.length >= state.choiceCount;
+                },
+
+                // 複数個開封では、表示領域のタップで未選択のカプセルを1つずつ選ぶ(何が出るかは選ぶ順番で決まっている)
+                selectRandomChoiceCapsule(state) {
+                    const candidates = this.getChoiceCapsules(state)
+                        .map((capsule) => Number(capsule.slot_index))
+                        .filter((slotIndex) => !this.isChoiceCapsuleSelected(slotIndex, state));
+                    if (candidates.length === 0) {
+                        state.resolved = true;
+                        return;
+                    }
+                    this.selectChoiceCapsule(candidates[Math.floor(Math.random() * candidates.length)], state);
+                },
+
+                getChoicePickItemCount(pickIndex, state = this.choiceRevealState) {
+                    const count = Number(state.pickItemCounts[pickIndex] || 0) || 0;
+                    return Math.max(0, Math.min(state.maxItemsPerCapsule, count));
+                },
+
+                getChoiceCapsuleItemCount(slotIndex, state = this.choiceRevealState) {
+                    const normalizedSlot = Number(slotIndex);
+                    return Number(state.selectedItemCounts[normalizedSlot] || 0) || 0;
+                },
+
+                getChoiceCapsuleClass(capsule, state = this.choiceRevealState) {
+                    const selected = this.isChoiceCapsuleSelected(capsule.slot_index, state);
+                    const itemCount = this.getChoiceCapsuleItemCount(capsule.slot_index, state);
+                    return {
+                        'box-sim-choice-stage__capsule--selected': selected,
+                        'box-sim-choice-stage__capsule--trash': selected && itemCount <= 0,
+                        'box-sim-choice-stage__capsule--reward': selected && itemCount > 0,
+                    };
+                },
+
+                getChoiceSelectionText(state = this.choiceRevealState) {
+                    const selected = state.selectedSlots.length;
+                    const total = state.choiceCount;
+                    if (this.isJa) return `${selected} / ${total} 個選択`;
+                    return `${selected} / ${total} selected`;
+                },
+
+                initializeSushiSplit(event) {
+                    this.sushiSplitState = this.createSushiSplitState(event);
+                },
+
+                createSushiSplitState(event) {
+                    const cycles = Array.isArray(event && event.cycles) ? event.cycles : [];
+                    const firstCycle = cycles[0] || { count: 1 };
+                    return {
+                        cycles,
+                        cycleIndex: 0,
+                        tapsUsedInCycle: 0,
+                        displayedCount: Number(firstCycle.count || 1) || 1,
+                        resolved: cycles.length === 0,
+                        lastOutcome: '',
+                    };
+                },
+
+                getCurrentSushiCycle(state = this.sushiSplitState) {
+                    return state.cycles[state.cycleIndex] || null;
+                },
+
+                handleSushiSplitTap(event, state = this.sushiSplitState) {
+                    if (!event || state.resolved) return;
+                    const currentCycle = this.getCurrentSushiCycle(state);
+                    if (!currentCycle) {
+                        state.resolved = true;
+                        return;
+                    }
+
+                    state.tapsUsedInCycle += 1;
+                    const successAt = currentCycle.success_at;
+                    const didSplit = successAt !== null && state.tapsUsedInCycle === successAt;
+
+                    if (didSplit) {
+                        state.lastOutcome = 'split';
+                        state.displayedCount = Number(currentCycle.to_count || state.displayedCount) || state.displayedCount;
+                        const nextCycleIndex = state.cycleIndex + 1;
+                        // 最大数まで分裂したら、それ以上分裂しようがないので判定を終える
+                        if (nextCycleIndex >= state.cycles.length || state.displayedCount >= SUSHI_MAX_COUNT) {
+                            state.resolved = true;
+                            return;
+                        }
+                        state.cycleIndex = nextCycleIndex;
+                        state.tapsUsedInCycle = 0;
+                        return;
+                    }
+
+                    state.lastOutcome = 'hold';
+                    if (state.tapsUsedInCycle >= 4) {
+                        state.lastOutcome = 'locked';
+                        state.resolved = true;
+                    }
+                },
+
+                getSushiDisplayedCount(state = this.sushiSplitState) {
+                    return Math.max(1, Number(state.displayedCount || 1) || 1);
+                },
+
+                getSushiDisplayedPieces(state = this.sushiSplitState) {
+                    return Array.from({ length: this.getSushiDisplayedCount(state) }, (_, index) => index);
+                },
+
+                // 1個: 中央、2個: 横に2つ、4個: 2×2、8個: 4×2。位置は列・行の中心からのずれ(間隔単位)で渡す
+                getSushiPieceStyle(pieceIndex, state = this.sushiSplitState) {
+                    const count = this.getSushiDisplayedCount(state);
+                    const columns = count >= 8 ? 4 : (count >= 2 ? 2 : 1);
+                    const rows = Math.ceil(Math.min(count, 8) / columns);
+                    const column = pieceIndex % columns;
+                    const row = Math.floor(pieceIndex / columns);
+                    const x = column - (columns - 1) / 2;
+                    const y = row - (rows - 1) / 2;
+                    const rotate = (pieceIndex % 2 === 0 ? -1 : 1) * Math.min(8, pieceIndex * 2);
+                    return `--sushi-x: ${x}; --sushi-y: ${y}; --sushi-rotate: ${rotate}deg;`;
+                },
+
+                getSushiChanceSlots(splitState = this.sushiSplitState) {
+                    const currentCycle = this.getCurrentSushiCycle(splitState);
+                    const successAt = currentCycle ? currentCycle.success_at : null;
+                    const slots = [];
+                    for (let index = 1; index <= 4; index += 1) {
+                        let state = 'remaining';
+                        if (index <= splitState.tapsUsedInCycle) {
+                            state = successAt !== null && index === successAt ? 'split' : 'spent';
+                        }
+                        slots.push({ state });
+                    }
+                    return slots;
+                },
+
+                getSushiChanceLabel(state = this.sushiSplitState) {
+                    const slots = this.getSushiChanceSlots(state);
+                    const split = slots.filter((slot) => slot.state === 'split').length;
+                    const spent = slots.filter((slot) => slot.state === 'spent').length;
+                    const remaining = slots.filter((slot) => slot.state === 'remaining').length;
+                    if (this.isJa) {
+                        return `分裂 ${split}、消費済み ${spent}、残り ${remaining}`;
+                    }
+                    return `${split} split, ${spent} spent, ${remaining} remaining`;
+                },
+
+                initializeChaosReveal(event) {
+                    this.chaosRevealState = this.createChaosRevealState(event);
+                },
+
+                createChaosRevealState(event) {
+                    const steps = Array.isArray(event && event.steps) ? event.steps : [];
+                    return {
+                        steps,
+                        tapsUsed: 0,
+                        displayedCount: 1,
+                        displayedRarityKey: 'rare',
+                        finalCount: Number(event && event.final_count || 1) || 1,
+                        finalRarityKey: event && event.final_rarity_key ? event.final_rarity_key : 'superRare',
+                        resolved: steps.length === 0,
+                        lastOutcome: '',
+                    };
+                },
+
+                handleChaosRevealTap(event, state = this.chaosRevealState) {
+                    if (!event || state.resolved) return;
+                    const step = state.steps[state.tapsUsed] || {
+                        action: 'hold',
+                        display_count: state.displayedCount,
+                        display_rarity_key: state.displayedRarityKey,
+                    };
+                    state.tapsUsed += 1;
+                    state.displayedCount = Number(step.display_count || step.count || state.displayedCount) || state.displayedCount;
+                    state.displayedRarityKey = step.display_rarity_key || step.rarity_key || state.displayedRarityKey;
+                    state.lastOutcome = step.action || 'hold';
+                    if (state.tapsUsed >= Math.max(1, state.steps.length)) {
+                        state.displayedCount = state.finalCount;
+                        state.displayedRarityKey = state.finalRarityKey;
+                        state.resolved = true;
+                    }
+                },
+
+                getChaosDisplayedRarityKey(state = this.chaosRevealState) {
+                    return state.displayedRarityKey || 'rare';
+                },
+
+                getChaosDisplayedCount(state = this.chaosRevealState) {
+                    return Math.max(1, Number(state.displayedCount || 1) || 1);
+                },
+
+                getChaosDisplayedDrops(state = this.chaosRevealState) {
+                    return Array.from({ length: this.getChaosDisplayedCount(state) }, (_, index) => index);
+                },
+
+                getChaosRevealImage(state = this.chaosRevealState) {
+                    const rarityKey = this.getChaosDisplayedRarityKey(state);
+                    const chaosMap = {
+                        rare: '/static/images/ui/chaosdrop.png',
+                        superRare: '/static/images/ui/Super_Rare_Chaos_Drop.png',
+                        epic: '/static/images/ui/Epic_Chaos_Drop.png',
+                        mythic: '/static/images/ui/Mythic_Chaos_Drop.png',
+                        legendary: '/static/images/ui/Legendary_Chaos_Drop.png',
+                        ultra: '/static/images/ui/Ultra_Chaos_Drop.png',
+                    };
+                    return chaosMap[rarityKey] || '/static/images/ui/chaosdrop.png';
+                },
+
+                getChaosImageClass(state = this.chaosRevealState) {
+                    return `box-sim-chaos-stage__image--${this.getChaosDisplayedRarityKey(state)}`;
+                },
+
+                // 分裂数ごとの並べ方。column / row / image は最大の大きさ(px)で、画面が狭いときは比率を保って縮む
+                getChaosDropsGridStyle(state = this.chaosRevealState) {
+                    const count = this.getChaosDisplayedCount(state);
+                    const layouts = {
+                        1: { columns: 1, column: 168, row: 168, image: 168, columnGap: 0 },
+                        2: { columns: 2, column: 156, row: 156, image: 148, columnGap: 6 },
+                        4: { columns: 2, column: 132, row: 118, image: 132, columnGap: 12 },
+                        8: { columns: 4, column: 112, row: 106, image: 112, columnGap: 0 },
+                    };
+                    const layout = layouts[count] || layouts[1];
+                    const maxWidth = layout.column * layout.columns + layout.columnGap * (layout.columns - 1);
+                    const totalHeight = layout.row * Math.ceil(count / layout.columns);
+                    // 横幅だけでなく、使える高さ(--chaos-drops-max-height)に収まる幅にも抑える
+                    return [
+                        'display: grid',
+                        `grid-template-columns: repeat(${layout.columns}, minmax(0, ${layout.column}px))`,
+                        'grid-auto-rows: auto',
+                        `width: min(100%, ${maxWidth}px, calc(var(--chaos-drops-max-height) * ${(maxWidth / totalHeight).toFixed(4)}))`,
+                        `column-gap: ${layout.columnGap}px`,
+                        'row-gap: 0',
+                        'align-items: center',
+                        'justify-items: center',
+                        'justify-content: center',
+                        'align-content: center',
+                        `--chaos-drop-ratio: ${layout.column} / ${layout.row}`,
+                        `--chaos-image-scale: ${layout.image / layout.column}`,
+                    ].join('; ');
+                },
+
+                getChaosChanceSlots(revealState = this.chaosRevealState) {
+                    const slots = [];
+                    for (let index = 0; index < revealState.tapsUsed; index += 1) {
+                        const step = revealState.steps[index] || { action: 'hold' };
+                        const state = step.action === 'upgrade' || step.action === 'split' ? step.action : 'hold';
+                        slots.push({ state });
+                    }
+                    if (!revealState.resolved) {
+                        slots.push({ state: 'pending' });
+                    }
+                    return slots;
+                },
+
+                getChaosChanceLabel(state = this.chaosRevealState) {
+                    const slots = this.getChaosChanceSlots(state);
+                    const upgrades = slots.filter((slot) => slot.state === 'upgrade').length;
+                    const splits = slots.filter((slot) => slot.state === 'split').length;
+                    const holds = slots.filter((slot) => slot.state === 'hold').length;
+                    if (this.isJa) {
+                        return `昇格 ${upgrades}、分裂 ${splits}、変化なし ${holds}`;
+                    }
+                    return `${upgrades} upgrades, ${splits} splits, ${holds} holds`;
+                },
+
+                getDisplayedRarityKey(event, state = null) {
+                    if (state) return state.displayedRarityKey || 'rare';
+                    if (event && this.currentEvent === event && event.type === 'rarity') {
+                        return this.rarityRevealState.displayedRarityKey || 'rare';
+                    }
+                    return event && event.rarity_key ? event.rarity_key : 'rare';
+                },
+
+                getDisplayedRarityName(event, state = null) {
+                    return this.getRarityName(this.getDisplayedRarityKey(event, state));
+                },
+
+                initializeRarityReveal(event) {
+                    this.rarityRevealState = this.createRarityRevealState(event);
+                },
+
+                createRarityRevealState(event) {
+                    const targetTier = this.getRarityTier(event ? event.rarity_key : 'rare');
+                    return {
+                        targetRarityKey: event && event.rarity_key ? event.rarity_key : 'rare',
+                        displayedRarityKey: 'rare',
+                        tapsUsed: 0,
+                        maxTaps: 4,
+                        jumpPlan: this.buildRarityJumpPlan(targetTier),
+                        resolved: false,
+                        lastOutcome: '',
+                    };
+                },
+
+                buildRarityJumpPlan(targetTier) {
+                    if (targetTier <= 0) return [0, 0, 0, 0];
+                    const maxSuccesses = Math.min(4, targetTier);
+                    const successCount = 1 + Math.floor(Math.random() * maxSuccesses);
+                    const jumps = [];
+                    let remaining = targetTier;
+                    for (let index = 0; index < successCount; index += 1) {
+                        const remainingSlots = successCount - index - 1;
+                        const minJump = 1;
+                        const maxJump = remaining - remainingSlots;
+                        const jump = index === successCount - 1
+                            ? remaining
+                            : (minJump + Math.floor(Math.random() * (maxJump - minJump + 1)));
+                        jumps.push(jump);
+                        remaining -= jump;
+                    }
+                    if (successCount < 4) {
+                        jumps.push(0);
+                    }
+                    while (jumps.length < 4) jumps.push(0);
+                    return jumps;
+                },
+
+                handleRarityTap(event, revealState = this.rarityRevealState) {
+                    if (!event || revealState.resolved) return;
+
+                    const nextJump = revealState.jumpPlan[revealState.tapsUsed] ?? 0;
+                    const nextTier = Math.min(
+                        this.getRarityTier(revealState.targetRarityKey),
+                        this.getRarityTier(revealState.displayedRarityKey) + nextJump,
+                    );
+
+                    revealState.tapsUsed += 1;
+                    revealState.displayedRarityKey = this.getTierToRarityKey(nextTier);
+                    revealState.lastOutcome = nextJump > 0 ? 'upgraded' : 'stopped';
+
+                    const exhaustedTaps = revealState.tapsUsed >= revealState.maxTaps;
+                    if (exhaustedTaps) {
+                        revealState.resolved = true;
+                    }
+                },
+
+                getUpgradeSlots(event, revealState = this.rarityRevealState) {
+                    const total = 4;
+                    const slots = [];
+                    for (let index = 0; index < total; index += 1) {
+                        let state = 'remaining';
+                        const jump = revealState.jumpPlan[index];
+                        if (index < revealState.tapsUsed && jump > 0) {
+                            state = 'upgraded';
+                        } else if (index < revealState.tapsUsed) {
+                            state = 'spent';
+                        }
+                        slots.push({ state });
+                    }
+                    return slots;
+                },
+
+                getUpgradeChanceLabel(event, revealState = this.rarityRevealState) {
+                    const slots = this.getUpgradeSlots(event, revealState);
+                    const upgraded = slots.filter((slot) => slot.state === 'upgraded').length;
+                    const spent = slots.filter((slot) => slot.state === 'spent').length;
+                    const remaining = slots.filter((slot) => slot.state === 'remaining').length;
+                    if (this.isJa) {
+                        return `成功 ${upgraded}、終了 ${spent}、残り ${remaining}`;
+                    }
+                    return `${upgraded} upgraded, ${spent} ended, ${remaining} remaining`;
+                },
+
+                getUpgradeResultText(event) {
+                    if (this.isJa) {
+                        if (this.rarityRevealState.resolved) {
+                            if (this.rarityRevealState.lastOutcome === 'stopped') return '4回目まで判定終了。このレア度で確定です。';
+                            return `${this.getDisplayedRarityName(event)} まで昇格しました。`;
+                        }
+                        if (this.rarityRevealState.lastOutcome === 'stopped') {
+                            const tapsLeftAfterStop = this.rarityRevealState.maxTaps - this.rarityRevealState.tapsUsed;
+                            return `停止中。残り${tapsLeftAfterStop}回はこの色のままです。`;
+                        }
+                        const tapsLeft = this.rarityRevealState.maxTaps - this.rarityRevealState.tapsUsed;
+                        return `残り${tapsLeft}回。タップしてアップグレード判定。`;
+                    }
+                    if (this.rarityRevealState.resolved) {
+                        if (this.rarityRevealState.lastOutcome === 'stopped') return 'All 4 checks finished. This rarity is locked in.';
+                        return `Upgraded into ${this.getDisplayedRarityName(event)}.`;
+                    }
+                    if (this.rarityRevealState.lastOutcome === 'stopped') {
+                        const tapsLeftAfterStop = this.rarityRevealState.maxTaps - this.rarityRevealState.tapsUsed;
+                        return `Stopped upgrading. ${tapsLeftAfterStop} checks remain with the same color.`;
+                    }
+                    const tapsLeft = this.rarityRevealState.maxTaps - this.rarityRevealState.tapsUsed;
+                    return `${tapsLeft} taps left. Tap to roll an upgrade.`;
+                },
+
+                getRevealProgressText() {
+                    const visibleRewards = this.getPlayableRewardEvents();
+                    const total = visibleRewards.length || (this.result && this.result.total_reveals ? this.result.total_reveals : 1);
+                    const currentRewardIndex = visibleRewards.findIndex((event) => event === this.currentEvent);
+                    const current = currentRewardIndex >= 0
+                        ? currentRewardIndex + 1
+                        : (this.currentEvent && this.currentEvent.reveal_index ? this.currentEvent.reveal_index : 1);
+                    return this.isJa ? `${current} / ${total} 個目` : `${current} / ${total}`;
+                },
+
+                getPlayableRewardEvents() {
+                    if (!this.result || !Array.isArray(this.result.events)) return [];
+                    return this.result.events.filter((event) => event.type === 'reward');
+                },
+
+                getDisplayedSummaryItems() {
+                    return this.result ? (this.result.summary || []) : [];
+                },
+
+                formatLuckPercent(percent) {
+                    const value = Math.min(100, Math.max(0.01, Number(percent) || 0));
+                    if (value < 1) return `${value.toFixed(2)}%`;
+                    if (value < 10) return `${value.toFixed(1)}%`;
+                    return `${Math.floor(value)}%`;
+                },
+
+                // 今回の結果がそのボックスで上位何%か。上位50%より下は「下位X%」で表す
+                getLuckText() {
+                    const luck = this.result ? this.result.luck : null;
+                    if (!luck || !luck.grade) return '';
+                    const topPercent = Number(luck.top_percent) || 0;
+                    const isLower = topPercent > 50;
+                    const percentText = this.formatLuckPercent(isLower ? 100 - topPercent : topPercent);
+                    const ja = this.isJa;
+                    const rankText = ja
+                        ? `${isLower ? '下位' : '上位'} ${percentText}`
+                        : `${isLower ? 'Bottom' : 'Top'} ${percentText}`;
+                    const band = luck.grade.charAt(0);
+                    if (luck.grade === 'SS') return ja ? `${rankText}！奇跡的な大当たりです` : `${rankText} — A miracle pull!`;
+                    if (band === 'S') return ja ? `${rankText}！大当たりです` : `${rankText} — Jackpot!`;
+                    if (band === 'A') return ja ? `${rankText}！かなり運が良い結果です` : `${rankText} — Very lucky!`;
+                    if (band === 'B') return ja ? `${rankText}：平均より少し良い結果です` : `${rankText} — Above average`;
+                    if (band === 'C') return ja ? `${rankText}：平均的な結果です` : `${rankText} — About average`;
+                    return ja ? `${rankText}：今回は運が悪かったようです` : `${rankText} — Unlucky this time`;
+                },
+            });
+        }
+    </script>
+{% endblock %}

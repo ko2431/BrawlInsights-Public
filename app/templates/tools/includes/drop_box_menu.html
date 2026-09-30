@@ -1,0 +1,50 @@
+{# ボックス確率表・シミュレーター・期待値計算機で共通のページ切り替えタブとボックス種類メニュー。
+   Alpineデータは withDropBoxMenu() (static/js/drop_box_menu.js) で合成しておく。 #}
+
+{# active: chances / simulator / calc のいずれか #}
+{% macro drop_box_nav(active) %}
+{% set nav_items = [
+    {'id': 'chances', 'href': url_for('starrdrop_chances', lang=lang), 'label': '確率表' if lang == 'ja' else 'Chances'},
+    {'id': 'simulator', 'href': url_for('box_simulator', lang=lang), 'label': 'シミュレーター' if lang == 'ja' else 'Simulator'},
+    {'id': 'calc', 'href': url_for('starrdrop_calc', lang=lang), 'label': '期待値計算機' if lang == 'ja' else 'EV Calculator'},
+] %}
+<nav class="tab-nav drop-box-tab-nav">
+    <ul class="tab-nav__list">
+        {% for item in nav_items %}
+        <li class="tab-nav__item">
+            {% if item.id == active %}
+            <a href="{{ item.href }}" class="tab-nav__link tab-nav__link--active" @click.prevent>{{ item.label }}</a>
+            {% else %}
+            {# 選択中のボックスを引き継いで移動する #}
+            <a href="{{ item.href }}" :href="getBoxPageHref('{{ item.href }}')" class="tab-nav__link">{{ item.label }}</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</nav>
+{% endmacro %}
+
+{% macro drop_box_menu() %}
+<div class="map-rotation-slot-tab__container drop-box-slot-tab__container" x-show="Object.keys(boxes).length > 0" x-cloak>
+    <div class="map-rotation-slot-tab drop-box-slot-tab">
+        <template x-for="boxKey in activeBoxOrder" :key="boxKey">
+            <div class="map-rotation-slot drop-box-slot"
+                 x-show="boxes[boxKey]"
+                 :class="{ 'map-rotation-slot--active': selectedBoxKey === boxKey }"
+                 @click="selectBox(boxKey)">
+                <img :src="boxes[boxKey]?.icon"
+                     :alt="getBoxName(boxKey)"
+                     class="map-rotation-slot__icon drop-box-slot__icon"
+                     :class="`drop-box-slot__icon--${boxKey}`">
+                <p class="map-rotation-slot__text drop-box-slot__text" x-text="getBoxName(boxKey)"></p>
+            </div>
+        </template>
+    </div>
+    <button type="button"
+            class="drop-box-slot-tab__expand"
+            x-show="hasHiddenBoxes"
+            @click="toggleBoxListExpanded()"
+            x-text="showExpandedBoxList ? (isJa ? '表示を減らす' : 'Show less') : (isJa ? '表示を増やす' : 'Show more')">
+    </button>
+</div>
+{% endmacro %}

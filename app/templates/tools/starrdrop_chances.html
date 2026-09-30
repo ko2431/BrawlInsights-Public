@@ -1,7 +1,8 @@
 {# /app/templates/tools/starrdrop_chances.html #}
 {% extends "base.html" %}
+{% from "tools/includes/drop_box_menu.html" import drop_box_nav, drop_box_menu with context %}
 
-{% block title %}{% if lang == "ja" %}【ブロスタ】各種ドロップ／ボックス確率表{% else %}Drop / Box Chances{% endif %} - Brawl Insights{% endblock %}
+{% block title %}{% if lang == "ja" %}【ブロスタ】ボックス確率表{% else %}Box Chances{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタの各種ドロップ・ボックスの確率表です。スタードロップやカオスドロップなど、さまざまな報酬のドロップ率を切り替えて確認できます。{% else %}Probability tables for Brawl Stars drops and boxes. Switch between Starr Drops, Chaos Drops, and more.{% endif %}{% endblock %}
 
 {% block head_extra %}
@@ -9,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="tools-page__container" x-data="dropBoxChancesApp()" x-init="init()">
+<div class="tools-page__container" x-data="dropBoxChancesApp()" x-init="init()" @keydown.window="handleBoxMenuKeydown($event)">
     {% if platform != "web" %}
     <div class="back-button__container"
          x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
@@ -19,7 +20,9 @@
     </div>
     {% endif %}
 
-    <h1 class="page-title--main">{% if lang == "ja" %}各種ドロップ／ボックス確率表{% else %}Drop / Box Chances{% endif %}</h1>
+    <h1 class="page-title--main drop-box-page-title--main">{% if lang == "ja" %}ボックス確率表{% else %}Box Chances{% endif %}</h1>
+
+    {{ drop_box_nav('chances') }}
 
     <p class="tools-page__description">
         {% if lang == "ja" %}
@@ -29,28 +32,7 @@
         {% endif %}
     </p>
 
-    <div class="map-rotation-slot-tab__container drop-box-slot-tab__container" x-show="Object.keys(boxes).length > 0" x-cloak>
-        <div class="map-rotation-slot-tab drop-box-slot-tab">
-            <template x-for="boxKey in activeBoxOrder" :key="boxKey">
-                <div class="map-rotation-slot drop-box-slot"
-                     x-show="boxes[boxKey]"
-                     :class="{ 'map-rotation-slot--active': selectedBoxKey === boxKey }"
-                     @click="selectBox(boxKey)">
-                    <img :src="boxes[boxKey].icon"
-                         :alt="getBoxName(boxKey)"
-                         class="map-rotation-slot__icon drop-box-slot__icon"
-                         :class="`drop-box-slot__icon--${boxKey}`">
-                    <p class="map-rotation-slot__text drop-box-slot__text" x-text="getBoxName(boxKey)"></p>
-                </div>
-            </template>
-        </div>
-        <button type="button"
-                class="drop-box-slot-tab__expand"
-                x-show="hasHiddenBoxes"
-                @click="toggleBoxListExpanded()"
-                x-text="showExpandedBoxList ? (isJa ? '表示を減らす' : 'Show less') : (isJa ? '表示を増やす' : 'Show more')">
-        </button>
-    </div>
+    {{ drop_box_menu() }}
 
     <div class="winstreak-nav-container" x-show="availableRarities.length > 0" x-cloak>
         <div class="winstreak-nav drop-box-rarity-nav">
@@ -116,9 +98,13 @@
             <table class="map-rotation-table drop-box-table">
                 <thead>
                     <tr>
-                        <th>{% if lang == "ja" %}報酬{% else %}Reward{% endif %}</th>
+                        <th class="drop-box-table__sortable" @click="toggleRewardSort('reward')">
+                            {% if lang == "ja" %}報酬{% else %}Reward{% endif %}<span class="drop-box-table__sort-indicator" x-show="rewardSortColumn === 'reward'" x-text="rewardSortDirection === 'asc' ? '▲' : '▼'"></span>
+                        </th>
                         <th>{% if lang == "ja" %}代替報酬{% else %}Fallback Reward{% endif %}</th>
-                        <th>{% if lang == "ja" %}確率{% else %}Chance{% endif %}</th>
+                        <th class="drop-box-table__sortable" @click="toggleRewardSort('probability')">
+                            {% if lang == "ja" %}確率{% else %}Chance{% endif %}<span class="drop-box-table__sort-indicator" x-show="rewardSortColumn === 'probability'" x-text="rewardSortDirection === 'asc' ? '▲' : '▼'"></span>
+                        </th>
                     </tr>
                 </thead>
                 <template x-for="(reward, index) in displayRewards" :key="getRewardKey(reward, index)">
@@ -126,19 +112,26 @@
                             <tr>
                                 <td>
                                     <div class="drop-box-table__reward">
-                                        <template x-if="getRewardIcons(reward.type).length <= 1">
-                                            <img :src="getRewardType(reward.type).icon" :alt="getRewardName(reward.type)" class="drop-box-table__reward-icon">
+                                        <template x-if="getRewardRowIcons(reward).length <= 1">
+                                            <img :src="getRewardRowIcons(reward)[0] || getRewardType(reward.type).icon" :alt="getRewardDisplayName(reward)" class="drop-box-table__reward-icon">
                                         </template>
-                                        <template x-if="getRewardIcons(reward.type).length > 1">
+                                        <template x-if="getRewardRowIcons(reward).length > 1">
                                             <div class="drop-box-table__reward-icons">
-                                                <template x-for="(icon, iconIndex) in getRewardIcons(reward.type)" :key="`${reward.type}-${iconIndex}`">
-                                                    <img :src="icon" :alt="getRewardName(reward.type)" class="drop-box-table__reward-icon drop-box-table__reward-icon--stacked">
+                                                <template x-for="(icon, iconIndex) in getRewardRowIcons(reward)" :key="`${reward.type}-${iconIndex}`">
+                                                    <span class="drop-box-table__reward-icon-slot">
+                                                        <template x-if="icon === '...'">
+                                                            <span class="drop-box-table__reward-icon-ellipsis" aria-hidden="true">⋯</span>
+                                                        </template>
+                                                        <template x-if="icon !== '...'">
+                                                            <img :src="icon" :alt="getRewardName(reward.type)" class="drop-box-table__reward-icon drop-box-table__reward-icon--stacked">
+                                                        </template>
+                                                    </span>
                                                 </template>
                                             </div>
                                         </template>
                                         <span class="drop-box-table__reward-amount" x-text="reward.amount"></span>
                                         <span class="drop-box-table__reward-name" x-text="getRewardDisplayName(reward)"></span>
-                                        <template x-if="hasSkinTargets(reward)">
+                                        <template x-if="hasRewardTargets(reward)">
                                             <button type="button"
                                                     class="drop-box-table__expand-button"
                                                     @click="toggleRewardTargets(getRewardKey(reward, index))"
@@ -147,23 +140,142 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <template x-if="getRewardType(reward.type).substitute">
+                                    <template x-if="getRewardSubstitute(reward)">
                                         <div class="drop-box-table__reward drop-box-table__reward--substitute">
-                                            <img :src="getRewardType(getRewardType(reward.type).substitute.type).icon" :alt="getRewardName(getRewardType(reward.type).substitute.type)" class="drop-box-table__reward-icon">
-                                            <span class="drop-box-table__reward-amount" x-text="getRewardType(reward.type).substitute.amount"></span>
-                                            <span class="drop-box-table__reward-name" x-text="getRewardName(getRewardType(reward.type).substitute.type)"></span>
+                                            <img :src="getRewardType(getRewardSubstitute(reward).type).icon" :alt="getRewardName(getRewardSubstitute(reward).type)" class="drop-box-table__reward-icon">
+                                            <span class="drop-box-table__reward-amount" x-text="getRewardSubstitute(reward).amount"></span>
+                                            <span class="drop-box-table__reward-name" x-text="getRewardName(getRewardSubstitute(reward).type)"></span>
                                         </div>
                                     </template>
-                                    <template x-if="!getRewardType(reward.type).substitute">
+                                    <template x-if="!getRewardSubstitute(reward)">
                                         <span class="drop-box-table__empty">-</span>
                                     </template>
                                 </td>
                                 <td class="drop-box-table__probability" x-text="formatPercentage(reward.probability)"></td>
                             </tr>
-                            <tr x-show="isRewardTargetsExpanded(getRewardKey(reward, index))" x-cloak>
+                            {# 展開したときだけ描画し、閉じている排出対象の画像は読み込まない #}
+                            <template x-if="isRewardTargetsExpanded(getRewardKey(reward, index))">
+                                <tr>
+                                    <td colspan="3" class="drop-box-table__targets-cell">
+                                        <p class="drop-box-table__targets-note" x-show="getRewardTargetsNote(reward)" x-html="getRewardTargetsNote(reward)"></p>
+                                        <div class="drop-box-table__targets" x-show="getRewardChipTargets(reward).length > 0">
+                                            <template x-for="skin in getRewardChipTargets(reward)" :key="skin.id">
+                                                <div class="drop-box-table__skin-chip">
+                                                    <img :src="skin.image"
+                                                         :alt="getSkinName(skin)"
+                                                         class="drop-box-table__skin-chip-image"
+                                                         :onerror="`this.onerror=null;this.src='${skin.fallback_image}';this.style.objectFit='contain';this.style.padding='8px';`">
+                                                    <div class="drop-box-table__skin-chip-name-row">
+                                                        <img :src="skin.rarity_icon"
+                                                             alt=""
+                                                             class="drop-box-table__skin-chip-rarity"
+                                                             width="14"
+                                                             height="14"
+                                                             style="width: 14px; height: 14px; object-fit: contain; flex-shrink: 0;"
+                                                             x-show="skin.rarity_icon">
+                                                        <span class="drop-box-table__skin-chip-name" x-text="getSkinName(skin)"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        {# ピンズ・スプレー・プロフィールアイコンは名前が内部名のため、画像のみ並べる #}
+                                        <div class="drop-box-table__targets drop-box-table__targets--items" x-show="getRewardItemTargets(reward).length > 0">
+                                            <template x-for="item in getRewardItemTargets(reward)" :key="item.id">
+                                                <div class="drop-box-table__item-chip">
+                                                    <img :src="item.image"
+                                                         alt=""
+                                                         class="drop-box-table__item-chip-image"
+                                                         decoding="async"
+                                                         :onerror="`this.onerror=null;this.src='${item.fallback_image}';`">
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                    </tbody>
+                </template>
+            </table>
+        </template>
+
+        <template x-if="displayRewards.length === 0">
+            <p class="info-block__text block" style="margin-top: 14px;">
+                {% if lang == "ja" %}
+                    このドロップ・ボックスの詳細データはまだ準備中です。
+                {% else %}
+                    Detailed data for this drop or box is not ready yet.
+                {% endif %}
+            </p>
+        </template>
+    </div>
+
+    <div class="drop-box-table__container" x-show="premiumRewards.length > 0" x-cloak>
+        <h3 class="cost-section-title" style="margin-top: 8px;">{% if lang == "ja" %}確定枠の排出確率{% else %}Guaranteed Slot Chances{% endif %}</h3>
+        <table class="map-rotation-table drop-box-table">
+            <thead>
+                <tr>
+                    <th class="drop-box-table__sortable" @click="toggleRewardSort('reward')">
+                        {% if lang == "ja" %}報酬{% else %}Reward{% endif %}<span class="drop-box-table__sort-indicator" x-show="rewardSortColumn === 'reward'" x-text="rewardSortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th>{% if lang == "ja" %}代替報酬{% else %}Fallback Reward{% endif %}</th>
+                    <th class="drop-box-table__sortable" @click="toggleRewardSort('probability')">
+                        {% if lang == "ja" %}確率{% else %}Chance{% endif %}<span class="drop-box-table__sort-indicator" x-show="rewardSortColumn === 'probability'" x-text="rewardSortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                </tr>
+            </thead>
+            <template x-for="(reward, index) in premiumRewards" :key="`premium-${getRewardKey(reward, index)}`">
+                <tbody>
+                        <tr>
+                            <td>
+                                <div class="drop-box-table__reward">
+                                    <template x-if="getRewardRowIcons(reward).length <= 1">
+                                        <img :src="getRewardRowIcons(reward)[0] || getRewardType(reward.type).icon" :alt="getRewardDisplayName(reward)" class="drop-box-table__reward-icon">
+                                    </template>
+                                    <template x-if="getRewardRowIcons(reward).length > 1">
+                                        <div class="drop-box-table__reward-icons">
+                                            <template x-for="(icon, iconIndex) in getRewardRowIcons(reward)" :key="`premium-${reward.type}-${iconIndex}`">
+                                                <span class="drop-box-table__reward-icon-slot">
+                                                    <template x-if="icon === '...'">
+                                                        <span class="drop-box-table__reward-icon-ellipsis" aria-hidden="true">⋯</span>
+                                                    </template>
+                                                    <template x-if="icon !== '...'">
+                                                        <img :src="icon" :alt="getRewardName(reward.type)" class="drop-box-table__reward-icon drop-box-table__reward-icon--stacked">
+                                                    </template>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <span class="drop-box-table__reward-amount" x-text="reward.amount"></span>
+                                    <span class="drop-box-table__reward-name" x-text="getRewardDisplayName(reward)"></span>
+                                    <template x-if="hasRewardTargets(reward)">
+                                        <button type="button"
+                                                class="drop-box-table__expand-button"
+                                                @click="toggleRewardTargets(`premium-${getRewardKey(reward, index)}`)"
+                                                x-text="getRewardTargetsButtonLabel(`premium-${getRewardKey(reward, index)}`)"></button>
+                                    </template>
+                                </div>
+                            </td>
+                            <td>
+                                <template x-if="getRewardSubstitute(reward)">
+                                    <div class="drop-box-table__reward drop-box-table__reward--substitute">
+                                        <img :src="getRewardType(getRewardSubstitute(reward).type).icon" :alt="getRewardName(getRewardSubstitute(reward).type)" class="drop-box-table__reward-icon">
+                                        <span class="drop-box-table__reward-amount" x-text="getRewardSubstitute(reward).amount"></span>
+                                        <span class="drop-box-table__reward-name" x-text="getRewardName(getRewardSubstitute(reward).type)"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!getRewardSubstitute(reward)">
+                                    <span class="drop-box-table__empty">-</span>
+                                </template>
+                            </td>
+                            <td class="drop-box-table__probability" x-text="formatPercentage(reward.probability)"></td>
+                        </tr>
+                        {# 展開したときだけ描画し、閉じている排出対象の画像は読み込まない #}
+                        <template x-if="isRewardTargetsExpanded(`premium-${getRewardKey(reward, index)}`)">
+                            <tr>
                                 <td colspan="3" class="drop-box-table__targets-cell">
-                                    <div class="drop-box-table__targets">
-                                        <template x-for="skin in (reward.skin_targets || [])" :key="skin.id">
+                                    <p class="drop-box-table__targets-note" x-show="getRewardTargetsNote(reward)" x-html="getRewardTargetsNote(reward)"></p>
+                                    <div class="drop-box-table__targets" x-show="getRewardChipTargets(reward).length > 0">
+                                        <template x-for="skin in getRewardChipTargets(reward)" :key="skin.id">
                                             <div class="drop-box-table__skin-chip">
                                                 <img :src="skin.image"
                                                      :alt="getSkinName(skin)"
@@ -182,97 +294,21 @@
                                             </div>
                                         </template>
                                     </div>
+                                    {# ピンズ・スプレー・プロフィールアイコンは名前が内部名のため、画像のみ並べる #}
+                                    <div class="drop-box-table__targets drop-box-table__targets--items" x-show="getRewardItemTargets(reward).length > 0">
+                                        <template x-for="item in getRewardItemTargets(reward)" :key="item.id">
+                                            <div class="drop-box-table__item-chip">
+                                                <img :src="item.image"
+                                                     alt=""
+                                                     class="drop-box-table__item-chip-image"
+                                                     decoding="async"
+                                                     :onerror="`this.onerror=null;this.src='${item.fallback_image}';`">
+                                            </div>
+                                        </template>
+                                    </div>
                                 </td>
                             </tr>
-                    </tbody>
-                </template>
-            </table>
-        </template>
-
-        <template x-if="displayRewards.length === 0">
-            <p class="info-block__text block" style="margin-top: 14px;">
-                {% if lang == "ja" %}
-                    このドロップ・ボックスの詳細データはまだ準備中です。
-                {% else %}
-                    Detailed data for this drop or box is not ready yet.
-                {% endif %}
-            </p>
-        </template>
-    </div>
-
-    <div class="drop-box-table__container" x-show="premiumRewards.length > 0" x-cloak>
-        <h3 class="cost-section-title" style="margin-top: 8px;">{% if lang == "ja" %}プレミアムドロップの排出確率{% else %}Premium Drop Chances{% endif %}</h3>
-        <table class="map-rotation-table drop-box-table">
-            <thead>
-                <tr>
-                    <th>{% if lang == "ja" %}報酬{% else %}Reward{% endif %}</th>
-                    <th>{% if lang == "ja" %}代替報酬{% else %}Fallback Reward{% endif %}</th>
-                    <th>{% if lang == "ja" %}確率{% else %}Chance{% endif %}</th>
-                </tr>
-            </thead>
-            <template x-for="(reward, index) in premiumRewards" :key="`premium-${getRewardKey(reward, index)}`">
-                <tbody>
-                        <tr>
-                            <td>
-                                <div class="drop-box-table__reward">
-                                    <template x-if="getRewardIcons(reward.type).length <= 1">
-                                        <img :src="getRewardType(reward.type).icon" :alt="getRewardName(reward.type)" class="drop-box-table__reward-icon">
-                                    </template>
-                                    <template x-if="getRewardIcons(reward.type).length > 1">
-                                        <div class="drop-box-table__reward-icons">
-                                            <template x-for="(icon, iconIndex) in getRewardIcons(reward.type)" :key="`premium-${reward.type}-${iconIndex}`">
-                                                <img :src="icon" :alt="getRewardName(reward.type)" class="drop-box-table__reward-icon drop-box-table__reward-icon--stacked">
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <span class="drop-box-table__reward-amount" x-text="reward.amount"></span>
-                                    <span class="drop-box-table__reward-name" x-text="getRewardDisplayName(reward)"></span>
-                                    <template x-if="hasSkinTargets(reward)">
-                                        <button type="button"
-                                                class="drop-box-table__expand-button"
-                                                @click="toggleRewardTargets(`premium-${getRewardKey(reward, index)}`)"
-                                                x-text="getRewardTargetsButtonLabel(`premium-${getRewardKey(reward, index)}`)"></button>
-                                    </template>
-                                </div>
-                            </td>
-                            <td>
-                                <template x-if="getRewardType(reward.type).substitute">
-                                    <div class="drop-box-table__reward drop-box-table__reward--substitute">
-                                        <img :src="getRewardType(getRewardType(reward.type).substitute.type).icon" :alt="getRewardName(getRewardType(reward.type).substitute.type)" class="drop-box-table__reward-icon">
-                                        <span class="drop-box-table__reward-amount" x-text="getRewardType(reward.type).substitute.amount"></span>
-                                        <span class="drop-box-table__reward-name" x-text="getRewardName(getRewardType(reward.type).substitute.type)"></span>
-                                    </div>
-                                </template>
-                                <template x-if="!getRewardType(reward.type).substitute">
-                                    <span class="drop-box-table__empty">-</span>
-                                </template>
-                            </td>
-                            <td class="drop-box-table__probability" x-text="formatPercentage(reward.probability)"></td>
-                        </tr>
-                        <tr x-show="isRewardTargetsExpanded(`premium-${getRewardKey(reward, index)}`)" x-cloak>
-                            <td colspan="3" class="drop-box-table__targets-cell">
-                                <div class="drop-box-table__targets">
-                                    <template x-for="skin in (reward.skin_targets || [])" :key="skin.id">
-                                        <div class="drop-box-table__skin-chip">
-                                            <img :src="skin.image"
-                                                 :alt="getSkinName(skin)"
-                                                 class="drop-box-table__skin-chip-image"
-                                                 :onerror="`this.onerror=null;this.src='${skin.fallback_image}';this.style.objectFit='contain';this.style.padding='8px';`">
-                                            <div class="drop-box-table__skin-chip-name-row">
-                                                <img :src="skin.rarity_icon"
-                                                     alt=""
-                                                     class="drop-box-table__skin-chip-rarity"
-                                                     width="14"
-                                                     height="14"
-                                                     style="width: 14px; height: 14px; object-fit: contain; flex-shrink: 0;"
-                                                     x-show="skin.rarity_icon">
-                                                <span class="drop-box-table__skin-chip-name" x-text="getSkinName(skin)"></span>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </td>
-                        </tr>
+                        </template>
                 </tbody>
             </template>
         </table>
@@ -294,45 +330,85 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/drop_box_menu.js') }}?v={{ app_version }}"></script>
     <script>
+        // 個別IDの指定がない報酬の排出対象の説明(ボックスシミュレーターの抽選条件に合わせる)
+        const LIMITED_SKINS = { limited_ja: '限定スキン', limited_en: 'limited skins' };
+        const LIMITED_PINS = { limited_ja: '限定ピンズ', limited_en: 'limited pins' };
+        const GENERAL_REWARD_TARGETS = {
+            rareSkins: { ...LIMITED_SKINS, label_ja: 'レアスキン', label_en: 'Rare Skins' },
+            'rare-superRareSkins': { ...LIMITED_SKINS, label_ja: 'レア・スーパーレアスキン', label_en: 'Rare/Super Rare Skins' },
+            superRareSkins: { ...LIMITED_SKINS, label_ja: 'スーパーレアスキン', label_en: 'Super Rare Skins' },
+            'superRare-epicSkins': { ...LIMITED_SKINS, label_ja: 'スーパーレア・ハイパーレアスキン', label_en: 'Super Rare/Epic Skins' },
+            epicSkins: { ...LIMITED_SKINS, label_ja: 'ハイパーレアスキン', label_en: 'Epic Skins' },
+            mythicSkins: { ...LIMITED_SKINS, label_ja: 'ウルトラレアスキン', label_en: 'Mythic Skins' },
+            'rare-epicSkins': { ...LIMITED_SKINS, label_ja: 'レア・スーパーレア・ハイパーレアスキン', label_en: 'Rare/Super Rare/Epic Skins' },
+            'rare-mythicSkins': { ...LIMITED_SKINS, label_ja: 'レア〜ウルトラレアスキン', label_en: 'Rare–Mythic Skins' },
+            'mythic-legendarySkins': { ...LIMITED_SKINS, label_ja: 'ウルトラレア・レジェンドレアスキン', label_en: 'Mythic/Legendary Skins' },
+            legendarySkins: { ...LIMITED_SKINS, label_ja: 'レジェンドレアスキン', label_en: 'Legendary Skins' },
+            hyperchargeSkins: { ...LIMITED_SKINS, label_ja: 'ハイパーチャージスキン', label_en: 'Hypercharge Skins' },
+            'rare-hyperchargeSkins': { ...LIMITED_SKINS, label_ja: 'レア〜レジェンドレア・ハイパーチャージスキン', label_en: 'Rare–Legendary & Hypercharge Skins' },
+            normalPins: { ...LIMITED_PINS, label_ja: 'ノーマルピンズ', label_en: 'Normal Pins' },
+            rarePins: { ...LIMITED_PINS, label_ja: 'レアピンズ', label_en: 'Rare Pins' },
+            epicPins: { ...LIMITED_PINS, label_ja: 'ハイパーレアピンズ', label_en: 'Epic Pins' },
+            'normal-rare-epicPins': { ...LIMITED_PINS, label_ja: 'ノーマル・レア・ハイパーレアピンズ', label_en: 'Normal/Rare/Epic Pins' },
+            profileIcons: { limited_ja: '限定アイコン', limited_en: 'limited icons', label_ja: 'プロフィールアイコン', label_en: 'Profile Icons' },
+            sprays: { limited_ja: '限定スプレー', limited_en: 'limited sprays', label_ja: 'スプレー', label_en: 'Sprays' },
+        };
+
+        // 報酬カラムでソートする際の並び順(昇順)。ここに含まれない報酬(ナノパワー等の特別アイテム)は先頭にまとめる
+        const REWARD_SORT_GROUPS = [
+            'gems', 'coins', 'powerPoints', 'credits', 'bling', 'xpDoublers', 'proPassXp',
+            'gadgets', 'starPowers', 'hypercharges', 'buffies', 'brawlers', 'skins',
+            'proPassSkinUpgrade', 'profileIcons', 'pins', 'sprays',
+        ];
+        // グループ内はレア度が低い順。複数レア度にまたがる報酬は [最低レア度, 最高レア度] で比較する
+        const BRAWLER_SORT_RARITIES = {
+            rareBrawlers: [1, 1], superRareBrawlers: [2, 2], epicBrawlers: [3, 3],
+            mythicBrawlers: [4, 4], legendaryBrawlers: [5, 5], ultralegendaryBrawlers: [6, 6],
+        };
+        const SKIN_SORT_RARITIES = {
+            rareSkins: [1, 1], 'rare-superRareSkins': [1, 2], 'rare-epicSkins': [1, 3], 'rare-mythicSkins': [1, 4],
+            'rare-hyperchargeSkins': [1, 6], superRareSkins: [2, 2], 'superRare-epicSkins': [2, 3], epicSkins: [3, 3],
+            mythicSkins: [4, 4], 'mythic-legendarySkins': [4, 5], legendarySkins: [5, 5], hyperchargeSkins: [6, 6],
+        };
+        const PIN_SORT_RARITIES = {
+            normalPins: [1, 1], 'normal-rare-epicPins': [1, 3], rarePins: [2, 2], epicPins: [3, 3], eventPins: [4, 4],
+        };
+
+        function getRewardSortKey(typeKey) {
+            let group = typeKey;
+            let rarities = [0, 0];
+            if (BRAWLER_SORT_RARITIES[typeKey]) {
+                group = 'brawlers';
+                rarities = BRAWLER_SORT_RARITIES[typeKey];
+            } else if (SKIN_SORT_RARITIES[typeKey]) {
+                group = 'skins';
+                rarities = SKIN_SORT_RARITIES[typeKey];
+            } else if (PIN_SORT_RARITIES[typeKey]) {
+                group = 'pins';
+                rarities = PIN_SORT_RARITIES[typeKey];
+            }
+            return [REWARD_SORT_GROUPS.indexOf(group) + 1, ...rarities];
+        }
+
         function dropBoxChancesApp() {
-            return {
+            return withDropBoxMenu({
                 isJa: '{{ lang }}' === 'ja',
                 initialBox: {{ initial_box | tojson | safe }},
                 data: {{ drop_boxes_data | tojson | safe }},
-                boxOrderCompact: ['starrdrop', 'chaosdrop', 'rankeddrop', 'coffinbox', 'angelicdrop', 'demonicdrop', 'sushi', 'megabox', 'mechabox', 'boombox', 'cosmobox', 'vincebox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
-                boxOrderExpanded: ['starrdrop', 'chaosdrop', 'rankeddrop', 'coffinbox', 'nanodrop', 'smoothiedrop', 'angelicdrop', 'demonicdrop', 'novadrop', 'present', 'sushi', 'megabox', 'deadbox', 'halloweenbox', 'mechabox', 'lovebox', 'boombox', 'siriusbox', 'najiabox', 'damianbox', 'starrnovabox', 'boltbox', 'noribox', 'wendybox', 'cosmobox', 'vincebox', 'smalltrophybox', 'bigtrophybox', 'megatrophybox', 'omegatrophybox', 'ultratrophybox'],
-                showExpandedBoxList: false,
                 selectedBoxKey: 'starrdrop',
                 selectedRarityKey: '',
                 expandedRewardRows: {},
+                rewardSortColumn: 'probability',
+                rewardSortDirection: 'desc',
 
                 init() {
                     if (this.initialBox && this.boxes[this.initialBox]) {
                         this.selectedBoxKey = this.initialBox;
-                        if (!this.boxOrderCompact.includes(this.initialBox)) {
-                            this.showExpandedBoxList = true;
-                        }
+                        this.expandBoxListFor(this.initialBox);
                     }
                     this.syncSelectedRarity();
-                },
-
-                get activeBoxOrder() {
-                    return this.showExpandedBoxList ? this.boxOrderExpanded : this.boxOrderCompact;
-                },
-
-                get hasHiddenBoxes() {
-                    return this.boxOrderExpanded.some((key) => !this.boxOrderCompact.includes(key));
-                },
-
-                toggleBoxListExpanded() {
-                    this.showExpandedBoxList = !this.showExpandedBoxList;
-                    if (!this.showExpandedBoxList && !this.boxOrderCompact.includes(this.selectedBoxKey)) {
-                        const fallback = this.boxOrderCompact.find((key) => this.boxes[key]);
-                        if (fallback) {
-                            this.selectBox(fallback);
-                        }
-                    }
                 },
 
                 get boxes() {
@@ -366,17 +442,52 @@
                     } else if (this.selectedBox && Array.isArray(this.selectedBox.rewards)) {
                         rewards = this.selectedBox.rewards;
                     }
-                    return [...rewards].sort((a, b) => (b.probability || 0) - (a.probability || 0));
+                    return this.sortRewards(rewards);
                 },
 
                 get premiumRewards() {
                     if (this.selectedRarity && Array.isArray(this.selectedRarity.premium_rewards)) {
-                        return [...this.selectedRarity.premium_rewards].sort((a, b) => (b.probability || 0) - (a.probability || 0));
+                        return this.sortRewards(this.selectedRarity.premium_rewards);
                     }
                     if (this.selectedBox && Array.isArray(this.selectedBox.premium_rewards)) {
-                        return [...this.selectedBox.premium_rewards].sort((a, b) => (b.probability || 0) - (a.probability || 0));
+                        return this.sortRewards(this.selectedBox.premium_rewards);
                     }
                     return [];
+                },
+
+                // 降順は昇順を丸ごと逆にした並びにする
+                sortRewards(rewards) {
+                    const sorted = this.rewardSortColumn === 'reward'
+                        ? [...rewards].sort((a, b) => this.compareRewardsByType(a, b))
+                        // 確率が同じ報酬は元の並び順を保つ(ソートは安定)
+                        : [...rewards].sort((a, b) => (b.probability || 0) - (a.probability || 0)).reverse();
+                    return this.rewardSortDirection === 'asc' ? sorted : sorted.reverse();
+                },
+
+                // 報酬種別の並び順 → 数量が少ない順 → 確率が高い順
+                compareRewardsByType(a, b) {
+                    const keyA = getRewardSortKey(a.type);
+                    const keyB = getRewardSortKey(b.type);
+                    for (let i = 0; i < keyA.length; i++) {
+                        if (keyA[i] !== keyB[i]) return keyA[i] - keyB[i];
+                    }
+                    // 数量は "50-150" のような範囲表記もあるため、先頭の数値で比較する
+                    const amountA = parseFloat(a.amount) || 0;
+                    const amountB = parseFloat(b.amount) || 0;
+                    if (amountA !== amountB) return amountA - amountB;
+                    return (b.probability || 0) - (a.probability || 0);
+                },
+
+                // ソート中のカラムを押すと逆順、別のカラムを押すとそのカラムの既定の向き(報酬は昇順、確率は降順)にする
+                toggleRewardSort(column) {
+                    if (this.rewardSortColumn === column) {
+                        this.rewardSortDirection = this.rewardSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.rewardSortColumn = column;
+                        this.rewardSortDirection = column === 'reward' ? 'asc' : 'desc';
+                    }
+                    // 行のキーに並び順が含まれるため、展開状態はリセットする
+                    this.expandedRewardRows = {};
                 },
 
                 selectBox(boxKey) {
@@ -425,6 +536,17 @@
                     return this.isJa ? rewardType.name_ja : rewardType.name_en;
                 },
 
+                // 出現するキャラが決まっている報酬(新キャラのボックス等)は、報酬ごとのアイコン(キャラのアイコン)を優先する
+                getRewardRowIcons(reward) {
+                    if (reward && reward.icon) return [reward.icon];
+                    // レア度が多くまたがる報酬は、中間のレア度を省略したアイコン列("..." は省略記号)を使う
+                    const rewardType = this.getRewardType(reward ? reward.type : '');
+                    if (Array.isArray(rewardType.table_icons) && rewardType.table_icons.length > 0) {
+                        return rewardType.table_icons;
+                    }
+                    return this.getRewardIcons(reward ? reward.type : '');
+                },
+
                 getRewardIcons(typeKey) {
                     const rewardType = this.getRewardType(typeKey);
                     if (Array.isArray(rewardType.icons) && rewardType.icons.length > 0) {
@@ -441,13 +563,56 @@
                     return this.getRewardName(reward.type);
                 },
 
+                // 代替報酬。ボックス(排出プール)ごとに異なる場合は報酬の行の substitute で上書きされている
+                getRewardSubstitute(reward) {
+                    if (reward && reward.substitute && reward.substitute.type) return reward.substitute;
+                    return this.getRewardType(reward ? reward.type : '').substitute || null;
+                },
+
                 getRewardKey(reward, index) {
                     const displayName = reward && (reward.display_name_ja || reward.display_name_en || '');
                     return `${index}-${reward.type}-${reward.amount}-${reward.probability}-${displayName}`;
                 },
 
-                hasSkinTargets(reward) {
-                    return Array.isArray(reward && reward.skin_targets) && reward.skin_targets.length > 0;
+                // 画像と名前で並べる排出対象(スキン、および出現キャラが指定されていないキャラ報酬のキャラ)
+                getRewardChipTargets(reward) {
+                    if (!reward) return [];
+                    if (Array.isArray(reward.skin_targets) && reward.skin_targets.length > 0) return reward.skin_targets;
+                    // 新キャラのボックス等、出現キャラが指定されている報酬は排出対象を出さない
+                    const typeKey = reward.type || '';
+                    if (typeKey.endsWith('Brawlers') && !(Array.isArray(reward.brawler_targets) && reward.brawler_targets.length > 0)) {
+                        const targetsByType = this.data.brawler_targets_by_type || {};
+                        return targetsByType[typeKey] || [];
+                    }
+                    return [];
+                },
+
+                // ピンズ・スプレー・プロフィールアイコンの排出対象(IDが指定されている報酬のみ。条件で絞り込む報酬は一覧を出さない)
+                getRewardItemTargets(reward) {
+                    if (!reward) return [];
+                    return [
+                        ...(Array.isArray(reward.pin_targets) ? reward.pin_targets : []),
+                        ...(Array.isArray(reward.icon_targets) ? reward.icon_targets : []),
+                        ...(Array.isArray(reward.spray_targets) ? reward.spray_targets : []),
+                    ];
+                },
+
+                // 個別IDの指定がなく、レア度等の条件で絞り込んで排出する報酬の説明文(価格による絞り込みは内部的なものなので触れない)
+                getRewardTargetsNote(reward) {
+                    if (!reward || this.getRewardChipTargets(reward).length > 0 || this.getRewardItemTargets(reward).length > 0) return '';
+                    const target = GENERAL_REWARD_TARGETS[reward.type];
+                    if (!target) return '';
+                    const limited = this.isJa ? target.limited_ja : target.limited_en;
+                    const label = this.isJa ? target.label_ja : target.label_en;
+                    return this.isJa
+                        ? `一部の${limited}を除くすべての<b>${label}</b>が排出対象です。`
+                        : `All <b>${label}</b> can drop, except for some ${limited}.`;
+                },
+
+                hasRewardTargets(reward) {
+                    return this.getRewardChipTargets(reward).length > 0
+                        || this.getRewardItemTargets(reward).length > 0
+                        || !!this.getRewardTargetsNote(reward);
                 },
 
                 toggleRewardTargets(key) {
@@ -551,9 +716,9 @@
                         : (this.isJa ? 'このボックス' : 'this box');
 
                     if (this.isJa) {
-                        return `${containerName}では、${total}個中${premium}個がプレミアムドロップとなります。`;
+                        return `${containerName}では、${total}個中${premium}個が確定枠となります。`;
                     }
-                    return `For ${containerName}, ${premium} of ${total} drops are premium drops.`;
+                    return `For ${containerName}, ${premium} of ${total} drops are guaranteed drops.`;
                 },
 
                 getSplitSummary() {
@@ -580,7 +745,7 @@
                     }
                     return this.isJa ? `分裂率: ${summary}` : `Split: ${summary}`;
                 }
-            }
+            });
         }
     </script>
 {% endblock %}
