@@ -681,6 +681,31 @@ def test_skin_in_db_takes_precedence_over_json_fallback():
     assert target["rarity"] == 45
 
 
+def test_general_skin_targets_skip_limited_and_excluded_skins():
+    request = DummyRequest()
+    limited = SimpleNamespace(id=29000748, en="Blue King Frank", ja=None, rarity=50, is_limited=True)
+    variant = SimpleNamespace(id=29000581, en="Light Mecha Mortis", ja=None, rarity=50, is_limited=None)
+    normal = SimpleNamespace(id=29000558, en="Mecha Mortis", ja=None, rarity=50, is_limited=None)
+    skins = [limited, variant, normal]
+    dynamic_targets = {"skins_by_id": {skin.id: skin for skin in skins}, "skins": skins}
+    reward = {"type": "legendarySkins", "excluded_skin_ids": [variant.id]}
+
+    for _ in range(20):
+        target = _pick_reward_target_item(request, reward, "legendarySkins", dynamic_targets)
+        assert target["id"] == normal.id
+
+
+def test_trophy_boxes_draw_skins_from_general_pool():
+    # トロフィーボックスは「限定スキンを除く全スキン」から排出されるため、明示指定リストを持たない
+    raw_data = json.loads(Path("app/data/drop_boxes.json").read_text(encoding="utf-8"))
+    for box_key, box in raw_data["boxes"].items():
+        if not box_key.endswith("trophybox"):
+            continue
+        for reward in box["rewards"]:
+            if reward["type"].endswith("Skins"):
+                assert not reward.get("skin_targets"), (box_key, reward["type"])
+
+
 def test_event_pin_missing_in_db_is_drawn_with_json_name():
     request = DummyRequest()
     reward = {"pin_targets": [{"id": 52009999, "name_en": "New Pin"}]}
