@@ -101,13 +101,26 @@ def test_brawler_reward_target_items_are_selected_from_matching_rarity(monkeypat
     assert rare["kind"] == "brawler"
     assert rare["name_en"] == "Colt"
     assert rare["image"] == "/static/images/brawler_portraits/16000001.png"
-    assert rare["fallback_image"] == "/static/images/brawler_pins/16000001.png"
+    assert rare["fallback_image"] == "/static/images/brawler_portraits/16000001.png"
 
     assert super_rare["id"] == 16000003
     assert super_rare["rarity"] == 3
 
     assert epic["id"] == 16000004
     assert epic["rarity"] == 4
+
+
+def test_brawler_reward_target_item_uses_default_skin_image(monkeypatch):
+    request = DummyRequest()
+    brawlers = [SimpleNamespace(id=16000001, name_en="Colt", name_ja="コルト", rarity=2, is_temporary=False)]
+    dynamic_targets = {"brawlers": brawlers, "default_skin_ids": {16000001: 29000001}}
+    monkeypatch.setattr("app.routers.tools.random.choice", lambda candidates: candidates[0])
+
+    rare = _pick_reward_target_item(request, {}, "rareBrawlers", dynamic_targets)
+
+    # デフォルトスキンがあれば、スキンと同じ見た目になるようその画像を使い、肖像画像は予備にする
+    assert rare["image"] == "/static/images/skins/29000001.webp"
+    assert rare["fallback_image"] == "/static/images/brawler_portraits/16000001.png"
 
 
 def test_spray_reward_target_items_exclude_event_sprays_without_prices(monkeypatch):
@@ -681,18 +694,33 @@ def test_skin_in_db_takes_precedence_over_json_fallback():
     assert target["rarity"] == 45
 
 
-def test_general_skin_targets_skip_limited_and_excluded_skins():
+def test_general_skin_targets_skip_limited_and_variant_skins():
     request = DummyRequest()
-    limited = SimpleNamespace(id=29000748, en="Blue King Frank", ja=None, rarity=50, is_limited=True)
-    variant = SimpleNamespace(id=29000581, en="Light Mecha Mortis", ja=None, rarity=50, is_limited=None)
-    normal = SimpleNamespace(id=29000558, en="Mecha Mortis", ja=None, rarity=50, is_limited=None)
+    limited = SimpleNamespace(id=29000748, en="Blue King Frank", ja=None, rarity=50, is_limited=True, gems_price=299)
+    variant = SimpleNamespace(id=29000581, en="Light Mecha Mortis", ja=None, rarity=50, is_limited=None, gems_price=49)
+    normal = SimpleNamespace(id=29000558, en="Mecha Mortis", ja=None, rarity=50, is_limited=None, gems_price=299)
     skins = [limited, variant, normal]
     dynamic_targets = {"skins_by_id": {skin.id: skin for skin in skins}, "skins": skins}
-    reward = {"type": "legendarySkins", "excluded_skin_ids": [variant.id]}
 
     for _ in range(20):
-        target = _pick_reward_target_item(request, reward, "legendarySkins", dynamic_targets)
+        target = _pick_reward_target_item(request, {"type": "legendarySkins"}, "legendarySkins", dynamic_targets)
         assert target["id"] == normal.id
+
+
+def test_variant_skin_is_detected_by_rarity_and_gems_price():
+    from app.routers.tools import _is_available_box_skin
+
+    def skin(rarity, gems_price):
+        return SimpleNamespace(id=1, rarity=rarity, is_limited=None, gems_price=gems_price)
+
+    # ウルトラレア・レジェンドレアの49エメラルドは色違い
+    assert not _is_available_box_skin(skin(40, 49))
+    assert not _is_available_box_skin(skin(50, 49))
+    # 通常価格や、ハイパーレア以下の安いスキン、価格未取得のスキンは排出対象
+    assert _is_available_box_skin(skin(50, 299))
+    assert _is_available_box_skin(skin(30, 39))
+    assert _is_available_box_skin(skin(20, 29))
+    assert _is_available_box_skin(skin(50, None))
 
 
 def test_trophy_boxes_draw_skins_from_general_pool():

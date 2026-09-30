@@ -612,6 +612,9 @@ class Skin(Base):
     ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期、未入力時のみ)
     rarity = Column(Integer, nullable=True)           # レアリティ (BSInfo同期、未入力時のみ。0はレアリティなし)
     is_limited = Column(Boolean, nullable=True)       # 限定スキンか (管理者が入力)
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    coins_price = Column(Integer, nullable=True)      # コイン価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
     description_en = Column(Text, nullable=True)      # 英語説明文 (管理者が入力)
     description_ja = Column(Text, nullable=True)      # 日本語説明文 (管理者が入力)
     ownership_rate = Column(Float, nullable=True)     # スキン所持率（日次自動集計）

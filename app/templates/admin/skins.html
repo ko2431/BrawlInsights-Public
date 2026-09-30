@@ -127,6 +127,18 @@
                         <span>限定</span>
                         <span x-show="sortColumn === 'is_limited'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
                     </th>
+                    <th @click="sortBy('bling_price')">
+                        <span>ジュエルチップ</span>
+                        <span x-show="sortColumn === 'bling_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('coins_price')">
+                        <span>コイン</span>
+                        <span x-show="sortColumn === 'coins_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th @click="sortBy('gems_price')">
+                        <span>エメラルド</span>
+                        <span x-show="sortColumn === 'gems_price'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
+                    </th>
                     <th @click="sortBy('ownership_rate')">
                         <span>所持率</span>
                         <span x-show="sortColumn === 'ownership_rate'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span>
@@ -221,6 +233,10 @@
                             <td style="background-color: #eee; cursor: not-allowed;"></td>
                         </template>
 
+                        {# 価格 (BSInfo同期、読み取り専用) #}
+                        <td style="text-align: right;" x-text="skin.bling_price === null || typeof skin.bling_price === 'undefined' ? '-' : skin.bling_price"></td>
+                        <td style="text-align: right;" x-text="skin.coins_price === null || typeof skin.coins_price === 'undefined' ? '-' : skin.coins_price"></td>
+                        <td style="text-align: right;" x-text="skin.gems_price === null || typeof skin.gems_price === 'undefined' ? '-' : skin.gems_price"></td>
                         {# 所持率 #}
                         <td style="text-align: right;" x-text="formatRate(skin.ownership_rate)"></td>
                         {# 装備率 #}
@@ -265,7 +281,7 @@
                 </template>
                 <template x-if="filteredData.length === 0">
                     <tr>
-                        <td colspan="11" style="text-align: center; color: #777;">該当するスキンデータがありません</td>
+                        <td colspan="14" style="text-align: center; color: #777;">該当するスキンデータがありません</td>
                     </tr>
                 </template>
             </tbody>
@@ -377,7 +393,7 @@
                 },
                 
                 sortData() {
-                    const isNumeric = ['id', 'brawler_id', 'rarity', 'ownership_rate', 'equip_rate'].includes(this.sortColumn);
+                    const isNumeric = ['id', 'brawler_id', 'rarity', 'bling_price', 'coins_price', 'gems_price', 'ownership_rate', 'equip_rate'].includes(this.sortColumn);
                     
                     this.filteredData.sort((a, b) => {
                         let valA = a[this.sortColumn];
