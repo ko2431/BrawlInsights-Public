@@ -249,6 +249,7 @@ class Player(Base):
     record_level = Column(Integer, nullable=True)
     favorite_skin = Column(Integer, nullable=True)
     owned_skin_count = Column(Integer, nullable=True)
+    owned_skins_synced_at = Column(DateTime(timezone=True), nullable=True)  # BSInfoから所持スキンを最後に取得できた日時 (NULLは所持スキン不明)
     first_profile_avatar = Column(Integer, nullable=True)
     second_profile_avatar = Column(Integer, nullable=True)
     battle_card_emote = Column(Integer, nullable=True)

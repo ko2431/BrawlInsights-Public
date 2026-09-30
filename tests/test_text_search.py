@@ -78,3 +78,13 @@ def test_cache_key_distinguishes_modes():
     user = parse_general_board_search("@abc")
     assert text is not None and user is not None
     assert text.cache_key != user.cache_key
+
+
+def test_parse_strips_control_chars():
+    # NUL(0x00)はPostgreSQLに渡すと500になるため除去されること
+    assert parse_general_board_search("\x00") is None
+    assert parse_general_board_search("@\x00") is None
+    search = parse_general_board_search("a\x00b")
+    assert search.terms == ("a", "b")
+    assert "\x00" not in search.raw
+    assert parse_general_board_search("@name\x00").user_name == "name"

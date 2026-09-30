@@ -943,8 +943,9 @@ async def get_max_accessory_counts(db: asyncpg.Connection) -> dict[str, int]:
 
 async def calculate_and_save_skin_stats(db: asyncpg.Connection) -> None:
     """
-    レベル20以上の全プレイヤーを対象に装備率を、BSInfo所持スキン対応後に更新された
+    レベル20以上の全プレイヤーを対象に装備率を、BSInfo所持スキン対応後に所持スキンを取得できた
     レベル20以上のプレイヤーを対象に所持率を集計して保存します。
+    (BSInfoから取得できていないプレイヤーは所持スキンが装備中のみとなり、所持率を下げるため除外する)
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 

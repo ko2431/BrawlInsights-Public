@@ -16,6 +16,7 @@ _HIRAGANA = "".join(chr(c - 0x60) for c in range(0x30A1, 0x30F6 + 1))
 _TRANSLATE_FROM = _ASCII_UPPER + _KATAKANA
 _TRANSLATE_TO = _ASCII_LOWER + _HIRAGANA
 _TRANSLATE_TABLE = str.maketrans(_TRANSLATE_FROM, _TRANSLATE_TO)
+_CONTROL_CHARS_TABLE = {c: " " for c in (*range(0x00, 0x20), 0x7F)}
 
 # 検索クエリの上限
 GENERAL_BOARD_SEARCH_MAX_LENGTH = 50
@@ -67,6 +68,8 @@ def parse_general_board_search(q: str | None) -> GeneralBoardSearch | None:
     """検索クエリを解釈する。検索条件が空の場合は None。"""
     if not q:
         return None
+    # NUL(0x00)等の制御文字はPostgreSQLのtextで扱えず500になるため、空白に置き換える
+    q = q.translate(_CONTROL_CHARS_TABLE)
     raw = q.strip()[:GENERAL_BOARD_SEARCH_MAX_LENGTH].strip()
     if not raw:
         return None
