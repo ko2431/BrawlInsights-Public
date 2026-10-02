@@ -1,4 +1,5 @@
 {# /app/templates/stats/ranking/fragments/brawler_fragment.html #}
+{% from "macros/brawler_select.html" import brawler_optgroups with context %}
 <div class="ranking-fragment__content">
     <nav class="tab-nav ranking-tab-nav">
         <ul class="tab-nav__list">
@@ -29,9 +30,7 @@
             <input type="hidden" name="region" value="{{ region }}">
             <label for="brawlerSelect" class="filter-form__label">{% if lang == "ja" %}キャラクター:{% else %}Brawler:{% endif %}</label>
             <select name="brawler_id" id="brawlerSelect" class="filter-form__select" onchange="document.getElementById('brawlerFilterForm').submit();">
-                {% for b in brawlers %}
-                    <option value="{{ b.id }}" {% if b.id == brawler.id %}selected{% endif %}>{{ b.name_ja if lang == 'ja' and b.name_ja else b.name_en }}</option>
-                {% endfor %}
+                {{ brawler_optgroups(brawler_groups, uncategorized_brawlers, brawler.id if brawler else None) }}
             </select>
              <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
         </form>

@@ -30,7 +30,7 @@
         <div class="filters__container pick-tool-filters__container">
             <form method="get" id="modeFilterForm" class="filter-form pick-tool-filter-form">
                 {# x-modelで状態と連携 #}
-                <select name="mode" id="modeSelect" class="filter-form__select pick-tool-filter-form__select" x-model="selectedMode">
+                <select name="mode" id="modeSelect" class="filter-form__select pick-tool-filter-form__select" x-model="selectedMode" @change="setModeAndMap($event.target.value, '')">
                     <option value="">{% if lang == "ja" %}モード指定なし (総合){% else %}No Mode Specified{% endif %}</option>
                     {% for m in pool_data %}
                         <option value="{{ m.mode }}">{{ m.mode_ja if m.mode_ja and lang == "ja" else m.mode_en }}</option>
@@ -38,12 +38,16 @@
                 </select>
             </form>
             <form method="get" id="mapFilterForm" class="filter-form pick-tool-filter-form">
-                {# x-modelで状態と連携 #}
-                <select name="map" id="mapSelect" class="filter-form__select pick-tool-filter-form__select" x-model="selectedMap">
-                    <option value="">{% if lang == "ja" %}マップ指定なし (総合){% else %}No Map Specified{% endif %}</option>
-                    {# x-forでマップ選択肢を動的に生成 #}
-                    <template x-for="map in availableMaps" :key="map.map_en">
-                        <option :value="map.map_en" x-text="lang === 'ja' && map.map_ja ? map.map_ja : map.map_en"></option>
+                {# モード別にグループ化。モード選択中はそのモードのマップのみ表示する #}
+                <select name="map" id="mapSelect" class="filter-form__select pick-tool-filter-form__select" @change="onMapSelectChange($event.target)">
+                    <option value="" :selected="!selectedMode && !selectedMap">{% if lang == "ja" %}マップ指定なし (総合){% else %}No Map Specified{% endif %}</option>
+                    <template x-for="group in mapGroups" :key="group.mode">
+                        <optgroup :label="lang === 'ja' && group.mode_ja ? group.mode_ja : group.mode_en">
+                            <option value="" :data-mode="group.mode" :selected="selectedMode === group.mode && !selectedMap">{% if lang == "ja" %}マップ指定なし (総合){% else %}No Map Specified{% endif %}</option>
+                            <template x-for="map in group.maps" :key="map.map_en">
+                                <option :value="map.map_en" :data-mode="group.mode" :selected="selectedMode === group.mode && selectedMap === map.map_en" x-text="lang === 'ja' && map.map_ja ? map.map_ja : map.map_en"></option>
+                            </template>
+                        </optgroup>
                     </template>
                 </select>
             </form>
@@ -343,8 +347,6 @@
                 searchQuery: '',
                 
                 // --- UIの状態 ---
-                // 選択中のモードで利用可能なマップのリスト
-                availableMaps: [],
                 // エラーメッセージ
                 errorMessage: { title: '', text: '' },
 
@@ -372,22 +374,13 @@
                     // データをロード
                     this.poolData = {{ pool_data | tojson }};
                     
-                    // モードとマップの変更を両方監視する
-                    this.$watch('selectedMode', (newMode) => {
-                        this.updateAvailableMaps(newMode);
-                        this.selectedMap = '';
+                    // モードとマップの変更をまとめて監視する (同時に変わっても更新は1回)
+                    this.$watch("selectedMode + '\t' + selectedMap", () => {
                         // ゲーム開始後であれば、常に更新をトリガーする
                         if (this.isGameStarted) {
                             this.updateSuggestions();
-                        } else if (newMode) { // ゲーム未開始なら、モード選択を機に開始
+                        } else if (this.selectedMode) { // ゲーム未開始なら、モード選択を機に開始
                             this.isGameStarted = true;
-                            this.updateSuggestions();
-                        }
-                    });
-
-                    this.$watch('selectedMap', (newMap) => {
-                        // マップが変更されたら(かつゲーム開始後なら)更新
-                        if (this.isGameStarted) {
                             this.updateSuggestions();
                         }
                     });
@@ -582,42 +575,53 @@
                     if (index >= modes.length) index = 0;
                     if (index < 0) index = modes.length - 1;
 
-                    this.selectedMode = modes[index];
+                    this.setModeAndMap(modes[index], '');
                 },
 
                 /**
                  * マップを切り替える
                  */
                 cycleMap(direction) {
-                    // マップ指定なし ("") + 現在のモードで利用可能なマップ
-                    const maps = ["", ...this.availableMaps.map(m => m.map_en)];
+                    // マップ選択メニューの表示順 (モード選択中はそのモード内、未選択なら全モードのマップ)
+                    const entries = this.selectedMode ? [{ mode: this.selectedMode, map: '' }] : [{ mode: '', map: '' }];
+                    this.mapGroups.forEach(group => {
+                        group.maps.forEach(m => entries.push({ mode: group.mode, map: m.map_en }));
+                    });
 
-                    let index = maps.indexOf(this.selectedMap);
-                    // 現在選択中のマップがリストにない場合（モード切り替え直後など）は先頭へ
+                    let index = entries.findIndex(e => e.mode === this.selectedMode && e.map === this.selectedMap);
                     if (index === -1) index = 0;
 
                     index += direction;
 
                     // ループ処理
-                    if (index >= maps.length) index = 0;
-                    if (index < 0) index = maps.length - 1;
+                    if (index >= entries.length) index = 0;
+                    if (index < 0) index = entries.length - 1;
 
-                    this.selectedMap = maps[index];
+                    this.setModeAndMap(entries[index].mode, entries[index].map);
                 },
 
                 /**
-                 * モード選択に応じてマップの選択肢を更新する
-                 * @param {string} mode - 選択されたモード
+                 * マップ選択メニューに表示するモード別のグループ
                  */
-                updateAvailableMaps(mode) {
-                    if (!mode) {
-                        this.availableMaps = [];
-                        return;
-                    }
-                    // Pythonから渡されたpool_dataをJavaScriptで利用する
-                    const poolData = {{ pool_data | tojson }};
-                    const modeData = poolData.find(m => m.mode === mode);
-                    this.availableMaps = modeData ? modeData.maps : [];
+                get mapGroups() {
+                    return this.selectedMode ? this.poolData.filter(d => d.mode === this.selectedMode) : this.poolData;
+                },
+
+                /**
+                 * モードとマップを同時に設定する。マップがそのモードにない場合はマップ指定なしにする
+                 */
+                setModeAndMap(mode, map) {
+                    const modeData = this.poolData.find(d => d.mode === mode);
+                    this.selectedMode = modeData ? mode : '';
+                    this.selectedMap = modeData && modeData.maps.some(m => m.map_en === map) ? map : '';
+                },
+
+                /**
+                 * マップ選択メニューの変更。選んだマップのモードも合わせて設定する
+                 */
+                onMapSelectChange(selectEl) {
+                    const option = selectEl.selectedOptions[0];
+                    this.setModeAndMap((option && option.dataset.mode) || '', selectEl.value);
                 },
 
                 /**

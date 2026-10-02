@@ -1,0 +1,17 @@
+{# キャラクター選択メニューのoption群。group_brawlers_by_rarity() の戻り値をレアリティ別のoptgroupで表示する #}
+{% macro brawler_optgroups(groups, uncategorized, selected_id=None) -%}
+{%- if uncategorized %}
+<optgroup label="{% if lang == 'ja' %}未分類{% else %}Uncategorized{% endif %}">
+    {%- for b in uncategorized %}
+    <option value="{{ b.id }}" {% if b.id == selected_id %}selected{% endif %}>{{ b.name_ja if lang == "ja" and b.name_ja else b.name_en }}</option>
+    {%- endfor %}
+</optgroup>
+{%- endif %}
+{%- for group in groups %}
+<optgroup label="{{ group.label }}">
+    {%- for b in group.brawlers %}
+    <option value="{{ b.id }}" {% if b.id == selected_id %}selected{% endif %}>{{ b.name_ja if lang == "ja" and b.name_ja else b.name_en }}</option>
+    {%- endfor %}
+</optgroup>
+{%- endfor %}
+{%- endmacro %}

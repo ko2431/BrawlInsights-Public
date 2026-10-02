@@ -2,7 +2,7 @@ import ipaddress
 import re
 import os
 import datetime
-from typing import Union, Optional
+from typing import Any, Union, Optional
 from fastapi import Request
 
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -584,3 +584,58 @@ def format_last_played_time(dt: datetime.datetime, lang: str = "ja") -> str:
             return "1分未満前"
         else:
             return "less than 1 minute ago"
+
+
+# セレクトメニューでキャラクターをレアリティ別に分類する
+BRAWLER_RARITY_LABELS_JA = {
+    1: "ノーマル",
+    2: "レア",
+    3: "スーパーレア",
+    4: "ハイパーレア",
+    5: "ウルトラレア",
+    6: "レジェンドレア",
+    7: "ウルトラレジェンドレア",
+}
+BRAWLER_RARITY_LABELS_EN = {
+    1: "Normal",
+    2: "Rare",
+    3: "Super Rare",
+    4: "Epic",
+    5: "Mythic",
+    6: "Legendary",
+    7: "Ultra Legendary",
+}
+
+
+def group_brawlers_by_rarity(brawlers: list[Any], lang: str) -> tuple[list[dict[str, Any]], list[Any]]:
+    """キャラクターをレアリティ別にまとめ、セレクトメニューのoptgroup用データにする。
+
+    Returns:
+        tuple: (レアリティ別グループのリスト, レアリティ未設定のキャラクターのリスト)
+    """
+    rarity_labels = BRAWLER_RARITY_LABELS_JA if lang == "ja" else BRAWLER_RARITY_LABELS_EN
+    uncategorized = [brawler for brawler in brawlers if not getattr(brawler, "rarity", None)]
+    categorized = [brawler for brawler in brawlers if getattr(brawler, "rarity", None)]
+    categorized.sort(key=lambda brawler: (brawler.rarity, brawler.id))
+    uncategorized.sort(key=lambda brawler: brawler.id)
+
+    groups: list[dict[str, Any]] = []
+    current_rarity = None
+    current_brawlers: list[Any] = []
+    for brawler in categorized:
+        if current_rarity is not None and brawler.rarity != current_rarity:
+            groups.append({
+                "rarity": current_rarity,
+                "label": rarity_labels.get(current_rarity, str(current_rarity)),
+                "brawlers": current_brawlers,
+            })
+            current_brawlers = []
+        current_rarity = brawler.rarity
+        current_brawlers.append(brawler)
+    if current_rarity is not None:
+        groups.append({
+            "rarity": current_rarity,
+            "label": rarity_labels.get(current_rarity, str(current_rarity)),
+            "brawlers": current_brawlers,
+        })
+    return groups, uncategorized

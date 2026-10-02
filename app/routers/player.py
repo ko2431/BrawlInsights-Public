@@ -20,7 +20,7 @@ from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
 from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
-from app.utils.utils import format_tag, confirm_tag, get_icon_path, get_ranked_seasons_for_filter, get_remote_ip, get_normalized_ip
+from app.utils.utils import format_tag, confirm_tag, get_icon_path, get_ranked_seasons_for_filter, get_remote_ip, get_normalized_ip, group_brawlers_by_rarity
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.core.templating import templates
 

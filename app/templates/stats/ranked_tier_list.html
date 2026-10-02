@@ -47,7 +47,7 @@
              <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
         </form>
         <form method="get" id="mapFilterForm" class="filter-form">
-            {% if mode %}<input type="hidden" name="mode" value="{{ mode }}">{% endif %} {# 現在の値を維持 #}
+            <input type="hidden" name="mode" id="mapFormModeInput" value="{{ mode or '' }}"> {# マップ選択時にJSでマップのモードへ更新する #}
             {% if start_date %}<input type="hidden" name="start_date" value="{{ start_date }}">{% endif %}
             {% if end_date %}<input type="hidden" name="end_date" value="{{ end_date }}">{% endif %}
             {% if rank_tier %}<input type="hidden" name="rank_tier" value="{{ rank_tier }}">{% endif %}
@@ -55,17 +55,17 @@
             {% if use_table %}<input type="hidden" name="use_table" value="True">{% endif %} {# デフォルト値と逆の場合のみ手動で設定する #}
             {% if not use_cache %}<input type="hidden" name="use_cache" value="False">{% endif %} {# デフォルト値と逆の場合のみ手動で設定する #}
             <label for="mapSelect" class="filter-form__label">{% if lang == "ja" %}マップ:{% else %}Map:{% endif %}</label>
-            <select name="map" id="mapSelect" class="filter-form__select" onchange="document.getElementById('mapFilterForm').submit();">
-                <option value="" {% if not map %}selected{% endif %}>{% if lang == "ja" %}指定なし（総合）{% else %}No Map Specified{% endif %}</option>
-                {% if mode %}
-                    {% for mode_data in pool_data %}
-                        {% if mode == mode_data.mode %}
-                            {% for map_data in mode_data.maps %}
-                                <option value="{{ map_data.map_en }}" {% if map == map_data.map_en %}selected{% endif %}>{{ map_data.map_ja if map_data.map_ja and lang == "ja" else map_data.map_en }}</option>
-                            {% endfor %}
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
+            <select name="map" id="mapSelect" class="filter-form__select filter-form__select--maps">
+                <option value="" {% if not mode and not map %}selected{% endif %}>{% if lang == "ja" %}指定なし（総合）{% else %}No Map Specified{% endif %}</option>
+                {# モード選択中はそのモードのマップのみ表示する #}
+                {% for mode_data in pool_data if not mode or mode == mode_data.mode %}
+                    <optgroup label="{{ mode_data.mode_ja if mode_data.mode_ja and lang == 'ja' else mode_data.mode_en }}">
+                        <option value="" data-mode="{{ mode_data.mode }}" {% if mode == mode_data.mode and not map %}selected{% endif %}>{% if lang == "ja" %}指定なし（総合）{% else %}No Map Specified{% endif %}</option>
+                        {% for map_data in mode_data.maps %}
+                            <option value="{{ map_data.map_en }}" data-mode="{{ mode_data.mode }}" {% if mode == mode_data.mode and map == map_data.map_en %}selected{% endif %}>{{ map_data.map_ja if map_data.map_ja and lang == "ja" else map_data.map_en }}</option>
+                        {% endfor %}
+                    </optgroup>
+                {% endfor %}
             </select>
              <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>
         </form>
@@ -264,4 +264,28 @@
 
 {% block scripts %}
     {{ super() }}
+    <script>
+        (function () {
+            const form = document.getElementById('mapFilterForm');
+            const mapSelect = document.getElementById('mapSelect');
+            const modeInput = document.getElementById('mapFormModeInput');
+            if (!form || !mapSelect || !modeInput) {
+                return;
+            }
+            // 選んだマップのモードを一緒に送る。先頭の「指定なし」はモードも解除する
+            mapSelect.addEventListener('change', () => {
+                const selectedOption = mapSelect.selectedOptions[0];
+                modeInput.value = (selectedOption && selectedOption.dataset.mode) || '';
+                // 空の値はURLに含めない
+                const params = new URLSearchParams();
+                new FormData(form).forEach((value, key) => {
+                    if (value) {
+                        params.append(key, value);
+                    }
+                });
+                const query = params.toString();
+                location.href = location.pathname + (query ? '?' + query : '');
+            });
+        })();
+    </script>
 {% endblock %}

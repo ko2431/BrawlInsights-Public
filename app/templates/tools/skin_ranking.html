@@ -1,5 +1,6 @@
 {# /app/templates/tools/skin_ranking.html #}
 {% extends "base.html" %}
+{% from "macros/brawler_select.html" import brawler_optgroups with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】スキン使用率ランキング (スキン一覧){% else %}Skin Usage Ranking{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタのスキン使用率ランキングです。キャラクターごと、または全キャラクターのスキンについて、使用率の高い順・低い順でランキングを閲覧できます。全スキンが掲載されているので、スキン一覧としてもご利用いただけます。データは毎日更新されます。{% else %}Brawl Stars skin usage ranking. Filter by brawler/skin type and sort by highest or lowest usage rate. Updated daily.{% endif %}{% endblock %}
@@ -33,11 +34,7 @@
             <label class="filter-form__label">{% if lang == "ja" %}キャラクター:{% else %}Brawler:{% endif %}</label>
             <select class="filter-form__select" x-model="selectedBrawlerId" @change="fetchFragment()">
                 <option value="all">{% if lang == "ja" %}すべて{% else %}All{% endif %}</option>
-                {% for brawler in brawlers %}
-                <option value="{{ brawler.id }}" {% if loop.first %}selected{% endif %}>
-                    {{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}
-                </option>
-                {% endfor %}
+                {{ brawler_optgroups(brawler_groups, uncategorized_brawlers, brawlers[0].id if brawlers else None) }}
             </select>
         </div>
         {# 2. スキン種別フィルタ #}
