@@ -95,6 +95,12 @@
         <div class="sorting-button" style="padding: 1px;" :class="{ 'sorting-button--active': sortMode === 'owner_rate_asc' }" @click="sortMode = 'owner_rate_asc'; fetchFragment()">
             <span>{% if lang == "ja" %}所持者の使用率が低い順{% else %}Owner Usage (Low→High){% endif %}</span>
         </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rarity_desc' }" @click="sortMode = 'rarity_desc'; fetchFragment()">
+            <span>{% if lang == "ja" %}レア度が高い順{% else %}Rarity (High→Low){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rarity_asc' }" @click="sortMode = 'rarity_asc'; fetchFragment()">
+            <span>{% if lang == "ja" %}レア度が低い順{% else %}Rarity (Low→High){% endif %}</span>
+        </div>
     </div>
 
     {# ローディングスピナー #}

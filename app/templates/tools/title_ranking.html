@@ -46,12 +46,18 @@
     </div>
 
     {# ソート #}
-    <div class="skin-list-sort-buttons" style="grid-template-columns: 1fr 1fr; margin-bottom: 12px;">
+    <div class="skin-list-sort-buttons" style="margin-bottom: 12px;">
         <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_desc' }" @click="sortMode = 'rate_desc'; fetchFragment()">
             <span>{% if lang == "ja" %}使用率が高い順{% else %}Usage (High→Low){% endif %}</span>
         </div>
         <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rate_asc' }" @click="sortMode = 'rate_asc'; fetchFragment()">
             <span>{% if lang == "ja" %}使用率が低い順{% else %}Usage (Low→High){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rarity_desc' }" @click="sortMode = 'rarity_desc'; fetchFragment()">
+            <span>{% if lang == "ja" %}レア度が高い順{% else %}Rarity (High→Low){% endif %}</span>
+        </div>
+        <div class="sorting-button" :class="{ 'sorting-button--active': sortMode === 'rarity_asc' }" @click="sortMode = 'rarity_asc'; fetchFragment()">
+            <span>{% if lang == "ja" %}レア度が低い順{% else %}Rarity (Low→High){% endif %}</span>
         </div>
     </div>
 
