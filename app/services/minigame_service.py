@@ -579,7 +579,7 @@ def build_howto(campaign: dict[str, Any], lang: str, main_account_name: str) -> 
         if allocation == "stock":
             detail_html = _message(
                 lang,
-                f"※在庫数は期間中で<b>{quantity}個</b>です。企画終了までに全在庫が適切に当選するよう、過去の参加状況に基づいて当選確率は自動で調整されています。",
+                f"※在庫数は期間中で<b>{quantity}個</b>です。企画終了までに全在庫が適切に当選するよう、過去の全体の参加状況に基づいて当選確率は自動で調整されています。",
                 f"※Stock during the event: <b>{quantity}</b>. Win rates are adjusted automatically from past participation so stock is distributed by the end.",
             )
         elif allocation == "weight":
