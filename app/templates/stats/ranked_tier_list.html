@@ -119,6 +119,9 @@
             {% if lang == "ja" %}5000万件以上の勝敗データを集計し、使用率・勝率・MVP率などから算出した<b>総合スコア</b>でランク付けした、ガチバトルのTier表です。データは毎日更新されます。各キャラクターをクリックすると、そのキャラクターの<b>図鑑ページ</b>に移動します。詳しい集計方法などは、このページの一番下をご覧ください。<br>ガチバトルのマップ画像一覧が見たい方は<a href="{{ url_for('ranked_maps', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">こちら</a>。
             {% else %}This is a Ranked tier list where brawlers are ranked by their <b>strength score</b>, which is calculated from over 50 million match results, taking into account metrics like use rate, win rate, and star player rate. The data is automatically updated daily. Click on a brawler to go to their <b>brawler's guide page</b>. For more details on how we calculate these stats, please see the bottom of this page.<br>If you want to see a list of all maps in Ranked, click <a href="{{ url_for('ranked_maps', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">here</a>.
             {% endif %}
+            {% if map_has_data is false %}
+            <br><b>{% if lang == "ja" %}このマップはまだデータが少ないため、モード全体の傾向を表示しています。{% else %}Not enough data for this map yet, so this shows the overall trend for the mode.{% endif %}</b>
+            {% endif %}
         </p>
     </div>
 

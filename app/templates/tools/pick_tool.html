@@ -45,7 +45,7 @@
                         <optgroup :label="lang === 'ja' && group.mode_ja ? group.mode_ja : group.mode_en">
                             <option value="" :data-mode="group.mode" :selected="selectedMode === group.mode && !selectedMap">{% if lang == "ja" %}マップ指定なし (総合){% else %}No Map Specified{% endif %}</option>
                             <template x-for="map in group.maps" :key="map.map_en">
-                                <option :value="map.map_en" :data-mode="group.mode" :selected="selectedMode === group.mode && selectedMap === map.map_en" x-text="lang === 'ja' && map.map_ja ? map.map_ja : map.map_en"></option>
+                                <option :value="map.map_en" :data-mode="group.mode" :selected="selectedMode === group.mode && selectedMap === map.map_en" x-text="(lang === 'ja' && map.map_ja ? map.map_ja : map.map_en) + (map.has_data === false ? '{% if lang == "ja" %} (データ収集中){% else %} (collecting data){% endif %}' : '')"></option>
                             </template>
                         </optgroup>
                     </template>

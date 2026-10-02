@@ -737,6 +737,10 @@ async def search_players_fast(
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
+def _count_maps_with_data(mode: dict) -> int:
+    return sum(1 for map_info in mode["maps"] if map_info.get("has_data", True))
+
+
 async def warmup_ranked_stats_caches(
     db: asyncpg.Connection,
     target_date: datetime.date,
@@ -861,9 +865,27 @@ async def get_current_ranked_pool(db: asyncpg.Connection, use_cache: bool = True
         use_cache (bool): キャッシュヒット時、利用するかどうか。デフォルトはTrue。
 
     Returns:
-        list[dict]: 辞書はmode, mode_en, mode_ja, mapsの値を持つ。mapsはmap_enとmap_jaの値を持つ。
+        list[dict]: 辞書はmode, mode_en, mode_ja, mapsの値を持つ。mapsはmap_id, map_en, map_ja, has_dataの値を持つ。
+            map_en は統計テーブルの map 列と同じ値。has_data は直近7日に統計があるかどうか。
     """
     # [この部分は公開用リポジトリでは非公開にされています]
+
+
+def resolve_ranked_filter(pool_data: list[dict], mode: str | None, map_name: str | None) -> tuple[str | None, str | None]:
+    """直打ちされたモード/マップを、今シーズンのマッププールにあるものだけに絞る。
+
+    プールに無いモードは全体、プールに無いマップはモード単位として扱う。プールが空のときはそのまま返す。
+    """
+    if not pool_data:
+        return mode, map_name
+    if not mode:
+        return None, None
+    mode_data = next((item for item in pool_data if item["mode"] == mode), None)
+    if mode_data is None:
+        return None, None
+    if map_name and not any(map_data["map_en"] == map_name for map_data in mode_data["maps"]):
+        map_name = None
+    return mode, map_name or None
 
 async def get_brawler_analysis(
         db: asyncpg.Connection,

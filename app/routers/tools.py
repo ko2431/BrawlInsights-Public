@@ -21,7 +21,7 @@ from app.core.templating import templates
 from app.db.db import get_shared_db
 from app.core.cache import get_cache, set_cache
 from app.services.brawl_service import (Player, get_player, get_player_from_db, calc_num_of_available_brawlers, get_available_brawlers,
-                                        get_brawler_analysis, get_current_ranked_pool, get_brawler,
+                                        get_brawler_analysis, get_current_ranked_pool, resolve_ranked_filter, get_brawler,
                                         get_ban_suggestions, get_pick_suggestions, predict_win_rate,
                                         get_accessory_stats, get_max_accessory_counts, get_all_skins, get_all_pins, get_all_player_icons, get_all_accessories, get_all_sprays, get_all_buffies,
                                         get_player_name, get_player_icon_from_db)
@@ -908,6 +908,8 @@ async def get_ban_suggestions_api(
 ):
     """BAN候補のキャラクターリストを脅威度順で取得するAPI"""
     try:
+        # 今シーズンのプールに無いモード/マップの指定は外す
+        mode, map_name = resolve_ranked_filter(await get_current_ranked_pool(db), mode or None, map_name or None)
         # brawl_serviceの関数を呼び出す
         suggestions = await get_ban_suggestions(
             db,
@@ -933,6 +935,8 @@ async def get_pick_suggestions_api(
 ):
     """ピック候補のキャラクターリストをおすすめ度順で取得するAPI"""
     try:
+        # 今シーズンのプールに無いモード/マップの指定は外す
+        mode, map_name = resolve_ranked_filter(await get_current_ranked_pool(db), mode or None, map_name or None)
         suggestions = await get_pick_suggestions(
             db,
             mode=mode if mode else None,
@@ -958,6 +962,8 @@ async def predict_win_rate_api(
 ):
     """チーム1の予想勝率を算出するAPI"""
     try:
+        # 今シーズンのプールに無いモード/マップの指定は外す
+        mode, map_name = resolve_ranked_filter(await get_current_ranked_pool(db), mode or None, map_name or None)
         win_rate = await predict_win_rate(
             db,
             mode=mode if mode else None,

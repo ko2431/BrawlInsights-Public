@@ -876,6 +876,8 @@ class RankedMapObservation(Base):
     hour = Column(DateTime(timezone=True), nullable=False)
     map_id = Column(Integer, nullable=False)
     mode_id = Column(Integer, nullable=True)
+    # バトル履歴の event_map そのもの。ranked_stats_* の map 列と突き合わせるのに使う
+    map_name = Column(Text, nullable=True)
     battle_count = Column(Integer, nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
