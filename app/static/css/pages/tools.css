@@ -1941,6 +1941,13 @@
     gap: 8px;
     margin-top: 10px;
 }
+.box-sim-inventory__account-select {
+    height: auto;
+    margin-right: -4px;
+    border-color: var(--color-ddd);
+    border-radius: 11px;
+    font-size: 13px;
+}
 .box-sim-inventory__action {
     padding: 7px 14px;
     border: 1px solid var(--color-ddd);

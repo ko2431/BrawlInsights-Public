@@ -470,8 +470,14 @@
 }
 .player-accounts__note {
     margin: 0;
-    font-size: 0.85em;
+    font-size: 14px;
+    line-height: 1.4;
     color: var(--color-666, #666);
+}
+@media (max-width: 539px) {
+    .player-accounts__note {
+        font-size: 12.5px;
+    }
 }
 .player-accounts__tag-help {
     margin: -2px 0 5px;
@@ -1627,4 +1633,8 @@
 @keyframes minigame-scratch-sheen {
     0%, 100% { transform: translateX(-40%) rotate(8deg); opacity: 0.55; }
     50% { transform: translateX(35%) rotate(8deg); opacity: 0.95; }
+}
+
+.account-settings__account-select {
+    height: 26px;
 }

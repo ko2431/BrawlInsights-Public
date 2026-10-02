@@ -238,7 +238,8 @@
                     <th @click="sortBy('registration')" class="col-datetime sortable-header"><span>登録日時 (JST)</span><span x-show="sortColumn === 'registration'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('lastviewed')" class="col-datetime sortable-header"><span>最終利用日時 (JST)</span><span x-show="sortColumn === 'lastviewed'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('pv')" class="col-numeric sortable-header"><span>PV数</span><span x-show="sortColumn === 'pv'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
-                    <th class="col-main-account">メインアカウント</th>
+                    <th class="col-main-account">アカウント</th>
+                    <th @click="sortBy('sub_accounts_limit')" class="col-limit sortable-header"><span>サブ上限</span><span x-show="sortColumn === 'sub_accounts_limit'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('tokens')" class="col-numeric sortable-header"><span>トークン数</span><span x-show="sortColumn === 'tokens'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('tickets')" class="col-numeric sortable-header"><span>チケット数</span><span x-show="sortColumn === 'tickets'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
                     <th @click="sortBy('elixirs')" class="col-numeric sortable-header"><span>エリクサー数</span><span x-show="sortColumn === 'elixirs'" class="sort-indicator" x-text="sortDirection === 'asc' ? '▲' : '▼'"></span></th>
@@ -302,6 +303,9 @@
                                    {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{% if player_names.get(sub_tag) %}{{ player_names[sub_tag] }} ({{ sub_tag }}){% else %}{{ sub_tag }}{% endif %}</a>
                             </div>
                         {% endfor %}
+                    </td>
+                    <td class="col-limit">
+                        <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('sub_accounts_limit')}" x-model.number="sub_accounts_limit" min="1" max="{{ sub_accounts_max_limit }}" :disabled="!canEditEconomy || isProtectedStaff()">
                     </td>
                     <td class="col-limit">
                         <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('tokens')}" x-model.number="tokens" step="1" :disabled="!canEditEconomy || isProtectedStaff()">
@@ -625,6 +629,7 @@
             Alpine.data('userRow', () => ({
                 initial: {},
                 id: null, name: '', lang: '', registration_datetime: '', last_viewd_datetime: '', main_account: '',
+                sub_accounts: [], sub_accounts_limit: 1,
                 saved_accounts: [], saved_accounts_limit: 0, viewed_accounts: [], viewed_accounts_limit: 0,
                 saved_clubs: [], saved_clubs_limit: 0, viewed_clubs: [], viewed_clubs_limit: 0,
                 is_delete_ads: false, is_admin: false, is_sub_admin: false, is_invalid: false, is_prohibit_posting: false, is_prohibit_giveaway: false, penalty_level: 0,
@@ -653,7 +658,7 @@
                     });
 
                     const watchableProperties = [
-                        'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'is_delete_ads', 'is_admin',
+                        'sub_accounts_limit', 'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'is_delete_ads', 'is_admin',
                         'is_invalid', 'is_prohibit_posting', 'is_prohibit_giveaway', 'custom_settings_str', 'token_limit', 'tokens', 'ad_skip_tickets', 'auto_track_elixirs'
                     ];
 
@@ -667,6 +672,7 @@
                 isDirty() {
                     const currentData = this.getCurrentDataForComparison();
                     const initialData = {
+                        sub_accounts_limit: this.initial.sub_accounts_limit,
                         saved_accounts_limit: this.initial.saved_accounts_limit,
                         viewed_accounts_limit: this.initial.viewed_accounts_limit,
                         saved_clubs_limit: this.initial.saved_clubs_limit,
@@ -689,7 +695,7 @@
                     const initialValue = this.initial[field];
                     let currentValue = this[field];
 
-                    if (['token_limit', 'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'tokens', 'ad_skip_tickets', 'auto_track_elixirs'].includes(field)) {
+                    if (['token_limit', 'sub_accounts_limit', 'saved_accounts_limit', 'viewed_accounts_limit', 'saved_clubs_limit', 'viewed_clubs_limit', 'tokens', 'ad_skip_tickets', 'auto_track_elixirs'].includes(field)) {
                         const initialValForComp = initialValue === null || initialValue === undefined ? null : Number(initialValue);
                         const currentValForComp = currentValue === '' || currentValue === null || currentValue === undefined ? null : Number(currentValue);
                         return initialValForComp !== currentValForComp;
@@ -721,6 +727,10 @@
                         return false;
                     }
                     if (elixirs === null || !Number.isInteger(elixirs)) {
+                        return false;
+                    }
+                    const subLimit = this.sub_accounts_limit === '' || this.sub_accounts_limit === null ? null : Number(this.sub_accounts_limit);
+                    if (subLimit === null || !Number.isInteger(subLimit) || subLimit < 1 || subLimit > {{ sub_accounts_max_limit }}) {
                         return false;
                     }
                     return true;
@@ -756,6 +766,7 @@
                 getCurrentData() {
                     return {
                         id: this.id,
+                        sub_accounts_limit: this.sub_accounts_limit === '' ? null : Number(this.sub_accounts_limit),
                         saved_accounts_limit: this.saved_accounts_limit === '' ? null : Number(this.saved_accounts_limit),
                         viewed_accounts_limit: this.viewed_accounts_limit === '' ? null : Number(this.viewed_accounts_limit),
                         saved_clubs_limit: this.saved_clubs_limit === '' ? null : Number(this.saved_clubs_limit),
@@ -783,6 +794,7 @@
                     }
 
                     return {
+                        sub_accounts_limit: this.sub_accounts_limit === '' ? null : Number(this.sub_accounts_limit),
                         saved_accounts_limit: this.saved_accounts_limit === '' ? null : Number(this.saved_accounts_limit),
                         viewed_accounts_limit: this.viewed_accounts_limit === '' ? null : Number(this.viewed_accounts_limit),
                         saved_clubs_limit: this.saved_clubs_limit === '' ? null : Number(this.saved_clubs_limit),

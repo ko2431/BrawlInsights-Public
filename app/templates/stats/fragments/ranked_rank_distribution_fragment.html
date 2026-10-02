@@ -1,6 +1,6 @@
 {# /app/templates/stats/fragments/ranked_rank_distribution_fragment.html #}
 <div class="ranked-dist-fragment"
-     x-data='rankedDistPage({{ distribution | tojson }}, {{ (player_snapshot.metrics if player_snapshot and player_snapshot.available else {}) | tojson }}, {{ (player_snapshot.available if player_snapshot else False) | tojson }}, {{ has_user | tojson }}, {{ url_for("distribution_main_account", lang=lang) | string | tojson }})'>
+     x-data='rankedDistPage({{ distribution | tojson }}, {{ (player_snapshot.metrics if player_snapshot and player_snapshot.available else {}) | tojson }}, {{ (player_snapshot.available if player_snapshot else False) | tojson }}, {{ has_user | tojson }}, {{ url_for("distribution_main_account", lang=lang) | string | tojson }}, {{ (player_account_options or []) | tojson }})'>
 
     {# 指標タブ: 最高 / 現在 #}
     <div class="ranked-dist-tabs" role="tablist" aria-label="{% if lang == 'ja' %}スコア種別{% else %}Score type{% endif %}">
@@ -108,7 +108,7 @@
     {% endif %}
 </div>
 <script>
-function rankedDistPage(distribution, playerMetrics, hasMainAccount, hasUser, refreshUrl) {
+function rankedDistPage(distribution, playerMetrics, hasMainAccount, hasUser, refreshUrl, playerAccounts) {
     const rankNames = {% if lang == "ja" %}{
         0: 'ランクなし', 1: 'ブロンズ Ⅰ', 2: 'ブロンズ Ⅱ', 3: 'ブロンズ Ⅲ',
         4: 'シルバー Ⅰ', 5: 'シルバー Ⅱ', 6: 'シルバー Ⅲ',
@@ -138,10 +138,15 @@ function rankedDistPage(distribution, playerMetrics, hasMainAccount, hasUser, re
         hasUser: !!hasUser,
         showMine: !!hasMainAccount,
         isRefreshing: false,
-        refreshUrl: refreshUrl ? (refreshUrl + (refreshUrl.includes('?') ? '&' : '?') + 'refresh=1') : '',
+        mineUrl: refreshUrl || '',
+        playerAccounts: playerAccounts || [],
+        selectedAccountTag: '',
         metric: 'current',
         mode: 'rank',
         showAll: false,
+        init() {
+            this.initMineAccount();
+        },
         get currentData() {
             return this.distribution ? this.distribution[this.metric] : null;
         },
@@ -262,19 +267,51 @@ function rankedDistPage(distribution, playerMetrics, hasMainAccount, hasUser, re
             }
         },
         async refreshMine() {
-            if (!this.hasMainAccount || this.isRefreshing || !this.refreshUrl) return;
+            if (!this.hasMainAccount || this.isRefreshing || !this.mineUrl) return;
             this.isRefreshing = true;
             try {
-                const res = await fetch(this.refreshUrl, { credentials: 'same-origin' });
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data && data.ok && data.available && data.metrics) {
-                    this.playerSnapshot = data.metrics;
-                }
+                await this.loadMine(true);
             } catch (_e) {
                 // 失敗時は直前のスナップショットを維持（アラートなし）
             } finally {
                 this.isRefreshing = false;
+            }
+        },
+        // 登録アカウント(メイン・サブ)の切り替え。選択中のアカウントの値を取得し直す
+        async loadMine(refresh) {
+            if (!this.mineUrl) return;
+            const params = new URLSearchParams();
+            if (refresh) params.set('refresh', '1');
+            if (this.selectedAccountTag) params.set('tag', this.selectedAccountTag);
+            const url = this.mineUrl + (this.mineUrl.includes('?') ? '&' : '?') + params.toString();
+            const res = await fetch(url, { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.ok && data.available && data.metrics) {
+                this.playerSnapshot = data.metrics;
+            } else if (!refresh) {
+                this.playerSnapshot = {};
+            }
+        },
+        async onMineAccountChange() {
+            window.BIPlayerAccount.save(this.selectedAccountTag);
+            this.isRefreshing = true;
+            try {
+                await this.loadMine(false);
+            } catch (_e) {
+                // 失敗時は直前のスナップショットを維持（アラートなし）
+            } finally {
+                this.isRefreshing = false;
+            }
+        },
+        initMineAccount() {
+            // x-init と Alpine の自動 init の両方から呼ばれても1回だけ実行する
+            if (this.mineAccountInitialized) return;
+            this.mineAccountInitialized = true;
+            this.selectedAccountTag = window.BIPlayerAccount.load(this.playerAccounts);
+            // 前回選んだアカウントがメイン以外なら、その値に切り替える
+            if (this.playerAccounts.length > 1 && this.selectedAccountTag !== this.playerAccounts[0].tag) {
+                this.onMineAccountChange();
             }
         },
         rankName(rank) {

@@ -1,0 +1,66 @@
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/admin_filters.js') }}?v={{ app_version }}"></script>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            const filterDefaults = {
+                user_id: '',
+                user_name: '',
+                player_tag: '',
+                player_name: '',
+                action: 'all',
+                created_after: '',
+                created_before: '',
+            };
+            Alpine.data('playerAccountEventsAdmin', () => withAdminFilterCollapse({
+                applied: { ...filterDefaults },
+                draft: { ...filterDefaults },
+                filterDefaults: { ...filterDefaults },
+
+                initFilters(appliedFilters) {
+                    this.applied = { ...filterDefaults, ...appliedFilters };
+                    this.draft = { ...this.applied };
+                },
+
+                normalizeFilters(filters) {
+                    return {
+                        user_id: (filters.user_id || '').trim(),
+                        user_name: (filters.user_name || '').trim(),
+                        player_tag: (filters.player_tag || '').trim(),
+                        player_name: (filters.player_name || '').trim(),
+                        action: filters.action || 'all',
+                        created_after: (filters.created_after || '').trim(),
+                        created_before: (filters.created_before || '').trim(),
+                    };
+                },
+
+                get canSubmitFilters() {
+                    const draft = this.normalizeFilters(this.draft);
+                    if (draft.user_id && !/^\d+$/.test(draft.user_id)) return false;
+                    if (draft.created_after && draft.created_before && draft.created_after > draft.created_before) return false;
+                    return JSON.stringify(draft) !== JSON.stringify(this.normalizeFilters(this.applied));
+                },
+
+                submitFilters() {
+                    if (!this.canSubmitFilters) return;
+                    const url = new URL(window.location.href);
+                    const draft = this.normalizeFilters(this.draft);
+                    url.searchParams.delete('page');
+                    Object.keys(this.filterDefaults).forEach((key) => {
+                        const value = draft[key];
+                        if (value && value !== this.filterDefaults[key]) {
+                            url.searchParams.set(key, value);
+                        } else {
+                            url.searchParams.delete(key);
+                        }
+                    });
+                    window.location.href = url.toString();
+                },
+            }, 'player_account_events'));
+        });
+    </script>
+{% endblock %}

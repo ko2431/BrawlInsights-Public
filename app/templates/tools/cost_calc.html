@@ -152,13 +152,18 @@
                 <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
             </h2>
             <div x-show="open" x-transition>
-                {% if current_user and main_account %}
+                {% if current_user and cost_accounts %}
+                    {% set account_select %}<select class="player-account-select cost-calc-account-select" x-model="selectedAccountTag" @change="onAccountChange()" aria-label="{% if lang == 'ja' %}プレイヤーアカウント{% else %}Player account{% endif %}">
+                            <template x-for="account in accounts" :key="account.tag">
+                                <option :value="account.tag" x-text="account.name" :selected="account.tag === selectedAccountTag"></option>
+                            </template>
+                        </select>{% endset %}
                     <p class="tools-page__description" style="margin-top: 10px;">
                         {% if lang == "ja" %}
-                        あなたのメインアカウント({{ main_account.name }})の、残りの育成に必要なコストを計算できます。下のメニューから、どこまでのコストを計算するか選択できます。
+                        {% if cost_accounts | length > 1 %}{{ account_select }}の{% else %}あなたのメインアカウント({{ cost_accounts[0].name }})の{% endif %}、残りの育成に必要なコストを計算できます。下のメニューから、どこまでのコストを計算するか選択できます。
                         <br><span style="display: block; font-size: 0.9em; color: var(--color-555); line-height: 1.5;">※データの更新には数時間程度の遅延があることがありますが、その際はプレイヤーページにアクセスすることで最新のデータが反映されます。</span>
                         {% else %}
-                        You can calculate the remaining cost to upgrade your main account ({{ main_account.name }}). From the menu below, select the scope of the calculation.
+                        You can calculate the remaining cost to upgrade {% if cost_accounts | length > 1 %}{{ account_select }}{% else %}your main account ({{ cost_accounts[0].name }}){% endif %}. From the menu below, select the scope of the calculation.
                         <br><span style="display: block; font-size: 0.9em; color: var(--color-555); line-height: 1.5;">*There may be a delay of several hours in updating the data, but accessing the player page will reflect the latest data.</span>
                         {% endif %}
                     </p>
@@ -352,14 +357,24 @@
                 buffie: 'complete'
             },
             // サーバーから渡されたJinja2変数
-            requiredPPsForMax: {{ required_pps or 0 }},
-            requiredCoinsForMax: {{ required_coins or 0 }},
+            // 登録アカウント(メイン・サブ)ごとのデータ。セレクトで即座に切り替える
+            accounts: {{ cost_accounts | tojson }},
+            selectedAccountTag: window.BIPlayerAccount.load({{ cost_accounts | tojson }}),
             totalBrawlers: {{ num_of_available_brawlers or 0 }},
-            currentGadgets: {{ (main_account.gadgets if main_account else 0) or 0 }},
-            currentStarPowers: {{ (main_account.star_powers if main_account else 0) or 0 }},
-            currentGears: {{ (main_account.gears if main_account else 0) or 0 }},
-            currentHCs: {{ (main_account.hyper_charges if main_account else 0) or 0 }},
-            currentBuffies: {{ (main_account.buffies if main_account else 0) or 0 }},
+            get account() {
+                return this.accounts.find(a => a.tag === this.selectedAccountTag) || this.accounts[0] || {};
+            },
+            get requiredPPsForMax() { return this.account.required_pps || 0; },
+            get requiredCoinsForMax() { return this.account.required_coins || 0; },
+            get currentGadgets() { return this.account.gadgets || 0; },
+            get currentStarPowers() { return this.account.star_powers || 0; },
+            get currentGears() { return this.account.gears || 0; },
+            get currentHCs() { return this.account.hyper_charges || 0; },
+            get currentBuffies() { return this.account.buffies || 0; },
+            get brawlersStats() { return this.account.brawlers || []; },
+            onAccountChange() {
+                window.BIPlayerAccount.save(this.selectedAccountTag);
+            },
             // get_max_accessory_counts() は players テーブルから最大所持数を返す（キー名に注意）
             maxGadgets: {{ max_accessory_counts.get('gadgets', 0) if max_accessory_counts else 0 }},
             maxStarPowers: {{ max_accessory_counts.get('star_powers', 0) if max_accessory_counts else 0 }},
@@ -367,13 +382,6 @@
             maxHCs: {{ max_accessory_counts.get('hyper_charges', 0) if max_accessory_counts else 0 }},
             maxBuffies: {{ max_accessory_counts.get('buffies', 0) if max_accessory_counts else 0 }},
             
-            brawlersStats: [
-                {% if main_account and main_account.brawlers %}
-                    {% for b in main_account.brawlers %}
-                    { gadget: {{ b.gadget if b.gadget is not none else 'null' }}, starPower: {{ b.star_power if b.star_power is not none else 'null' }}, gear: {{ b.gear if b.gear is not none else 'null' }} },
-                    {% endfor %}
-                {% endif %}
-            ],
 
             get remainingCost() {
                 let pp = 0;

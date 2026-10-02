@@ -185,6 +185,29 @@
     margin-left: 1px;
 }
 
+/* ツール等で自分のプレイヤーアカウント(メイン・サブ)を切り替えるセレクト */
+.player-account-select {
+    max-width: 14em;
+    min-width: 0;
+    height: 24px;
+    margin-right: 0.25em;
+    padding: 0 20px 0 8px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    background-color: #fff;
+    color: #222;
+    font-size: 14px;
+    font-weight: bold;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.dark .player-account-select {
+    border-color: #555;
+    background-color: #333;
+    color: #eee;
+}
+
 /* プレイヤーページの「サブアカウント」ボタン */
 .button--sub-account-alt {
     background-color: #fce38a;
@@ -550,7 +573,7 @@
     font-size: 14px; /* 基本フォントサイズ */
     font-weight: 400;
     color: var(--color-555); /* 少し薄い文字色 */
-    line-height: 1.5;
+    line-height: 1.4;
 }
 .info-block__text-big {
     /* 情報ブロック内のテキスト(少し大きい) */

@@ -718,10 +718,11 @@ async def expand_slots_process(
             message = "拡張処理に失敗しました。" if lang == "ja" else "Failed to expand slots."
             return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         if result == "expanded":
-            message = f"サブアカウント枠を{current_user.sub_accounts_limit}枠に拡張しました。" if lang == "ja" else f"Expanded sub account slots to {current_user.sub_accounts_limit}."
+            # 表示上はメインアカウントを含めた登録枠数で表す
+            message = f"登録枠を{current_user.sub_accounts_limit + 1}枠に拡張しました。" if lang == "ja" else f"Expanded your account slots to {current_user.sub_accounts_limit + 1}."
             return JSONResponse({"success": True, "message": message})
         if result == "max_reached":
-            message = "サブアカウント枠はこれ以上拡張できません。" if lang == "ja" else "Sub account slots cannot be expanded further."
+            message = "登録枠はこれ以上拡張できません。" if lang == "ja" else "Account slots cannot be expanded further."
         else:
             message = "トークンが足りないため拡張できません。" if lang == "ja" else "Not enough tokens to expand."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
@@ -1159,6 +1160,7 @@ async def sell_elixirs_process(
 class HistoryPrivacyRequest(BaseModel):
     history_type: str  # "name" または "club"
     is_hidden: bool
+    player_tag: str | None = Field(default=None, max_length=20)  # 対象の登録アカウント。省略時はメインアカウント
 
 @router.post("/update-history-privacy", name="account_update_history_privacy")
 async def update_history_privacy_process(
@@ -1168,7 +1170,7 @@ async def update_history_privacy_process(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    メインアカウントの改名履歴・クラブ履歴の公開設定を更新するエンドポイント。
+    登録アカウント(メイン・サブ)の改名履歴・クラブ履歴の公開設定を更新するエンドポイント。
     """
     lang = request.path_params.get("lang", "ja")
     history_type = payload.history_type
@@ -1180,7 +1182,13 @@ async def update_history_privacy_process(
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
-    player_tag = current_user.main_account
+    # 本人の登録アカウント以外のタグが指定された場合は拒否する
+    player_tag = format_tag(payload.player_tag) if payload.player_tag else current_user.main_account
+    if payload.player_tag and not current_user.is_own_player_tag(player_tag):
+        return JSONResponse(
+            {"success": False, "message": "無効なリクエストです。" if lang == "ja" else "Invalid request."},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
     if not player_tag:
         # ログインユーザーであれば通常このエラーは発生しない
         return JSONResponse(

@@ -310,9 +310,9 @@
             </div>
             <p class="box-sim-inventory__description" x-show="inventoryPersist">
                 {% if current_user %}
-                {% if lang == "ja" %}シミュレーターで排出されたスキン等は入手済みとして次の開封に引き継がれ、重複して出現しなくなります。よりリアルにシミュレーターをお使いいただけるモードです。下のボタンよりあなたのメインアカウントのゲーム内のデータをインポートしたり、排出状況をリセットしたりすることができます。排出状況はアカウントではなく、端末に保存されています。{% else %}Skins and other items you get in the simulator are kept as owned for the next opens and won't drop again, for a more realistic simulation. Use the buttons below to import your main account's in-game data or reset the drop status. The drop status is saved on this device, not in your account.{% endif %}
+                {% if lang == "ja" %}シミュレーターで排出されたスキン等は入手済みとして次の開封に引き継がれ、重複して出現しなくなります。よりリアルにシミュレーターをお使いいただけるモードです。下のボタンよりあなたのアカウントのゲーム内のデータをインポートしたり、排出状況をリセットしたりすることができます。排出状況はアカウントではなく、端末に保存されています。{% else %}Skins and other items you get in the simulator are kept as owned for the next opens and won't drop again, for a more realistic simulation. Use the buttons below to import your account's in-game data or reset the drop status. The drop status is saved on this device, not in your account.{% endif %}
                 {% else %}
-                {% if lang == "ja" %}シミュレーターで排出されたスキン等は入手済みとして次の開封に引き継がれ、重複して出現しなくなります。よりリアルにシミュレーターをお使いいただけるモードです。<a href="{{ url_for('login_page', lang=lang) }}">ログイン</a>すると、あなたのメインアカウントのゲーム内のデータをインポートできるようになります。排出状況は端末に保存され、下のボタンよりリセットできます。{% else %}Skins and other items you get in the simulator are kept as owned for the next opens and won't drop again, for a more realistic simulation. <a href="{{ url_for('login_page', lang=lang) }}">Log in</a> to import your main account's in-game data. The drop status is saved on this device and can be reset with the button below.{% endif %}
+                {% if lang == "ja" %}シミュレーターで排出されたスキン等は入手済みとして次の開封に引き継がれ、重複して出現しなくなります。よりリアルにシミュレーターをお使いいただけるモードです。<a href="{{ url_for('login_page', lang=lang) }}">ログイン</a>すると、あなたのアカウントのゲーム内のデータをインポートできるようになります。排出状況は端末に保存され、下のボタンよりリセットできます。{% else %}Skins and other items you get in the simulator are kept as owned for the next opens and won't drop again, for a more realistic simulation. <a href="{{ url_for('login_page', lang=lang) }}">Log in</a> to import your account's in-game data. The drop status is saved on this device and can be reset with the button below.{% endif %}
                 {% endif %}
             </p>
             <p class="box-sim-inventory__description" x-show="!inventoryPersist">
@@ -366,9 +366,21 @@
                     </div>
                     <div class="box-sim-inventory__actions">
                         {% if current_user %}
+                        {% if player_account_options | length > 1 %}
+                        {# 登録アカウントが複数ある場合は、読み込むアカウントを選べる #}
+                        <select class="player-account-select box-sim-inventory__account-select" x-model="inventoryImportTag" @change="onInventoryAccountChange()" :disabled="inventoryBusy" aria-label="{% if lang == 'ja' %}読み込むアカウント{% else %}Account to load{% endif %}">
+                            <template x-for="account in playerAccounts" :key="account.tag">
+                                <option :value="account.tag" x-text="account.name" :selected="account.tag === inventoryImportTag"></option>
+                            </template>
+                        </select>
+                        <button type="button" class="box-sim-inventory__action" :disabled="inventoryBusy" @click="importInventoryFromAccount()">
+                            {% if lang == "ja" %}から読み込む{% else %}Load{% endif %}
+                        </button>
+                        {% else %}
                         <button type="button" class="box-sim-inventory__action" :disabled="inventoryBusy" @click="importInventoryFromAccount()">
                             {% if lang == "ja" %}メインアカウントから読み込む{% else %}Load from main account{% endif %}
                         </button>
+                        {% endif %}
                         {% endif %}
                         <button type="button" class="box-sim-inventory__action box-sim-inventory__action--reset" :disabled="inventoryBusy" @click="resetInventory()">
                             {% if lang == "ja" %}リセット{% else %}Reset{% endif %}
@@ -545,6 +557,9 @@
                 openApiBase: '{{ url_for("box_simulator_open_api", lang=lang) }}',
                 inventoryStatsApi: '{{ url_for("box_simulator_inventory_stats_api", lang=lang) }}',
                 inventoryImportApi: '{{ url_for("box_simulator_inventory_import_api", lang=lang) }}',
+                // 所持状況の読み込み元として選べる登録アカウント (サブアカウントがある場合のみ)
+                playerAccounts: {{ player_account_options | tojson }},
+                inventoryImportTag: window.BIPlayerAccount.load({{ player_account_options | tojson }}),
                 // 所持状況(排出済みのアイテム)。サーバーから受け取った形式のまま端末に保存し、開封のたびに送る
                 inventoryPersist: true,
                 inventory: null,
@@ -1014,15 +1029,23 @@
                     }
                 },
 
+                onInventoryAccountChange() {
+                    window.BIPlayerAccount.save(this.inventoryImportTag);
+                },
+
                 async importInventoryFromAccount() {
                     if (this.inventoryBusy) return;
+                    const selected = this.playerAccounts.find(a => a.tag === this.inventoryImportTag);
+                    const targetLabel = selected
+                        ? (this.isJa ? `「${selected.name}」` : `"${selected.name}"`)
+                        : (this.isJa ? 'あなたのメインアカウント' : 'your main account');
                     if (!window.confirm(this.isJa
-                        ? 'あなたのメインアカウントのゲーム内の所持状況データをインポートしますか？現在の排出状況データは上書きされ、累計開封数はリセットされます。'
-                        : 'Import the in-game collection data of your main account? Your current drop status will be overwritten.')) return;
+                        ? `${targetLabel}のゲーム内の所持状況データをインポートしますか？現在の排出状況データは上書きされ、累計開封数はリセットされます。`
+                        : `Import the in-game collection data of ${targetLabel}? Your current drop status will be overwritten.`)) return;
                     this.inventoryBusy = true;
                     this.inventoryMessage = '';
                     try {
-                        const data = await this.postInventoryApi(this.inventoryImportApi);
+                        const data = await this.postInventoryApi(this.inventoryImportApi, selected ? { player_tag: selected.tag } : null);
                         this.inventory = data.inventory;
                         this.inventoryStats = data.inventory_stats;
                         this.inventoryAccount = data.account || null;
@@ -1031,8 +1054,8 @@
                         this.saveInventory();
                         const playerName = escapeHtml(this.inventoryAccount ? (this.inventoryAccount.name || this.inventoryAccount.tag) : '');
                         this.inventoryMessage = this.isJa
-                            ? `あなたのメインアカウント（<b>${playerName}</b>）のゲーム内の所持状況データをインポートしました。ピンズ・アイコン・スプレー等はゲーム内から所持状況を取得できないため、未所持として扱われます。`
-                            : `Imported the in-game collection data of your main account (<b>${playerName}</b>). Pins, icons, sprays, etc. are treated as not owned, as their ownership can't be retrieved from the game.`;
+                            ? `<b>${playerName}</b>のゲーム内の所持状況データをインポートしました。ピンズ・アイコン・スプレー等はゲーム内から所持状況を取得できないため、未所持として扱われます。`
+                            : `Imported the in-game collection data of <b>${playerName}</b>. Pins, icons, sprays, etc. are treated as not owned, as their ownership can't be retrieved from the game.`;
                     } catch (error) {
                         this.inventoryMessage = escapeHtml(error.message);
                     } finally {

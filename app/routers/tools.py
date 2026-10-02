@@ -19,8 +19,9 @@ from pydantic import BaseModel, Field
 from app.core.logger import logger
 from app.core.admin_permissions import is_admin_request
 from app.core.templating import templates
-from app.db.db import get_shared_db
+from app.db.db import get_shared_db, get_db_connection_for_bg_task
 from app.core.cache import get_cache, set_cache
+from app.services.player_account_service import build_player_account_options, get_player_accounts_brawler_data, resolve_user_player_tag
 from app.services.brawl_service import (Player, get_player, get_player_from_db, calc_num_of_available_brawlers, get_available_brawlers,
                                         get_brawler_analysis, get_current_ranked_pool, resolve_ranked_filter, get_brawler,
                                         get_ban_suggestions, get_pick_suggestions, predict_win_rate,
@@ -117,18 +118,23 @@ async def random_brawler(
         logger.error(f"Error in random_brawler: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     
-    #^ メインアカウントのデータを取得
+    #^ 登録アカウント(メイン・サブ)ごとの所持キャラ。画面上で即座に切り替えられるよう、まとめて渡す
     user: User | None = getattr(request.state, "current_user", None)
-    main_account: Player | None = None
+    player_account_options: list[dict] = []
+    owned_ids_by_account: dict[str, list[int]] = {}
+    power11_ids_by_account: dict[str, list[int]] = {}
 
     if user:
         try:
-            main_account = await get_player_from_db(user.main_account, db)
-        except BrawlStarsAPIError as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+            player_account_options = await build_player_account_options(user, db)
+            account_data = await get_player_accounts_brawler_data([o["tag"] for o in player_account_options], db)
+            for tag, data in account_data.items():
+                owned_ids_by_account[tag] = [b["id"] for b in data["brawlers"]]
+                power11_ids_by_account[tag] = [b["id"] for b in data["brawlers"] if b["power"] >= 11]
+            # プレイヤーデータがないアカウントは選択肢に出さない
+            player_account_options = [o for o in player_account_options if o["tag"] in owned_ids_by_account]
         except Exception as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
-    
+            logger.debug(f"{user.name}の登録アカウントのプレイヤーデータ取得中にエラーが発生しました: {e}", exc_info=True)
 
     # テンプレートに渡すコンテキスト
     context = {
@@ -136,7 +142,9 @@ async def random_brawler(
         "lang": lang,
         "brawlers": brawlers,
         "user": user,
-        "main_account": main_account,
+        "player_account_options": player_account_options,
+        "owned_ids_by_account": owned_ids_by_account,
+        "power11_ids_by_account": power11_ids_by_account,
         "current_page": "tools",
     }
 
@@ -150,6 +158,32 @@ async def random_brawler(
 #* /---*---*---*---*---*---*---*---*/
 #* 育成計算機
 #* /---*---*---*---*---*---*---*---*/
+# パワーレベルごとの、最大パワーまでに必要な (パワーポイント, コイン)
+_REMAINING_POWER_COSTS: dict[int, tuple[int, int]] = {
+    1: (3740, 7765),
+    2: (3720, 7745),
+    3: (3690, 7710),
+    4: (3640, 7635),
+    5: (3560, 7495),
+    6: (3430, 7205),
+    7: (3220, 6725),
+    8: (2880, 5925),
+    9: (2330, 4675),
+    10: (1440, 2800),
+}
+
+
+def _calc_required_power_costs(powers: list[int]) -> tuple[int, int]:
+    """所持キャラのパワーレベルから、全キャラを最大パワーにするのに必要なパワーポイントとコインを返す。"""
+    required_pps = 0
+    required_coins = 0
+    for power in powers:
+        pps, coins = _REMAINING_POWER_COSTS.get(power, (0, 0))
+        required_pps += pps
+        required_coins += coins
+    return required_pps, required_coins
+
+
 @router.get("/cost_calc", name="cost_calc")
 async def cost_calc(
     request: Request,
@@ -157,21 +191,44 @@ async def cost_calc(
     db: asyncpg.Connection = Depends(get_shared_db) # DB接続が必要な場合
 ):
     user: User | None = getattr(request.state, "current_user", None)
-    main_account: Player | None = None
     num_of_available_brawlers: int | None = None
-    required_pps: int = 0
-    required_coins: int = 0
+    cost_accounts: list[dict] = []
 
-    # ログイン済みの場合は、プレイヤーデータを取得
+    # ログイン済みの場合は、登録アカウント(メイン・サブ)ごとのデータをまとめて取得する
     if user:
         try:
-            main_account = await get_player_from_db(user.main_account, db)
-            if not main_account:
-                main_account = await get_player(user.main_account, db) # DBから取れなかった場合はAPIから取得
-        except BrawlStarsAPIError as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+            player_account_options = await build_player_account_options(user, db)
+            tags = [o["tag"] for o in player_account_options]
+            account_data = await get_player_accounts_brawler_data(tags, db)
+            if user.main_account not in account_data:
+                # メインアカウントがDBにない場合はAPIから取得する (取得時にDBへ保存される)
+                try:
+                    if await get_player(user.main_account, db):
+                        account_data.update(await get_player_accounts_brawler_data([user.main_account], db))
+                except BrawlStarsAPIError as e:
+                    logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+            for option in player_account_options:
+                data = account_data.get(option["tag"])
+                if not data:
+                    continue
+                required_pps, required_coins = _calc_required_power_costs([b["power"] for b in data["brawlers"]])
+                cost_accounts.append({
+                    "tag": option["tag"],
+                    "name": data["name"],
+                    "required_pps": required_pps,
+                    "required_coins": required_coins,
+                    "gadgets": data["gadgets"],
+                    "star_powers": data["star_powers"],
+                    "gears": data["gears"],
+                    "hyper_charges": data["hyper_charges"],
+                    "buffies": data["buffies"],
+                    "brawlers": [
+                        {"gadget": b["gadget"], "starPower": b["star_power"], "gear": b["gear"]}
+                        for b in data["brawlers"]
+                    ],
+                })
         except Exception as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+            logger.debug(f"{user.name}の登録アカウントのプレイヤーデータ取得中にエラーが発生しました: {e}", exc_info=True)
 
     try:
         num_of_available_brawlers = await calc_num_of_available_brawlers(db)
@@ -182,49 +239,11 @@ async def cost_calc(
     # 現在のアクセサリの最大数を取得
     max_accessory_counts = await get_max_accessory_counts(db)
     
-    # メインアカウントのデータが取得できた場合は、追加データを計算する
-    if main_account:
-        # 必要なパワーポイントとコインを計算
-        for b in main_account.brawlers:
-            match b.power:
-                case 1:
-                    required_pps += 3740
-                    required_coins += 7765
-                case 2:
-                    required_pps += 3720
-                    required_coins += 7745
-                case 3:
-                    required_pps += 3690
-                    required_coins += 7710
-                case 4:
-                    required_pps += 3640
-                    required_coins += 7635
-                case 5:
-                    required_pps += 3560
-                    required_coins += 7495
-                case 6:
-                    required_pps += 3430
-                    required_coins += 7205
-                case 7:
-                    required_pps += 3220
-                    required_coins += 6725
-                case 8:
-                    required_pps += 2880
-                    required_coins += 5925
-                case 9:
-                    required_pps += 2330
-                    required_coins += 4675
-                case 10:
-                    required_pps += 1440
-                    required_coins += 2800
-    
     # テンプレートに渡すコンテキスト
     context = {
         "request": request,
         "lang": lang,
-        "main_account": main_account,
-        "required_pps": required_pps,
-        "required_coins": required_coins,
+        "cost_accounts": cost_accounts,
         "num_of_available_brawlers": num_of_available_brawlers,
         "max_accessory_counts": max_accessory_counts,
         "current_page": "tools"
@@ -629,9 +648,20 @@ async def box_simulator(
         },
     )
 
+    # 所持状況の読み込み元として選べる登録アカウント。サブアカウントがある場合のみDBから名前を取得する
+    user: User | None = getattr(request.state, "current_user", None)
+    player_account_options: list[dict] = []
+    if user and user.sub_accounts:
+        try:
+            async with get_db_connection_for_bg_task() as db:
+                player_account_options = await build_player_account_options(user, db)
+        except Exception as e:
+            logger.warning(f"ボックスシミュレーターの登録アカウント一覧の取得に失敗しました: user={user.id} error={e}")
+
     context = {
         "request": request,
         "lang": lang,
+        "player_account_options": player_account_options,
         "drop_boxes_data": drop_boxes_data,
         "initial_box": box,
         "max_open_count": BOX_SIM_MAX_OPEN_COUNT,
@@ -727,14 +757,19 @@ async def box_simulator_inventory_stats_api(
         return JSONResponse({"success": False, "message": "Failed to load inventory stats"}, status_code=500)
 
 
+class BoxInventoryImportRequest(BaseModel):
+    player_tag: str | None = Field(default=None, max_length=20) # 読み込む登録アカウント。省略時はメインアカウント
+
+
 @router.post("/api/box_simulator/inventory/import", name="box_simulator_inventory_import_api")
 async def box_simulator_inventory_import_api(
     request: Request,
     lang: str,
+    payload: BoxInventoryImportRequest | None = None,
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
-    """メインアカウントの所持キャラ・スキン・ガジェット等を、所持状況として読み込む。
-    DBに保存済みのプレイヤーデータを使い、公式APIは呼ばない"""
+    """登録アカウント(メイン・サブ)の所持キャラ・スキン・ガジェット等を、所持状況として読み込む。
+    最新の所持状況を公式API等から取得し、取得できなければDBの保存済みデータを使う"""
     is_ja = lang == "ja"
     user: User | None = getattr(request.state, "current_user", None)
     if not user:
@@ -747,22 +782,24 @@ async def box_simulator_inventory_import_api(
             "success": False,
             "message": "メインアカウントが設定されていません。" if is_ja else "No main account is set.",
         }, status_code=400)
+    # 本人の登録アカウント以外のタグが指定された場合はメインアカウントを使う
+    target_tag = resolve_user_player_tag(user, format_tag(payload.player_tag) if payload and payload.player_tag else None)
     try:
         # 最新の所持状況を反映するため公式API等から取得する(数秒かかる)。取得できなければDBの保存済みデータを使う
         player: Player | None = None
         try:
-            player = await get_player(user.main_account, db)
+            player = await get_player(target_tag, db)
         except BrawlStarsAPIError as api_err:
-            logger.warning(f"排出状況のインポートで最新のプレイヤーデータを取得できませんでした。保存済みデータを使います: tag={user.main_account} error={api_err}")
+            logger.warning(f"排出状況のインポートで最新のプレイヤーデータを取得できませんでした。保存済みデータを使います: tag={target_tag} error={api_err}")
         if not player or not player.brawlers:
-            player = await get_player_from_db(user.main_account, db)
+            player = await get_player_from_db(target_tag, db)
         if not player or not player.brawlers:
             return JSONResponse({
                 "success": False,
                 "message": (
-                    "メインアカウントのデータがまだありません。プレイヤーページで一度表示してから、もう一度お試しください。"
+                    "このアカウントのデータがまだありません。プレイヤーページで一度表示してから、もう一度お試しください。"
                     if is_ja else
-                    "No data for your main account yet. Open its player page once, then try again."
+                    "No data for this account yet. Open its player page once, then try again."
                 ),
             }, status_code=404)
         dynamic_targets = await _load_box_simulator_dynamic_targets(db)
@@ -778,7 +815,7 @@ async def box_simulator_inventory_import_api(
             },
         })
     except Exception as e:
-        logger.error(f"Error in box_simulator_inventory_import_api: user={user.name} tag={user.main_account} error={e}", exc_info=True)
+        logger.error(f"Error in box_simulator_inventory_import_api: user={user.name} tag={target_tag} error={e}", exc_info=True)
         return JSONResponse({
             "success": False,
             "message": "読み込みに失敗しました。" if is_ja else "Failed to load your account.",
@@ -843,27 +880,30 @@ async def pick_tool(
         logger.error(f"Error in pick_tool: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     
-    #^ メインアカウントのデータを取得
+    #^ 登録アカウント(メイン・サブ)ごとのパワー11キャラ。画面上で即座に切り替えられるよう、まとめて渡す
     user: User | None = getattr(request.state, "current_user", None)
-    main_account: Player | None = None
+    player_account_options: list[dict] = []
+    power11_ids_by_account: dict[str, list[int]] = {}
+    max_power_brawler_ids: list[int] = []
 
     if user:
         try:
-            main_account = await get_player_from_db(user.main_account, db)
-        except BrawlStarsAPIError as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
+            player_account_options = await build_player_account_options(user, db)
+            account_data = await get_player_accounts_brawler_data([o["tag"] for o in player_account_options], db)
+            power11_ids_by_account = {
+                tag: [b["id"] for b in data["brawlers"] if b["power"] >= 11]
+                for tag, data in account_data.items()
+            }
+            # プレイヤーデータがないアカウントは選択肢に出さない
+            player_account_options = [o for o in player_account_options if o["tag"] in power11_ids_by_account]
         except Exception as e:
-            logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
+            logger.debug(f"{user.name}の登録アカウントのプレイヤーデータ取得中にエラーが発生しました: {e}", exc_info=True)
 
-    #^ 絞り込み対象: メインアカウントのパワー11キャラ + 今シーズンの最大レベルキャラ
-    power11_brawler_ids: list[int] = []
-    if main_account:
-        power11_brawler_ids = [b.id for b in main_account.brawlers if b.power >= 11]
+    #^ 絞り込み対象に加える、今シーズンの最大レベルキャラ
+    if power11_ids_by_account:
         try:
             from app.services.ranked_map_pool_service import get_current_max_power_brawler_ids
-            for brawler_id in await get_current_max_power_brawler_ids(db):
-                if brawler_id not in power11_brawler_ids:
-                    power11_brawler_ids.append(brawler_id)
+            max_power_brawler_ids = list(await get_current_max_power_brawler_ids(db))
         except Exception as e:
             logger.warning(f"ピック提案ツールで最大レベルキャラの取得中にエラーが発生しました: {e}", exc_info=True)
 
@@ -872,8 +912,9 @@ async def pick_tool(
         "request": request,
         "lang": lang,
         "user": user,
-        "main_account": main_account,
-        "power11_brawler_ids": power11_brawler_ids,
+        "player_account_options": player_account_options,
+        "power11_ids_by_account": power11_ids_by_account,
+        "max_power_brawler_ids": max_power_brawler_ids,
         "pool_data": pool_data,
         "current_page": "tools",
         "hide_navigation_controls": True,

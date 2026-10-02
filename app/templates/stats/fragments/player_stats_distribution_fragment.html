@@ -1,6 +1,6 @@
 {# /app/templates/stats/fragments/player_stats_distribution_fragment.html #}
 <div class="ranked-dist-fragment player-dist-fragment"
-     x-data='playerDistPage({{ distribution | tojson }}, {{ initial_metric | tojson }}, {{ (player_snapshot.metrics if player_snapshot and player_snapshot.available else {}) | tojson }}, {{ (player_snapshot.available if player_snapshot else False) | tojson }}, {{ has_user | tojson }}, {{ url_for("distribution_main_account", lang=lang) | string | tojson }})'
+     x-data='playerDistPage({{ distribution | tojson }}, {{ initial_metric | tojson }}, {{ (player_snapshot.metrics if player_snapshot and player_snapshot.available else {}) | tojson }}, {{ (player_snapshot.available if player_snapshot else False) | tojson }}, {{ has_user | tojson }}, {{ url_for("distribution_main_account", lang=lang) | string | tojson }}, {{ (player_account_options or []) | tojson }})'
      x-init="init()">
 
     <div class="player-dist-slot-tab__container" x-cloak>
@@ -126,7 +126,7 @@
     {% endif %}
 </div>
 <script>
-function playerDistPage(distribution, initialMetric, playerMetrics, hasMainAccount, hasUser, refreshUrl) {
+function playerDistPage(distribution, initialMetric, playerMetrics, hasMainAccount, hasUser, refreshUrl, playerAccounts) {
     const isJa = {{ (lang == "ja") | tojson }};
     const oldPlKeys = ['solo_pl_rank', 'team_pl_rank', 'highest_club_league'];
     const recordNames = {% if lang == "ja" %}{
@@ -240,8 +240,11 @@ function playerDistPage(distribution, initialMetric, playerMetrics, hasMainAccou
         hasUser: !!hasUser,
         showMine: !!hasMainAccount,
         isRefreshing: false,
-        refreshUrl: refreshUrl ? (refreshUrl + (refreshUrl.includes('?') ? '&' : '?') + 'refresh=1') : '',
+        mineUrl: refreshUrl || '',
+        playerAccounts: playerAccounts || [],
+        selectedAccountTag: '',
         init() {
+            this.initMineAccount();
             if (!this.metricOrderCompact.includes(this.metric)) {
                 this.showExpandedMetricList = true;
             }
@@ -391,19 +394,51 @@ function playerDistPage(distribution, initialMetric, playerMetrics, hasMainAccou
             }
         },
         async refreshMine() {
-            if (!this.hasMainAccount || this.isRefreshing || !this.refreshUrl) return;
+            if (!this.hasMainAccount || this.isRefreshing || !this.mineUrl) return;
             this.isRefreshing = true;
             try {
-                const res = await fetch(this.refreshUrl, { credentials: 'same-origin' });
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data && data.ok && data.available && data.metrics) {
-                    this.playerSnapshot = data.metrics;
-                }
+                await this.loadMine(true);
             } catch (_e) {
                 // 失敗時は直前のスナップショットを維持（アラートなし）
             } finally {
                 this.isRefreshing = false;
+            }
+        },
+        // 登録アカウント(メイン・サブ)の切り替え。選択中のアカウントの値を取得し直す
+        async loadMine(refresh) {
+            if (!this.mineUrl) return;
+            const params = new URLSearchParams();
+            if (refresh) params.set('refresh', '1');
+            if (this.selectedAccountTag) params.set('tag', this.selectedAccountTag);
+            const url = this.mineUrl + (this.mineUrl.includes('?') ? '&' : '?') + params.toString();
+            const res = await fetch(url, { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.ok && data.available && data.metrics) {
+                this.playerSnapshot = data.metrics;
+            } else if (!refresh) {
+                this.playerSnapshot = {};
+            }
+        },
+        async onMineAccountChange() {
+            window.BIPlayerAccount.save(this.selectedAccountTag);
+            this.isRefreshing = true;
+            try {
+                await this.loadMine(false);
+            } catch (_e) {
+                // 失敗時は直前のスナップショットを維持（アラートなし）
+            } finally {
+                this.isRefreshing = false;
+            }
+        },
+        initMineAccount() {
+            // x-init と Alpine の自動 init の両方から呼ばれても1回だけ実行する
+            if (this.mineAccountInitialized) return;
+            this.mineAccountInitialized = true;
+            this.selectedAccountTag = window.BIPlayerAccount.load(this.playerAccounts);
+            // 前回選んだアカウントがメイン以外なら、その値に切り替える
+            if (this.playerAccounts.length > 1 && this.selectedAccountTag !== this.playerAccounts[0].tag) {
+                this.onMineAccountChange();
             }
         },
         metricName(key) {

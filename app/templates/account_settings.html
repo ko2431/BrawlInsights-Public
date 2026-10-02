@@ -563,8 +563,8 @@ function playerAccountsManager() {
                 return;
             }
             const msg = this.lang === 'ja'
-                ? `${this.expandCost}トークン消費してサブアカウント枠を${this.subLimit + 1}枠に拡張しますか？\n(トークン: ${this.tokenBalance} → ${this.tokenBalance - this.expandCost})`
-                : `Spend ${this.expandCost} tokens to expand sub account slots to ${this.subLimit + 1}?\n(Tokens: ${this.tokenBalance} → ${this.tokenBalance - this.expandCost})`;
+                ? `${this.expandCost}トークン消費して登録枠を${this.subLimit + 2}枠に拡張しますか？\n(トークン: ${this.tokenBalance} → ${this.tokenBalance - this.expandCost})`
+                : `Spend ${this.expandCost} tokens to expand your account slots to ${this.subLimit + 2}?\n(Tokens: ${this.tokenBalance} → ${this.tokenBalance - this.expandCost})`;
             if (!confirm(msg)) return;
             this.isSaving = true;
             try {

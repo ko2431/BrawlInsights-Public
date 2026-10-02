@@ -54,13 +54,25 @@
                     <span>{% if lang == "ja" %}演出をスキップ{% else %}Skip Animation{% endif %}</span>
                 </label>
                 
+                {% if player_account_options | length > 1 %}
+                {# 登録アカウントが複数ある場合は、絞り込みの対象アカウントを切り替えられる #}
+                <div class="random-brawler__option-label" style="cursor: default;">
+                    <span>{% if lang == "ja" %}対象:{% else %}Account:{% endif %}</span>
+                    <select class="player-account-select" x-model="selectedAccountTag" @change="onAccountChange()" :disabled="isSpinning">
+                        <template x-for="account in playerAccounts" :key="account.tag">
+                            <option :value="account.tag" x-text="account.name" :selected="account.tag === selectedAccountTag"></option>
+                        </template>
+                    </select>
+                </div>
+                {% endif %}
+
                 <label class="random-brawler__option-label" 
                        :class="{'opacity-50 cursor-not-allowed': !hasMainAccount}">
                     <input type="checkbox" class="form-checkbox" 
                            x-model="useOwnedOnly" 
                            :disabled="isSpinning"
                            @click="handleMainAccountCheck($event, 'owned')">
-                    <span>{% if lang == "ja" %}メインアカウントの所持キャラのみ{% else %}Only Owned Brawlers{% endif %}</span>
+                    <span>{% if lang == "ja" %}{% if player_account_options | length > 1 %}所持キャラのみ{% else %}メインアカウントの所持キャラのみ{% endif %}{% else %}Only Owned Brawlers{% endif %}</span>
                 </label>
 
                 <label class="random-brawler__option-label" 
@@ -69,7 +81,7 @@
                            x-model="usePower11Only" 
                            :disabled="isSpinning"
                            @click="handleMainAccountCheck($event, 'power11')">
-                    <span>{% if lang == "ja" %}メインアカウントのパワー11キャラのみ{% else %}Only Power 11 Brawlers{% endif %}</span>
+                    <span>{% if lang == "ja" %}{% if player_account_options | length > 1 %}パワー11のキャラのみ{% else %}メインアカウントのパワー11キャラのみ{% endif %}{% else %}Only Power 11 Brawlers{% endif %}</span>
                 </label>
             </div>
         </div>
@@ -94,13 +106,6 @@
             {% endfor %}
         ];
 
-        {% if main_account %}
-        const ownedBrawlerIds = [{% for b in main_account.brawlers %}{{ b.id }}{% if not loop.last %}, {% endif %}{% endfor %}];
-        const power11BrawlerIds = [{% for b in main_account.brawlers %}{% if b.power >= 11 %}{{ b.id }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}];
-        {% else %}
-        const ownedBrawlerIds = [];
-        const power11BrawlerIds = [];
-        {% endif %}
 
         document.addEventListener('alpine:init', () => {
             Alpine.data('randomBrawlerApp', () => ({
@@ -113,10 +118,23 @@
                 intervalId: null,
 
                 // メインアカウントフィルタ
-                hasMainAccount: {{ 'true' if main_account else 'false' }},
+                hasMainAccount: {{ 'true' if owned_ids_by_account else 'false' }},
                 hasUser: {{ 'true' if user else 'false' }},
-                ownedBrawlerIds: ownedBrawlerIds,
-                power11BrawlerIds: power11BrawlerIds,
+                // 登録アカウント(メイン・サブ)ごとの所持キャラ・パワー11キャラ
+                playerAccounts: {{ player_account_options | tojson }},
+                ownedIdsByAccount: {{ owned_ids_by_account | tojson }},
+                power11IdsByAccount: {{ power11_ids_by_account | tojson }},
+                selectedAccountTag: window.BIPlayerAccount.load({{ player_account_options | tojson }}),
+
+                get ownedBrawlerIds() {
+                    return this.ownedIdsByAccount[this.selectedAccountTag] || [];
+                },
+                get power11BrawlerIds() {
+                    return this.power11IdsByAccount[this.selectedAccountTag] || [];
+                },
+                onAccountChange() {
+                    window.BIPlayerAccount.save(this.selectedAccountTag);
+                },
                 useOwnedOnly: false,
                 usePower11Only: false,
 
@@ -205,9 +223,11 @@
                 getCandidates() {
                     let candidates = this.brawlers;
                     if (this.usePower11Only) {
-                        candidates = this.brawlers.filter(b => this.power11BrawlerIds.includes(b.id));
+                        const power11Ids = this.power11BrawlerIds;
+                        candidates = this.brawlers.filter(b => power11Ids.includes(b.id));
                     } else if (this.useOwnedOnly) {
-                        candidates = this.brawlers.filter(b => this.ownedBrawlerIds.includes(b.id));
+                        const ownedIds = this.ownedBrawlerIds;
+                        candidates = this.brawlers.filter(b => ownedIds.includes(b.id));
                     }
                     return candidates;
                 },

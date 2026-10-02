@@ -11,6 +11,7 @@ import itertools
 import httpx
 import asyncio
 import base64
+from urllib.parse import urlencode
 from app.core.config import settings
 
 from app.services.brawl_service import get_available_brawlers, update_brawler
@@ -24,7 +25,7 @@ from app.services.map_mode_catalog import (
     update_map_from_admin,
     update_mode_from_admin,
 )
-from app.services.user_service import User, get_all_regions, update_region, delete_region, insert_region, get_all_secret_questions, insert_secret_question, update_secret_question, get_all_gift_codes, create_gift_code, get_gift_code, get_user, get_user_include_invalid, get_feedback, get_all_announcements, insert_announcement, update_announcement, delete_announcement, search_users, get_usage_stat_trend
+from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, User, get_all_regions, update_region, delete_region, insert_region, get_all_secret_questions, insert_secret_question, update_secret_question, get_all_gift_codes, create_gift_code, get_gift_code, get_user, get_user_include_invalid, get_feedback, get_all_announcements, insert_announcement, update_announcement, delete_announcement, search_users, get_usage_stat_trend
 from app.services.board_service import get_report, EMOJIS, TEAM_POST_AUTO_CLOSE_SECONDS, TEAM_POST_LATER_AUTO_CLOSE_SECONDS, is_team_post_effectively_closed
 from app.utils.utils import parse_utc_datetime, format_tag, get_normalized_ip, get_remote_ip
 from app.db.db import get_shared_db

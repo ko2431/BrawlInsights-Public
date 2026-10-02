@@ -2010,3 +2010,24 @@ select.mr-admin__state--manual { color: #1e40af; }
     margin-top: 2px;
     font-size: 0.9em;
 }
+
+/* アカウント登録履歴 */
+.player-account-events-table td {
+    white-space: nowrap;
+}
+.player-account-events-table__filter {
+    margin-left: 6px;
+    padding: 0 6px;
+    border: 1px solid var(--color-ccc);
+    border-radius: 6px;
+    font-size: 0.8em;
+    color: var(--color-555);
+    text-decoration: none;
+}
+.player-account-events-table__filter:hover {
+    background-color: var(--bg-f0f0f0);
+}
+.player-account-events-table__none {
+    font-size: 0.9em;
+    color: var(--color-999);
+}

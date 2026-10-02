@@ -292,6 +292,11 @@ th {
 .dark .ranked-dist-mine-check--disabled .form-checkbox-label {
     color: #aaa;
 }
+.ranked-dist-mine-check__select {
+    height: 24px;
+    margin: 0 2px 0 4px;
+    font-size: 13px;
+}
 .ranked-dist-mine-check__refresh {
     display: inline;
     margin: 0;

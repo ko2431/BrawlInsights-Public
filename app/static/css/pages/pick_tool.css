@@ -413,6 +413,19 @@
     color: var(--color-222);
     font-size: 13px;
 }
+/* 登録アカウントの切り替え (チェック行の中に1行で収める) */
+.pick-tool-account-select {
+    flex: 0 1 auto;
+    max-width: 9em;
+    height: 20px;
+    margin: 0 2px;
+    padding: 0 18px 0 6px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+.pick-tool-brawlers-checkbox__container--accounts label {
+    white-space: nowrap;
+}
 .pick-tool-brawlers-menu__row {
     display: flex;
     gap: 5px;
