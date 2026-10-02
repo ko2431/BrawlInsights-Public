@@ -17,6 +17,7 @@ from typing import Any, Callable, Iterable
 from pydantic import BaseModel, Field
 
 from app.core.logger import logger
+from app.core.admin_permissions import is_admin_request
 from app.core.templating import templates
 from app.db.db import get_shared_db
 from app.core.cache import get_cache, set_cache
@@ -1228,6 +1229,9 @@ async def get_map(
     brawler_stats = []
     grouped_brawler_stats = None
     sort = sort or None
+    # キャッシュ無視は再計算を強制できるため、管理者のみ受け付ける
+    if not is_admin_request(request):
+        use_cache = True
     # TODO: マルチプレイTier表の正式リリース時に、この管理者限定を外す
     current_user = getattr(request.state, "current_user", None) #TODO この行ごと削除
     show_multiplayer_tier = bool(current_user and current_user.is_admin) #TODO この行ごと削除

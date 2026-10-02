@@ -7,6 +7,7 @@ import math
 from itertools import groupby
 
 from app.core.logger import logger
+from app.core.admin_permissions import is_admin_request
 from app.core.templating import templates
 from app.db.db import get_shared_db
 from app.services.brawl_service import (get_prestige_borders, get_available_brawlers, get_player_ranking, get_player_alltime_ranking,
