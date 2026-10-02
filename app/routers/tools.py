@@ -853,13 +853,26 @@ async def pick_tool(
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にAPIエラーが発生しました: {e}。スキップします。", exc_info=True)
         except Exception as e:
             logger.debug(f"{user.name}のメインアカウントのプレイヤーデータ取得中にその他のエラーが発生しました: {e}", exc_info=True)
-    
+
+    #^ 絞り込み対象: メインアカウントのパワー11キャラ + 今シーズンの最大レベルキャラ
+    power11_brawler_ids: list[int] = []
+    if main_account:
+        power11_brawler_ids = [b.id for b in main_account.brawlers if b.power >= 11]
+        try:
+            from app.services.ranked_map_pool_service import get_current_max_power_brawler_ids
+            for brawler_id in await get_current_max_power_brawler_ids(db):
+                if brawler_id not in power11_brawler_ids:
+                    power11_brawler_ids.append(brawler_id)
+        except Exception as e:
+            logger.warning(f"ピック提案ツールで最大レベルキャラの取得中にエラーが発生しました: {e}", exc_info=True)
+
     # テンプレートに渡すコンテキスト
     context = {
         "request": request,
         "lang": lang,
         "user": user,
         "main_account": main_account,
+        "power11_brawler_ids": power11_brawler_ids,
         "pool_data": pool_data,
         "current_page": "tools",
         "hide_navigation_controls": True,

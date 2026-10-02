@@ -197,7 +197,7 @@
                                x-model="power11Only"
                                :disabled="phase === 'loading'"
                                @click="handleMainAccountCheck($event)">
-                        <label for="power11OnlyCheckbox">{% if lang == "ja" %}メインアカウントのパワー11のみ表示{% else %}Show Main Account Power 11 Only{% endif %}</label>
+                        <label for="power11OnlyCheckbox">{% if lang == "ja" %}メインアカウントのパワー11と最大レベルキャラのみ表示{% else %}Show Main Account Power 11 & Max Power Brawlers Only{% endif %}</label>
                     </div>
                 </div>
                 {# ^ キーボードショートカットの説明 #}
@@ -331,7 +331,8 @@
                 // メインアカウント情報
                 hasMainAccount: {{ 'true' if main_account else 'false' }},
                 hasUser: {{ 'true' if user else 'false' }},
-                power11BrawlerIds: [{% if main_account %}{% for b in main_account.brawlers %}{% if b.power >= 11 %}{{ b.id }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}{% endif %}],
+                // パワー11キャラ + 今シーズンの最大レベルキャラ
+                power11BrawlerIds: {{ power11_brawler_ids | tojson }},
                 power11Only: false,
 
                 // OS判定用フラグ
