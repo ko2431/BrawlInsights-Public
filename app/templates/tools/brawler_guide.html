@@ -836,8 +836,8 @@
             <div class="info-block" style="padding: 0;">
                 <p class="info-block__text">
                     {% set brawler_name = brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en %}
-                    {% if lang == "ja" %}5000万件以上の<b>ガチバトル</b>の勝敗データを集計し、使用率・勝率・MVP率・推定BAN率などから算出した<b>総合スコア</b>と、<b>使用率</b>を総合・モード別・マップ別のそれぞれ掲載しています。総合スコアの高いモード・マップほど、おすすめのモード・マップとなります。データは毎日更新されます。
-                    {% else %}This section shows the <b>Strength Score</b> and <b>Use Rate</b> for this Brawler, calculated from over 50 million <b>Ranked</b> match records, considering factors like win rate, star player rate, and estimated ban rate. The data is available for overall, per-mode, and per-map performance. Modes and maps with a higher Strength Score are recommended. Data is updated daily.
+                    {% if lang == "ja" %}5000万件以上の<b>ガチバトル</b>の勝敗データを集計し、使用率・勝率・MVP率などから算出した<b>総合スコア</b>と、<b>使用率</b>を総合・モード別・マップ別のそれぞれ掲載しています。総合スコアの高いモード・マップほど、おすすめのモード・マップとなります。データは毎日更新されます。
+                    {% else %}This section shows the <b>Strength Score</b> and <b>Use Rate</b> for this Brawler, calculated from over 50 million <b>Ranked</b> match records, considering factors like win rate, and star player rate. The data is available for overall, per-mode, and per-map performance. Modes and maps with a higher Strength Score are recommended. Data is updated daily.
                     {% endif %}
                 </p>
             </div>

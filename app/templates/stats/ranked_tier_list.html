@@ -116,8 +116,8 @@
     {# ^ 3. 説明文 #}
     <div class="info-block" style="padding: 0;">
         <p class="info-block__text">
-            {% if lang == "ja" %}5000万件以上の勝敗データを集計し、使用率・勝率・MVP率・推定BAN率などから算出した<b>総合スコア</b>でランク付けした、ガチバトルのTier表です。データは毎日更新されます。各キャラクターをクリックすると、そのキャラクターの<b>図鑑ページ</b>に移動します。詳しい集計方法などは、このページの一番下をご覧ください。<br>ガチバトルのマップ画像一覧が見たい方は<a href="{{ url_for('ranked_maps', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">こちら</a>。
-            {% else %}This is a Ranked tier list where brawlers are ranked by their <b>strength score</b>, which is calculated from over 50 million match results, taking into account metrics like use rate, win rate, star player rate, and estimated ban rate. The data is automatically updated daily. Click on a brawler to go to their <b>brawler's guide page</b>. For more details on how we calculate these stats, please see the bottom of this page.<br>If you want to see a list of all maps in Ranked, click <a href="{{ url_for('ranked_maps', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">here</a>.
+            {% if lang == "ja" %}5000万件以上の勝敗データを集計し、使用率・勝率・MVP率などから算出した<b>総合スコア</b>でランク付けした、ガチバトルのTier表です。データは毎日更新されます。各キャラクターをクリックすると、そのキャラクターの<b>図鑑ページ</b>に移動します。詳しい集計方法などは、このページの一番下をご覧ください。<br>ガチバトルのマップ画像一覧が見たい方は<a href="{{ url_for('ranked_maps', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">こちら</a>。
+            {% else %}This is a Ranked tier list where brawlers are ranked by their <b>strength score</b>, which is calculated from over 50 million match results, taking into account metrics like use rate, win rate, and star player rate. The data is automatically updated daily. Click on a brawler to go to their <b>brawler's guide page</b>. For more details on how we calculate these stats, please see the bottom of this page.<br>If you want to see a list of all maps in Ranked, click <a href="{{ url_for('ranked_maps', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">here</a>.
             {% endif %}
         </p>
     </div>
@@ -229,7 +229,7 @@
         {% if lang == "ja" %}
         <p>
             勝敗データの集計期間は過去30日間で、すべてのランク帯が集計対象です。ただし、できる限り実態にそったTier表になるよう、バトルの新しさやランク帯によって、最大で1000倍以上<b>重み</b>を変えて集計しています。
-            <br>Tier表は、重み付けされた使用率・勝率・MVP率・推定BAN率などから算出した<b>総合スコア</b>でランク付けしています。ただし、キャラクターの使用率が極端に低く、信頼性のある総合スコアが算出できない場合は、総合スコアは0となります。
+            <br>Tier表は、重み付けされた使用率・勝率・MVP率などから算出した<b>総合スコア</b>でランク付けしています。ただし、キャラクターの使用率が極端に低く、信頼性のある総合スコアが算出できない場合は、総合スコアは0となります。
         </p>
         <p>
             <br>ページ上のメニューより並び替えを<b>使用率順</b>にすることで、各キャラクターの使用率を見ることができます。ただし、この値は実態に合わせるために重み付けと調整をした後の値のため、合計は100%にはなりません。
@@ -238,7 +238,7 @@
         {% else %}
         <p>
             The match data is aggregated from the last 30 days and includes all rank tiers. However, to create a tier list that reflects the current meta as accurately as possible, we apply a <b>weighting</b> system that can vary by more than 1000 times based on the recency of the battle and the rank tier.
-            <br>The tier list is ranked by a <b>strength score</b> calculated from weighted metrics such as use rate, win rate, star player rate, and estimated ban rate. However, if a brawler's use rate is extremely low and a reliable strength score cannot be calculated, their score will be 0.
+            <br>The tier list is ranked by a <b>strength score</b> calculated from weighted metrics such as use rate, win rate, and star player rate. However, if a brawler's use rate is extremely low and a reliable strength score cannot be calculated, their score will be 0.
         </p>
         <p>
             <br>You can view the use rate for each brawler by sorting by <b>Use Rate</b> from the menu at the top of the page. However, please note that this value is a weighted figure to better reflect the meta, so the total will not add up to 100%.
