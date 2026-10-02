@@ -155,7 +155,7 @@
             <input class="form-input admin-filters__input" x-model="draft.main_account_name" maxlength="100">
         </label>
         <label>
-            <span class="admin-filters__label-text">メインアカウントタグ</span>
+            <span class="admin-filters__label-text">メイン・サブアカウントタグ</span>
             <input class="form-input admin-filters__input" x-model="draft.main_account_tag" maxlength="20">
         </label>
         <label>
@@ -294,6 +294,14 @@
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ user.main_account }}</a>
                         {% endif %}
+                        {% for sub_tag in user.sub_accounts or [] %}
+                            <div class="admin-sub-account">
+                                <span class="admin-badge admin-badge--gray">サブ{{ loop.index }}</span>
+                                <a href="/{{ lang }}/player/profile/{{ sub_tag | replace('#', '') }}"
+                                   class="admin-thread-link"
+                                   {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{% if player_names.get(sub_tag) %}{{ player_names[sub_tag] }} ({{ sub_tag }}){% else %}{{ sub_tag }}{% endif %}</a>
+                            </div>
+                        {% endfor %}
                     </td>
                     <td class="col-limit">
                         <input type="number" class="form-input is-editable" :class="{'changed-field': isFieldDirty('tokens')}" x-model.number="tokens" step="1" :disabled="!canEditEconomy || isProtectedStaff()">

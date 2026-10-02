@@ -10,11 +10,12 @@ import json
 from app.core.templating import templates
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
-from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db
-from app.services.user_service import User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
+from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db, get_player_summaries_from_db
+from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
 from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
 from app.services import minigame_service
 from app.services import main_account_reward_service
+from app.services import player_verification_service
 from app.services.minigame_service import (
     AD_SKIP_TICKET_COST,
     DEFAULT_AD_DAILY_LIMIT,
@@ -41,13 +42,39 @@ router = APIRouter(
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
-    main_account_change_cooldown_message = None
-    if current_user_obj:
-        main_account_change_available_at = get_main_account_change_available_at(current_user_obj)
-        if main_account_change_available_at:
-            main_account_change_cooldown_message = format_main_account_change_cooldown_message(main_account_change_available_at, lang)
-
     # [この部分は公開用リポジトリでは非公開にされています]
+
+    try:
+        player_name = await get_player_name(tag, db)
+        if not player_name:
+            return _player_account_error("指定されたタグのプレイヤーが見つからないか、無効です。", "Player with the specified tag not found or is invalid.", lang)
+    except Exception as e:
+        logger.error(f"アカウント登録時のプレイヤー名取得中にエラー (タグ: {tag}): {e}")
+        return _player_account_error("プレイヤー情報の取得中にエラーが発生しました。", "An error occurred while fetching player information.", lang, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if not await player_verification_service.is_verified(request, tag):
+        return _player_account_error(
+            "所有者確認が完了していません。プレイヤータグ入力後、表示される指示に従って認証を完了してください。",
+            "Ownership verification is not complete. Please follow the instructions displayed after entering the player tag to complete verification.",
+            lang,
+        )
+
+    try:
+        result = await current_user.add_player_account(db, tag, as_main=payload.as_main)
+    except DataBaseError as e:
+        logger.error(f"アカウント登録中 (ID: {current_user.id}) にDBエラー: {e}")
+        return _player_account_error("データベースエラーが発生しました。", "A database error occurred.", lang, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if result == "already_registered":
+        return _player_account_error("このプレイヤーは既に登録済みです。", "This player is already registered.", lang)
+    if result == "limit_reached":
+        return _player_account_error(
+            "登録枠に空きがありません。登録済みのアカウントを解除するか、登録枠を拡張してください。",
+            "No registration slots are available. Remove a registered account or expand your slots.",
+            lang,
+        )
+    if result not in ("added_sub", "set_main"):
+        return _player_account_error("登録できませんでした。", "Could not register the player.", lang, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # [この部分は公開用リポジトリでは非公開にされています]
 
@@ -80,6 +107,7 @@ async def add_bookmark_endpoint(
         "limit_reached": "ブックマークの上限に達しています。",
         "already_exists": "既にブックマーク済みです。",
         "is_main": "メインアカウントはブックマークできません。",
+        "is_sub": "サブアカウントはブックマークできません。",
         "error": "処理中にエラーが発生しました。"
     }
     message_dict_en = {
@@ -88,6 +116,7 @@ async def add_bookmark_endpoint(
         "limit_reached": "Bookmark limit reached.",
         "already_exists": "Already bookmarked.",
         "is_main": "Main account cannot be bookmarked.",
+        "is_sub": "Sub accounts cannot be bookmarked.",
         "error": "An error occurred."
     }
     
@@ -365,7 +394,7 @@ async def request_player_verification_endpoint(
             )
 
         # Playerクラスのrequest_verifyメソッドを呼び出し
-        instructed_icon_id = await player.request_verify()
+        instructed_icon_id = await player.request_verify(player_verification_service.get_verification_scope(request))
 
         # 正常終了のレスポンス
         return JSONResponse({
@@ -404,15 +433,13 @@ async def check_player_verification_endpoint(
         )
 
     try:
-        is_verified, error_reason_key = await check_verify(formatted_tag)
+        is_verified, error_reason_key = await check_verify(
+            formatted_tag, player_verification_service.get_verification_scope(request)
+        )
 
         if is_verified:
-            # 認証成功時の処理
-            verification_status_cache_key = f"player_verify_status:{formatted_tag}"
-            await set_cache(verification_status_cache_key, "success", ttl=900) # 15分間有効な認証済みフラグ
-            
-            # 指示アイコンIDのキャッシュを削除
-            await delete_cache(f"player_verify:{formatted_tag}")
+            # 認証成功時の処理 (このセッションに15分間有効な認証済みフラグを記録)
+            await player_verification_service.mark_verified(request, formatted_tag)
             
             message = "認証に成功しました。" if lang == "ja" else "Verification successful."
             return JSONResponse({"success": True, "verified": True, "message": message})
@@ -667,7 +694,7 @@ async def send_feedback_process(
 
 # --- 保存枠拡張エンドポイント ---
 class ExpandSlotsRequest(BaseModel):
-    target: str # 'bookmarks' / 'history' / 'club_bookmarks' / 'club_history'
+    target: str # 'bookmarks' / 'history' / 'club_bookmarks' / 'club_history' / 'sub_accounts'
 
 @router.post("/expand-slots", name="account_expand_slots")
 async def expand_slots_process(
@@ -681,6 +708,22 @@ async def expand_slots_process(
 
     if current_user.tokens < 15:
         message = "トークンが足りないため拡張できません。" if lang == "ja" else "Not enough tokens to expand."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
+
+    if target == "sub_accounts":
+        try:
+            result = await current_user.expand_sub_account_slots(db)
+        except DataBaseError as e:
+            logger.error(f"サブアカウント枠拡張中 (ID: {current_user.id}) にDBエラー: {e}")
+            message = "拡張処理に失敗しました。" if lang == "ja" else "Failed to expand slots."
+            return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if result == "expanded":
+            message = f"サブアカウント枠を{current_user.sub_accounts_limit}枠に拡張しました。" if lang == "ja" else f"Expanded sub account slots to {current_user.sub_accounts_limit}."
+            return JSONResponse({"success": True, "message": message})
+        if result == "max_reached":
+            message = "サブアカウント枠はこれ以上拡張できません。" if lang == "ja" else "Sub account slots cannot be expanded further."
+        else:
+            message = "トークンが足りないため拡張できません。" if lang == "ja" else "Not enough tokens to expand."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
 
     if target == "bookmarks":
@@ -745,10 +788,10 @@ async def claim_rewarded_token_process(
 
     try:
         # Userクラスのclaim_tokensメソッドを呼び出す (claimed=15, daily_limit=5)
-        # 1日の上限は同じメインアカウントを持つアカウント全体でも共有する
+        # 1日の上限は同じタグ(メイン・サブ)を登録しているアカウント全体でも共有する
         claim_status = await main_account_reward_service.claim_with_main_account_limit(
             db,
-            main_account=current_user.main_account,
+            player_tags=current_user.player_tags,
             reward_key=main_account_reward_service.REWARD_AD_TOKEN,
             limit=5,
             daily=True,
@@ -803,7 +846,7 @@ async def claim_rewarded_ticket_process(
         before_token_balance = current_user.tokens
         claim_status = await main_account_reward_service.claim_with_main_account_limit(
             db,
-            main_account=current_user.main_account,
+            player_tags=current_user.player_tags,
             reward_key=main_account_reward_service.REWARD_AD_TICKET,
             limit=1,
             daily=True,
@@ -1305,10 +1348,10 @@ async def claim_bonus_mission(
             )
             
         # 10トークン付与と last_bonus_mission_date の更新を原子的に行う
-        # 1日1回の上限は同じメインアカウントを持つアカウント全体でも共有する
+        # 1日1回の上限は同じタグ(メイン・サブ)を登録しているアカウント全体でも共有する
         claim_status = await main_account_reward_service.claim_with_main_account_limit(
             db,
-            main_account=current_user.main_account,
+            player_tags=current_user.player_tags,
             reward_key=main_account_reward_service.REWARD_BASIC_MISSION,
             limit=1,
             daily=True,
@@ -1378,9 +1421,9 @@ async def claim_app_login_mission(
         if result == "main_account_claimed":
             # ミッションは達成扱い(トークンのみ付与なし)のため success を返し、画面を達成済み表示にする
             message = (
-                "ミッションを達成しました。このメインアカウントでは、別のアカウントで報酬を受け取り済みのため、トークンは付与されません。"
+                "ミッションを達成しました。登録中のメイン・サブアカウントのいずれかで、別のアカウントが報酬を受け取り済みのため、トークンは付与されません。"
                 if lang == "ja"
-                else "Mission completed. No tokens were given because the reward has already been claimed by another account linked to this main account."
+                else "Mission completed. No tokens were given because the reward has already been claimed by another account linked to one of your main or sub accounts."
             )
             return JSONResponse(status_code=status.HTTP_200_OK, content={"success": True, "message": message, "rewarded": False})
         if result == "already_cleared":

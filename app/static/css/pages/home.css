@@ -278,6 +278,22 @@
     cursor: not-allowed;
 }
 
+/* 編集中の、メイン・サブアカウントとブックマークの区切り */
+.player-list__group-divider {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 0;
+    font-size: 12px;
+    color: var(--color-666);
+}
+.player-list__group-divider::before,
+.player-list__group-divider::after {
+    content: "";
+    flex: 1;
+    border-top: 1px dashed var(--color-ccc);
+}
+
 /* 編集中のプレイヤー名・タグ部分のリンク無効化スタイル */
 .player-list__item-main.editing-no-link a {
     pointer-events: none; /* クリックイベントを無効化 */

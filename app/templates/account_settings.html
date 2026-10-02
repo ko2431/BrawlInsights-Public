@@ -427,8 +427,292 @@ function feedbackHandler() {
     };
 }
 
+// メイン・サブアカウント(プレイヤーアカウント)の登録・解除・並び替え・枠拡張
+function playerAccountsManager() {
+    const FLASH_KEY = 'bi_player_accounts_flash';
+    return {
+        lang: '{{ lang }}',
+        accounts: {{ player_accounts | tojson }},
+        editableAccounts: [],
+        subLimit: {{ sub_accounts_limit | default(1) }},
+        subMaxLimit: {{ sub_accounts_max_limit | default(9) }},
+        expandCost: {{ sub_account_expand_cost | default(15) }},
+        tokenBalance: {{ current_user.tokens if current_user else 0 }},
+        isReordering: false,
+        isAdding: false,
+        isSaving: false,
+        serverMessage: '',
+        serverMessageClass: '',
+
+        newTag: '',
+        formattedNewTag: '',
+        tagStatus: '',
+        canRequestVerification: false,
+        verificationStep: 'idle', // 'idle', 'tag_validated', 'awaiting_icon_change', 'verifying', 'verified_success'
+        instructedIconPath: '',
+        verificationStatusMessage: '',
+        isVerifying: false,
+        canPressVerifyButton: true,
+        registerAs: 'sub',
+
+        init() {
+            try {
+                const flash = sessionStorage.getItem(FLASH_KEY);
+                if (flash) {
+                    sessionStorage.removeItem(FLASH_KEY);
+                    this.showMessage(flash, true);
+                }
+            } catch (e) { /* sessionStorageが使えない環境では表示しない */ }
+        },
+        get subCount() { return Math.max(0, this.accounts.length - 1); },
+        get hasFreeSlot() { return this.subCount < this.subLimit; },
+        get hasOrderChanges() {
+            return this.editableAccounts.map(a => a.tag).join(',') !== this.accounts.map(a => a.tag).join(',');
+        },
+        showMessage(text, success) {
+            this.serverMessage = text;
+            this.serverMessageClass = success ? 'success' : 'error';
+        },
+        reloadWithMessage(message) {
+            try { sessionStorage.setItem(FLASH_KEY, message); } catch (e) { /* 無視 */ }
+            window.location.reload();
+        },
+        async postJson(url, body) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            let data = {};
+            try { data = await response.json(); } catch (e) { /* 無視 */ }
+            return { response, data };
+        },
+        networkErrorMessage() {
+            return this.lang === 'ja' ? '通信エラーが発生しました。' : 'A network error occurred.';
+        },
+
+        // --- 並び替え ---
+        startReorder() {
+            this.serverMessage = '';
+            this.editableAccounts = this.accounts.map(a => ({ ...a }));
+            this.isReordering = true;
+        },
+        cancelReorder() {
+            this.isReordering = false;
+            this.editableAccounts = [];
+        },
+        moveAccount(index, delta) {
+            const target = index + delta;
+            if (target < 0 || target >= this.editableAccounts.length) return;
+            const [item] = this.editableAccounts.splice(index, 1);
+            this.editableAccounts.splice(target, 0, item);
+        },
+        async saveOrder() {
+            if (!this.hasOrderChanges || this.isSaving) return;
+            const newMain = this.editableAccounts[0];
+            if (newMain.tag !== this.accounts[0].tag) {
+                const msg = this.lang === 'ja'
+                    ? `メインアカウントが「${newMain.name}」に変わります。よろしいですか？`
+                    : `Your main account will change to "${newMain.name}". Continue?`;
+                if (!confirm(msg)) return;
+            }
+            this.isSaving = true;
+            try {
+                const { response, data } = await this.postJson("{{ url_for('account_reorder_player_accounts', lang=lang) }}", {
+                    ordered_tags: this.editableAccounts.map(a => a.tag),
+                });
+                if (response.ok && data.success) {
+                    window.location.reload();
+                    return;
+                }
+                this.showMessage(data.message || (this.lang === 'ja' ? '保存できませんでした。' : 'Could not save.'), false);
+            } catch (e) {
+                this.showMessage(this.networkErrorMessage(), false);
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
+        // --- 解除 ---
+        async removeSub(account) {
+            if (this.isSaving) return;
+            const msg = this.lang === 'ja'
+                ? `「${account.name}」をサブアカウントから登録解除しますか？\n再び登録するには、もう一度アイコン認証が必要です。`
+                : `Unregister "${account.name}" from your sub accounts?\nYou will need to verify the icon again to add it back.`;
+            if (!confirm(msg)) return;
+            this.isSaving = true;
+            try {
+                const { response, data } = await this.postJson("{{ url_for('account_remove_sub_account', lang=lang) }}", { player_tag: account.tag });
+                if (response.ok && data.success) {
+                    this.reloadWithMessage(data.message);
+                    return;
+                }
+                this.showMessage(data.message || (this.lang === 'ja' ? '解除できませんでした。' : 'Could not unregister.'), false);
+            } catch (e) {
+                this.showMessage(this.networkErrorMessage(), false);
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
+        // --- 枠拡張 ---
+        async expandSlots() {
+            if (this.isSaving) return;
+            if (this.tokenBalance < this.expandCost) {
+                alert(this.lang === 'ja' ? 'トークンが足りないため、拡張できません。\nトークンの入手方法はこのページ上部の「トークン」をご確認ください。' : 'Not enough tokens to expand.\nSee the "Tokens" section at the top of this page for how to earn tokens.');
+                return;
+            }
+            const msg = this.lang === 'ja'
+                ? `${this.expandCost}トークン消費してサブアカウント枠を${this.subLimit + 1}枠に拡張しますか？\n(トークン: ${this.tokenBalance} → ${this.tokenBalance - this.expandCost})`
+                : `Spend ${this.expandCost} tokens to expand sub account slots to ${this.subLimit + 1}?\n(Tokens: ${this.tokenBalance} → ${this.tokenBalance - this.expandCost})`;
+            if (!confirm(msg)) return;
+            this.isSaving = true;
+            try {
+                const { response, data } = await this.postJson("{{ url_for('account_expand_slots', lang=lang) }}", { target: 'sub_accounts' });
+                if (response.ok && data.success) {
+                    this.reloadWithMessage(data.message);
+                    return;
+                }
+                this.showMessage(data.message || (this.lang === 'ja' ? '拡張できませんでした。' : 'Could not expand.'), false);
+            } catch (e) {
+                this.showMessage(this.networkErrorMessage(), false);
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
+        // --- 登録 ---
+        startAdding() {
+            this.serverMessage = '';
+            this.newTag = '';
+            this.tagStatus = '';
+            this.formattedNewTag = '';
+            this.canRequestVerification = false;
+            this.registerAs = 'sub';
+            this.resetVerification();
+            this.isAdding = true;
+        },
+        cancelAdding() {
+            this.isAdding = false;
+            this.resetVerification();
+        },
+        resetVerification() {
+            this.verificationStep = 'idle';
+            this.instructedIconPath = '';
+            this.verificationStatusMessage = '';
+            this.isVerifying = false;
+            this.canPressVerifyButton = true;
+        },
+        async validateNewTag() {
+            this.canRequestVerification = false;
+            this.formattedNewTag = '';
+            this.resetVerification();
+            const raw = this.newTag.trim();
+            if (!raw) {
+                this.tagStatus = '';
+                return;
+            }
+            const withoutHash = raw.replace(/^#+/, '').toUpperCase().replace(/O/g, '0');
+            if (!/^[0289CGJLPQRUVY]+$/.test(withoutHash)) {
+                this.tagStatus = `<span class="text-red-500">❌ ${this.lang === 'ja' ? '無効なタグ形式です。' : 'Invalid tag format.'}</span>`;
+                return;
+            }
+            const tag = '#' + withoutHash;
+            if (this.accounts.some(a => a.tag === tag)) {
+                this.tagStatus = `<span class="text-blue-500">${this.lang === 'ja' ? 'このプレイヤーは既に登録済みです。' : 'This player is already registered.'}</span>`;
+                return;
+            }
+            try {
+                const { data } = await this.postJson(`/${this.lang}/validate/player-tag`, { player_tag: tag });
+                if (this.newTag.trim() !== raw) return; // 入力中に変更された場合は結果を捨てる
+                const holder = document.createElement('span');
+                if (data.is_valid) {
+                    holder.textContent = `${data.player_name} (${data.formatted_tag})`;
+                    this.tagStatus = `<span class="text-green-500">✅ ${holder.innerHTML}</span>`;
+                    this.formattedNewTag = data.formatted_tag;
+                    this.canRequestVerification = !this.accounts.some(a => a.tag === data.formatted_tag);
+                    if (this.canRequestVerification) this.verificationStep = 'tag_validated';
+                } else {
+                    holder.textContent = data.message || '';
+                    this.tagStatus = `<span class="text-red-500">❌ ${holder.innerHTML}</span>`;
+                }
+            } catch (e) {
+                this.tagStatus = `<span class="text-red-500">${this.lang === 'ja' ? '検証エラー' : 'Validation error'}</span>`;
+            }
+        },
+        async requestVerification() {
+            if (!this.canRequestVerification || this.isVerifying || !this.formattedNewTag) return;
+            this.isVerifying = true;
+            this.verificationStatusMessage = this.lang === 'ja' ? '認証用アイコンを準備中...' : 'Preparing verification icon...';
+            this.verificationStep = 'awaiting_icon_change';
+            this.instructedIconPath = '';
+            try {
+                const { response, data } = await this.postJson(`/${this.lang}/account/request-verification`, { player_tag: this.formattedNewTag });
+                if (response.ok && data.success && data.instructed_icon_id) {
+                    this.instructedIconPath = `/static/images/player_icon/${data.instructed_icon_id}.webp`;
+                    this.verificationStatusMessage = this.lang === 'ja' ? 'ℹ️ アイコンを変更したら、<b>認証</b>ボタンを押してください' : 'ℹ️ After changing the icon, press the <b>Verify</b> button';
+                    this.canRequestVerification = false;
+                } else {
+                    this.verificationStatusMessage = `<span class="text-red-500">❌ ${this.lang === 'ja' ? '指示アイコンの取得に失敗しました。' : 'Failed to get verification icon.'}</span>`;
+                    this.verificationStep = 'tag_validated';
+                }
+            } catch (e) {
+                this.verificationStatusMessage = `<span class="text-red-500">❌ ${this.networkErrorMessage()}</span>`;
+                this.verificationStep = 'tag_validated';
+            } finally {
+                this.isVerifying = false;
+            }
+        },
+        async checkVerification() {
+            if (this.isVerifying || !this.canPressVerifyButton || !this.instructedIconPath) return;
+            this.isVerifying = true;
+            this.canPressVerifyButton = false;
+            this.verificationStatusMessage = this.lang === 'ja' ? '認証情報を確認しています...' : 'Verifying information...';
+            this.verificationStep = 'verifying';
+            try {
+                const { response, data } = await this.postJson(`/${this.lang}/account/check-verification`, { player_tag: this.formattedNewTag });
+                const holder = document.createElement('span');
+                holder.textContent = data.message || '';
+                if (response.ok && data.success && data.verified) {
+                    this.verificationStatusMessage = `<span class="text-green-500">✅ ${holder.innerHTML}</span>`;
+                    this.verificationStep = 'verified_success';
+                } else {
+                    this.verificationStatusMessage = `<span class="text-yellow-500">⚠️ ${holder.innerHTML || (this.lang === 'ja' ? '認証できませんでした。再度お試しください。' : 'Could not verify. Please try again.')}</span>`;
+                    this.verificationStep = 'awaiting_icon_change';
+                }
+            } catch (e) {
+                this.verificationStatusMessage = `<span class="text-red-500">❌ ${this.lang === 'ja' ? '認証処理中にエラーが発生しました。' : 'An error occurred during verification.'}</span>`;
+                this.verificationStep = 'awaiting_icon_change';
+            } finally {
+                this.isVerifying = false;
+                setTimeout(() => { this.canPressVerifyButton = true; }, 3000);
+            }
+        },
+        async submitRegistration() {
+            if (this.verificationStep !== 'verified_success' || this.isSaving || !this.hasFreeSlot) return;
+            this.isSaving = true;
+            try {
+                const { response, data } = await this.postJson("{{ url_for('account_register_player_account', lang=lang) }}", {
+                    player_tag: this.formattedNewTag,
+                    as_main: this.registerAs === 'main',
+                });
+                if (response.ok && data.success) {
+                    this.reloadWithMessage(data.message);
+                    return;
+                }
+                this.showMessage(data.message || (this.lang === 'ja' ? '登録できませんでした。' : 'Could not add the player.'), false);
+            } catch (e) {
+                this.showMessage(this.networkErrorMessage(), false);
+            } finally {
+                this.isSaving = false;
+            }
+        },
+    };
+}
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('accountSettingsPage', accountSettingsPage);
+    Alpine.data('playerAccountsManager', playerAccountsManager);
     Alpine.data('giftCodeHandler', giftCodeHandler);
     Alpine.data('feedbackHandler', feedbackHandler);
 });

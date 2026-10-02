@@ -189,7 +189,7 @@
                 {# 編集モード時の情報ブロック #}
                 <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
                     <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}ブックマークは矢印ボタンを押して並び替え、赤いボタンで削除できます。変更を保存するには「保存」ボタンを押してください。メインアカウントはアカウントタブで編集できます。{% else %}Press the arrow buttons to reorder, use the red button to remove. Press "Save" to apply changes. The main account cannot be edited here.{% endif %}</p>
+                    <p class="info-block__text">{% if lang == "ja" %}矢印ボタンで並び替え、赤いボタンで削除できます。メイン・サブアカウントは一番上に置いたものがメインとして設定され、登録・解除はアカウントタブで行えます。{% else %}Use the arrows to reorder and the red button to remove. The top main/sub account becomes your main account. Add or remove sub accounts in the Account tab.{% endif %}</p>
                 </div>
                 <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
                     <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
@@ -198,27 +198,35 @@
 
                 {% if current_user %}
                     <div class="player-list" id="bookmark-list-sortable"> {# SortableJS用のID #}
-                        {# メインアカウント (編集不可) #}
-                        <div class="card player-list__item is-main-account" data-tag="{{ current_user.main_account }}">
-                            <div class="button player-list__item-index button--primary" style="font-size: 11.5px; font-weight: bold;">
-                                <span style="margin-top: 1px;">{% if lang == "ja" %}メイン{% else %}MAIN{% endif %}</span>
+                        {# メイン・サブアカウント (並び替えのみ可。一番上がメイン) #}
+                        <template x-for="(account, index) in (isEditing ? editableAccounts : initialAccounts)" :key="'account-' + account.tag">
+                            <div class="card player-list__item" :class="{ 'is-main-account': index === 0 }" :data-tag="account.tag">
+                                <div class="button player-list__item-index" :class="index === 0 ? 'button--primary' : 'button--sub-account'" style="font-size: 11.5px; font-weight: bold;">
+                                    <span x-show="index === 0" style="margin-top: 1px;">{% if lang == "ja" %}メイン{% else %}MAIN{% endif %}</span>
+                                    <span x-show="index > 0" class="sub-account-badge"><span class="sub-account-badge__label">{% if lang == "ja" %}サブ{% else %}SUB{% endif %}</span><span class="sub-account-badge__num" x-text="index"></span></span>
+                                </div>
+                                <div class="player-list__item-main" :class="{'editing-no-link': isEditing}">
+                                    <a :href="isEditing ? '#' : `/${currentLang}/player/profile/${account.tag.substring(1)}`"
+                                       class="card-link" style="display: contents;"
+                                       @click="if(isEditing) $event.preventDefault()">
+                                        <img :src="account.icon_id ? `/static/images/player_icon/${account.icon_id}.webp` : '/static/images/player_icon/0.png'"
+                                            alt="アイコン"
+                                            class="player-list__item-player-icon"
+                                            onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                        <p class="player-list__item-name" x-text="account.name"></p>
+                                        <p class="player-list__item-tag" x-text="account.tag"></p>
+                                    </a>
+                                </div>
+                                <div x-show="isEditing && editableAccounts.length > 1" class="bookmark-item-actions" x-cloak>
+                                    <button type="button" @click="moveAccount(index, -1)" :disabled="index === 0" class="button-move">↑</button>
+                                    <button type="button" @click="moveAccount(index, 1)" :disabled="index === editableAccounts.length - 1" class="button-move">↓</button>
+                                </div>
                             </div>
-                            <div class="player-list__item-main" :class="{'editing-no-link': isEditing}">
-                                {# メインアカウント名はブックマーク表示データから取得 #}
-                                {% for player_data_item in bookmarked_players %}
-                                    {% if player_data_item.is_main %}
-                                        <a href="{{ url_for('get_player_profile', lang=lang, tag=player_data_item.tag[1:]) }}" class="card-link" style="display: contents;" @click="if(isEditing) $event.preventDefault()"> {# 編集中はクリックイベントを無効化 #}
-                                            <img src="{% if player_data_item.icon_id %}/static/images/player_icon/{{ player_data_item.icon_id }}.webp{% else %}{{ url_for('static', path='/images/player_icon/0.png') }}{% endif %}"
-                                                alt="アイコン"
-                                                class="player-list__item-player-icon"
-                                                onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
-                                            <p class="player-list__item-name">{{ player_data_item.name }}</p>
-                                            <p class="player-list__item-tag">{{ player_data_item.tag }}</p>
-                                        </a>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                            {# メインアカウントには並び替えボタンや削除ボタンは表示しない #}
+                        </template>
+
+                        {# 編集中は、アカウントとブックマークの間を区切る (互いに入れ替え不可) #}
+                        <div x-show="isEditing" class="player-list__group-divider" x-cloak>
+                            <span>{% if lang == "ja" %}ブックマーク{% else %}Bookmarks{% endif %}</span>
                         </div>
 
                         {# ブックマークされたプレイヤーリスト (Alpine.jsでレンダリング) #}
@@ -910,6 +918,9 @@
                 currentLang: '{{ lang }}',
                 initialBookmarks: {{ bookmarked_players | selectattr('is_main', 'false') | list | tojson | safe }},
                 editableBookmarks: [],
+                // メイン(先頭)とサブアカウント
+                initialAccounts: {{ ((bookmarked_players | selectattr('is_main') | list) + (sub_account_players or [])) | tojson | safe }},
+                editableAccounts: [],
                 displayLimit: {{ bookmark_display_limit -1 }},
                 userLimit: {{ current_user.saved_accounts_limit if current_user else 0 }},
                 availableSlots: {{ available_bookmark_slots if current_user else 0 }},
@@ -929,7 +940,25 @@
 
                 resetEditableBookmarks() {
                     this.editableBookmarks = JSON.parse(JSON.stringify(this.initialBookmarks)).map(bm => ({ ...bm, isDeleting: false }));
+                    this.editableAccounts = JSON.parse(JSON.stringify(this.initialAccounts));
                     this.hasChanges = false; // リセット時は変更なし
+                },
+
+                get accountsChanged() {
+                    return this.editableAccounts.map(a => a.tag).join(',') !== this.initialAccounts.map(a => a.tag).join(',');
+                },
+
+                get bookmarksChanged() {
+                    return this.editableBookmarks.map(b => b.tag).join(',') !== this.initialBookmarks.map(b => b.tag).join(',');
+                },
+
+                // メイン・サブアカウントの並び替え (ブックマークとは混ざらない)
+                moveAccount(index, delta) {
+                    const target = index + delta;
+                    if (target < 0 || target >= this.editableAccounts.length) return;
+                    const [item] = this.editableAccounts.splice(index, 1);
+                    this.editableAccounts.splice(target, 0, item);
+                    this.hasChanges = this.accountsChanged || this.bookmarksChanged;
                 },
 
                 startEditing() {
@@ -993,15 +1022,37 @@
                     this.serverMessage = (this.currentLang === 'ja' ? '保存中...' : 'Saving...');
                     this.serverSuccess = false;
 
-                    const updatedBookmarkTags = this.editableBookmarks.map(bm => bm.tag);
+                    const accountsChanged = this.accountsChanged;
+                    const bookmarksChanged = this.bookmarksChanged;
+                    const newMain = this.editableAccounts[0];
+                    if (accountsChanged && newMain && newMain.tag !== this.initialAccounts[0].tag) {
+                        const msg = this.currentLang === 'ja'
+                            ? `メインアカウントが「${newMain.name}」に変わります。よろしいですか？`
+                            : `Your main account will change to "${newMain.name}". Continue?`;
+                        if (!confirm(msg)) {
+                            this.serverMessage = '';
+                            return;
+                        }
+                    }
 
                     try {
-                        const response = await fetch(`/${this.currentLang}/account/bookmark/update`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', },
-                            body: JSON.stringify({ updated_bookmarks: updatedBookmarkTags })
-                        });
-                        const data = await response.json();
+                        let data = { success: true, message: '' };
+                        if (accountsChanged) {
+                            const response = await fetch(`/${this.currentLang}/account/player-accounts/reorder`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', },
+                                body: JSON.stringify({ ordered_tags: this.editableAccounts.map(a => a.tag) })
+                            });
+                            data = await response.json();
+                        }
+                        if (data.success && bookmarksChanged) {
+                            const response = await fetch(`/${this.currentLang}/account/bookmark/update`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', },
+                                body: JSON.stringify({ updated_bookmarks: this.editableBookmarks.map(bm => bm.tag) })
+                            });
+                            data = await response.json();
+                        }
                         this.serverMessage = data.message;
                         this.serverSuccess = data.success;
 
@@ -1009,6 +1060,7 @@
                             this.hasChanges = false;
                             this.isEditing = false;
                             this.initialBookmarks = JSON.parse(JSON.stringify(this.editableBookmarks));
+                            this.initialAccounts = JSON.parse(JSON.stringify(this.editableAccounts));
                             suppressBeforeUnload = true;
                             try {
                                 alpineGlobalStoreForUnload.bookmarks.hasChanges = false;

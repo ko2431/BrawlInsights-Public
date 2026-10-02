@@ -505,6 +505,16 @@
     color: #222;
     border-color: #ccc;
 }
+.profile-image-tool__player-badge--sub,
+.dark .profile-image-tool__player-badge--sub {
+    background: #8a8a8a;
+    color: #fff;
+    border-color: #7a7a7a;
+}
+.dark .profile-image-tool__player-badge--sub {
+    background: #6a6a6a;
+    border-color: #5a5a5a;
+}
 
 .profile-image-tool__player-tag {
     margin-top: -3px;

@@ -130,6 +130,8 @@
                                         <span class="profile-image-tool__player-name" x-text="player.name"></span>
                                         <span class="profile-image-tool__player-badge"
                                               x-show="player.is_main">{% if lang == "ja" %}メイン{% else %}Main{% endif %}</span>
+                                        <span class="profile-image-tool__player-badge profile-image-tool__player-badge--sub"
+                                              x-show="player.is_sub">{% if lang == "ja" %}サブ{% else %}Sub{% endif %}</span>
                                     </div>
                                     <span class="profile-image-tool__player-tag" x-text="player.tag"></span>
                                 </div>

@@ -44,10 +44,10 @@ from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_
                 # Redisにキーがなければ、DBを確認してトークンを付与する
                 if not already_checked_today:
                     async with get_db_connection_for_bg_task() as db_conn:
-                        # 同じメインアカウントの別アカウントで受け取り済みの場合は付与しない
+                        # 同じタグ(メイン・サブ)を登録している別アカウントで受け取り済みの場合は付与しない
                         claim_status = await main_account_reward_service.claim_with_main_account_limit(
                             db_conn,
-                            main_account=current_user_for_state.main_account,
+                            player_tags=current_user_for_state.player_tags,
                             reward_key=main_account_reward_service.REWARD_DAILY_LOGIN,
                             limit=1,
                             daily=True,
@@ -57,7 +57,7 @@ from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_
                         if claim_status == main_account_reward_service.CLAIM_SUCCESS:
                             logger.debug(f"ユーザー '{current_user_for_state.name}' にデイリー初回アクセストークンを5付与しました。")
                         elif claim_status == main_account_reward_service.CLAIM_MAIN_ACCOUNT_LIMIT:
-                            logger.debug(f"ユーザー '{current_user_for_state.name}' は同じメインアカウントの別アカウントで受け取り済みのため、デイリー初回アクセストークンを付与できません。")
+                            logger.debug(f"ユーザー '{current_user_for_state.name}' は同じタグ(メイン・サブ)の別アカウントで受け取り済みのため、デイリー初回アクセストークンを付与できません。")
                         else:
                             logger.debug(f"ユーザー '{current_user_for_state.name}' はトークン所持数が上限に達しているため、デイリー初回アクセストークンを付与できません。")
 
@@ -156,6 +156,7 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
     current_login_user: User | None = getattr(request.state, "current_user", None)
     
     bookmarked_players_for_display = []
+    sub_account_players_for_display = []
     can_extend_bookmark_slots = False # 将来の拡張用フラグ (今は常にFalse)
     viewed_players_for_display = []
     actual_viewed_players_count = 0
@@ -196,11 +197,24 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
             "icon_id": main_account_icon,
             "is_main": True # メインアカウントであることを示すフラグ
         })
+
+        # --- サブアカウントの情報を取得 (DBから1回のクエリでまとめて取得) ---
+        if current_login_user.sub_accounts:
+            sub_summaries = await get_player_summaries_from_db(current_login_user.sub_accounts, db)
+            for tag in current_login_user.sub_accounts:
+                summary = sub_summaries.get(tag, {})
+                sub_account_players_for_display.append({
+                    "tag": tag,
+                    "name": summary.get("name") or tag,
+                    "icon_id": summary.get("icon_id") or 0,
+                })
         
         # ブックマーク表示用データの準備 ---
         # Userオブジェクトの saved_accounts_limit を参照する(limitが0になっている場合はUser側のlimitを無視)
         tags_to_fetch_names_bookmarked = current_login_user.saved_accounts[:(min(bookmark_display_limit - 1, current_login_user.saved_accounts_limit if current_login_user.saved_accounts_limit else (bookmark_display_limit - 1)))]
         for tag in tags_to_fetch_names_bookmarked:
+            if current_login_user.is_own_player_tag(tag): # メイン・サブアカウントはブックマーク欄に重複表示しない
+                continue
             name = tag # デフォルトはタグ
             icon_id = 0
             try:
@@ -232,10 +246,10 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
             can_extend_bookmark_slots = True # 例：あとで広告視聴などの条件を追加する
 
         # 閲覧履歴表示用データの準備 ---
-        # メインアカウントとブックマークを除外した閲覧履歴タグリストを作成
+        # メイン・サブアカウントとブックマークを除外した閲覧履歴タグリストを作成
         filtered_viewed_tags = [
             tag for tag in current_login_user.viewed_accounts 
-            if tag != current_login_user.main_account and tag not in current_login_user.saved_accounts
+            if not current_login_user.is_own_player_tag(tag) and tag not in current_login_user.saved_accounts
         ]
         actual_viewed_players_count = len(filtered_viewed_tags)
         
@@ -319,6 +333,7 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
         "announcements": announcements,
         "special_reward_banners": special_reward_banners,
         "bookmarked_players": bookmarked_players_for_display, # テンプレートでの変数名変更
+        "sub_account_players": sub_account_players_for_display,
         "available_bookmark_slots": available_bookmark_slots,
         "can_extend_bookmark_slots": can_extend_bookmark_slots,
         "viewed_players": viewed_players_for_display,       # テンプレートでの変数名変更

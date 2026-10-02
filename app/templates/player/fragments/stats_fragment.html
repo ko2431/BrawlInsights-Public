@@ -46,14 +46,20 @@
                 {% if lang == "ja" %}メインアカウント{% else %}Main Account{% endif %}
             </button>
         </template>
+        {# サブアカウント閲覧中 (ここからは登録解除できない) #}
+        <template x-if="isLoggedIn && isSubAccount">
+            <button type="button" class="button button--sub-account-alt button--bookmark button--bookmark--mobile" @click="showSubAccountAlert()">
+                {% if lang == "ja" %}サブアカウント{% else %}Sub Account{% endif %}
+            </button>
+        </template>
         {# ブックマーク済み #}
-        <template x-if="isLoggedIn && !isMainAccount && isBookmarked">
+        <template x-if="isLoggedIn && !isMainAccount && !isSubAccount && isBookmarked">
             <button type="button" class="button button--success is-active button--bookmark button--bookmark--mobile" @click="confirmRemoveBookmark()">
                 {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
             </button>
         </template>
         {# 未ブックマーク #}
-        <template x-if="isLoggedIn && !isMainAccount && !isBookmarked">
+        <template x-if="isLoggedIn && !isMainAccount && !isSubAccount && !isBookmarked">
             <button type="button" class="button button--secondary button--bookmark button--bookmark--mobile" @click="confirmAddBookmark()">
                 {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
             </button>
@@ -92,14 +98,20 @@
                     {% if lang == "ja" %}メインアカウント{% else %}Main Account{% endif %}
                 </button>
             </template>
+            {# サブアカウント閲覧中 (ここからは登録解除できない) #}
+            <template x-if="isLoggedIn && isSubAccount">
+                <button type="button" class="button button--sub-account-alt button--bookmark button--bookmark--pc" @click="showSubAccountAlert()">
+                    {% if lang == "ja" %}サブアカウント{% else %}Sub Account{% endif %}
+                </button>
+            </template>
             {# ブックマーク済み #}
-            <template x-if="isLoggedIn && !isMainAccount && isBookmarked">
+            <template x-if="isLoggedIn && !isMainAccount && !isSubAccount && isBookmarked">
                 <button type="button" class="button button--success is-active button--bookmark button--bookmark--pc" @click="confirmRemoveBookmark()">
                     {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
                 </button>
             </template>
             {# 未ブックマーク #}
-            <template x-if="isLoggedIn && !isMainAccount && !isBookmarked">
+            <template x-if="isLoggedIn && !isMainAccount && !isSubAccount && !isBookmarked">
                 <button type="button" class="button button--secondary button--bookmark button--bookmark--pc" @click="confirmAddBookmark()">
                     {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
                 </button>
@@ -1965,11 +1977,13 @@
         return {
             isLoggedIn: {{ current_user is not none | lower }},
             currentUserMainTag: "{{ current_user.main_account if current_user else '' }}",
+            currentUserSubTags: {{ (current_user.sub_accounts if current_user else []) | tojson }},
             currentUserBookmarks: {{ current_user.saved_accounts | tojson | safe if current_user else [] }},
             currentUserBookmarkLimit: {{ current_user.saved_accounts_limit if current_user else 0 }},
             viewedPlayerTag: viewedPlayerTag,
             viewedPlayerName: viewedPlayerName, // JSコンファームメッセージで使用
             isMainAccount: false,
+            isSubAccount: false,
             isBookmarked: false,
             message: '',
             lastActionSuccess: false,
@@ -1977,11 +1991,16 @@
             initButtonState() {
                 if (!this.isLoggedIn) return;
                 this.isMainAccount = (this.viewedPlayerTag === this.currentUserMainTag);
+                this.isSubAccount = !this.isMainAccount && this.currentUserSubTags.includes(this.viewedPlayerTag);
                 this.isBookmarked = this.currentUserBookmarks.includes(this.viewedPlayerTag);
             },
 
             showMainAccountAlert() {
                 alert("{% if lang == 'ja' %}このアカウントはメインアカウントとして設定されています。変更はアカウントタブで行ってください。{% else %}This is your main account. Changes can be made in the Account Settings.{% endif %}");
+            },
+
+            showSubAccountAlert() {
+                alert("{% if lang == 'ja' %}このアカウントはサブアカウントとして登録されています。登録解除や並び替えはアカウントタブで行ってください。{% else %}This is one of your sub accounts. You can unregister or reorder it in the Account tab.{% endif %}");
             },
 
             async confirmAddBookmark() {

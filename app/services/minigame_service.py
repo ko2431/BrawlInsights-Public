@@ -110,11 +110,11 @@ GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scrat
                     "You have reached today's discount limit. Please wait until reset.",
                 )
             )
-        # 広告参加(割引)の1日の上限は、同じメインアカウントを持つアカウント全体で共有する
+        # 広告参加(割引)の1日の上限は、同じタグ(メイン・サブ)を登録しているアカウント全体で共有する
         # (トランザクション内のため、以降で失敗した場合は枠の確保もロールバックされる)
         if method == "ad" and not await main_account_reward_service.reserve_main_account_reward(
             db,
-            main_account=user.main_account,
+            player_tags=user.player_tags,
             reward_key=main_account_reward_service.REWARD_MINIGAME_AD,
             limit=ad_limit,
             daily=True,
@@ -123,8 +123,8 @@ GAME_TYPES = ("card_flip_single", "card_flip_multi1", "card_flip_multi2", "scrat
             raise ValueError(
                 _message(
                     lang,
-                    "このメインアカウントでは、別のアカウントで本日の割引の上限に達しています。",
-                    "Today's discount limit has already been reached by another account linked to this main account.",
+                    "登録中のメイン・サブアカウントのいずれかで、別のアカウントが本日の割引の上限に達しています。",
+                    "Today's discount limit has already been reached by another account linked to one of your main or sub accounts.",
                 )
             )
         if tickets_spent > 0:

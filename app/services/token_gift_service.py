@@ -149,7 +149,7 @@ async def create_token_gift(
         try:
             locked_rows = await db.fetch(
                 """
-                SELECT id, tokens, token_limit, main_account, is_prohibit_posting, is_invalid,
+                SELECT id, tokens, token_limit, main_account, sub_accounts, is_prohibit_posting, is_invalid,
                        registration_datetime, pv_count
                 FROM users
                 WHERE id = ANY($1::int[])

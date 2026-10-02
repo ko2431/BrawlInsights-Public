@@ -159,6 +159,50 @@
     outline: none;
 }
 
+/* サブアカウントの番号バッジ (メイン=黒、ブックマーク=白の中間) */
+.button--sub-account {
+    background-color: #8a8a8a;
+    color: #fff;
+    border-color: #7a7a7a;
+}
+.dark .button--sub-account {
+    background-color: #6a6a6a;
+    color: #fff;
+    border-color: #5a5a5a;
+}
+
+/* サブアカウントのバッジ内の「サブ」+番号 (下端揃え) */
+.sub-account-badge {
+    display: inline-flex;
+    align-items: baseline;
+    line-height: 1;
+}
+.sub-account-badge__label {
+    font-size: 10px;
+}
+.sub-account-badge__num {
+    font-size: 13px;
+    margin-left: 1px;
+}
+
+/* プレイヤーページの「サブアカウント」ボタン */
+.button--sub-account-alt {
+    background-color: #fce38a;
+    color: #4a3b00;
+    border-color: #f2cf55;
+}
+.button--sub-account-alt:hover {
+    background-color: #f9db6d;
+    border-color: #ebc540;
+}
+.button--sub-account-alt:focus,
+.button--sub-account-alt:active {
+    background-color: #f6d55c;
+    border-color: #e3bc30;
+    box-shadow: 0 0 0 0.2rem rgba(252, 227, 138, 0.5);
+    outline: none;
+}
+
 .button--danger {
     background-color: #dc3545;
     border-color: #dc3545;

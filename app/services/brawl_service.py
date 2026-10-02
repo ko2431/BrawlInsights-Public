@@ -590,6 +590,25 @@ async def get_player_icon_from_db(tag: str, db: asyncpg.Connection) -> int | Non
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 
+async def get_player_summaries_from_db(tags: list[str], db: asyncpg.Connection) -> dict[str, dict]:
+    """データベースから、複数プレイヤーの名前とアイコンIDを1回のクエリでまとめて取得する。APIへのアクセスは行わない。
+
+    Args:
+        tags (list[str]): プレイヤータグのリスト
+        db (asyncpg.Connection): データベース接続
+
+    Returns:
+        dict[str, dict]: タグ → {"name": 名前, "icon_id": アイコンID}。DBに存在しないタグは含まれない。
+    """
+    if not tags:
+        return {}
+    try:
+        rows = await db.fetch("SELECT tag, name, icon_id FROM players WHERE tag = ANY($1::text[])", list(tags))
+    except asyncpg.PostgresError as e:
+        logger.warning(f"プレイヤー名・アイコンの一括取得中にエラーが発生しました: {e}")
+        return {}
+    return {row["tag"]: {"name": row["name"], "icon_id": row["icon_id"]} for row in rows}
+
 async def get_player_icon(tag: str) -> int:
     """APIにアクセスし、最新のプレイヤーのプレイヤーアイコンを取得する。プレイヤー認証システムに使う用。15秒間のキャッシュを使用する。
 

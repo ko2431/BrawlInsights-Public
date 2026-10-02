@@ -40,6 +40,8 @@ class User(Base):
     password = Column(Text, nullable=False)
     lang = Column(Text, nullable=False)
     main_account = Column(Text, ForeignKey('players.tag'), nullable=False)
+    sub_accounts = Column(JSONB, nullable=False, server_default='[]')
+    sub_accounts_limit = Column(Integer, nullable=False, server_default='1')
     secret_questions = Column(JSONB, nullable=False)
     saved_accounts = Column(JSONB, nullable=False, server_default='[]')
     saved_clubs = Column(JSONB, nullable=False, server_default='[]')
@@ -112,6 +114,13 @@ class User(Base):
         ),
         # なんでも掲示板の「@ユーザー名」検索（正規化後の完全一致）。式は text_search.search_normalize_sql と一致させること
         Index('idx_users_name_search_norm', text(search_normalize_sql('name'))),
+        # サブアカウントのタグからユーザーを逆引きする(ペナルティ同期・ユーザー名検索・管理画面検索)
+        Index('idx_users_sub_accounts', 'sub_accounts', postgresql_using='gin'),
+        Index('idx_users_main_account', 'main_account'),
+        CheckConstraint(
+            'sub_accounts_limit >= 1 AND sub_accounts_limit <= 9',
+            name='ck_users_sub_accounts_limit_range',
+        ),
     )
 
     # リレーションシップ
@@ -1953,8 +1962,8 @@ class WorkerTaskRun(Base):
 
 class MainAccountRewardClaim(Base):
     """
-    メインアカウント(ブロスタタグ)単位の報酬受け取り台帳。
-    同じメインアカウントを持つ複数ユーザー間で、トークン等の獲得上限を共有するために使う。
+    プレイヤーアカウント(ブロスタタグ)単位の報酬受け取り台帳。main_account列にはメイン・サブを問わずタグが入る。
+    同じタグを登録している複数ユーザー間で、トークン等の獲得上限を共有するために使う。
     period はデイリー報酬なら 'YYYY-MM-DD'(UTC)、1回限りの報酬なら 'once'。
     """
     __tablename__ = 'main_account_reward_claims'
@@ -1970,4 +1979,27 @@ class MainAccountRewardClaim(Base):
         PrimaryKeyConstraint('main_account', 'reward_key', 'period', name='pk_main_account_reward_claims'),
         CheckConstraint('count >= 0', name='ck_main_account_reward_claims_count_nonnegative'),
         Index('ix_main_account_reward_claims_updated_at', 'updated_at'),
+    )
+
+
+class UserPlayerAccountEvent(Base):
+    """
+    ユーザーのメイン・サブアカウント(プレイヤータグ)の登録・解除・入れ替えの履歴。
+    解除済みのタグもペナルティ時のブラックリスト対象にするため、および管理画面での調査用に残す。
+    """
+    __tablename__ = 'user_player_account_events'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    tag = Column(Text, nullable=False)
+    action = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('add_main', 'add_sub', 'remove', 'set_main', 'set_sub')",
+            name='ck_user_player_account_events_action',
+        ),
+        Index('ix_user_player_account_events_user_id_created_at', 'user_id', 'created_at'),
+        Index('ix_user_player_account_events_tag', 'tag'),
     )
