@@ -536,6 +536,8 @@
         }
 
         window.addEventListener('popstate', (event) => {
+            // モーダルを戻る操作で閉じた場合は一覧を読み込み直さない
+            if (window.BrawlInsightsModalBack?.consumePopState(event)) return;
             const fragment = getFragment(boardType);
             if (!fragment) return;
 

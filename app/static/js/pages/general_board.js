@@ -700,6 +700,8 @@
         }
 
         window.addEventListener('popstate', (event) => {
+            // モーダルを戻る操作で閉じた場合は一覧を読み込み直さない
+            if (window.BrawlInsightsModalBack?.consumePopState(event)) return;
             if (!window.generalBoardFragment) return;
             if (event.state?.generalBoard) {
                 const state = event.state.generalBoard;

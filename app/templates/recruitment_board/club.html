@@ -106,10 +106,10 @@
 </button>
 
 {# 投稿作成モーダル #}
-<div id="post-modal-overlay" class="post-modal-overlay">
+<div id="post-modal-overlay" data-back-closable class="post-modal-overlay">
     <div class="post-modal-content">
         <header class="post-modal-header">
-            <button id="modal-close-btn" class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+            <button id="modal-close-btn" data-back-close class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
             <button id="modal-post-btn" class="button button--primary post-button" disabled>{% if lang == "ja" %}投稿{% else %}Post{% endif %}</button>
         </header>
 
@@ -216,10 +216,10 @@
 </div>
 
 {# 通報モーダル #}
-<div id="report-modal-overlay" class="post-modal-overlay report-modal-overlay">
+<div id="report-modal-overlay" data-back-closable class="post-modal-overlay report-modal-overlay">
     <div class="post-modal-content report-modal-content">
         <header class="post-modal-header">
-            <button id="report-modal-cancel-btn" class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
+            <button id="report-modal-cancel-btn" data-back-close class="post-modal-close-btn">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
             <button id="report-modal-submit-btn" class="button button--primary post-button" disabled>{% if lang == "ja" %}通報{% else %}Report{% endif %}</button>
         </header>
         <div class="post-modal-body">
