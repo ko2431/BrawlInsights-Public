@@ -4,7 +4,6 @@ import asyncpg
 import datetime
 import statistics
 import math
-from itertools import groupby
 
 from app.services.player_account_service import build_player_account_options, resolve_user_player_tag
 from app.utils.utils import format_tag
@@ -26,6 +25,7 @@ from app.services.trophy_stats_service import (
 )
 from app.services.user_service import get_all_regions
 from app.utils.utils import get_first_thursdays, format_utc_date, get_icon_path, calc_ranked_season, group_brawlers_by_rarity
+from app.utils.utils import build_brawler_tier_groups, brawler_name_sort_key, get_brawler_display_name
 from app.utils.nav_context import build_nav_query
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError
 from app.services.map_mode_catalog import mode_icon_candidates

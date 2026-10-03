@@ -639,3 +639,92 @@ def group_brawlers_by_rarity(brawlers: list[Any], lang: str) -> tuple[list[dict[
             "brawlers": current_brawlers,
         })
     return groups, uncategorized
+
+
+# Tier表型表示(左にブロックを置く表示)用の、キャラクターのグループ分け
+# 日本語の行見出し。カタカナの各行の範囲 (濁音・半濁音・小書き文字を含む) と見出しの対応
+_KANA_ROW_RANGES: list[tuple[str, str, str]] = [
+    ("ァ", "オ", "あ"), # ァ〜オ
+    ("カ", "ゴ", "か"), # カ〜ゴ
+    ("サ", "ゾ", "さ"), # サ〜ゾ
+    ("タ", "ド", "た"), # タ〜ド
+    ("ナ", "ノ", "な"), # ナ〜ノ
+    ("ハ", "ポ", "は"), # ハ〜ポ
+    ("マ", "モ", "ま"), # マ〜モ
+    ("ャ", "ヨ", "や"), # ャ〜ヨ
+    ("ラ", "ロ", "ら"), # ラ〜ロ
+    ("ヮ", "ン", "わ"), # ヮ〜ン
+]
+_NAME_INDEX_ORDER_JA = ["#"] + [label for _, _, label in _KANA_ROW_RANGES]
+
+
+def _normalize_ja_name_for_sort(name: str) -> str:
+    """名前順の比較用に、ひらがなをカタカナへ揃え、「ヴ」を「ウ」として扱う。"""
+    kana = "".join(chr(ord(c) + 0x60) if "ぁ" <= c <= "ゖ" else c for c in name)
+    return kana.replace("ヴ", "ウ")
+
+
+def get_brawler_name_index_label(name: str, lang: str) -> str:
+    """名前順のブロック見出しを返す。日本語は「あ」「か」などの行、英語は頭文字。それ以外は「#」。"""
+    if not name:
+        return "#"
+    if lang == "ja":
+        first = _normalize_ja_name_for_sort(name)[0]
+        for start, end, label in _KANA_ROW_RANGES:
+            if start <= first <= end:
+                return label
+        return "#"
+    first = name[0].upper()
+    return first if "A" <= first <= "Z" else "#"
+
+
+def brawler_name_sort_key(name: str, lang: str) -> tuple[int, str]:
+    """名前順の並び替えキー。ブロック見出しの順 (「#」が先頭) と、ブロック内の名前順を両立させる。"""
+    label = get_brawler_name_index_label(name, lang)
+    if lang == "ja":
+        return (_NAME_INDEX_ORDER_JA.index(label), _normalize_ja_name_for_sort(name or ""))
+    return (0 if label == "#" else 1, (name or "").casefold())
+
+
+def get_brawler_display_name(brawler: Any, lang: str) -> str:
+    """表示言語に合わせたキャラクター名を返す (日本語名がなければ英語名)。"""
+    name_ja = getattr(brawler, "name_ja", None)
+    return (name_ja if lang == "ja" and name_ja else getattr(brawler, "name_en", None)) or ""
+
+
+def build_brawler_tier_groups(brawlers: list[Any], sort: str | None, lang: str) -> list[dict[str, Any]] | None:
+    """並び替え済みのキャラクターを、Tier表型表示のブロック単位にまとめる。
+
+    Args:
+        brawlers (list[Any]): 並び替え済みのキャラクター。rank_grade / rarity / name_ja / name_en を参照する。
+        sort (str | None): 並び順。None (スコア順), "name", "rarity_asc", "rarity_desc" の場合のみブロック分けする。
+        lang (str): 表示言語。
+
+    Returns:
+        list[dict[str, Any]] | None: ブロックのリスト。各ブロックは label (見出し文字), label_class (ブロックのクラス),
+            title (ブロックの説明), brawlers を持つ。ブロック分けしない並び順の場合はNone。
+    """
+    if not sort:
+        key_func = lambda b: getattr(b, "rank_grade", None)
+        make_group = lambda key: {"label": key, "label_class": f"brawler-card__rank-grade--{key}", "title": key}
+    elif sort == "name":
+        key_func = lambda b: get_brawler_name_index_label(get_brawler_display_name(b, lang), lang)
+        make_group = lambda key: {"label": key, "label_class": "tier-rank-label--index", "title": key}
+    elif sort in ("rarity_asc", "rarity_desc"):
+        rarity_labels = BRAWLER_RARITY_LABELS_JA if lang == "ja" else BRAWLER_RARITY_LABELS_EN
+        key_func = lambda b: getattr(b, "rarity", None)
+        make_group = lambda key: {
+            "label": "",
+            "label_class": f"tier-rank-label--rarity tier-rank-label--rarity-{key or 0}",
+            "title": rarity_labels.get(key, ""),
+        }
+    else:
+        return None
+
+    groups: list[dict[str, Any]] = []
+    for brawler in brawlers:
+        key = key_func(brawler)
+        if not groups or groups[-1]["key"] != key:
+            groups.append({"key": key, **make_group(key), "brawlers": []})
+        groups[-1]["brawlers"].append(brawler)
+    return groups

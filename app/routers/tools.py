@@ -44,6 +44,7 @@ from app.services.user_service import User, try_claim_tutorial_mission, sanitize
 from app.services.board_service import get_or_create_theme_brawler_post, get_or_create_theme_map_post, get_messages
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.utils.utils import confirm_tag, format_tag, format_utc_date, format_utc_datetime
+from app.utils.utils import build_brawler_tier_groups, brawler_name_sort_key, get_brawler_display_name
 from app.utils.nav_context import nav_template_vars, resolve_nav_context
 from app.services.map_mode_catalog import ensure_catalog, get_map_by_id, get_map_names_by_id, get_mode_slug_to_id, get_mode_by_id, get_mode_theme, get_mode_board_colors, mode_icon_candidates, MODE_THEME_BY_ID
 from app.services.trophy_stats_service import get_trophy_stats
@@ -1288,21 +1289,18 @@ async def get_map(
                     map_id=id,
                     use_cache=use_cache,
                 )
-                if not sort:
-                    grouped_brawler_stats = [
-                        {"rank_grade": rank, "brawlers": list(brawlers)}
-                        for rank, brawlers in groupby(brawler_stats, key=lambda b: b.rank_grade)
-                    ]
-                elif sort == "use_rate":
+                if sort == "use_rate":
                     brawler_stats.sort(key=lambda b: -b.use_rate)
                 elif sort == "brawler_id":
                     brawler_stats.sort(key=lambda b: b.brawler_id)
                 elif sort == "name":
-                    brawler_stats.sort(key=lambda b: b.name_ja if lang == "ja" else b.name_en)
+                    brawler_stats.sort(key=lambda b: brawler_name_sort_key(get_brawler_display_name(b, lang), lang))
                 elif sort == "rarity_asc":
                     brawler_stats.sort(key=lambda b: (b.rarity is None, b.rarity, b.brawler_id))
                 elif sort == "rarity_desc":
                     brawler_stats.sort(key=lambda b: (b.rarity is None, b.rarity, -b.brawler_id), reverse=True)
+                # スコア順・名前順・レア度順の場合は、左にブロックを置くTier表型で表示するためグループ化
+                grouped_brawler_stats = build_brawler_tier_groups(brawler_stats, sort, lang)
     except Exception as e:
         logger.error(f"マップページの統計取得中にエラー (id={id}): {e}", exc_info=True)
 

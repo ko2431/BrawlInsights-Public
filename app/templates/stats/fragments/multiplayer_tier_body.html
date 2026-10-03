@@ -9,12 +9,12 @@
         {% endif %}
     </p>
 </div>
-{% elif not use_table and not current_sort %}
+{% elif not use_table and grouped_brawler_stats %}
 <div class="brawler-tier-list">
     {% for group in grouped_brawler_stats %}
     <div class="tier-row">
-        <div class="tier-rank-label brawler-card__rank-grade--{{ group.rank_grade }}">
-            <p>{{ group.rank_grade }}</p>
+        <div class="tier-rank-label {{ group.label_class }}" title="{{ group.title }}">
+            <p>{{ group.label }}</p>
         </div>
         <div class="brawler-grid">
             {% for brawler in group.brawlers %}

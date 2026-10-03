@@ -125,15 +125,14 @@
         </p>
     </div>
 
-    {% if not use_table and not current_sort %}
-    {# ^ 4. Tier表 (デフォルト) #}
+    {% if not use_table and grouped_brawler_stats %}
+    {# ^ 4. Tier表 (スコア順・名前順・レア度順) #}
     <div class="brawler-tier-list">
         {% for group in grouped_brawler_stats %}
         <div class="tier-row">
-            {# 左側にランクグレードのラベルを配置 #}
-            {# CSSのスタイルを再利用するために、既存のクラスを適用します #}
-            <div class="tier-rank-label brawler-card__rank-grade--{{ group.rank_grade }}">
-                <p>{{ group.rank_grade }}</p>
+            {# 左側にランクグレード・名前の頭文字・レア度色のブロックを配置 #}
+            <div class="tier-rank-label {{ group.label_class }}" title="{{ group.title }}">
+                <p>{{ group.label }}</p>
             </div>
             
             {# 右側にそのランクのキャラクターグリッドを配置 #}
@@ -160,7 +159,7 @@
         {% endfor %}
     </div>
     {% elif not use_table %}
-    {# ^ 5. キャラクターリスト (use_tableはオフだが、並び順がデフォルトの総合スコア順ではない場合のみ表示) #}
+    {# ^ 5. キャラクターリスト (use_tableはオフで、内部ID順・使用率順の場合のみ表示) #}
     <div class="brawler-grid">
         {% for brawler in brawler_stats %}
         <a class="brawler-card-link" href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.brawler_id) }}?tab=stats&from=ranked_tier">

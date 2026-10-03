@@ -114,6 +114,25 @@
     margin: 0; /* tier-rank-label内のpタグに不要なマージンが入らないように調整します */
 }
 
+/* > 名前順の頭文字ブロック (色は既定の灰色のまま) */
+.tier-rank-label--index {
+    background-color: rgba(170, 170, 170, 0.8);
+}
+
+/* > レア度順のブロック (文字を入れないので細くし、各レア度のテーマカラーで塗る) */
+.tier-rank-label--rarity {
+    width: 14px;
+    border-radius: 6px;
+}
+.tier-rank-label--rarity-0 { background-color: rgba(170, 170, 170, 0.8); }
+.tier-rank-label--rarity-1 { background-color: #6ed7dd; }
+.tier-rank-label--rarity-2 { background-color: #82d67f; }
+.tier-rank-label--rarity-3 { background-color: #7cb2fe; }
+.tier-rank-label--rarity-4 { background-color: #e084ff; }
+.tier-rank-label--rarity-5 { background-color: #fd8d8d; }
+.tier-rank-label--rarity-6 { background-color: #fff385; }
+.tier-rank-label--rarity-7 { background-color: #fece8b; }
+
 .brawler-grid {
     display: grid;
     gap: 5px; /* キャラクターカード間の隙間 */

@@ -73,9 +73,8 @@
         <p class="info-block__text">{% if lang == "ja" %}各キャラクターをクリックすると、そのキャラクターの図鑑ページに移動します。図鑑ページでは、各キャラクターの<b>限定スキンを含むスキン一覧</b>や<b>スキンの使用率</b>、<b>詳細ステータス</b>や<b>おすすめガジェット／スターパワー／ギア</b>、<b>おすすめモード／マップ</b>など、さまざまな情報を閲覧できます。データは毎日自動で更新されます。{% else %}You can browse various information such as <b>skin catalog</b>, <b>skin usage rate</b>, <b>detailed stats</b>, <b>recommended gadgets/star powers/gears</b>, and <b>recommended modes/maps</b> for each brawler. The data is automatically updated daily. Click on a brawler to go to their guide page.{% endif %}</p>
     </div>
 
-    {# ^ 4. キャラクターグリッド #}
-    <div class="brawler-grid" id="brawlerGrid">
-        {% for brawler in brawlers %}
+    {# ^ 4. キャラクター一覧 #}
+    {% macro brawler_card(brawler) %}
         <a class="brawler-card-link"
            href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.id) }}?tab=tools&from=guide_menu"
            data-name-en="{{ brawler.name_en }}"
@@ -91,11 +90,30 @@
                 <div class="brawler-card__name">{{ brawler.name_ja if brawler.name_ja and lang == "ja" else brawler.name_en }}</div>
             </div>
         </a>
-        {% endfor %}
-        <div id="brawlerNoResults" class="brawler-grid__no-results" hidden>
-            {% if lang == "ja" %}該当するキャラクターは見つかりませんでした。{% else %}No matching brawlers were found.{% endif %}
+    {% endmacro %}
+    {% set no_results_text %}{% if lang == "ja" %}該当するキャラクターは見つかりませんでした。{% else %}No matching brawlers were found.{% endif %}{% endset %}
+    {% if grouped_brawlers %}
+    {# ^ 4-A. 名前順・レア度順の場合は、左にブロックを置くTier表型で表示 #}
+    <div class="brawler-tier-list" id="brawlerGrid">
+        {% for group in grouped_brawlers %}
+        <div class="tier-row">
+            <div class="tier-rank-label {{ group.label_class }}" title="{{ group.title }}">
+                <p>{{ group.label }}</p>
+            </div>
+            <div class="brawler-grid">
+                {% for brawler in group.brawlers %}{{ brawler_card(brawler) }}{% endfor %}
+            </div>
         </div>
+        {% endfor %}
+        <div id="brawlerNoResults" class="brawler-grid__no-results" hidden>{{ no_results_text }}</div>
     </div>
+    {% else %}
+    {# ^ 4-B. 内部ID順の場合は、ブロックなしのグリッドで表示 #}
+    <div class="brawler-grid" id="brawlerGrid">
+        {% for brawler in brawlers %}{{ brawler_card(brawler) }}{% endfor %}
+        <div id="brawlerNoResults" class="brawler-grid__no-results" hidden>{{ no_results_text }}</div>
+    </div>
+    {% endif %}
 
     {# バナー広告 #}
     {% include "components/ad_banner.html" %}
@@ -149,6 +167,12 @@
 
                 card.style.display = isVisible ? '' : 'none';
                 if (isVisible) visibleCount += 1;
+            });
+
+            // Tier表型表示の場合、表示中のキャラがいないブロックは行ごと隠す
+            brawlerGrid.querySelectorAll('.tier-row').forEach((row) => {
+                const hasVisibleCard = Array.from(row.querySelectorAll('.brawler-card-link')).some((card) => card.style.display !== 'none');
+                row.style.display = hasVisibleCard ? '' : 'none';
             });
 
             const isEmptyResult = visibleCount === 0;

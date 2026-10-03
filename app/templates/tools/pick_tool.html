@@ -229,63 +229,38 @@
                 </div>
                 {# ^ 2-2. キャラクター表示部 #}
                 <div x-show="phase !== 'error' && phase !== 'loading'">
-                    {# Tier表形式 (おすすめ度順の時) #}
-                    <template x-if="sortType === 'suggested'">
-                        <div class="brawler-tier-list" style="width: 100%; margin: 0;">
-                            <template x-for="group in groupedBrawlers" :key="group.rank_grade">
-                                <div class="tier-row">
-                                    <div class="tier-rank-label" :class="'brawler-card__rank-grade--' + group.rank_grade">
-                                        <p x-text="group.rank_grade"></p>
-                                    </div>
-                                    <div class="brawler-grid" :class="{'is-single-result': displayedBrawlers.length === 1 && searchQuery.trim() !== ''}">
-                                        <template x-for="brawlerStat in group.brawlers" :key="brawlerStat.brawler_id">
-                                            <div class="brawler-card" :class="'brawler-card--rarity-' + brawlerStat.rarity" @click="selectBrawler(brawlerStat)" style="cursor: pointer;">
-                                                <img :src="'/static/images/brawler_borderless_portraits/' + brawlerStat.brawler_id + '.png'" class="brawler-card__brawler-portrait" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
-                                                <div class="brawler-card__score" x-text="brawlerStat.display_score.toFixed(1)"></div>
-                                                <div class="brawler-card__rank-grade" :class="'brawler-card__rank-grade--' + brawlerStat.rank_grade">
-                                                    <p x-text="brawlerStat.rank_grade"></p>
-                                                </div>
-                                                <div class="brawler-card__name" x-text="lang === 'ja' && brawlerStat.name_ja ? brawlerStat.name_ja : brawlerStat.name_en"></div>
+                    {# Tier表形式 (おすすめ度順はランク、名前順は頭文字、レア度順はレア度色のブロックを左に置く) #}
+                    <div class="brawler-tier-list" style="width: 100%; margin: 0;">
+                        <template x-for="group in groupedBrawlers" :key="sortType + ':' + group.key">
+                            <div class="tier-row">
+                                <div class="tier-rank-label" :class="group.labelClass" :title="group.title">
+                                    <p x-text="group.label"></p>
+                                </div>
+                                <div class="brawler-grid" :class="{'is-single-result': displayedBrawlers.length === 1 && searchQuery.trim() !== ''}">
+                                    <template x-for="brawlerStat in group.brawlers" :key="brawlerStat.brawler_id">
+                                        <div class="brawler-card" :class="'brawler-card--rarity-' + brawlerStat.rarity" @click="selectBrawler(brawlerStat)" style="cursor: pointer;">
+                                            <img :src="'/static/images/brawler_borderless_portraits/' + brawlerStat.brawler_id + '.png'" class="brawler-card__brawler-portrait" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
+                                            <div class="brawler-card__score" x-text="brawlerStat.display_score.toFixed(1)"></div>
+                                            <div class="brawler-card__rank-grade" :class="'brawler-card__rank-grade--' + brawlerStat.rank_grade">
+                                                <p x-text="brawlerStat.rank_grade"></p>
                                             </div>
-                                        </template>
-                                        {# 検索結果が1件のみの時の確定カード #}
-                                        <template x-if="displayedBrawlers.length === 1 && searchQuery.trim() !== ''">
-                                            <div class="pick-tool-enter-confirm-card" @click="selectBrawler(displayedBrawlers[0])" 
-                                                 x-transition:leave="pick-tool-enter-confirm-card-out">
-                                                <span class="pick-tool-enter-confirm-card__arrow">◀︎</span>
-                                                <span class="pick-tool-enter-confirm-card__text">
-                                                    {% if lang == 'ja' %}<b>Enter</b>を押して<br>このキャラを選択{% else %}Press <b>Enter</b> to<br>select this brawler{% endif %}
-                                                </span>
-                                            </div>
-                                        </template>
-                                    </div>
+                                            <div class="brawler-card__name" x-text="lang === 'ja' && brawlerStat.name_ja ? brawlerStat.name_ja : brawlerStat.name_en"></div>
+                                        </div>
+                                    </template>
+                                    {# 検索結果が1件のみの時の確定カード #}
+                                    <template x-if="displayedBrawlers.length === 1 && searchQuery.trim() !== ''">
+                                        <div class="pick-tool-enter-confirm-card" @click="selectBrawler(displayedBrawlers[0])" 
+                                             x-transition:leave="pick-tool-enter-confirm-card-out">
+                                            <span class="pick-tool-enter-confirm-card__arrow">◀︎</span>
+                                            <span class="pick-tool-enter-confirm-card__text">
+                                                {% if lang == 'ja' %}<b>Enter</b>を押して<br>このキャラを選択{% else %}Press <b>Enter</b> to<br>select this brawler{% endif %}
+                                            </span>
+                                        </div>
+                                    </template>
                                 </div>
-                            </template>
-                        </div>
-                    </template>
-                    {# グリッド形式 (おすすめ度順以外の時) #}
-                    <template x-if="sortType !== 'suggested'">
-                        <div class="brawler-grid" style="width: 100%; margin: 0;" :class="{'is-single-result': displayedBrawlers.length === 1 && searchQuery.trim() !== ''}">
-                            {# x-forの対象を displayedBrawlers に変更 #}
-                            <template x-for="brawlerStat in displayedBrawlers" :key="brawlerStat.brawler_id">
-                                <div class="brawler-card" :class="'brawler-card--rarity-' + brawlerStat.rarity" @click="selectBrawler(brawlerStat)" style="cursor: pointer;">
-                                    <img :src="'/static/images/brawler_borderless_portraits/' + brawlerStat.brawler_id + '.png'" class="brawler-card__brawler-portrait" onerror="this.onerror=null; this.src='/static/images/player_icon/0.png';">
-                                    <div class="brawler-card__score" x-text="brawlerStat.display_score.toFixed(1)"></div>
-                                    <div class="brawler-card__rank-grade" :class="'brawler-card__rank-grade--' + brawlerStat.rank_grade">
-                                        <p x-text="brawlerStat.rank_grade"></p>
-                                    </div>
-                                    <div class="brawler-card__name" x-text="lang === 'ja' && brawlerStat.name_ja ? brawlerStat.name_ja : brawlerStat.name_en"></div>
-                                </div>
-                            </template>
-                            {# 検索結果が1件のみの時の確定カード #}
-                            <template x-if="displayedBrawlers.length === 1 && searchQuery.trim() !== ''">
-                                <div class="pick-tool-enter-confirm-card" @click="selectBrawler(displayedBrawlers[0])" 
-                                     x-transition:leave="pick-tool-enter-confirm-card-out">
-                                    {% if lang == 'ja' %}<b>Enter</b>を押して<br>このキャラを選択{% else %}Press <b>Enter</b> to<br>select this brawler{% endif %}
-                                </div>
-                            </template>
-                        </div>
-                    </template>
+                            </div>
+                        </template>
+                    </div>
                 </div>
                 {# ^ 2-3. エラー画面 #}
                 <div class="pick-tool-brawlers-start-menu__container" x-show="phase === 'error'">
@@ -1042,8 +1017,13 @@
                     // ソート
                     switch (this.sortType) {
                         case 'name':
-                            filtered.sort((a, b) => (this.lang === 'ja' ? (a.name_ja || a.name_en) : a.name_en)
-                                .localeCompare(this.lang === 'ja' ? (b.name_ja || b.name_en) : b.name_en));
+                            // 名前順は、ブロック見出し (「#」が先頭) の順を優先し、ブロック内は名前順にする
+                            filtered.sort((a, b) => {
+                                const nameA = this.getDisplayName(a);
+                                const nameB = this.getDisplayName(b);
+                                return this.nameIndexOrder(this.getNameIndexLabel(nameA)) - this.nameIndexOrder(this.getNameIndexLabel(nameB))
+                                    || this.normalizeJaName(nameA).localeCompare(this.normalizeJaName(nameB));
+                            });
                             break;
                         case 'rarity_asc':
                             filtered.sort((a, b) => (a.rarity ?? 99) - (b.rarity ?? 99) || a.brawler_id - b.brawler_id);
@@ -1060,18 +1040,70 @@
                 },
 
                 /**
-                * Tier表形式表示のために、キャラクターをランクでグループ化する算出プロパティ
+                * 表示言語に合わせたキャラクター名を返す
+                */
+                getDisplayName(brawler) {
+                    return (this.lang === 'ja' && brawler.name_ja ? brawler.name_ja : brawler.name_en) || '';
+                },
+
+                /**
+                * 名前順の比較用に、ひらがなをカタカナへ揃え、「ヴ」を「ウ」として扱う
+                */
+                normalizeJaName(name) {
+                    return this.lang === 'ja' ? this.hiraToKana(name).replace(/ヴ/g, 'ウ') : name.toLowerCase();
+                },
+
+                /**
+                * 名前順のブロック見出しを返す (日本語は「あ」「か」などの行、英語は頭文字。それ以外は「#」)
+                */
+                getNameIndexLabel(name) {
+                    if (!name) return '#';
+                    if (this.lang === 'ja') {
+                        const code = this.normalizeJaName(name).charCodeAt(0);
+                        // カタカナの各行の終端 (濁音・半濁音・小書き文字を含む): オ, ゴ, ゾ, ド, ノ, ポ, モ, ヨ, ロ, ン
+                        const rowEnds = [0x30AA, 0x30B4, 0x30BE, 0x30C9, 0x30CE, 0x30DD, 0x30E2, 0x30E8, 0x30ED, 0x30F3];
+                        if (code < 0x30A1 || code > 0x30F3) return '#';
+                        return 'あかさたなはまやらわ'[rowEnds.findIndex(end => code <= end)];
+                    }
+                    const first = name[0].toUpperCase();
+                    return first >= 'A' && first <= 'Z' ? first : '#';
+                },
+
+                /**
+                * 名前順のブロック見出しの並び順 (「#」が先頭)
+                */
+                nameIndexOrder(label) {
+                    if (label === '#') return -1;
+                    return this.lang === 'ja' ? 'あかさたなはまやらわ'.indexOf(label) : label.charCodeAt(0);
+                },
+
+                /**
+                * Tier表形式表示のために、キャラクターをブロック単位でグループ化する算出プロパティ
+                * おすすめ度順はランク、名前順は頭文字、レア度順はレア度でまとめる
                 */
                 get groupedBrawlers() {
-                    if (this.sortType !== 'suggested') return [];
-                    // displayedBrawlersは既にフィルタリングとソートが適用されている
+                    const rarityLabels = this.lang === 'ja'
+                        ? { 1: 'ノーマル', 2: 'レア', 3: 'スーパーレア', 4: 'ハイパーレア', 5: 'ウルトラレア', 6: 'レジェンドレア', 7: 'ウルトラレジェンドレア' }
+                        : { 1: 'Normal', 2: 'Rare', 3: 'Super Rare', 4: 'Epic', 5: 'Mythic', 6: 'Legendary', 7: 'Ultra Legendary' };
+                    let keyOf, makeGroup;
+                    if (this.sortType === 'name') {
+                        keyOf = b => this.getNameIndexLabel(this.getDisplayName(b));
+                        makeGroup = key => ({ label: key, labelClass: 'tier-rank-label--index', title: key });
+                    } else if (this.sortType === 'rarity_asc' || this.sortType === 'rarity_desc') {
+                        keyOf = b => b.rarity ?? 0;
+                        makeGroup = key => ({ label: '', labelClass: 'tier-rank-label--rarity tier-rank-label--rarity-' + key, title: rarityLabels[key] || '' });
+                    } else {
+                        keyOf = b => b.rank_grade;
+                        makeGroup = key => ({ label: key, labelClass: 'brawler-card__rank-grade--' + key, title: key });
+                    }
+                    // displayedBrawlersは既にフィルタリングとソートが適用されているので、連続する同じキーをまとめる
                     return this.displayedBrawlers.reduce((acc, brawler) => {
-                        const rank = brawler.rank_grade;
-                        const group = acc.find(g => g.rank_grade === rank);
-                        if (group) {
-                            group.brawlers.push(brawler);
+                        const key = keyOf(brawler);
+                        const last = acc[acc.length - 1];
+                        if (last && last.key === key) {
+                            last.brawlers.push(brawler);
                         } else {
-                            acc.push({ rank_grade: rank, brawlers: [brawler] });
+                            acc.push({ key, ...makeGroup(key), brawlers: [brawler] });
                         }
                         return acc;
                     }, []);
