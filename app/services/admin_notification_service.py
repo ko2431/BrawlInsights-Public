@@ -57,6 +57,8 @@ ADMIN_PATH_SLUG_TO_CATEGORY = {
     "skins": "skins",
     "modes": "modes",
     "maps": "maps",
+    "map-rotation": "map_rotation",
+    "ranked-maps": "ranked_maps",
     "titles": "titles",
     "frames": "frames",
     "accessories": "accessories",
