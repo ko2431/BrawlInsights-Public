@@ -22,6 +22,7 @@ data/
 *.db-wal
 *.sqlite3
 *.gz
+event_spray_sheets/
 
 # ログファイル
 *.log
