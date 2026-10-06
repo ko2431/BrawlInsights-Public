@@ -11,7 +11,7 @@ import asyncpg
 from app.core.cache import delete_cache, get_cache, get_redis, set_cache
 from app.core.logger import logger
 from app.core.admin_permissions import visible_notification_categories
-from app.db.db import get_db_connection_for_bg_task
+from app.db.db import get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning
 
 ADMIN_NOTIFICATION_PAGE_SIZE = 20
 ADMIN_NOTIFICATION_BADGE_TTL = 60
@@ -310,6 +310,10 @@ def _default_event_levels() -> dict[str, int]:
 
 
 def _log_internal(message: str, exc: BaseException | None = None) -> None:
+    # 接続枯渇中は WARNING ログごとに通知の発行が失敗するため、トレースバックなしで間引く
+    if isinstance(exc, Exception) and is_transient_pg_error(exc):
+        log_transient_pg_warning(message, extra={"skip_admin_notification": True})
+        return
     logger.warning(
         message,
         exc_info=exc is not None,

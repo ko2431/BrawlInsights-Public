@@ -14,7 +14,11 @@
 {% block content %}
 <div class="error-page__container"> {# ページ全体のコンテナ #}
     <h1 class="section-title">{% if lang == "ja" %}サーバーエラー{% else %}Server Error{% endif %} ({% if lang == "ja" %}エラーコード{% else %}Error Code{% endif %}: {{ error_code }})</h1>
+    {% if error_code == 503 %}
+    <p class="error__text">{% if lang == "ja" %}アクセスが集中しているため、ページを表示できませんでした。少し時間をおいてから再読み込みしてください。{% else %}The server is busy right now. Please wait a moment and reload the page.{% endif %}</p>
+    {% else %}
     <p class="error__text">{% if lang == "ja" %}申し訳ありませんが、サーバーエラーが発生しました。{% else %}Sorry, a server error has occurred.{% endif %}</p>
+    {% endif %}
     <p class="error__text error__text-link"><a href="{{ url_for('home', lang=lang) }}">{% if lang == "ja" %}ホームに戻る{% else %}Back to Home{% endif %}</a></p>
 </div>
 {% endblock %}

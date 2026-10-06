@@ -1,6 +1,7 @@
 """特別報酬リンクの検証・在庫・配布。"""
 from __future__ import annotations
 
+import asyncio
 import datetime
 import ipaddress
 import re
@@ -11,6 +12,7 @@ import asyncpg
 
 from app.core.cache import delete_cache, get_cache, get_redis, set_cache
 from app.core.logger import logger
+from app.db.db import get_db_connection_for_bg_task, load_serialized_within_request_timeout
 from app.services.admin_notification_service import (
     clip_admin_notification_text,
     emit_admin_notification,
@@ -25,12 +27,6 @@ VOUCHER_HOST = "link.brawlstars.com"
 VOUCHER_PATH_PREFIX = "/voucher/"
 HOME_BANNERS_CACHE_KEY = "special_reward:home_banners"
 HOME_BANNERS_CACHE_TTL = 30
-LINK_TYPES = frozenset({"single_unlimited", "single_limited", "link_set"})
-FINITE_TYPES = frozenset({"single_limited", "link_set"})
-BANNER_COLORS = frozenset({"red", "orange", "yellow", "green", "blue", "purple"})
-DEFAULT_BANNER_COLOR = "blue"
-SOURCE_HOME = "home_banner"
-SOURCE_MINIGAME = "minigame"
 # [この部分は公開用リポジトリでは非公開にされています]
 
 _JST = datetime.timezone(datetime.timedelta(hours=9))

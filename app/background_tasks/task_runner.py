@@ -23,7 +23,12 @@ from app.background_tasks.task_registry import (
 from app.core.cache import get_redis, is_transient_redis_error, log_transient_redis_warning
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.db import expire_stale_pool_connections, get_db_connection_for_bg_task, is_transient_pg_error
+from app.db.db import (
+    expire_stale_pool_connections,
+    get_db_connection_for_bg_task,
+    is_transient_pg_error,
+    log_transient_pg_warning,
+)
 
 PLAYER_UPDATE_START_DELAY_SEC = 30
 SHUTDOWN_TIMEOUT_SEC = 45.0
@@ -52,6 +57,16 @@ _heavy_run_id: int | None = None
 
 def _is_transient_worker_error(e: Exception) -> bool:
     return is_transient_pg_error(e) or is_transient_redis_error(e)
+
+
+def _log_ledger_error(message: str, e: Exception) -> None:
+    """台帳の定期的な読み書きの失敗を記録する。DB/Redis の一時障害中は数秒おきに繰り返されるため間引く。"""
+    if is_transient_pg_error(e):
+        log_transient_pg_warning(message)
+    elif is_transient_redis_error(e):
+        log_transient_redis_warning(message)
+    else:
+        logger.error(message, exc_info=True)
 
 
 async def _run_with_transient_retry(task_key: str, operation):
@@ -327,7 +342,7 @@ async def recover_stale_runs() -> int:
         logger.error("worker_task_runs テーブルがありません。マイグレーションを適用してください。")
         return 0
     except Exception as e:
-        logger.error(f"停滞中タスクの回収に失敗しました: {e}", exc_info=True)
+        _log_ledger_error(f"停滞中タスクの回収に失敗しました: {e}", e)
         return 0
 
 
@@ -408,7 +423,7 @@ async def enqueue_task(
         logger.error("worker_task_runs テーブルがありません。マイグレーションを適用してください。")
         return EnqueueResult(False, None, "missing_table")
     except Exception as e:
-        logger.error(f"タスク '{task_key}' のキュー追加に失敗しました: {e}", exc_info=True)
+        _log_ledger_error(f"タスク '{task_key}' のキュー追加に失敗しました: {e}", e)
         return EnqueueResult(False, None, "error")
 
 
@@ -630,7 +645,7 @@ async def run_recorded_interval_task(task_key: str) -> None:
         logger.debug(f"タスク '{task_key}' は他で実行中のため定期実行をスキップします。")
         return
     except Exception as e:
-        logger.error(f"短周期タスク '{task_key}' の台帳更新に失敗しました: {e}", exc_info=True)
+        _log_ledger_error(f"短周期タスク '{task_key}' の台帳更新に失敗しました: {e}", e)
         return
 
     if run_id is None:

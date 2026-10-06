@@ -40,6 +40,12 @@ class Settings:
     DB_USER: str = os.getenv("DB_USER", "brawl_insights_user")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", None)
     DB_NAME: str = os.getenv("DB_NAME", "brawl_insights_db")
+    # Webアプリ1プロセスあたりのDBコネクションプール。全サーバー・全プロセスの max の合計を
+    # PostgreSQL の max_connections (本番: 200) より十分小さく保つこと (psql やバックアップ用の枠も残す)
+    DB_POOL_MIN_SIZE: int = int(os.getenv("DB_POOL_MIN_SIZE", 2))
+    DB_POOL_MAX_SIZE: int = int(os.getenv("DB_POOL_MAX_SIZE", 12))
+    # リクエスト処理中にプールの空きを待つ最大秒数。超えたら 503 を返す
+    DB_POOL_ACQUIRE_TIMEOUT: float = float(os.getenv("DB_POOL_ACQUIRE_TIMEOUT", 10))
     HOME_IP: str | None = os.getenv("HOME_IP")
     
     # セッションクッキーをHTTPS経由でのみ送信するかどうか

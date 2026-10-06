@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.logging_config import setup_logger, get_log_extra_info
 from app.core.logger import logger
 from app.core.cache import connect_redis, close_redis, set_cache, get_cache, is_transient_redis_error, log_transient_redis_warning
-from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning
+from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_shared_db_if_logged_in, get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning, PoolAcquireTimeoutError
 # [この部分は公開用リポジトリでは非公開にされています]
 
     # [この部分は公開用リポジトリでは非公開にされています]
@@ -139,7 +139,8 @@ app.add_middleware(
 #* ホームページエンドポイント
 #* /---*---*---*---*---*---*---*---*/
 @app.get("/{lang}", name="home") # name="home" を確認 (url_for用)
-async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get_shared_db)):
+async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depends(get_shared_db_if_logged_in)):
+    # 未ログイン時は db が None。お知らせ・バナーはキャッシュから返し、DB接続を確保しない
     if lang not in ["ja", "en"]:
         # サポート外言語はデフォルト(例: ja)へリダイレクト
         return RedirectResponse(url=request.url_for('home', lang='ja'), status_code=status.HTTP_307_TEMPORARY_REDIRECT)
@@ -147,11 +148,10 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
     # お知らせ(最初の3件)を取得。ただしプラットフォーム指定のお知らせは該当プラットフォームのみに表示
     platform = getattr(request.state, "platform", "unknown")
     try:
-        all_announcements = await get_announcements(db)
+        announcements = await get_home_announcements(platform)
     except DataBaseError as e:
         logger.error(f"アナウンス一覧取得中にデータベースエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="データベースエラー")
-    announcements = select_announcements_for_display(all_announcements, platform, limit=3)
     
     current_login_user: User | None = getattr(request.state, "current_user", None)
     
@@ -324,7 +324,10 @@ async def home(request: Request, lang: str, db: asyncpg.Connection = Depends(get
             db, user_id=current_login_user.id if current_login_user else None
         )
     except Exception as e:
-        logger.warning(f"ホーム特別報酬バナーの取得中にエラー: {e}", exc_info=True)
+        if is_transient_pg_error(e):
+            log_transient_pg_warning(f"ホーム特別報酬バナーの取得中にエラー: {e}")
+        else:
+            logger.warning(f"ホーム特別報酬バナーの取得中にエラー: {e}", exc_info=True)
 
     context = {
         "request": request,
@@ -496,9 +499,39 @@ async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
 #* /---*---*---*---*---*---*---*---*/
 #* 一般的な Exception を捕捉するハンドラ (予期せぬエラー)
 #* /---*---*---*---*---*---*---*---*/
+def _transient_error_response(request: Request, exc: Exception) -> Response:
+    """DB接続枯渇などの一時障害。ミドルウェアが重なってトレースバックが1件数百行になるため、間引いて1行で記録する。"""
+    lang = request.path_params.get("lang", "ja")
+    message = f"一時的なDB/Redis障害のためリクエストを処理できませんでした (503): Path: {request.url.path}, Error: {exc}"
+    if is_transient_pg_error(exc):
+        log_transient_pg_warning(message)
+    else:
+        log_transient_redis_warning(message)
+    return templates.TemplateResponse(
+        "error/server_error.html",
+        {"request": request, "lang": lang, "error_code": 503, "error_detail": "一時的にアクセスが集中しています。", "is_error_page": True},
+        status_code=503,
+        headers={"Retry-After": "30"},
+    )
+
+
+# Exception 用ハンドラの後は ServerErrorMiddleware が例外を再送出し、uvicorn も同じトレースバックを出力する。
+# 接続枯渇はクラスを指定して内側の ExceptionMiddleware で処理を終え、再送出させない。
+async def transient_db_exception_handler(request: Request, exc: Exception):
+    return _transient_error_response(request, exc)
+
+for _transient_exc_class in (PoolAcquireTimeoutError, asyncpg.TooManyConnectionsError, asyncpg.CannotConnectNowError):
+    app.add_exception_handler(_transient_exc_class, transient_db_exception_handler)
+
+
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     lang = request.path_params.get("lang", "ja") # URLから言語コードを取得、なければデフォルト
+    root_exc: BaseException = exc
+    while isinstance(root_exc, BaseExceptionGroup) and len(root_exc.exceptions) == 1:
+        root_exc = root_exc.exceptions[0]
+    if isinstance(root_exc, Exception) and (is_transient_pg_error(root_exc) or is_transient_redis_error(root_exc)):
+        return _transient_error_response(request, root_exc)
     logger.warning(f"予期せぬエラーが発生しました: Path: {request.url.path}, Error: {exc}", exc_info=True)
     return templates.TemplateResponse(
         "error/server_error.html", # サーバーエラーページ

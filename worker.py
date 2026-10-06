@@ -106,7 +106,7 @@ async def main():
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, handle_shutdown_signal, sig, None)
 
-    await connect_to_db()
+    await connect_to_db(max_size=15)
     await connect_redis()
     # [この部分は公開用リポジトリでは非公開にされています]
 
