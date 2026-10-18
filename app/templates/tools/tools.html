@@ -44,7 +44,8 @@
     {'href': url_for('reward_calc', lang=lang), 'image': url_for('static', path='/images/banners/brawlpass_calc_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/brawlpass_calc_banner_slim_' + lang + '.png'), 'alt': '報酬量計算機'},
     {'href': url_for('trophy_reward_calc', lang=lang), 'image': url_for('static', path='/images/banners/trophy_reward_banner_' + lang + '.webp'), 'slim': url_for('static', path='/images/banners/trophy_reward_banner_slim_' + lang + '.webp'), 'alt': 'トロフィー目標報酬計算機' if lang == 'ja' else 'Trophy Road Reward Calculator'},
 ] %}
-{% set others_banners = [
+{# 大会開催ツールのバナーは、ルーターから渡されたときだけ先頭に出す（段階公開のゲート付き） #}
+{% set others_banners = ([tournament_banner] if tournament_banner else []) + [
     {'href': url_for('brawl_videos', lang=lang), 'image': url_for('static', path='/images/banners/brawl_videos_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/brawl_videos_banner_slim_' + lang + '.png'), 'alt': 'ブロスタ動画'},
     {'href': url_for('app_faq', lang=lang), 'image': url_for('static', path='/images/banners/app_faq_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/app_faq_banner_slim_' + lang + '.png'), 'alt': 'アプリFAQ'},
 ] %}

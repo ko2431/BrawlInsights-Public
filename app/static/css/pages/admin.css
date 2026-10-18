@@ -1043,10 +1043,11 @@ a.admin-notification-card--unread:hover {
 }
 
 .catalog-note {
+    display: block;
     font-size: 13px;
     color: var(--color-777);
     margin: 0 0 10px;
-    line-height: 1.5;
+    line-height: 1.35;
 }
 .catalog-toolbar {
     display: flex;

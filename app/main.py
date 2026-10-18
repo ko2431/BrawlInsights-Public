@@ -25,9 +25,34 @@ from app.core.logger import logger
 from app.core.cache import connect_redis, close_redis, set_cache, get_cache, is_transient_redis_error, log_transient_redis_warning
 from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_shared_db_if_logged_in, get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning, PoolAcquireTimeoutError
 # [この部分は公開用リポジトリでは非公開にされています]
+from app.core.page_integrity import integrity_router, IntegrityGateMiddleware
+from app.core.templating import templates
+from app.services.user_service import User, get_user, get_home_announcements
+from app.services.special_reward_link_service import get_public_home_banners
+from app.services import main_account_reward_service
+from app.services.brawl_service import get_player_name, get_player_icon_from_db, get_player_summaries_from_db, get_club_name, get_club_badge_id_from_db
+from app.services.notification_service import empty_board_notification_context, get_board_notification_context
+from app.services.admin_notification_service import (
+    apply_admin_page_visit,
+    empty_admin_notification_badge_context,
+    get_admin_notification_badge_context,
+)
+from app.core.admin_permissions import is_staff
+from app.exceptions.custom_exceptions import DataBaseError
+from app.services.meowapi import _api_client as _meow_api_client
+from app.services.bsinfoapi import _api_client as _bsinfo_api_client
+from app.utils.utils import get_normalized_ip, get_remote_ip
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
     # [この部分は公開用リポジトリでは非公開にされています]
     await close_redis() # [この部分は公開用リポジトリでは非公開にされています]
+app.include_router(integrity_router)
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+                    # [この部分は公開用リポジトリでは非公開にされています]
             except Exception as e:
                 _log_middleware_exception(
                     f"ミドルウェアでの通知バッジ取得中にエラー (User: {current_user_for_state.name})",

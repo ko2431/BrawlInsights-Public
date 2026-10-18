@@ -37,6 +37,7 @@ node .claude/skills/brawl-browser-test/scripts/shot.js /ja/ /tmp/shot.png
 - `USERNAME=こうすけ PASSWORD=12345678` — ログイン状態での画面確認(開発環境の管理者アカウント。他のテストアカウントもパスワードは全て `12345678`)
 - `VIEWPORT=mobile` — スマホ幅(390x844)での表示確認
 - `FULL_PAGE=1` — ページ全体のスクリーンショット
+- `CLICK="セレクタ||セレクタ"` — 撮る前に順にクリックする(折りたたみを開く・タブを切り替えるなど)
 - `BASE_URL=...` — デフォルトは `http://localhost:8000`
 
 例:

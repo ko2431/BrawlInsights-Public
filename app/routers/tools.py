@@ -63,6 +63,10 @@ VALUE_EFFECT_BOX_KEYS: set[str] = {"angelicdrop", "demonicdrop"}
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
+    try:
+        return templates.TemplateResponse("tools/tools.html", context)
+    except Exception as render_err: # [この部分は公開用リポジトリでは非公開にされています]
+
     # テンプレートに渡すコンテキスト
     context = {
         "request": request,

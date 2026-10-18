@@ -499,6 +499,11 @@ async def fetch_resumable_checkpoint(task_key: str, current_run_id: int) -> dict
 
 
 async def start_player_update_run(shutdown_event: asyncio.Event) -> TaskContext | None:
+    return await start_always_on_run("player_update", "プレイヤーアップデート", shutdown_event)
+
+
+async def start_always_on_run(task_key: str, label: str, shutdown_event: asyncio.Event) -> TaskContext | None:
+    """常時稼働タスクの実行行を作る。すでに実行中なら None。"""
     await recover_stale_runs()
     try:
         async with get_db_connection_for_bg_task() as db:
@@ -507,17 +512,18 @@ async def start_player_update_run(shutdown_event: asyncio.Event) -> TaskContext 
                 INSERT INTO worker_task_runs (
                     task_key, status, trigger, started_at, heartbeat_at, worker_id, progress
                 )
-                VALUES ('player_update', 'running', 'startup', NOW(), NOW(), $1, $2)
+                VALUES ($1, 'running', 'startup', NOW(), NOW(), $2, $3)
                 RETURNING id
                 """,
+                task_key,
                 current_worker_id(),
                 {"step": "starting", "message": "起動待ち完了。ループを開始します。"},
             )
     except asyncpg.UniqueViolationError:
-        logger.warning("プレイヤーアップデートは既に実行中のため、新しい実行行は作りません。")
+        logger.warning(f"{label}は既に実行中のため、新しい実行行は作りません。")
         return None
     except Exception as e:
-        logger.error(f"プレイヤーアップデート実行行の作成に失敗しました: {e}", exc_info=True)
+        logger.error(f"{label}の実行行の作成に失敗しました: {e}", exc_info=True)
         return None
 
     run_id = int(run_id)

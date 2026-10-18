@@ -1,20 +1,6 @@
-{# /app/templates/partials/bottom_nav.html #}
-{# layout.css の .footer-mobile-nav-* クラス名に合わせる #}
-<nav class="footer-mobile-nav">
-    {# 'current_page' はFastAPIから渡される変数と仮定 #}
-    {# ホームタブ #}
-    <a href="{{ url_for('home', lang=lang) }}" class="footer-mobile-nav__item {% if current_page == 'home' %}footer-mobile-nav__item--active{% endif %}" data-tab-id="home">
-        <img src="{{ url_for('static', path='/images/ui/home.svg') }}" alt="Home" class="footer-mobile-nav__icon">
-        <span class="footer-mobile-nav__text">{% if lang == "ja" %}ホーム{% else %}Home{% endif %}</span>
-    </a>
-    {# 統計データタブ #}
-    <a href="{{ url_for('stats', lang=lang) }}" class="footer-mobile-nav__item {% if current_page == 'stats' %}footer-mobile-nav__item--active{% endif %}" data-tab-id="stats">
-        <img src="{{ url_for('static', path='/images/ui/statistics.svg') }}" alt="Stats" class="footer-mobile-nav__icon">
-        <span class="footer-mobile-nav__text">{% if lang == "ja" %}統計データ{% else %}Stats{% endif %}</span>
-    </a>
-    {# ツールタブ #}
-    <a href="{{ url_for('tools', lang=lang) }}" class="footer-mobile-nav__item {% if current_page == 'tools' %}footer-mobile-nav__item--active{% endif %}" data-tab-id="tools">
-        <img src="{{ url_for('static', path='/images/ui/tools.svg') }}" alt="Tools" class="footer-mobile-nav__icon">
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ #}
+        </span>
         <span class="footer-mobile-nav__text">{% if lang == "ja" %}ツール{% else %}Tools{% endif %}</span>
     </a>
     {# 掲示板タブ #}

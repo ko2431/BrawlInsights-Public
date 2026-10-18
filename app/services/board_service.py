@@ -28,6 +28,10 @@ from app.services.admin_notification_service import (
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
+        user: User | None = None
+        if user_id:
+            user = await get_user(db, user_id)
+            if user.id in self.prohibited_ids or user.is_prohibit_posting: # [この部分は公開用リポジトリでは非公開にされています]
 
 
 async def get_or_create_theme_map_post(db: asyncpg.Connection, map_id: int) -> "Post | None":

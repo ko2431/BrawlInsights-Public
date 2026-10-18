@@ -1034,3 +1034,45 @@ async def get_accessory_stats(db: asyncpg.Connection, brawler_id: int, days: int
         データが存在しない場合は空の dict を返す。
     """
     # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def insert_api_battle(db: asyncpg.Connection, tag: str, battle: APIBattle) -> bool:
+    """バトルを battles テーブルに追加する（すでにあれば何もしない）。Player._insert_battle と大会のバトルログ取得で使う。
+
+    Returns:
+        bool: すでに保存済みだった場合は True
+    """
+    mode_id = await prepare_battle_mode_id(
+        db,
+        mode_id=battle.mode_id,
+        event_id=battle.event_id,
+        event_map=battle.event_map,
+        event_mode=battle.event_mode,
+        battle_mode=battle.battle_mode,
+    )
+    query = '''
+        INSERT INTO battles (
+            tag, datetime, event_id, event_mode, event_map, battle_mode, mode_id, battle_type, result, rank,
+            is_starplayer, brawler, power, trophies, trophy_change, brawlers, team_size, num_of_teams,
+            teammate_tags, opponent_tags, teammate_names, opponent_names, teammate_brawlers, opponent_brawlers, ranked_score_after
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15, $16, $17, $18,
+            $19, $20, $21, $22, $23, $24, $25
+        )
+        ON CONFLICT DO NOTHING
+    '''
+
+    params = (
+        tag, battle.datetime, battle.event_id, battle.event_mode, battle.event_map, battle.battle_mode, mode_id, battle.battle_type, battle.result,
+        battle.rank, battle.is_starplayer, battle.brawler, battle.power, battle.trophies, battle.trophy_change, battle.brawlers, battle.team_size,
+        battle.num_of_teams, battle.teammate_tags, battle.opponent_tags, battle.teammate_names, battle.opponent_names, battle.teammate_brawlers,
+        battle.opponent_brawlers, battle.ranked_score_after,
+    )
+
+    try:
+        result = await db.execute(query, *params)
+        # execute()の戻り値は "INSERT 0 1" or "INSERT 0 0"
+        return result != "INSERT 0 1"
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e

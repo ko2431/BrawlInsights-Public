@@ -101,3 +101,18 @@ def admin_notification_processor(request: Request) -> dict:
         "show_admin_notification_badge": bool(context.get("show_admin_notification_badge")),
         "admin_notification_badge_text": context.get("admin_notification_badge_text") or "",
     }
+
+
+def tournament_notification_processor(request: Request) -> dict:
+    """
+    ツールタブの大会の通知バッジと、画面内の通知（WebSocket）の接続をテンプレートに渡す。
+    UserToStateMiddleware が request.state.tournament_notification_context を設定済みであること前提。
+    """
+    context = getattr(request.state, "tournament_notification_context", None) or {}
+    unread = int(context.get("unread") or 0)
+    return {
+        "tn_badge_enabled": bool(context.get("enabled")),
+        "tn_unread": unread,
+        "tn_badge_text": f"{unread}" if unread < 100 else "99+",
+        "tn_notify_connect": bool(context.get("connect")),
+    }

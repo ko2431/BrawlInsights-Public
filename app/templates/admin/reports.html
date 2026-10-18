@@ -127,6 +127,7 @@
                 <option value="all">すべて</option>
                 <option value="post">投稿</option>
                 <option value="message">メッセージ</option>
+                <option value="tournament">大会</option>
             </select>
         </label>
         <label>
@@ -257,7 +258,7 @@
                     <td>
                         {{ admin_badge(
                             report.target_type_label,
-                            {"post": "red", "message": "cyan"}.get(report.target_type, "gray")
+                            {"post": "red", "message": "cyan", "tournament": "purple"}.get(report.target_type, "gray")
                         ) }}
                     </td>
                     <td>{{ report.target_user_name if report.target_user_name else "(ゲスト)" }}</td>
@@ -287,12 +288,17 @@
                         {% endif %}
                     </td>
                     <td class="col-message">
+                        {% if report.tournament_url %}
+                        <a href="{{ report.tournament_url }}" class="admin-thread-link col-message-content"
+                           {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ report.target_content }}</a>
+                        {% else %}
                         <div class="col-message-content">{{ report.target_content }}</div>
+                        {% endif %}
                     </td>
                     <td>
                         {{ admin_badge(
                             report.category_ja,
-                            {"unpleasant_content": "green", "hateful_content": "yellow", "spam": "red", "tos_violation": "purple"}.get(report.category, "gray")
+                            {"unpleasant_content": "green", "hateful_content": "yellow", "spam": "red", "tos_violation": "purple", "tournament_fraud": "red", "tournament_guideline": "purple"}.get(report.category, "gray")
                         ) }}
                     </td>
                     <td class="col-message">

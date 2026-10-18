@@ -55,6 +55,11 @@ const output = path.resolve(outputArg || 'screenshot.png');
   }
 
   const resp = await page.goto(`${BASE_URL}${targetPath}`, { waitUntil: 'networkidle', timeout: 30000 });
+  // CLICK="selector||selector": 撮る前に順にクリックする（折りたたみを開く、タブを切り替えるなど）
+  for (const selector of (process.env.CLICK || '').split('||').filter(Boolean)) {
+    await page.click(selector);
+    await page.waitForTimeout(300);
+  }
   await page.screenshot({ path: output, fullPage: FULL_PAGE });
 
   console.log('status:', resp ? resp.status() : 'no response');

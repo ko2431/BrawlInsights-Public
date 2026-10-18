@@ -10,6 +10,7 @@ from .context_processors import (
     page_integrity_processor,
     board_notification_processor,
     admin_notification_processor,
+    tournament_notification_processor,
 )
 from app.utils.utils import format_display_datetime, format_last_played_time
 from app.services.map_mode_catalog import mode_icon_candidates
@@ -30,6 +31,7 @@ templates = Jinja2Templates(
         page_integrity_processor,
         board_notification_processor,
         admin_notification_processor,
+        tournament_notification_processor,
     ],  # type: ignore
 )
 

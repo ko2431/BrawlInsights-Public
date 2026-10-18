@@ -95,6 +95,9 @@ async def _run_player_update_loop() -> None:
             pass
 
 
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
 async def main():
     """
     バックグラウンドタスクを起動するメインコルーチン
@@ -120,6 +123,8 @@ async def main():
     update_task = asyncio.create_task(_run_player_update_loop(), name="PlayerUpdateLoop")
     running_tasks.add(update_task)
     update_task.add_done_callback(_log_background_task_done)
+
+    # [この部分は公開用リポジトリでは非公開にされています]
 
     logger.info(
         "バックグラウンドワーカーが正常に起動しました。"
