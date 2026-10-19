@@ -71,6 +71,14 @@
     color: #ccc;
     background-color: #262626;
 }
+/* 大会の通知の未読数（ツールの「その他」） */
+.hub-subtabs .sub-tab-nav__link {
+    position: relative;
+}
+.hub-subtab__badge {
+    top: 3px;
+    right: 3px;
+}
 
 .hub-subtabs .hub-subtab__icon {
     height: 22px;

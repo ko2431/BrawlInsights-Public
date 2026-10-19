@@ -1,21 +1,6 @@
-{# 統計データ・ツールのハブ用。バナーと説明文はここで1回だけ描画する。 #}
-
-{% macro hub_subtab(endpoint, sub, icon, icon_class, label) %}
-<li class="sub-tab-nav__item">
-    <a href="{{ url_for(endpoint, lang=lang) }}?sub={{ sub }}" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === '{{ sub }}' }" :aria-current="activeSubTab === '{{ sub }}' ? 'page' : null" @click.prevent="setSubTab('{{ sub }}')">
-        <img src="{{ url_for('static', path='/images/ui/' + icon) }}" alt="{{ label|striptags }}" class="hub-subtab__icon {{ icon_class }}">
-        <span class="sub-tab-nav__text">{{ label|safe }}</span>
-    </a>
-</li>
-{% endmacro %}
-
-{% macro content_banner(prefix, item) %}
-<a href="{{ item.href }}"{% if item.target %} target="{{ item.target }}"{% endif %}>
-    <div class="{{ prefix }}-page__content{% if item.slim %} {{ prefix }}-page__content--responsive{% endif %}{% if item.small %} {{ prefix }}-page__content--small{% endif %}">
-        <img src="{{ item.image }}" alt="{{ item.alt }}" class="{{ prefix }}-page__content-image{% if item.small %} {{ prefix }}-page__content-image--small{% endif %}">
-        {% if item.slim %}
-        <img src="{{ item.slim }}" alt="{{ item.alt }}" class="{{ prefix }}-page__content-image--slim">
-        {% endif %}
+{# [この部分は公開用リポジトリでは非公開にされています] #}
+ # [この部分は公開用リポジトリでは非公開にされています]
+ #}
     </div>
 </a>
 {% endmacro %}

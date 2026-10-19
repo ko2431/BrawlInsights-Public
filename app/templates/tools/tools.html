@@ -85,7 +85,7 @@
                     {{ hub_subtab('tools', 'brawlers', 'brawlers.png', 'hub-subtab__icon--brawlers', 'キャラ<wbr>クター' if lang == 'ja' else 'Brawler') }}
                     {{ hub_subtab('tools', 'maps', 'trophy.png', 'hub-subtab__icon--trophy', 'マップ・<wbr>トロフィー' if lang == 'ja' else 'Maps &<wbr> Trophy') }}
                     {{ hub_subtab('tools', 'rewards', 'starrdrop.png', 'hub-subtab__icon--starrdrop', '報酬関連' if lang == 'ja' else 'Rewards') }}
-                    {{ hub_subtab('tools', 'others', 'skin_other.png', 'hub-subtab__icon--other', 'その他' if lang == 'ja' else 'Others') }}
+                    {{ hub_subtab('tools', 'others', 'skin_other.png', 'hub-subtab__icon--other', 'その他' if lang == 'ja' else 'Others', tn_badge=tournament_banner is defined and tournament_banner) }}
                 </ul>
             </nav>
         </div>

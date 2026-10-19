@@ -12,12 +12,13 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
 {% endblock %}
 
-{% macro render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, thread_id, post_type, reply_to_message_id, message_text, message_regex, created_after, created_before) %}
+{% macro render_pagination(pagination, status_filter, sender, user_type, message_id, user_name, user_id, user_ip, thread_id, post_type, reply_to_message_id, message_text, message_regex, created_after, created_before) %}
     {% if pagination.total_pages > 1 %}
         <nav class="pagination" aria-label="メッセージページネーション">
             <ul class="pagination-list">
                 {% set base_query_parts = [] %}
                 {% if status_filter != 'all' %}{% set _ = base_query_parts.append("status_filter=" + status_filter) %}{% endif %}
+                {% if sender != 'user' %}{% set _ = base_query_parts.append("sender=" + sender) %}{% endif %}
                 {% if user_type != 'all' %}{% set _ = base_query_parts.append("user_type=" + user_type) %}{% endif %}
                 {% if message_id %}{% set _ = base_query_parts.append("message_id=" + message_id) %}{% endif %}
                 {% if user_name %}{% set _ = base_query_parts.append("user_name=" + (user_name | urlencode)) %}{% endif %}
@@ -91,6 +92,14 @@
                 <option value="all">すべて</option>
                 <option value="active">未削除</option>
                 <option value="deleted">削除済み</option>
+            </select>
+        </label>
+        <label>
+            <span class="admin-filters__label-text">書き込み</span>
+            <select class="form-input admin-filters__select" x-model="draft.sender">
+                <option value="user">ユーザー</option>
+                <option value="system">システム</option>
+                <option value="all">すべて</option>
             </select>
         </label>
         <label>
@@ -172,7 +181,7 @@
         （最大1,000件／ページ）
     </p>
 
-    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, thread_id, post_type, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, status_filter, sender, user_type, message_id, user_name, user_id, user_ip, thread_id, post_type, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
 
     {% if can_save %}
     <div class="save-changes-block">
@@ -257,7 +266,7 @@
         </table>
     </div>
 
-    {{ render_pagination(pagination, status_filter, user_type, message_id, user_name, user_id, user_ip, thread_id, post_type, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
+    {{ render_pagination(pagination, status_filter, sender, user_type, message_id, user_name, user_id, user_ip, thread_id, post_type, reply_to_message_id, message_text, message_regex, created_after, created_before) }}
 
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -298,6 +307,7 @@
                 applied: {},
                 draft: {
                     status_filter: 'all',
+                    sender: 'user',
                     user_type: 'all',
                     message_id: '',
                     user_name: '',
@@ -315,6 +325,7 @@
                 saveStatus: { message: '', success: false },
                 filterDefaults: {
                     status_filter: 'all',
+                    sender: 'user',
                     user_type: 'all',
                     message_id: '',
                     user_name: '',
@@ -362,6 +373,7 @@
                 normalizeFilters(filters) {
                     return {
                         status_filter: filters.status_filter || 'all',
+                        sender: filters.sender || 'user',
                         user_type: filters.user_type || 'all',
                         message_id: (filters.message_id || '').trim(),
                         user_name: (filters.user_name || '').trim(),
