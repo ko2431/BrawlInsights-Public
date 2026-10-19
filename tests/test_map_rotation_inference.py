@@ -178,3 +178,49 @@ def test_external_episode_verifies_unchanged_slot():
     assert result.confirmed
     assert all(item.state == STATE_VERIFIED for item in result.cycle.maps)
     assert result.cycle.maps[0].state != STATE_UNKNOWN
+
+
+def test_interim_rotation_before_new_cycle_is_trimmed():
+    baseline = _cycle([1, 2, 3, 4])
+    anchor = baseline.anchor_start
+    # アップデート直後の6日間だけ3マップの暫定ローテが回り、その後に新しい4日周期が始まった。
+    interim = _daily(anchor, 6, [91, 92, 93])
+    after = _daily(anchor + timedelta(days=6), 5, [11, 12, 13, 14])
+    observed = interim + after
+    now = observed[-1].start + timedelta(hours=1)
+    result = infer_slot(baseline, observed, now=now, episode_started_at=anchor)
+
+    assert result.cycle_length_uncertain is False
+    assert result.cycle.cycle_length == 4
+    assert result.confirmed
+    assert sorted(item.map_id for item in result.cycle.maps) == [11, 12, 13, 14]
+    assert result.cycle.maps[result.latest_index].map_id == 11
+
+
+def test_interim_rotation_before_new_length():
+    baseline = _cycle([1, 2, 3, 4])
+    anchor = baseline.anchor_start
+    interim = _daily(anchor, 6, [91, 92, 93])
+    after = _daily(anchor + timedelta(days=6), 6, [11, 12, 13, 14, 15])
+    observed = interim + after
+    now = observed[-1].start + timedelta(hours=1)
+    result = infer_slot(baseline, observed, now=now, episode_started_at=anchor)
+
+    assert result.cycle.cycle_length == 5
+    assert result.confirmed
+    assert sorted(item.map_id for item in result.cycle.maps) == [11, 12, 13, 14, 15]
+
+
+def test_interim_rotation_waits_for_new_cycle_repeat():
+    baseline = _cycle([1, 2, 3, 4])
+    anchor = baseline.anchor_start
+    # 新周期の先頭がまだ再出現していない間は、日数を決めずに待つ。
+    interim = _daily(anchor, 6, [91, 92, 93])
+    after = _daily(anchor + timedelta(days=6), 4, [11, 12, 13, 14])
+    observed = interim + after
+    now = observed[-1].start + timedelta(hours=1)
+    result = infer_slot(baseline, observed, now=now, episode_started_at=anchor)
+
+    assert result.cycle_length_uncertain
+    assert result.cycle.cycle_length is None
+    assert result.confirmed is False
