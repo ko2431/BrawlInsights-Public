@@ -5,6 +5,8 @@ import asyncpg
 import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse, Response, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
@@ -520,6 +522,14 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 @app.exception_handler(HTTPException)
 async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
     return await custom_http_exception_handler(request, StarletteHTTPException(status_code=exc.status_code, detail=exc.detail, headers=exc.headers))
+
+# FastAPI標準の422ハンドラは、UTF-8として不正なリクエストボディ(bytes)をそのままデコードしようとして500になるため、置換文字でデコードする
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": jsonable_encoder(exc.errors(), custom_encoder={bytes: lambda b: b.decode("utf-8", errors="replace")})},
+    )
 
 #* /---*---*---*---*---*---*---*---*/
 #* 一般的な Exception を捕捉するハンドラ (予期せぬエラー)

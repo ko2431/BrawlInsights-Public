@@ -25,7 +25,7 @@ from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 from app.services import meowapi, bsinfoapi
 from app.services.user_service import get_region_name
 from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, parse_api_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag
-from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
+from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError, PlayerNotFoundError
 from app.services.admin_notification_service import emit_admin_notification
 from app.services.map_mode_catalog import (
     ensure_catalog,

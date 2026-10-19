@@ -37,4 +37,14 @@ router = APIRouter(
 )
 
 
+def _validate_region(region: str, regions: list[dict]) -> str:
+    """地域一覧にない地域コードは "global" として扱う。スキャナー等の不正な値を外部APIやDBに渡さないため。"""
+    if region.lower() == "global":
+        return "global"
+    if any(r["code"] == region.upper() for r in regions):
+        return region.upper()
+    logger.info(f"不正な地域コード \"{region}\" が指定されたため、グローバルとして扱います")
+    return "global"
+
+
 # [この部分は公開用リポジトリでは非公開にされています]
