@@ -1365,15 +1365,16 @@ a.chat-menu__action-btn {
     }
 }
 
-/* リアクション集計表示 */
+/* リアクション集計表示（押すと付ける・外す、長押し・右クリックで一覧。押したときの動きは reactions.css） */
 .reactions__container {
     display: flex;
     flex-wrap: nowrap;
     gap: 6px;
-    margin-top: 4px;
+    margin-top: 3px;
+    padding: 1px 0; /* 弾んで出るときに上下が切れないように */
     max-width: 100%;
     overflow: hidden;
-    cursor: pointer;
+    -webkit-user-select: none;
     user-select: none;
 }
 .reaction-summary {

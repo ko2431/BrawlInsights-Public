@@ -29,6 +29,7 @@ from app.services.notification_service import (
     get_thread_notification_state,
     handle_message_reaction_notification,
     handle_post_like_notification,
+    keep_reaction_notification_on_remove,
     mark_all_notifications_as_read,
     set_thread_notification_mode,
 )
@@ -47,6 +48,7 @@ from app.services.token_gift_service import (
 from app.utils.utils import get_icon_path, get_remote_ip
 from app.services.all_maps_service import build_map_board_index_json
 from app.services.map_mode_catalog import ensure_catalog
+from app.services import reaction_rules
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 
 router = APIRouter(
@@ -597,6 +599,11 @@ async def report_message(
         logger.error(f"メッセージ(ID:{message_id})の通報中にDBエラー: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"detail": "Database error"})
 
+def _reaction_error(status_code: int, code: str, detail: str) -> JSONResponse:
+    """リアクションのエラー。画面は code で文言を出し分ける。"""
+    return JSONResponse(status_code=status_code, content={"detail": detail, "code": code})
+
+
 @router.post("/messages/{message_id}/reactions", name="add_message_reaction")
 async def add_message_reaction(
     request: Request,
@@ -604,11 +611,16 @@ async def add_message_reaction(
     reaction_data: ReactionCreateRequest,
     db: asyncpg.Connection = Depends(get_shared_db)
 ):
-    """メッセージにリアクションを追加する。
+    """メッセージにリアクションを追加する（複数の種類を付けられる。1メッセージの種類数には上限がある）。
     """
     user: User | None = getattr(request.state, "current_user", None)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
+    emoji = reaction_rules.normalize_emoji(reaction_data.emoji)
+    if not emoji:
+        return _reaction_error(400, "invalid_emoji", "This reaction is not available")
+    if not await reaction_rules.consume_rate_limit(user.id):
+        return _reaction_error(429, "rate_limited", "Too many reactions")
 
     # メッセージの存在確認
     message = await get_message(db, id=message_id)
@@ -618,16 +630,20 @@ async def add_message_reaction(
         raise HTTPException(status_code=400, detail="Reactions are not allowed on this message")
 
     try:
-        reaction_id = await add_reaction(db, message_id, user.id, reaction_data.emoji)
+        if not await reaction_rules.has_room_for(db, message_id, emoji):
+            return _reaction_error(400, "too_many_kinds", "This message has too many kinds of reactions")
+        reaction_id = await add_reaction(db, message_id, user.id, emoji)
 
         # 新しいリアクションをブロードキャスト
         # リアクション情報をDBから取得
         row = await db.fetchrow("SELECT * FROM reactions WHERE id = $1", reaction_id)
+        reaction_dict = None
         if row:
             new_reaction = await Reaction.from_db(row, db)
+            reaction_dict = new_reaction.to_dict()
             await manager.broadcast(
                 message.thread_id,
-                {"type": "new_reaction", "data": new_reaction.to_dict()}
+                {"type": "new_reaction", "data": reaction_dict}
             )
             await handle_message_reaction_notification(
                 db,
@@ -637,7 +653,7 @@ async def add_message_reaction(
                 is_added=True,
             )
 
-        return {"success": True, "reaction_id": reaction_id}
+        return {"success": True, "reaction_id": reaction_id, "reaction": reaction_dict}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except asyncpg.UniqueViolationError:
@@ -646,9 +662,57 @@ async def add_message_reaction(
             status_code=409,
             content={"detail": "You have already reacted with this emoji"},
         )
-    except DataBaseError as e:
+    except (DataBaseError, asyncpg.PostgresError) as e:
         logger.error(f"リアクション追加中(メッセージ:{message_id})にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
+
+
+async def _delete_reaction_and_broadcast(db: asyncpg.Connection, reaction: Reaction) -> None:
+    """リアクションを削除して配信する。同じ人がほかの絵文字も付けている間は、相手への通知を残す。"""
+    await keep_reaction_notification_on_remove(db, reaction_id=reaction.id, message_id=reaction.message_id, actor_user_id=reaction.user_id)
+    await reaction.delete(db)
+    thread_row = await db.fetchrow("SELECT thread_id FROM messages WHERE id = $1", reaction.message_id)
+    if thread_row:
+        await manager.broadcast(
+            thread_row['thread_id'],
+            {
+                "type": "delete_reaction",
+                "data": {
+                    "reaction_id": reaction.id,
+                    "message_id": reaction.message_id
+                }
+            }
+        )
+
+
+@router.delete("/messages/{message_id}/reactions", name="delete_my_message_reaction")
+async def delete_my_message_reaction(
+    request: Request,
+    message_id: int,
+    emoji: str = Query(..., max_length=32),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    """自分が付けたリアクションを絵文字で指定して外す（付いていなければ何もしない）。
+    """
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    normalized = reaction_rules.normalize_emoji(emoji) or emoji
+    if not await reaction_rules.consume_rate_limit(user.id):
+        return _reaction_error(429, "rate_limited", "Too many reactions")
+    try:
+        row = await db.fetchrow(
+            "SELECT * FROM reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3",
+            message_id, user.id, normalized,
+        )
+        if not row:
+            return {"success": True, "deleted": False}
+        await _delete_reaction_and_broadcast(db, await Reaction.from_db(row, db))
+        return {"success": True, "deleted": True}
+    except (DataBaseError, asyncpg.PostgresError) as e:
+        logger.error(f"リアクションの削除中(メッセージ:{message_id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
 
 @router.delete("/reactions/{reaction_id}", name="delete_reaction")
 async def delete_reaction(
@@ -675,27 +739,13 @@ async def delete_reaction(
     # 権限チェック ---
     if not user.has_perm("chat.delete_messages") and reaction.user_id != user.id:
         raise HTTPException(status_code=403, detail="You do not have permission to delete this reaction")
+    if reaction.user_id == user.id and not await reaction_rules.consume_rate_limit(user.id):
+        return _reaction_error(429, "rate_limited", "Too many reactions")
 
     try:
-        message_id = reaction.message_id # 削除前にメッセージIDを保持
-        await reaction.delete(db)
-        
-        # リアクションが削除されたことをブロードキャスト
-        thread_row = await db.fetchrow("SELECT thread_id FROM messages WHERE id = $1", message_id)
-        if thread_row:
-            await manager.broadcast(
-                thread_row['thread_id'],
-                {
-                    "type": "delete_reaction", 
-                    "data": {
-                        "reaction_id": reaction_id,
-                        "message_id": message_id
-                    }
-                }
-            )
-
+        await _delete_reaction_and_broadcast(db, reaction)
         return {"success": True}
-    except DataBaseError as e:
+    except (DataBaseError, asyncpg.PostgresError) as e:
         logger.error(f"リアクション(ID:{reaction_id})の削除中にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
 

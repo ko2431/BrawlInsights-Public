@@ -32,6 +32,7 @@ from app.core.templating import templates
 from app.services.user_service import User, get_user, get_home_announcements
 from app.services.special_reward_link_service import get_public_home_banners
 from app.services import main_account_reward_service
+from app.services import reaction_rules
 from app.services.brawl_service import get_player_name, get_player_icon_from_db, get_player_summaries_from_db, get_club_name, get_club_badge_id_from_db
 from app.services.notification_service import empty_board_notification_context, get_board_notification_context
 from app.services.admin_notification_service import (

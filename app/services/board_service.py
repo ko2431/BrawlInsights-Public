@@ -15,6 +15,7 @@ from app.utils.utils import format_utc_datetime, parse_utc_datetime, get_normali
 from app.utils.url_detect import text_contains_detected_url
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
+from app.services import reaction_rules
 from app.core.board_trending import GENERAL_BOARD_TRENDING
 from app.core.text_search import GeneralBoardSearch, LIKE_ESCAPE_SQL, escape_like_literal, search_normalize_sql
 from app.services.all_maps_service import resolve_board_map

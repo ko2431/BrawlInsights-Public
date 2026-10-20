@@ -2,17 +2,19 @@ import asyncpg
 import datetime
 from typing import Any
 
-from app.core.cache import delete_cache, get_cache, set_cache
+from app.core.cache import delete_cache, get_cache, get_redis, is_transient_redis_error, log_transient_redis_warning, set_cache
 from app.core.logger import logger
 from app.core.templating import censor_filter
 from app.exceptions.custom_exceptions import DataBaseError
-from app.services.board_service import EMOJIS, get_message, get_post, get_player_icon_from_db, is_theme_post_type
+from app.services.board_service import get_message, get_post, get_player_icon_from_db, is_theme_post_type
 from app.services.user_service import get_blocked_ids, get_user
 from app.utils.utils import get_icon_path
 
 NOTIFICATION_LIST_LIMIT = 1000
 NOTIFICATION_PAGE_SIZE = 100
 BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT = 3
+# 同じ人が同じメッセージへのリアクションを付け外ししたとき、この間に作り直す通知は最初の時刻のままにする（新着として出し直さない）
+REACTION_NOTIFICATION_COOLDOWN_SECONDS = 600
 
 NOTIFICATION_TYPE_POST_LIKE = "post_like"
 NOTIFICATION_TYPE_OWN_POST_MESSAGE = "own_post_message"
@@ -224,6 +226,7 @@ async def _create_notification(
     message_id: int | None = None,
     post_vote_id: int | None = None,
     reaction_id: int | None = None,
+    created_at: datetime.datetime | None = None,
 ) -> None:
     if recipient_user_id == actor_user_id:
         return
@@ -240,8 +243,8 @@ async def _create_notification(
             """
             INSERT INTO board_notifications (
                 recipient_user_id, notification_type, actor_user_id,
-                post_id, message_id, post_vote_id, reaction_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                post_id, message_id, post_vote_id, reaction_id, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::timestamptz, NOW()))
             """,
             recipient_user_id,
             notification_type,
@@ -250,6 +253,7 @@ async def _create_notification(
             message_id,
             post_vote_id,
             reaction_id,
+            created_at,
         )
     except asyncpg.PostgresError as e:
         raise DataBaseError(e) from e
@@ -672,6 +676,23 @@ async def handle_message_reaction_notification(
         return
 
     if is_added:
+        # 同じ人が同じメッセージに別の絵文字も付けたときは、通知を増やさない（一覧では人ごとにまとめて出る）
+        try:
+            exists = await db.fetchval(
+                """
+                SELECT 1 FROM board_notifications
+                WHERE recipient_user_id = $1 AND notification_type = $2 AND message_id = $3 AND actor_user_id = $4
+                LIMIT 1
+                """,
+                message.user_id,
+                NOTIFICATION_TYPE_MESSAGE_REACTION,
+                message_id,
+                actor_user_id,
+            )
+        except asyncpg.PostgresError as e:
+            raise DataBaseError(e) from e
+        if exists:
+            return
         await _create_notification(
             db,
             recipient_user_id=message.user_id,
@@ -680,6 +701,7 @@ async def handle_message_reaction_notification(
             post_id=message.thread_id,
             message_id=message_id,
             reaction_id=reaction_id,
+            created_at=await _reaction_notification_first_time(actor_user_id, message_id),
         )
         return
 
@@ -713,6 +735,70 @@ async def handle_message_reaction_notification(
 
     for row in rows:
         await invalidate_notification_cache(row["recipient_user_id"])
+
+
+async def _reaction_notification_first_time(actor_user_id: int, message_id: int) -> datetime.datetime | None:
+    """付け外しを繰り返したときに、通知を最初の時刻で作り直すための時刻。初めて（または時間が経った）なら None。"""
+    redis_client = get_redis()
+    if redis_client is None:
+        return None
+    key = f"reaction_notification_first:{actor_user_id}:{message_id}"
+    now = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        if await redis_client.set(key, now.isoformat(), ex=REACTION_NOTIFICATION_COOLDOWN_SECONDS, nx=True):
+            return None
+        value = await redis_client.get(key)
+    except Exception as e:
+        if is_transient_redis_error(e):
+            log_transient_redis_warning(f"リアクション通知の時刻のRedis操作中に一時的なエラー (key: {key}): {e}")
+        else:
+            logger.error(f"リアクション通知の時刻のRedis操作中にエラー (key: {key}): {e}", exc_info=True)
+        return None
+    if isinstance(value, bytes):
+        value = value.decode()
+    try:
+        return datetime.datetime.fromisoformat(value) if value else None
+    except ValueError:
+        return None
+
+
+async def keep_reaction_notification_on_remove(
+    db: asyncpg.Connection,
+    *,
+    reaction_id: int,
+    message_id: int,
+    actor_user_id: int | None,
+) -> None:
+    """リアクションを外す前に呼ぶ。同じ人がほかの絵文字も付けていれば、通知をそちらに付け替えて残す。
+
+    通知は付けたリアクションと一緒に消える（外部キーの CASCADE）ため、付け替えなければ残りのリアクションの通知まで消える。
+    """
+    if not actor_user_id:
+        return
+    try:
+        recipient_user_id = await db.fetchval("SELECT user_id FROM messages WHERE id = $1", message_id)
+        if not recipient_user_id:
+            return
+        await db.execute(
+            """
+            UPDATE board_notifications
+            SET reaction_id = (
+                SELECT id FROM reactions
+                WHERE message_id = $3 AND user_id = $4 AND id <> $5
+                ORDER BY id
+                LIMIT 1
+            )
+            WHERE recipient_user_id = $1 AND notification_type = $2 AND message_id = $3 AND reaction_id = $5
+              AND EXISTS (SELECT 1 FROM reactions WHERE message_id = $3 AND user_id = $4 AND id <> $5)
+            """,
+            recipient_user_id,
+            NOTIFICATION_TYPE_MESSAGE_REACTION,
+            message_id,
+            actor_user_id,
+            reaction_id,
+        )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
 
 
 async def create_token_gift_notification(
@@ -1073,20 +1159,21 @@ async def _aggregate_notification_rows(
     if message_ids:
         reaction_rows = await db.fetch(
             """
-            SELECT message_id, emoji, COUNT(*)::int AS count
+            SELECT message_id, emoji, COUNT(*)::int AS count, MIN(id) AS first_id
             FROM reactions
             WHERE message_id = ANY($1::int[])
             GROUP BY message_id, emoji
+            ORDER BY message_id, first_id
             """,
             list(message_ids),
         )
+        # 絵文字は、その絵文字が最初に付いた順（チャットのリアクションの並びと同じ）
         reactions_by_message: dict[int, list[tuple[str, int]]] = {}
         for reaction_row in reaction_rows:
             reactions_by_message.setdefault(reaction_row["message_id"], []).append(
                 (reaction_row["emoji"], reaction_row["count"])
             )
         for message_id, emoji_counts in reactions_by_message.items():
-            emoji_counts.sort(key=lambda item: EMOJIS.index(item[0]) if item[0] in EMOJIS else len(EMOJIS))
             reaction_summaries[message_id] = "・".join(f"{emoji}{count}" for emoji, count in emoji_counts)
 
     gift_metas: dict[int, dict[str, Any]] = {}
