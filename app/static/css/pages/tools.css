@@ -45,6 +45,27 @@
     line-height: 24px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
+/* 段階公開の間、大会開催ツールのバナーの左上に出す「先行公開」 */
+.hub-banner__early {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background-color: #1a7fd0;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 22px;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
+.dark .hub-banner__early {
+    background-color: #3a96e0;
+}
 .tools-page__content-image {
     width: 100%;
     aspect-ratio: 7 / 2; /* 幅Aに対して高さB */
