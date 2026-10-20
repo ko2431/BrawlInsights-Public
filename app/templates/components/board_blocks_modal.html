@@ -1,0 +1,88 @@
+{# /app/templates/components/board_blocks_modal.html #}
+{# 掲示板でブロックしたユーザーの一覧モーダル。アカウントタブのオプションから open-board-blocks イベントで開く #}
+{# 状態とロジックは account_settings.html の boardBlocksModal() #}
+<div id="board-blocks-modal-overlay" data-back-closable class="post-modal-overlay board-blocks-modal-overlay"
+     x-data="boardBlocksModal()"
+     :class="{ 'active': isOpen }"
+     @open-board-blocks.window="open()"
+     @click.self="close()"
+     @keydown.escape.window="isOpen && close()">
+    <div class="post-modal-content board-blocks-modal" role="dialog" aria-modal="true" aria-labelledby="board-blocks-modal-title">
+        <header class="post-modal-header board-blocks-modal__header">
+            <button type="button" data-back-close class="post-modal-close-btn" @click="close()">{% if lang == "ja" %}閉じる{% else %}Close{% endif %}</button>
+            <h2 id="board-blocks-modal-title" class="board-blocks-modal__title">{% if lang == "ja" %}ブロックしたユーザー{% else %}Blocked Users{% endif %}</h2>
+            <span aria-hidden="true"></span>
+        </header>
+        <div class="post-modal-body board-blocks-modal__body">
+            <p class="board-blocks-modal__note">
+                {% if current_user %}
+                    {% if lang == "ja" %}このアカウントでブロックしたユーザーです。解除すると、そのユーザーの投稿やメッセージがまた表示されます。{% else %}Users blocked on this account. Unblocking shows their posts and messages again.{% endif %}
+                {% else %}
+                    {% if lang == "ja" %}ログインしていない間に、この端末でブロックしたユーザーです。解除すると、そのユーザーの投稿がまた表示されます。{% else %}Users blocked on this device while logged out. Unblocking shows their posts again.{% endif %}
+                {% endif %}
+            </p>
+
+            {# 読み込み中 #}
+            <div class="board-blocks-modal__status" x-show="isLoading">
+                <span class="board-blocks-modal__spinner" aria-hidden="true"></span>
+                <span>{% if lang == "ja" %}読み込み中...{% else %}Loading...{% endif %}</span>
+            </div>
+
+            {# 読み込みエラー #}
+            <div class="board-blocks-modal__status board-blocks-modal__status--column" x-show="!isLoading && loadError" x-cloak>
+                <span>{% if lang == "ja" %}ブロック一覧を読み込めませんでした。{% else %}Could not load your block list.{% endif %}</span>
+                <button type="button" class="button button--secondary button--small" @click="load()">{% if lang == "ja" %}再読み込み{% else %}Retry{% endif %}</button>
+            </div>
+
+            {# 0人 #}
+            <div class="board-blocks-modal__empty" x-show="!isLoading && !loadError && items.length === 0" x-cloak>
+                <p class="board-blocks-modal__empty-title">{% if lang == "ja" %}ブロックしているユーザーはいません{% else %}You haven't blocked anyone{% endif %}</p>
+                <p class="board-blocks-modal__empty-text">{% if lang == "ja" %}掲示板の投稿にある「ブロック」から、見たくないユーザーの投稿を非表示にできます。{% else %}Use "Block" on a board post to hide posts from users you don't want to see.{% endif %}</p>
+            </div>
+
+            {# 一覧 #}
+            <ul class="board-blocks-list" x-show="!isLoading && !loadError && items.length > 0" x-cloak>
+                <template x-for="item in items" :key="item.id">
+                    <li class="board-blocks-list__item" :class="{ 'board-blocks-list__item--unblocked': item.unblocked }">
+                        <img class="board-blocks-list__icon" :class="{ 'board-blocks-list__icon--badge': item.is_guest && item.post_club_badge_path }"
+                             :src="iconPath(item)" alt="" loading="lazy"
+                             onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                        <div class="board-blocks-list__main">
+                            <p class="board-blocks-list__name">
+                                <span class="board-blocks-list__name-text" x-text="displayName(item)"></span>
+                                <span class="board-blocks-list__status" x-show="item.unblocked" x-transition.opacity>{% if lang == "ja" %}解除済み{% else %}Unblocked{% endif %}</span>
+                            </p>
+                            <p class="board-blocks-list__detail" x-show="guestDetail(item)" x-text="guestDetail(item)"></p>
+                            <p class="board-blocks-list__meta" x-text="metaLine(item)"></p>
+                        </div>
+                        <button type="button" class="button button--small board-blocks-list__action"
+                                :class="item.unblocked ? 'button--secondary' : 'button--primary'"
+                                :disabled="!!busyIds[item.id]"
+                                @click="toggleBlock(item)"
+                                x-text="item.unblocked ? '{% if lang == "ja" %}元に戻す{% else %}Undo{% endif %}' : '{% if lang == "ja" %}解除{% else %}Unblock{% endif %}'">
+                        </button>
+                    </li>
+                </template>
+            </ul>
+
+            <div class="board-blocks-modal__more" x-show="!isLoading && hasMore" x-cloak>
+                <button type="button" class="button button--secondary button--small" :disabled="isLoadingMore" @click="load(true)"
+                        x-text="isLoadingMore ? '{% if lang == "ja" %}読み込み中...{% else %}Loading...{% endif %}' : '{% if lang == "ja" %}もっと見る{% else %}Show More{% endif %}'"></button>
+            </div>
+        </div>
+        {# すべて解除 (押し間違いを防ぐため2回押しで実行) #}
+        <footer class="board-blocks-modal__footer" x-show="!isLoading && !loadError && (activeCount > 0 || hasMore)" x-cloak>
+            <p class="board-blocks-modal__footer-hint" :class="{ 'board-blocks-modal__footer-hint--visible': isConfirmingResetAll }">
+                {% if lang == "ja" %}もう一度押すと全員を解除します{% else %}Tap again to unblock everyone{% endif %}
+            </p>
+            <button type="button" class="button button--small board-blocks-modal__reset-all"
+                    :class="isConfirmingResetAll ? 'button--danger board-blocks-modal__reset-all--confirming' : 'button--secondary'"
+                    :disabled="isResettingAll"
+                    @click="requestResetAll()"
+                    x-text="isResettingAll
+                        ? '{% if lang == "ja" %}解除中...{% else %}Removing...{% endif %}'
+                        : '{% if lang == "ja" %}すべて解除{% else %}Unblock All{% endif %}'">
+            </button>
+        </footer>
+    </div>
+</div>

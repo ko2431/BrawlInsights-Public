@@ -799,6 +799,8 @@ async def remove_prohibited_user(
 class BlockUserRequest(BaseModel):
     blocked_user_id: int | None = None
     blocked_anonymous_id: str | None = None
+    # ブロックのきっかけになった投稿 (ゲストをブロックした場合に、ブロック一覧での表示に使う)
+    source_post_id: int | None = None
 
 @router.post("/users/block", name="block_user")
 async def block_user(
@@ -815,7 +817,8 @@ async def block_user(
             blocker_user_id=user.id if user else None,
             blocker_anonymous_id=request.cookies.get('brawlanonid') if not user else None,
             blocked_user_id=block_data.blocked_user_id,
-            blocked_anonymous_id=block_data.blocked_anonymous_id
+            blocked_anonymous_id=block_data.blocked_anonymous_id,
+            source_post_id=block_data.source_post_id,
         )
         return {"success": success}
     except (ValueError, DataBaseError) as e:

@@ -1,0 +1,142 @@
+{# /app/templates/components/account_device_options.html #}
+{# アカウントタブのオプションのうち、未ログインでも使える項目 (端末に保存される設定と掲示板のブロック) #}
+{# ログイン時・未ログイン時のオプションセクションで共用する。x-data に accountDeviceOptions() を展開して使う #}
+
+{% macro theme_option() %}
+            <div class="account-option" x-show="open" x-transition>
+                <div class="account-info-box">
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}テーマ:{% else %}Theme:{% endif %}</span>
+                        <select id="theme" class="form-input" x-model="theme" @change="updateTheme()">
+                            <option value="auto">{% if lang == 'ja' %}自動{% else %}Auto{% endif %}</option>
+                            <option value="light">{% if lang == 'ja' %}ライト{% else %}Light{% endif %}</option>
+                            <option value="dark">{% if lang == 'ja' %}ダーク{% else %}Dark{% endif %}</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        <b>自動</b>に設定されている場合、端末のダークモード設定に合わせてテーマが自動で切り替わります。この設定はアカウントではなく端末に保存されます。
+                    {% else %}
+                        When set to <b>auto</b>, the theme will switch automatically based on your device's dark mode setting.
+                    {% endif %}
+                </p>
+            </div>
+{% endmacro %}
+
+{% macro player_tab_option() %}
+            <div class="account-option" x-show="open" x-transition>
+                <div class="account-info-box">
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}プレイヤーページでデフォルトで開くタブ:{% else %}Default player page tab:{% endif %}</span>
+                        <select class="form-input" x-model="defaultPlayerTab" @change="updateDefaultPlayerTab()">
+                            <option value="profile">{% if lang == 'ja' %}プロフィール{% else %}Profile{% endif %}</option>
+                            <option value="battles">{% if lang == 'ja' %}バトル履歴{% else %}Battle Log{% endif %}</option>
+                            <option value="stats">{% if lang == 'ja' %}推移グラフ{% else %}Trends{% endif %}</option>
+                        </select>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}バトル履歴タブでデフォルトで開くサブタブ:{% else %}Default battle log sub-tab:{% endif %}</span>
+                        <select class="form-input" x-model="defaultBattleSubtab" @change="updateDefaultBattleSubtab()">
+                            <option value="all">{% if lang == 'ja' %}すべて{% else %}All{% endif %}</option>
+                            <option value="trophy">{% if lang == 'ja' %}トロフィー{% else %}Trophy{% endif %}</option>
+                            <option value="powerleague">{% if lang == 'ja' %}ガチバトル{% else %}Ranked{% endif %}</option>
+                            <option value="friendly">{% if lang == 'ja' %}フレンドバトル{% else %}Friendly{% endif %}</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        プレイヤーページにアクセスした際にデフォルトで開くタブ、およびプレイヤーページ内のバトル履歴タブにアクセスした際にデフォルトで開くサブタブを設定することができます。この設定はアカウントではなく端末に保存されます。
+                    {% else %}
+                        You can set the tab that opens by default when visiting a player page, and the sub-tab that opens by default when opening the Battle Log tab on a player page. This setting is saved to the device, not the account.
+                    {% endif %}
+                </p>
+            </div>
+{% endmacro %}
+
+{% macro default_board_option() %}
+            <div class="account-option" x-show="open" x-transition>
+                <div class="account-info-box">
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}デフォルトの掲示板:{% else %}Default Board:{% endif %}</span>
+                        <select class="form-input" x-model="defaultBoard" @change="updateDefaultBoard()">
+                            <option value="team">{% if lang == 'ja' %}チーム募集掲示板{% else %}Team{% endif %}</option>
+                            <option value="friend">{% if lang == 'ja' %}フレンド募集掲示板{% else %}Friend{% endif %}</option>
+                            <option value="club">{% if lang == 'ja' %}クラブ募集掲示板{% else %}Club{% endif %}</option>
+                            <option value="general">{% if lang == 'ja' %}なんでも掲示板{% else %}General{% endif %}</option>
+                            <option value="theme">{% if lang == 'ja' %}テーマ掲示板{% else %}Theme{% endif %}</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        掲示板タブを押した際、最初に開く掲示板の種類を設定することができます。この設定はアカウントではなく端末に保存されます。
+                    {% else %}
+                        You can set which board opens first when pressing the Boards tab. This setting is saved to the device, not the account.
+                    {% endif %}
+                </p>
+            </div>
+{% endmacro %}
+
+{% macro enter_to_send_option() %}
+            <div class="account-option" x-show="open" x-transition>
+                <div class="account-info-box">
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}改行キーで送信:{% else %}Send with Enter:{% endif %}</span>
+                        <span class="info-item__value" x-text="isEnterToSendEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
+                        <button type="button" @click="toggleEnterToSendSetting()" class="button button--secondary button--small">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        チャット画面で、オンの場合は改行キーでメッセージを直接送信します。PCの場合、この設定がオンになっていても<b>⇧Shift + Enter</b>で送信せずに改行できます。この設定はアカウントではなく端末に保存されます。
+                    {% else %}
+                        On the chat screen, pressing Enter sends the message directly when this setting is on. On PC, you can still insert a line break with <b>Shift + Enter</b> even when this setting is on. This setting is saved to the device, not the account.
+                    {% endif %}
+                </p>
+            </div>
+{% endmacro %}
+
+{% macro board_blocks_option() %}
+            <div class="account-option" x-show="open" x-transition>
+                <div class="account-info-box">
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}掲示板でブロックしたユーザー:{% else %}Blocked on Boards:{% endif %}</span>
+                        <button type="button" @click="openBoardBlocks()" class="button button--secondary button--small">{% if lang == "ja" %}確認{% else %}Manage{% endif %}</button>
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        掲示板でブロックしたユーザーを確認し、1人ずつ、またはまとめてブロックを解除できます。{% if not current_user %}ログインしていない間のブロックはこの端末に保存され、ログイン中のブロックとは別になります。{% endif %}
+                    {% else %}
+                        See who you blocked on the boards and unblock them one by one or all at once.{% if not current_user %} Blocks made while logged out are saved to this device and kept separate from your account's blocks.{% endif %}
+                    {% endif %}
+                </p>
+            </div>
+{% endmacro %}
+
+{% macro nav_bar_option() %}
+            {% if platform != "web" %}
+            <div class="account-option" x-show="open" x-transition>
+                <div class="account-info-box">
+                    <div class="info-item">
+                        <span class="info-item__label">{% if lang == "ja" %}ナビゲーションバー:{% else %}Navigation Bar:{% endif %}</span>
+                        <span class="info-item__value"
+                            x-text="isNavBarEnabled
+                                ? (lang === 'ja' ? '表示' : 'Visible')
+                                : (lang === 'ja' ? '非表示' : 'Hidden')">
+                        </span>
+                        <button type="button" @click="toggleNavBarSetting()" class="button button--secondary button--small">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        アプリにブラウザのような戻る／進むボタンを表示します。レイアウトの関係上、一部ボタンが表示されないページがあります。このボタンは、アプリ内の5つのタブを<b>またいだ</b>動作となる点にご注意ください。
+                    {% else %}
+                        Display browser-like back/forward buttons in the app. Due to layout constraints, these buttons may not appear on certain pages. Note that these buttons operate <b>across</b> all five tabs in the app.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+{% endmacro %}

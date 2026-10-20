@@ -569,6 +569,9 @@
                         body: JSON.stringify({
                             blocked_user_id: blockBtn.dataset.blockedUserId || null,
                             blocked_anonymous_id: blockBtn.dataset.blockedAnonymousId || null,
+                            source_post_id: blockBtn.dataset.sourcePostId
+                                ? parseInt(blockBtn.dataset.sourcePostId, 10)
+                                : null,
                         }),
                     });
                     if (response.ok) await reloadPostsFromFragment();

@@ -163,7 +163,8 @@
                             </div>
                             <div class="button post-card__block-button"
                                 data-blocked-user-id="{{ author_user_id or '' }}"
-                                data-blocked-anonymous-id="{{ author_anonymous_id or '' }}">
+                                data-blocked-anonymous-id="{{ author_anonymous_id or '' }}"
+                                data-source-post-id="{{ id }}">
                                 {% if lang == "ja" %}ブロック{% else %}Block{% endif %}
                             </div>
                         {% endif %}

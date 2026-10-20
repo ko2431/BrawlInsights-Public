@@ -7,11 +7,11 @@ import re
 import datetime
 import json
 
-from app.core.templating import templates
+from app.core.templating import templates, censor_filter
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError, PlayerNotFoundError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db, get_player_summaries_from_db
-from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
+from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_user_block_list, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
 from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
 from app.services import minigame_service
 from app.services import main_account_reward_service
@@ -31,7 +31,7 @@ from app.services.special_reward_link_service import (
     claim_minigame_reward,
     list_claimable_minigame_rewards,
 )
-from app.utils.utils import format_tag, confirm_tag, get_remote_ip
+from app.utils.utils import format_tag, confirm_tag, get_remote_ip, get_icon_path
 from app.db.db import get_shared_db
 from app.core.logger import logger
 
@@ -1323,27 +1323,80 @@ async def update_minigame_ticket_setting_process(
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def _board_block_owner(request: Request) -> tuple[int | None, str | None]:
+    """ブロック一覧の持ち主を返す。ログイン中はアカウント、未ログインなら端末の匿名ID。"""
+    user: User | None = getattr(request.state, "current_user", None)
+    if user:
+        return user.id, None
+    return None, request.cookies.get("brawlanonid")
+
+
+@router.get("/board-blocks", name="account_board_blocks")
+async def get_board_blocks(
+    request: Request,
+    before_id: int | None = None,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """掲示板でブロックしたユーザー・ゲストの一覧を返す。未ログインでも利用できる。"""
+    lang = request.path_params.get("lang", "ja")
+    blocker_user_id, blocker_anonymous_id = _board_block_owner(request)
+    if blocker_user_id is None and not blocker_anonymous_id:
+        # 匿名IDのクッキーがまだない端末は、ブロックもまだしていない
+        return JSONResponse({"success": True, "items": [], "has_more": False})
+
+    try:
+        items, has_more = await get_user_block_list(
+            db,
+            blocker_user_id=blocker_user_id,
+            blocker_anonymous_id=blocker_anonymous_id,
+            before_id=before_id,
+        )
+    except DataBaseError as e:
+        logger.error(f"掲示板ブロック一覧の取得中にエラー (User ID: {blocker_user_id}): {e}", exc_info=True)
+        message = "データベースエラーのため、ブロック一覧を読み込めませんでした。" if lang == "ja" else "Could not load your block list due to a database error."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    for item in items:
+        item["icon_path"] = "/" + get_icon_path(item.pop("icon_id"))
+        if item.get("post_comment"):
+            item["post_comment"] = censor_filter(item["post_comment"])
+        if item.get("post_club_badge_id") is not None:
+            item["post_club_badge_path"] = f"/static/images/club_badges/{item.pop('post_club_badge_id')}.png"
+    return JSONResponse({"success": True, "items": items, "has_more": has_more})
+
+
 @router.post("/reset-board-blocks", name="account_reset_board_blocks")
 async def reset_board_blocks_process(
     request: Request,
     db: asyncpg.Connection = Depends(get_shared_db),
-    current_user: User = Depends(get_current_active_user),
 ):
+    """掲示板のブロックをすべて解除する。未ログインの場合は、この端末でのブロックが対象。"""
     lang = request.path_params.get("lang", "ja")
+    blocker_user_id, blocker_anonymous_id = _board_block_owner(request)
+    if blocker_user_id is None and not blocker_anonymous_id:
+        return JSONResponse({
+            "success": True,
+            "deleted_count": 0,
+            "message": "ブロックをすべて解除しました。" if lang == "ja" else "All blocks have been removed.",
+        })
+
     try:
-        deleted_count = await reset_user_blocks_by_blocker(db, current_user.id)
-        logger.info(
-            f"{current_user.name} (ID: {current_user.id}) が掲示板のブロックをリセットしました。"
-            f" 削除件数: {deleted_count}"
+        deleted_count = await reset_user_blocks_by_blocker(
+            db,
+            blocker_user_id=blocker_user_id,
+            blocker_anonymous_id=blocker_anonymous_id,
         )
+        user: User | None = getattr(request.state, "current_user", None)
+        who = f"{user.name} (ID: {user.id})" if user else f"ゲスト (匿名ID: {blocker_anonymous_id})"
+        logger.info(f"{who} が掲示板のブロックをすべて解除しました。 削除件数: {deleted_count}")
         return JSONResponse({
             "success": True,
             "deleted_count": deleted_count,
-            "message": "ブロックをリセットしました。" if lang == "ja" else "Board blocks have been reset.",
+            "message": "ブロックをすべて解除しました。" if lang == "ja" else "All blocks have been removed.",
         })
     except DataBaseError as e:
-        logger.error(f"掲示板ブロックのリセット中にエラー (User ID: {current_user.id}): {e}", exc_info=True)
-        message = "データベースエラーのため、ブロックをリセットできませんでした。" if lang == "ja" else "Could not reset blocks due to a database error."
+        logger.error(f"掲示板ブロックの一括解除中にエラー (User ID: {blocker_user_id}): {e}", exc_info=True)
+        message = "データベースエラーのため、ブロックを解除できませんでした。" if lang == "ja" else "Could not remove blocks due to a database error."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- ボーナスミッションクリアエンドポイント ---

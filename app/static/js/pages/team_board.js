@@ -534,6 +534,9 @@
                                 ? parseInt(blockBtn.dataset.blockedUserId, 10)
                                 : null,
                             blocked_anonymous_id: blockBtn.dataset.blockedAnonymousId || null,
+                            source_post_id: blockBtn.dataset.sourcePostId
+                                ? parseInt(blockBtn.dataset.sourcePostId, 10)
+                                : null,
                         }),
                     });
                     if (response.ok) {
