@@ -225,6 +225,13 @@ function penaltyAdmin() {
             if (item.target_type === 'message') return `{{ url_for('admin_messages', lang=lang) }}?message_id=${encodeURIComponent(item.target_id)}`;
             return '';
         },
+        // 対象のメッセージを示した状態でチャットを開く（投稿はそのスレッド）
+        targetChatUrl(item) {
+            if (!item.target_id) return '';
+            if (item.target_type === 'post') return `/{{ lang }}/boards/chat/${encodeURIComponent(item.target_id)}`;
+            if (item.target_type === 'message') return `{{ url_for('admin_chat_message', lang=lang) }}?message_id=${encodeURIComponent(item.target_id)}`;
+            return '';
+        },
         actionLabel(kind) {
             return { warning: '警告', penalty: 'ペナルティ', decay: '減衰', level80_sync: '80同期' }[kind] || kind;
         },

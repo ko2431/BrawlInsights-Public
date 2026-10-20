@@ -224,6 +224,10 @@ a.admin-home-grid__item:hover {
     user-select: none;
     transition: background-color 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
 }
+/* ボタンだけを置くセルでは、先頭のボタンに左の余白を付けない（前にテキストがあるかはCSSで判定できないため、セル側で指定する） */
+.admin-cell-actions > .admin-cell-button:first-child {
+    margin-left: 0;
+}
 .admin-cell-button:hover {
     background-color: var(--bg-f0f0f0);
     border-color: var(--color-aaa);

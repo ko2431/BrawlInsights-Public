@@ -77,6 +77,22 @@ function auditLogViewer() {
             }
         },
         loadMore() { this.load(false); },
+        targetAdminUrl(type, id) {
+            if (!/^\d+$/.test(String(id || ''))) return '';
+            if (type === 'post') return `{{ url_for('admin_posts', lang=lang) }}?post_id=${id}`;
+            if (type === 'message') return `{{ url_for('admin_messages', lang=lang) }}?message_id=${id}`;
+            return '';
+        },
+        // 対象のメッセージを示した状態でチャットを開く（投稿はそのスレッド）
+        targetChatUrl(type, id) {
+            if (!/^\d+$/.test(String(id || ''))) return '';
+            if (type === 'post') return `/{{ lang }}/boards/chat/${id}`;
+            if (type === 'message') return `{{ url_for('admin_chat_message', lang=lang) }}?message_id=${id}`;
+            return '';
+        },
+        payloadTargetType(key) {
+            return { message_id: 'message', post_id: 'post' }[key] || '';
+        },
         payloadEntries(payload) {
             if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
             return Object.entries(payload).flatMap(([key, value]) => {

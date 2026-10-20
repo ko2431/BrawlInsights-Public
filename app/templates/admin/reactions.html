@@ -182,7 +182,7 @@
                         {% endif %}
                     </td>
                     <td class="admin-cell-nowrap">
-                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=reaction.thread_id) }}"
+                        <a href="{{ url_for('chat_thread', lang=lang, thread_id=reaction.thread_id) }}?message_id={{ reaction.message_id }}"
                            class="admin-thread-link"
                            data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ reaction.thread_id }}"
                            onclick="return handleAdminThreadLinkClick(event, this)"

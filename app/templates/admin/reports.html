@@ -281,7 +281,7 @@
                     </td>
                     <td class="admin-cell-nowrap">
                         {% if report.post_id %}
-                            <a href="{{ url_for('chat_thread', lang=lang, thread_id=report.post_id) }}"
+                            <a href="{{ url_for('chat_thread', lang=lang, thread_id=report.post_id) }}{% if report.message_id %}?message_id={{ report.message_id }}{% endif %}"
                                class="admin-thread-link"
                                data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ report.post_id }}"
                                onclick="return handleAdminThreadLinkClick(event, this)"
@@ -315,7 +315,7 @@
                     <td class="col-message">
                         <div class="col-message-content">{{ report.text if report.text else "(なし)" }}</div>
                     </td>
-                    <td class="col-action">
+                    <td class="col-action admin-cell-actions">
                         {% if can_view_penalties %}
                         {{ admin_link_button(url_for('admin_penalties', lang=lang) ~ '?report_id=' ~ report.id ~ ('&user_id=' ~ report.target_user_id if report.target_user_id else '') ~ '&target_type=' ~ report.target_type ~ '&target_id=' ~ report.target_id, 'ペナルティ', 'danger') }}
                         {% endif %}
