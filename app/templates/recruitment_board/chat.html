@@ -22,15 +22,78 @@
                 if (hasComment) {
                     if (canDeleteMessages || isOwnGift) {
                         const deleteButton = document.createElement('button');
-                        deleteButton.className = 'chat-menu__action-btn';
-                        deleteButton.innerHTML = `<span style="color: # [この部分は公開用リポジトリでは非公開にされています]
+                        deleteButton.className = 'chat-menu__action-btn chat-menu__action-btn--danger';
+                        deleteButton.textContent = lang === 'ja' ? 'メッセージを削除' : 'Delete Message';
+                        deleteButton.onclick = () => handleDeleteGiftComment(messageId);
+                        messageMenuActions.appendChild(deleteButton);
+                    } else if (currentUserId) {
+                        const reportButton = document.createElement('button');
+                        reportButton.className = 'chat-menu__action-btn chat-menu__action-btn--report';
+                        reportButton.textContent = lang === 'ja' ? 'メッセージを通報' : 'Report Message';
+                        reportButton.onclick = () => { openReportModal(messageId); hideMessageMenu(); };
+                        messageMenuActions.appendChild(reportButton);
+                    }
+                }
+
+                if (messageMenuSeparator) {
+                    messageMenuSeparator.style.display = messageMenuActions.childElementCount ? '' : 'none';
+                }
+
+                positionMenu(messageMenu, targetElement, { pinToVisibleMessageArea: true });
+            }
+
+            async function copyGiftComment(giftEvent) {
+                hideMessageMenu();
+                const bodyEl = giftEvent.querySelector('.token-gift-event__comment-body');
+                const text = bodyEl ? (bodyEl.innerText || bodyEl.textContent || '') : '';
+                try {
+                    await copyTextToClipboard(text);
+                } catch (error) {
+                    console.error('Failed to copy gift comment:', error);
+                }
+            }
+
+            async function handleDeleteGiftComment(messageId) {
+                const confirmDelete = confirm(
+                    lang === 'ja'
+                        ? 'このメッセージを本当に削除しますか？\nメッセージは削除されますが、トークンの進呈は取り消されません。'
+                        : 'Are you sure you want to delete this message?\nThe message will be deleted, but the token gift will not be undone.'
+                );
+                if (confirmDelete) {
+                    try {
+                        const response = await fetch(`/${lang}/boards/messages/${messageId}/token-gift-comment`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            throw new Error('Failed to delete gift comment');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting gift comment:', error);
+                        alert(lang === 'ja' ? 'メッセージの削除に失敗しました。' : 'Failed to delete message.');
+                    }
+                }
+                hideMessageMenu();
+            }
+
+            // [この部分は公開用リポジトリでは非公開にされています]
 
             // [この部分は公開用リポジトリでは非公開にされています]
 
                 if (canDeleteMessages || isOwnMessage) {
                     const deleteButton = document.createElement('button');
-                    deleteButton.className = 'chat-menu__action-btn';
-                    deleteButton.innerHTML = `<span style="color: # [この部分は公開用リポジトリでは非公開にされています]
+                    deleteButton.className = 'chat-menu__action-btn chat-menu__action-btn--danger';
+                    deleteButton.textContent = lang === 'ja' ? 'メッセージを削除' : 'Delete Message';
+                    deleteButton.onclick = () => handleDeleteMessage(messageId);
+                    messageMenuActions.appendChild(deleteButton);
+                } else if (targetElement?.dataset?.messageType !== 'warning') {
+                    const reportButton = document.createElement('button');
+                    reportButton.className = 'chat-menu__action-btn chat-menu__action-btn--report';
+                    reportButton.textContent = lang === 'ja' ? 'メッセージを通報' : 'Report Message';
+                    reportButton.onclick = () => { openReportModal(messageId); hideMessageMenu(); };
+                    messageMenuActions.appendChild(reportButton);
+                }
+                
+                // [この部分は公開用リポジトリでは非公開にされています]
 
                 // [この部分は公開用リポジトリでは非公開にされています]
 

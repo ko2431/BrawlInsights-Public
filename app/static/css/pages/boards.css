@@ -1537,6 +1537,12 @@ body.modal-open {
 }
 .notification-user-icons__image--clickable {
     cursor: pointer;
+    transition: transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+/* タップしたとき少しだけ縮む（ユーザーのメニューを開く。掲示板のチャットのアイコンと同じ） */
+.notification-user-icons__image--clickable:active {
+    transform: scale(0.92);
 }
 .notification-title__container {
     font-size: 16px;

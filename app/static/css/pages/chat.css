@@ -378,6 +378,12 @@ body.has-top-banner .chat-featured-spacer {
 }
 .message-bubble__icon-wrapper--clickable {
     cursor: pointer;
+    transition: transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+/* タップしたとき少しだけ縮む（ユーザーのメニューを開く） */
+.message-bubble__icon-wrapper--clickable:active {
+    transform: scale(0.92);
 }
 .message-bubble__icon {
     width: 100%;
@@ -445,8 +451,13 @@ body.has-top-banner .chat-featured-spacer {
     font-size: 15px;
     line-height: 1.5;
     border-bottom-left-radius: 7px;
-    transition: box-shadow 0.45s ease;
+    transition: box-shadow 0.45s ease, transform 0.15s ease;
     box-shadow: 0 0 0 0 transparent;
+}
+/* 本文を押している間だけ、吹き出しがわずかに縮む（メッセージのメニューを開ける人だけ）。
+   縮む量が大きさに比例しないよう、倍率は押したときに JS が大きさから決める（--press-scale） */
+.messages__container--menu .message-bubble__content:has(.message-bubble__text:active) {
+    transform: scale(var(--press-scale, 0.97));
 }
 .dark .message-bubble__content {
     background-color: #333;
@@ -725,8 +736,13 @@ body.has-top-banner .chat-featured-spacer {
     font-size: 14px;
     line-height: 1.5;
     text-align: center;
-    transition: box-shadow 0.45s ease;
+    transition: box-shadow 0.45s ease, transform 0.15s ease;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+/* 押している間だけわずかに縮む（名前を押したときはユーザーのメニューなので縮めない。倍率は --press-scale） */
+.token-gift-event__box:active:not(:has(.token-gift-event__user:active)) {
+    transform: scale(var(--press-scale, 0.97));
 }
 .dark .token-gift-event__box {
     background-color: #333;
@@ -1095,7 +1111,15 @@ body.has-top-banner .chat-featured-spacer {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 100;
     padding: 5px;
+    color: #111;
     user-select: none;
+}
+/* ダークモードでは、吹き出し（#333）より一段明るい面にして浮いて見えるように */
+.dark .chat-menu {
+    background-color: #2e2e2e;
+    border-color: #464646;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+    color: #ececec;
 }
 
 /* 絵文字パレット */
@@ -1115,6 +1139,9 @@ body.has-top-banner .chat-featured-spacer {
 .chat-menu__emoji-btn:hover {
     background-color: #e0e0e0;
 }
+.dark .chat-menu__emoji-btn:hover {
+    background-color: #3d3d3d;
+}
 .chat-menu__emoji-btn--selected {
     background-color: #d0e8f8;
     border-color: #a0c8e4;
@@ -1129,12 +1156,23 @@ body.has-top-banner .chat-featured-spacer {
     background-color: #aaa;
     border-color: #999;
 }
+.dark .chat-menu__emoji-btn--selected {
+    background-color: #4c4c4c;
+    border-color: #6a6a6a;
+}
+.dark .chat-menu__emoji-btn--selected:hover {
+    background-color: #575757;
+    border-color: #777;
+}
 
 /* メニュー内の区切り線 */
 .chat-menu__separator {
     height: 1px;
     background-color: #dcdcdc;
     margin: 5px 2px;
+}
+.dark .chat-menu__separator {
+    background-color: #464646;
 }
 
 /* メニュー内のアクションボタン領域 */
@@ -1166,9 +1204,15 @@ a.chat-menu__action-btn {
 .chat-menu__action-btn:hover {
     background-color: #e0e0e0;
 }
+.dark .chat-menu__action-btn:hover {
+    background-color: #3d3d3d;
+}
 .chat-menu__action-btn:disabled {
     color: #999;
     cursor: default;
+}
+.dark .chat-menu__action-btn:disabled {
+    color: #777;
 }
 .chat-menu__action-btn:disabled:hover {
     background-color: transparent;
@@ -1178,7 +1222,27 @@ a.chat-menu__action-btn {
     cursor: pointer;
 }
 .dark .chat-menu__action-btn--muted {
-    color: #999;
+    color: #888;
+}
+/* 削除・ブロック・個別許可の取り消し */
+.chat-menu__action-btn--danger {
+    color: #c90808;
+}
+.dark .chat-menu__action-btn--danger {
+    color: #ff6b6b;
+}
+.chat-menu__action-btn--report {
+    color: #9d0759;
+}
+.dark .chat-menu__action-btn--report {
+    color: #f472b6;
+}
+/* リンクのクリックの個別許可 */
+.chat-menu__action-btn--permit {
+    color: #01b43f;
+}
+.dark .chat-menu__action-btn--permit {
+    color: #3fd27a;
 }
 .chat-menu__action-btn--gift {
     color: #319fe3;
@@ -1286,6 +1350,9 @@ a.chat-menu__action-btn {
     overflow-wrap: break-word;
     color: #000;
 }
+.dark .reaction-list__user-name {
+    color: #ececec;
+}
 .reaction-list__emoji {
     font-size: 20px;
 }
@@ -1353,6 +1420,9 @@ a.chat-menu__action-btn {
     height: 1px;
     background-color: #dcdcdc;
     margin: 5px 0;
+}
+.dark .reaction-list__separator {
+    background-color: #464646;
 }
 
 .chat-menu__reaction-list {

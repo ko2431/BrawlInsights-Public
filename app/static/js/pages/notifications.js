@@ -254,6 +254,8 @@
 
         const { lang, blockUserUrl } = config;
         userMenuDelegationBound = true;
+        // iOS は touchstart のリスナーがないと :active が効かない（アイコンを押したときに縮める）
+        root.addEventListener('touchstart', () => {}, { passive: true });
 
         function showUserMenu(targetElement, actorData) {
             userMenuActions.innerHTML = '';
@@ -269,14 +271,21 @@
                 const profileButton = document.createElement('button');
                 profileButton.type = 'button';
                 profileButton.className = 'chat-menu__action-btn';
-                profileButton.style.color = '#111';
                 profileButton.style.gap = '0';
                 profileButton.style.display = 'flex';
                 profileButton.style.flexWrap = 'wrap';
                 profileButton.style.alignItems = 'center';
-                profileButton.innerHTML = lang === 'ja'
-                    ? `このユーザーのメインアカウント("<b style="white-space: normal; overflow-wrap: normal; word-break: keep-all;">${actorData.mainAccountName}</b>")の情報を見る`
-                    : `View main account ("<b style="white-space: normal; overflow-wrap: normal; word-break: keep-all;">${actorData.mainAccountName}</b>") profile`;
+                // プレイヤー名は利用者が付けたものなので、HTMLにせずテキストとして入れる
+                const accountName = document.createElement('b');
+                accountName.style.whiteSpace = 'normal';
+                accountName.style.overflowWrap = 'normal';
+                accountName.style.wordBreak = 'keep-all';
+                accountName.textContent = actorData.mainAccountName;
+                profileButton.append(
+                    lang === 'ja' ? 'このユーザーのメインアカウント("' : 'View main account ("',
+                    accountName,
+                    lang === 'ja' ? '")の情報を見る' : '") profile',
+                );
                 profileLink.appendChild(profileButton);
                 userMenuActions.appendChild(profileLink);
             }
@@ -290,8 +299,7 @@
 
                 const blockButton = document.createElement('button');
                 blockButton.type = 'button';
-                blockButton.className = 'chat-menu__action-btn';
-                blockButton.style.color = '#c90808';
+                blockButton.className = 'chat-menu__action-btn chat-menu__action-btn--danger';
                 blockButton.textContent = lang === 'ja' ? 'このユーザーをブロック' : 'Block this user';
                 blockButton.addEventListener('click', async () => {
                     const msg = lang === 'ja'
