@@ -195,6 +195,8 @@ def test_interim_rotation_before_new_cycle_is_trimmed():
     assert result.confirmed
     assert sorted(item.map_id for item in result.cycle.maps) == [11, 12, 13, 14]
     assert result.cycle.maps[result.latest_index].map_id == 11
+    # 確定後の推論で暫定ローテを再び拾わないよう、新周期の開始を返す。
+    assert result.settled_from == after[0].start
 
 
 def test_interim_rotation_before_new_length():
@@ -224,3 +226,4 @@ def test_interim_rotation_waits_for_new_cycle_repeat():
     assert result.cycle_length_uncertain
     assert result.cycle.cycle_length is None
     assert result.confirmed is False
+    assert result.settled_from is None
