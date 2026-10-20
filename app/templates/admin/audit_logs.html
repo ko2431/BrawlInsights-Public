@@ -46,16 +46,6 @@ function auditLogViewer() {
             this.applied = { ...this.draft };
             this.load(true);
         },
-        isAppliedActionKey(actionKey) {
-            return this.normalizeFilters(this.applied).actionKey === String(actionKey || '').trim();
-        },
-        filterByActionKey(actionKey) {
-            const next = String(actionKey || '').trim();
-            if (!next || this.isAppliedActionKey(next)) return;
-            this.applied = { ...this.applied, actionKey: next };
-            this.draft.actionKey = next;
-            this.load(true);
-        },
         queryParams(beforeId) {
             const params = new URLSearchParams();
             const filter = this.normalizeFilters(this.applied);

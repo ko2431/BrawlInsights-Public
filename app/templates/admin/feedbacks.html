@@ -1,7 +1,6 @@
 {# /app/templates/admin/feedbacks.html #}
 {% extends "base.html" %}
-{% from "admin/macros/badges.html" import admin_badge %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button, admin_filter_badge with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -160,16 +159,18 @@
                 {% for feedback in feedbacks %}
                 <tr x-data="feedbackRow" x-init='initData({{ {"id": feedback.id, "is_checked": feedback.is_checked} | tojson }})' :class="{ 'changed': isDirty() }">
                     <td style="text-align: right;">{{ feedback.id }}</td>
-                    <td>
+                    <td class="admin-cell-nowrap">
                         <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ feedback.user_id }}"
                            class="admin-thread-link"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ feedback.user_name }} ({{ feedback.user_id }})</a>
+                        {{ admin_filter_button('user_id', feedback.user_id) }}
                     </td>
                     <td>{{ feedback.datetime_text }}</td>
                     <td>
-                        {{ admin_badge(
+                        {{ admin_filter_badge(
                             feedback.feedback_type_ja,
-                            {"inquiry": "purple", "suggestion": "yellow", "bug_report": "red", "message": "cyan"}.get(feedback.feedback_type, "gray")
+                            {"inquiry": "purple", "suggestion": "yellow", "bug_report": "red", "message": "cyan"}.get(feedback.feedback_type, "gray"),
+                            'feedback_type', feedback.feedback_type
                         ) }}
                     </td>
                     <td class="col-message">

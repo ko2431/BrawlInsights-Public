@@ -1,6 +1,6 @@
 {# /app/templates/admin/purchases.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -175,11 +175,12 @@
                     <td class="col-id">{{ ev.id }}</td>
                     <td class="col-datetime">{{ ev.created_at_text }}</td>
                     <td class="col-datetime">{{ ev.event_timestamp_text }}</td>
-                    <td class="col-user">
+                    <td class="col-user admin-cell-nowrap">
                         {% if ev.user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ ev.user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ ev.user_display }}</a>
+                            {{ admin_filter_button('user_id', ev.user_id) }}
                         {% else %}
                             {{ ev.user_display }}
                         {% endif %}
@@ -188,7 +189,7 @@
                     <td class="col-app-user">{{ ev.app_user_id }}</td>
                     <td>{{ ev.provider }}</td>
                     <td>{{ ev.event_type }}</td>
-                    <td>{{ ev.product_id }}</td>
+                    <td class="admin-cell-nowrap">{{ ev.product_id or '' }} {{ admin_filter_button('product_id', ev.product_id) }}</td>
                     <td>{{ ev.entitlement_id }}</td>
                     <td>{{ ev.transaction_id }}</td>
                     <td>{{ ev.original_transaction_id }}</td>

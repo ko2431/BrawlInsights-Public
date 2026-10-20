@@ -1,7 +1,6 @@
 {# /app/templates/admin/image_generation_jobs.html #}
 {% extends "base.html" %}
-{% from "admin/macros/badges.html" import admin_badge %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button, admin_filter_badge with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -214,33 +213,40 @@
                     <td class="col-datetime">{{ job.started_at_text }}</td>
                     <td class="col-datetime">{{ job.completed_at_text }}</td>
                     <td>
-                        {{ admin_badge(
+                        {{ admin_filter_badge(
                             job.status,
-                            {"queued": "blue", "processing": "yellow", "completed": "green", "failed": "red"}.get(job.status, "gray")
+                            {"queued": "blue", "processing": "yellow", "completed": "green", "failed": "red"}.get(job.status, "gray"),
+                            'status_filter', job.status if job.status in ('queued', 'processing', 'completed', 'failed') else ''
                         ) }}
                     </td>
-                    <td class="col-user">
+                    <td class="col-user admin-cell-nowrap">
                         {% if job.user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ job.user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ job.user_display }}</a>
+                            {{ admin_filter_button('user_id', job.user_id) }}
                         {% else %}
                             {{ job.user_display }}
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="admin-cell-nowrap">
                         {% if job.player_tag_link %}
                             <a href="{{ url_for('get_player_profile', lang=lang, tag=job.player_tag_link) }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ job.player_tag }}</a>
+                            {{ admin_filter_button('player_tag', job.player_tag) }}
                         {% else %}
                             {{ job.player_tag }}
                         {% endif %}
                     </td>
-                    <td>{{ job.image_type }}</td>
-                    <td>{{ admin_badge(job.orientation, {"portrait": "red", "landscape": "blue"}.get(job.orientation, "gray")) }}</td>
-                    <td>{{ admin_badge(job.platform, {"web": "blue", "ios": "red", "android": "green"}.get(job.platform, "gray")) }}</td>
-                    <td>{{ admin_badge(job.lang, {"ja": "red", "en": "blue"}.get(job.lang, "gray")) }}</td>
+                    <td class="admin-cell-nowrap">
+                        {{ job.image_type }}
+                        {% if job.image_type != '-' %}{{ admin_filter_button('image_type', job.image_type) }}{% endif %}
+                    </td>
+                    {# 値が欠けている（"-"）か、フィルターの選択肢にない値はクリックできない通常のバッジにする #}
+                    <td>{{ admin_filter_badge(job.orientation, {"portrait": "red", "landscape": "blue"}.get(job.orientation, "gray"), 'orientation', job.orientation if job.orientation in ('portrait', 'landscape') else '') }}</td>
+                    <td>{{ admin_filter_badge(job.platform, {"web": "blue", "ios": "red", "android": "green"}.get(job.platform, "gray"), 'platform_filter', job.platform if job.platform in ('web', 'ios') else '') }}</td>
+                    <td>{{ admin_filter_badge(job.lang, {"ja": "red", "en": "blue"}.get(job.lang, "gray"), 'lang_filter', job.lang if job.lang in ('ja', 'en') else '') }}</td>
                     <td style="text-align: right;">{{ job.priority }}</td>
                     <td>{{ 'true' if job.consume_ticket else 'false' }}</td>
                     <td>{{ 'true' if job.is_fast_lane else 'false' }}</td>

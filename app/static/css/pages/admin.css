@@ -206,6 +206,95 @@ a.admin-home-grid__item:hover {
     text-decoration: underline;
     white-space: nowrap;
 }
+/* 表セル内の小さなボタン（絞込・他画面へのリンク） */
+.admin-cell-button {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 6px;
+    border: 1px solid var(--color-ccc);
+    border-radius: 6px;
+    background-color: var(--bg-main);
+    font-size: 0.8em;
+    line-height: 1.6;
+    color: var(--color-555);
+    text-decoration: none;
+    white-space: nowrap;
+    vertical-align: 1px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+}
+.admin-cell-button:hover {
+    background-color: var(--bg-f0f0f0);
+    border-color: var(--color-aaa);
+    color: var(--color-333);
+}
+.admin-cell-button:active {
+    transform: scale(0.93);
+}
+.admin-cell-button.is-active {
+    border-color: #2563eb;
+    background-color: #2563eb;
+    color: #fff;
+}
+.admin-cell-button.is-active:hover {
+    border-color: #1d4ed8;
+    background-color: #1d4ed8;
+    color: #fff;
+}
+.admin-cell-button--danger {
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+.admin-cell-button--danger:hover {
+    border-color: #f87171;
+    background-color: #fef2f2;
+    color: #991b1b;
+}
+.dark .admin-cell-button.is-active {
+    border-color: #3b82f6;
+    background-color: #1d4ed8;
+}
+.dark .admin-cell-button--danger {
+    border-color: #7f1d1d;
+    color: #fca5a5;
+}
+.dark .admin-cell-button--danger:hover {
+    border-color: #b91c1c;
+    background-color: #2a1414;
+    color: #fecaca;
+}
+/* 表セルの値の後ろに並ぶボタン群は折り返さない */
+.admin-cell-nowrap {
+    white-space: nowrap;
+}
+button.admin-cell-button {
+    font-family: inherit;
+}
+/* クリックで絞り込めるバッジ（リンク版: admin-badge--filter / JS版: admin-badge--clickable） */
+a.admin-badge--filter,
+.admin-badge--clickable {
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    transition: filter 0.12s, box-shadow 0.12s, transform 0.08s;
+}
+a.admin-badge--filter:hover,
+.admin-badge--clickable:hover {
+    filter: brightness(0.94);
+}
+.dark a.admin-badge--filter:hover,
+.dark .admin-badge--clickable:hover {
+    filter: brightness(1.2);
+}
+a.admin-badge--filter:active,
+.admin-badge--clickable:active {
+    transform: scale(0.94);
+}
+a.admin-badge--filter.is-current-filter,
+.admin-badge--clickable.is-current-filter {
+    box-shadow: inset 0 0 0 1.5px currentColor;
+}
 .admin-filters__select,
 .admin-filters__input {
     margin: -2px 0 2px;
@@ -648,6 +737,21 @@ th {
     font-size: 11px;
     font-weight: bold;
     line-height: 1;
+}
+/* クリックで絞り込めるログのバッジ */
+a.log-badge--filter {
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.12s, box-shadow 0.12s, transform 0.08s;
+}
+a.log-badge--filter:hover {
+    filter: brightness(0.92);
+}
+a.log-badge--filter:active {
+    transform: scale(0.94);
+}
+a.log-badge--filter.is-current-filter {
+    box-shadow: 0 0 0 1.5px var(--bg-main), 0 0 0 3px var(--color-555);
 }
 /* Parent / Child を淡い色で区別（ログレベルの濃い赤・緑などと混同しない） */
 .log-server-badge--parent {
@@ -1413,12 +1517,6 @@ a.admin-notification-card--unread:hover {
     font-size: 12px;
     color: var(--color-777);
 }
-.audit-log-card .admin-badge--cyan {
-    cursor: pointer;
-}
-.audit-log-card .admin-badge--cyan.is-current-filter {
-    cursor: default;
-}
 .audit-log-card__summary {
     font-size: 15px;
     font-weight: 700;
@@ -2015,18 +2113,6 @@ select.mr-admin__state--manual { color: #1e40af; }
 /* アカウント登録履歴 */
 .player-account-events-table td {
     white-space: nowrap;
-}
-.player-account-events-table__filter {
-    margin-left: 6px;
-    padding: 0 6px;
-    border: 1px solid var(--color-ccc);
-    border-radius: 6px;
-    font-size: 0.8em;
-    color: var(--color-555);
-    text-decoration: none;
-}
-.player-account-events-table__filter:hover {
-    background-color: var(--bg-f0f0f0);
 }
 .player-account-events-table__none {
     font-size: 0.9em;

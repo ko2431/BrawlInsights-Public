@@ -19,3 +19,30 @@
     </div>
 </div>
 {% endmacro %}
+
+{# 以下のセル用マクロは request / platform を参照するため、`import ... with context` で読み込むこと #}
+
+{# 表セル用の[絞込]ボタン。他の条件は維持し、絞込済みなら押すと解除する。 #}
+{% macro admin_filter_button(key, value) -%}
+{%- if value is not none and (value | string | trim) -%}
+{%- set active = admin_filter_active(request, key, value) -%}
+<a href="{{ admin_filter_url(request, key, value) }}" class="admin-cell-button{% if active %} is-active{% endif %}" title="{{ '絞り込みを解除' if active else 'この値で絞り込む' }}">絞込</a>
+{%- endif -%}
+{%- endmacro %}
+
+{# クリックで絞り込めるバッジ。color は admin_badge と同じ。value が空なら通常のバッジとして表示する。 #}
+{% macro admin_filter_badge(text, color, key, value) -%}
+{%- if text is not none and (text | string | trim) -%}
+{%- if value is not none and (value | string | trim) -%}
+{%- set active = admin_filter_active(request, key, value) -%}
+<a href="{{ admin_filter_url(request, key, value) }}" class="admin-badge admin-badge--{{ color if color else 'gray' }} admin-badge--filter{% if active %} is-current-filter{% endif %}" title="{{ '絞り込みを解除' if active else 'この値で絞り込む' }}">{{ text }}</a>
+{%- else -%}
+<span class="admin-badge admin-badge--{{ color if color else 'gray' }}">{{ text }}</span>
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{# 他の管理画面へ移動するボタン。Web版は新しいタブ、アプリ版は同じタブで開く。 #}
+{% macro admin_link_button(url, label, variant='') -%}
+<a href="{{ url }}" class="admin-cell-button{% if variant %} admin-cell-button--{{ variant }}{% endif %}"{% if platform == 'web' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ label }}</a>
+{%- endmacro %}

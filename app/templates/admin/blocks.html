@@ -1,6 +1,6 @@
 {# /app/templates/admin/blocks.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -172,28 +172,32 @@
                 <tr>
                     <td>{{ block.id }}</td>
                     <td>{{ block.created_at_text }}</td>
-                    <td>{{ block.blocker_user_name if block.blocker_user_id else "(ゲスト)" }}</td>
-                    <td>
+                    <td class="admin-cell-nowrap">
+                        {{ block.blocker_user_name if block.blocker_user_id else "(ゲスト)" }}
+                        {% if block.blocker_user_id %}{{ admin_filter_button('blocker_user_id', block.blocker_user_id) }}{% endif %}
+                    </td>
+                    <td class="admin-cell-nowrap">
                         {% if block.blocker_user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ block.blocker_user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocker_user_id }}</a>
                         {% else %}
-                            <a href="{{ url_for('admin_blocks', lang=lang) }}?blocker_anonymous_id={{ block.blocker_anonymous_id | urlencode }}"
-                               class="admin-thread-link"
-                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocker_anonymous_id }}</a>
+                            {{ block.blocker_anonymous_id }}
+                            {{ admin_filter_button('blocker_anonymous_id', block.blocker_anonymous_id) }}
                         {% endif %}
                     </td>
-                    <td>{{ block.blocked_user_name if block.blocked_user_id else "(ゲスト)" }}</td>
-                    <td>
+                    <td class="admin-cell-nowrap">
+                        {{ block.blocked_user_name if block.blocked_user_id else "(ゲスト)" }}
+                        {% if block.blocked_user_id %}{{ admin_filter_button('blocked_user_id', block.blocked_user_id) }}{% endif %}
+                    </td>
+                    <td class="admin-cell-nowrap">
                         {% if block.blocked_user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ block.blocked_user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocked_user_id }}</a>
                         {% else %}
-                            <a href="{{ url_for('admin_blocks', lang=lang) }}?blocked_anonymous_id={{ block.blocked_anonymous_id | urlencode }}"
-                               class="admin-thread-link"
-                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ block.blocked_anonymous_id }}</a>
+                            {{ block.blocked_anonymous_id }}
+                            {{ admin_filter_button('blocked_anonymous_id', block.blocked_anonymous_id) }}
                         {% endif %}
                     </td>
                 </tr>

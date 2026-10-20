@@ -1,6 +1,6 @@
 {# /app/templates/admin/token_gifts.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -207,29 +207,36 @@
                 <tr>
                     <td>{{ gift.id }}</td>
                     <td>{{ gift.created_at_text }}</td>
-                    <td>
+                    <td class="admin-cell-nowrap">
                         <a href="{{ url_for('chat_thread', lang=lang, thread_id=gift.thread_id) }}?message_id={{ gift.message_id }}"
                            class="admin-thread-link"
                            data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ gift.thread_id }}"
                            onclick="return handleAdminThreadLinkClick(event, this)"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ gift.thread_id }}</a>
+                        {{ admin_filter_button('thread_id', gift.thread_id) }}
                     </td>
-                    <td>{{ gift.giver_user_name or '(なし)' }}</td>
+                    <td class="admin-cell-nowrap">
+                        {{ gift.giver_user_name or '(なし)' }}
+                        {% if gift.giver_user_id %}{{ admin_filter_button('giver_user_id', gift.giver_user_id) }}{% endif %}
+                    </td>
                     <td>
                         {% if gift.giver_user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ gift.giver_user_id }}" class="admin-thread-link" {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ gift.giver_user_id }}</a>
                         {% endif %}
                     </td>
-                    {% if can_view_ip %}<td>{{ gift.giver_ip }}</td>{% endif %}
-                    <td>{{ gift.giver_main_account or '' }}</td>
-                    <td>{{ gift.recipient_user_name or '(なし)' }}</td>
+                    {% if can_view_ip %}<td class="admin-cell-nowrap">{{ gift.giver_ip or '' }} {{ admin_filter_button('giver_ip', gift.giver_ip) }}</td>{% endif %}
+                    <td class="admin-cell-nowrap">{{ gift.giver_main_account or '' }} {{ admin_filter_button('giver_main_account', gift.giver_main_account) }}</td>
+                    <td class="admin-cell-nowrap">
+                        {{ gift.recipient_user_name or '(なし)' }}
+                        {% if gift.recipient_user_id %}{{ admin_filter_button('recipient_user_id', gift.recipient_user_id) }}{% endif %}
+                    </td>
                     <td>
                         {% if gift.recipient_user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ gift.recipient_user_id }}" class="admin-thread-link" {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ gift.recipient_user_id }}</a>
                         {% endif %}
                     </td>
-                    {% if can_view_ip %}<td>{{ gift.recipient_ip }}</td>{% endif %}
-                    <td>{{ gift.recipient_main_account or '' }}</td>
+                    {% if can_view_ip %}<td class="admin-cell-nowrap">{{ gift.recipient_ip or '' }} {{ admin_filter_button('recipient_ip', gift.recipient_ip) }}</td>{% endif %}
+                    <td class="admin-cell-nowrap">{{ gift.recipient_main_account or '' }} {{ admin_filter_button('recipient_main_account', gift.recipient_main_account) }}</td>
                     <td>{{ '{:,}'.format(gift.amount) }}</td>
                     <td>{{ gift.fee }}</td>
                     <td class="col-message"><div class="col-message-content">{{ gift.comment }}</div></td>

@@ -1,6 +1,6 @@
 {# /app/templates/admin/logs.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -161,9 +161,27 @@
                         <tr class="{{ row_class }}">
                             <td style="text-align: right;">{{ log.number }}</td>
                             <td>{{ log.datetime_text }}</td>
-                            <td><span class="log-server-badge log-server-badge--{{ log.server | lower }}">{{ log.server }}</span></td>
-                            <td><span class="log-level-badge">{{ log.level }}</span></td>
-                            <td>{{ log.location }}</td>
+                            <td>
+                                {# 選択肢にないサーバー名（開発環境の Main など）は400になるため、クリックできない表示にする #}
+                                {% if log.server in server_options %}
+                                {% set server_active = admin_filter_active(request, 'server', log.server) %}
+                                <a href="{{ admin_filter_url(request, 'server', log.server) }}" class="log-server-badge log-server-badge--{{ log.server | lower }} log-badge--filter{% if server_active %} is-current-filter{% endif %}" title="{{ '絞り込みを解除' if server_active else 'この値で絞り込む' }}">{{ log.server }}</a>
+                                {% else %}
+                                <span class="log-server-badge log-server-badge--{{ log.server | lower }}">{{ log.server }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.level in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL') %}
+                                {% set level_active = admin_filter_active(request, 'level', log.level) %}
+                                <a href="{{ admin_filter_url(request, 'level', log.level) }}" class="log-level-badge log-badge--filter{% if level_active %} is-current-filter{% endif %}" title="{{ '絞り込みを解除' if level_active else 'この値で絞り込む' }}">{{ log.level }}</a>
+                                {% else %}
+                                <span class="log-level-badge">{{ log.level }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="admin-cell-nowrap">
+                                {{ log.location }}
+                                {% if log.location != '-' %}{{ admin_filter_button('location', log.location) }}{% endif %}
+                            </td>
                             <td style="word-break: break-all;">{{ log.content }}</td>
                         </tr>
                     {% endfor %}

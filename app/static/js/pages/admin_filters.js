@@ -91,6 +91,25 @@ function withAdminFilterCollapse(component, pageKey) {
             this.applyFilters();
         }
     };
+    // JSで一覧を読み込む画面（ペナルティ履歴・監査ログなど）のセル内[絞込]用。
+    // 他の条件は維持し、すでに同じ値で絞り込み中なら offValue に戻す。
+    component.isAppliedFilterValue = function isAppliedFilterValue(key, value) {
+        const applied = typeof this.normalizeFilters === "function"
+            ? this.normalizeFilters(this.applied || {})
+            : (this.applied || {});
+        const current = String(applied[key] ?? "").trim();
+        return current !== "" && current === String(value ?? "").trim();
+    };
+    component.toggleAppliedFilter = function toggleAppliedFilter(key, value, offValue = "") {
+        const next = String(value ?? "").trim();
+        if (!next || typeof this.load !== "function") {
+            return;
+        }
+        const nextValue = this.isAppliedFilterValue(key, next) ? offValue : next;
+        this.applied = { ...this.applied, [key]: nextValue };
+        this.draft[key] = nextValue;
+        this.load(true);
+    };
     component.resetFilters = function resetFilters() {
         if (!this.filterDefaults) {
             return;

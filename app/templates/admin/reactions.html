@@ -1,6 +1,6 @@
 {# /app/templates/admin/reactions.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -152,22 +152,26 @@
                 <tr>
                     <td>{{ reaction.id }}</td>
                     <td>{{ reaction.created_at_text }}</td>
-                    <td>{{ reaction.user_name }}</td>
+                    <td class="admin-cell-nowrap">{{ reaction.user_name }} {{ admin_filter_button('user_id', reaction.user_id) }}</td>
                     <td>
                         <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ reaction.user_id }}"
                            class="admin-thread-link"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reaction.user_id }}</a>
                     </td>
-                    <td>{{ reaction.emoji }}</td>
+                    <td class="admin-cell-nowrap">{{ reaction.emoji }} {{ admin_filter_button('emoji_filter', reaction.emoji) }}</td>
                     <td class="col-message">
                         <div class="col-message-content">{{ reaction.message_text }}</div>
                     </td>
-                    <td>
+                    <td class="admin-cell-nowrap">
                         <a href="{{ url_for('admin_messages', lang=lang) }}?message_id={{ reaction.message_id }}"
                            class="admin-thread-link"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reaction.message_id }}</a>
+                        {{ admin_filter_button('target_message_id', reaction.message_id) }}
                     </td>
-                    <td>{{ reaction.message_user_name if reaction.message_user_id else "(ゲスト)" }}</td>
+                    <td class="admin-cell-nowrap">
+                        {{ reaction.message_user_name if reaction.message_user_id else "(ゲスト)" }}
+                        {% if reaction.message_user_id %}{{ admin_filter_button('message_sender_id', reaction.message_user_id) }}{% endif %}
+                    </td>
                     <td>
                         {% if reaction.message_user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ reaction.message_user_id }}"
@@ -177,12 +181,13 @@
                             {{ reaction.message_user_ip }}
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="admin-cell-nowrap">
                         <a href="{{ url_for('chat_thread', lang=lang, thread_id=reaction.thread_id) }}"
                            class="admin-thread-link"
                            data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ reaction.thread_id }}"
                            onclick="return handleAdminThreadLinkClick(event, this)"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reaction.thread_id }}</a>
+                        {{ admin_filter_button('thread_id', reaction.thread_id) }}
                     </td>
                 </tr>
                 {% else %}

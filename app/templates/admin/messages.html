@@ -1,6 +1,6 @@
 {# /app/templates/admin/messages.html #}
 {% extends "base.html" %}
-{% from "admin/macros/filters.html" import admin_filters_wrapper %}
+{% from "admin/macros/filters.html" import admin_filters_wrapper, admin_filter_button, admin_link_button with context %}
 
 {# 管理者は日本人しかいないため、管理者向けコンテンツでは言語設定にかかわらず全てのコンテンツを日本語で表示する #}
 
@@ -213,41 +213,51 @@
             <tbody>
                 {% for message in messages %}
                 <tr x-data="messageRow" x-init='initData({{ {"id": message.id, "is_deleted": message.is_deleted} | tojson }})' :class="{ 'changed': isDirty() }">
-                    <td>{{ message.id }}</td>
+                    <td class="admin-cell-nowrap">
+                        {{ message.id }}
+                        {{ admin_link_button(url_for('admin_reactions', lang=lang) ~ '?target_message_id=' ~ message.id, 'リアクション') }}
+                        {{ admin_link_button(url_for('admin_reports', lang=lang) ~ '?message_id=' ~ message.id, '通報') }}
+                    </td>
                     <td>{{ message.created_at_text }}</td>
-                    <td>{{ message.user_name if message.user_name else "(ゲスト)" }}</td>
-                    <td>
+                    <td class="admin-cell-nowrap">
+                        {{ message.user_name if message.user_name else "(ゲスト)" }}
+                        {% if message.user_id %}{{ admin_filter_button('user_id', message.user_id) }}{% endif %}
+                    </td>
+                    <td class="admin-cell-nowrap">
                         {% if message.user_id %}
                             <a href="{{ url_for('admin_users', lang=lang) }}?user_id={{ message.user_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ message.user_id }}</a>
                             {% if can_view_penalties %}
-                            <a href="{{ url_for('admin_penalties', lang=lang) }}?user_id={{ message.user_id }}&target_type=message&target_id={{ message.id }}"
-                               class="admin-thread-link"
-                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>ペナルティ</a>
+                            {{ admin_link_button(url_for('admin_penalties', lang=lang) ~ '?user_id=' ~ message.user_id ~ '&target_type=message&target_id=' ~ message.id, 'ペナルティ', 'danger') }}
                             {% endif %}
                         {% else %}
                             (なし)
                             {% if can_view_penalties %}
-                            <a href="{{ url_for('admin_penalties', lang=lang) }}?target_type=message&target_id={{ message.id }}"
-                               class="admin-thread-link"
-                               {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>ペナルティ</a>
+                            {{ admin_link_button(url_for('admin_penalties', lang=lang) ~ '?target_type=message&target_id=' ~ message.id, 'ペナルティ', 'danger') }}
                             {% endif %}
                         {% endif %}
                     </td>
-                    {% if can_view_ip %}<td>{{ message.user_ip }}</td>{% endif %}
-                    <td>
+                    {% if can_view_ip %}
+                    <td class="admin-cell-nowrap">
+                        {{ message.user_ip or '' }}
+                        {{ admin_filter_button('user_ip', message.user_ip) }}
+                    </td>
+                    {% endif %}
+                    <td class="admin-cell-nowrap">
                         <a href="{{ url_for('chat_thread', lang=lang, thread_id=message.thread_id) }}"
                            class="admin-thread-link"
                            data-admin-posts-url="{{ url_for('admin_posts', lang=lang) }}?post_id={{ message.thread_id }}"
                            onclick="return handleAdminThreadLinkClick(event, this)"
                            {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ message.thread_id }}</a>
+                        {{ admin_filter_button('thread_id', message.thread_id) }}
                     </td>
-                    <td>
+                    <td class="admin-cell-nowrap">
                         {% if message.reply_to_message_id %}
                             <a href="{{ url_for('admin_messages', lang=lang) }}?message_id={{ message.reply_to_message_id }}"
                                class="admin-thread-link"
                                {% if platform == 'web' %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ message.reply_to_message_id }}</a>
+                            {{ admin_filter_button('reply_to_message_id', message.reply_to_message_id) }}
                         {% endif %}
                     </td>
                     <td class="col-message">
