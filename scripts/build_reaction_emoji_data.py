@@ -7,7 +7,8 @@
 - 国旗（group 9）・肌の色や髪型の部品（group 2）
 - 肌の色の違い（skins。肌の色は選べないようにする）
 - MAX_VERSION より新しい絵文字（古い端末で □ に見えないように）
-日本語版の検索語には、カタカナの語のひらがな（「イヌ」に「いぬ」）と、英語版の名前・検索語を足す（ひらがな・英語でも探せるように）。
+検索語には絵文字そのもの（異体字セレクタなしの表記・肌の色違いも）を足す（検索欄に絵文字を入れても探せるように）。
+日本語版の検索語には、さらにカタカナの語のひらがな（「イヌ」に「いぬ」）と、英語版の名前・検索語を足す（ひらがな・英語でも探せるように）。
 
 使い方:
   cd "$(mktemp -d)" && npm pack emoji-picker-element-data@1.8.0 && tar xzf emoji-picker-element-data-1.8.0.tgz
@@ -35,6 +36,15 @@ REQUIRED = ["❤️", "👀", "😄", "😲", "🥲", "😭", "😡", "👍️",
 
 def to_hiragana(text: str) -> str:
     return "".join(chr(ord(ch) - 0x60) if "ァ" <= ch <= "ヶ" else ch for ch in text)
+
+
+def emoji_words(emoji: str, skins: list[str]) -> list[str]:
+    """絵文字そのものの検索語。ピッカーは2文字未満（JS の UTF-16 の長さ）の語を使わないので、それより短い表記は入れない。"""
+    words = []
+    for word in [emoji, emoji_key(emoji), *skins]:
+        if len(word.encode("utf-16-le")) // 2 >= 2 and word not in words:
+            words.append(word)
+    return words
 
 
 def add_search_words(ja_items: list[dict], en_items: list[dict]) -> None:
@@ -66,7 +76,10 @@ def build(source: Path, locale: str) -> list[dict]:
         if key in seen:
             raise SystemExit(f"表記の揺れをそろえると重なる絵文字があります: {item['emoji']}")
         seen.add(key)
+        skins = [skin["emoji"] for skin in item.get("skins", [])]
         item = {k: v for k, v in item.items() if k != "skins"}
+        tags = list(item.get("tags", []))
+        item["tags"] = tags + [w for w in emoji_words(item["emoji"], skins) if w not in tags]
         result.append(item)
     emojis = {item["emoji"] for item in result}
     missing = [e for e in REQUIRED if e not in emojis]

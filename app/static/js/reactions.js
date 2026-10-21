@@ -463,13 +463,30 @@
                     + '.search-row{padding-inline-end:var(--emoji-padding)}';
                 if (picker.shadowRoot) picker.shadowRoot.appendChild(style);
                 view.picker = picker;
+                setTimeout(() => exactMatchFirst(picker), 0); // database は作った直後には用意されていない
             }
+            exactMatchFirst(view.picker);
             view.picker.classList.toggle('dark', isDark());
             view.picker.classList.toggle('light', !isDark());
         }).catch(() => {
             const status = view.body.querySelector('.bi-react-picker__status');
             if (status) status.textContent = TEXTS.loadFailed;
         });
+    }
+    // 検索欄に絵文字そのものを入れたときは、その絵文字を先頭に出す（「❤️」で ❤️‍🔥 などより前に）。
+    // 絵文字そのものは、絵文字データの検索語に入れてある（scripts/build_reaction_emoji_data.py）
+    function exactMatchFirst(picker) {
+        const database = picker && picker.database;
+        if (!database || database.biExactMatchFirst) return;
+        const search = database.getEmojiBySearchQuery.bind(database);
+        database.getEmojiBySearchQuery = async (query) => {
+            const results = await search(query);
+            const key = String(query).trim().replace(/️/g, '');
+            const index = results.findIndex((emoji) => emoji.unicode && emoji.unicode.replace(/️/g, '') === key);
+            if (index > 0) results.unshift(results.splice(index, 1)[0]);
+            return results;
+        };
+        database.biExactMatchFirst = true;
     }
     function closePicker() {
         if (!ui || !ui.open) return;
