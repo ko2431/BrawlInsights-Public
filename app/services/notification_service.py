@@ -67,6 +67,19 @@ THREAD_MESSAGE_NOTIFICATION_TYPES = frozenset({
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
 })
 
+# 対象のスレッドを開くと既読になる種別（スレッドを見ている間に届いたものは作らない。ギフトだけは既読で作る）
+# いいねはリンク先が自分の投稿の一覧、警告は確認するまで消えないため対象外
+THREAD_READ_NOTIFICATION_TYPES = (
+    NOTIFICATION_TYPE_OWN_POST_MESSAGE,
+    NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
+    NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
+    NOTIFICATION_TYPE_MESSAGE_REPLY,
+    NOTIFICATION_TYPE_MESSAGE_REACTION,
+    NOTIFICATION_TYPE_TOKEN_GIFT,
+)
+# チャット画面が表示されている間、画面から45秒おきに延ばす（隠れたとき・切断したときは消す）
+THREAD_VIEWING_TTL_SECONDS = 90
+
 THREAD_NOTIFICATION_MODE_ON = "on"
 THREAD_NOTIFICATION_MODE_OFF = "off"
 THREAD_NOTIFICATION_MODE_DEFAULT = "default"
@@ -107,9 +120,48 @@ def _thread_overrides_cache_key(thread_id: int) -> str:
     return f"thread_notification_overrides:{thread_id}"
 
 
+def _thread_viewing_key(user_id: int, thread_id: int) -> str:
+    return f"board_chat_viewing:{user_id}:{thread_id}"
+
+
 async def invalidate_notification_cache(user_id: int) -> None:
     await delete_cache(_badge_cache_key(user_id))
     await delete_cache(_settings_cache_key(user_id))
+
+
+async def set_thread_viewing(user_id: int, thread_id: int, viewing: bool) -> None:
+    """チャット画面を表示しているか（WebSocket から）。表示している間に届く通知は作らない。"""
+    redis_client = get_redis()
+    if redis_client is None:
+        return
+    key = _thread_viewing_key(user_id, thread_id)
+    try:
+        if viewing:
+            await redis_client.set(key, 1, ex=THREAD_VIEWING_TTL_SECONDS)
+        else:
+            await redis_client.delete(key)
+    except Exception as e:
+        if is_transient_redis_error(e):
+            log_transient_redis_warning(f"チャットの表示状態のRedis操作中に一時的なエラー (key: {key}): {e}")
+        else:
+            logger.warning(f"チャットの表示状態のRedis操作中にエラー (key: {key}): {e}")
+
+
+async def get_thread_viewing_user_ids(thread_id: int, user_ids) -> set[int]:
+    """user_ids のうち、いまそのスレッドのチャット画面を表示している人（MGET 1回）。"""
+    ids = list(dict.fromkeys(int(u) for u in user_ids if u))
+    redis_client = get_redis()
+    if redis_client is None or not ids:
+        return set()
+    try:
+        values = await redis_client.mget([_thread_viewing_key(u, thread_id) for u in ids])
+    except Exception as e:
+        if is_transient_redis_error(e):
+            log_transient_redis_warning(f"チャットの表示状態の取得中に一時的なエラー (スレッド: {thread_id}): {e}")
+        else:
+            logger.warning(f"チャットの表示状態の取得中にエラー (スレッド: {thread_id}): {e}")
+        return set()
+    return {u for u, value in zip(ids, values) if value}
 
 
 async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dict[str, bool | datetime.datetime | None]:
@@ -200,6 +252,36 @@ async def mark_all_notifications_as_read(db: asyncpg.Connection, user_id: int) -
     await invalidate_notification_cache(user_id)
 
 
+async def mark_thread_notifications_as_read(
+    db: asyncpg.Connection,
+    user_id: int,
+    thread_id: int,
+    last_read_at: datetime.datetime | None,
+) -> int:
+    """スレッドを開いたときに、そのスレッドの未読の通知を既読にする。既読にした件数を返す。"""
+    try:
+        status = await db.execute(
+            """
+            UPDATE board_notifications SET read_at = NOW()
+            WHERE recipient_user_id = $1
+              AND notification_type = ANY($2::text[])
+              AND post_id = $3
+              AND read_at IS NULL
+              AND ($4::timestamptz IS NULL OR created_at > $4::timestamptz)
+            """,
+            user_id,
+            list(THREAD_READ_NOTIFICATION_TYPES),
+            thread_id,
+            last_read_at,
+        )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+    count = int(status.split()[-1])
+    if count:
+        await delete_cache(_badge_cache_key(user_id))
+    return count
+
+
 def _is_type_enabled(settings: dict[str, bool | datetime.datetime | None], notification_type: str) -> bool:
     setting_key = NOTIFICATION_TYPE_SETTING_KEYS.get(notification_type)
     if not setting_key:
@@ -227,13 +309,25 @@ async def _create_notification(
     post_vote_id: int | None = None,
     reaction_id: int | None = None,
     created_at: datetime.datetime | None = None,
+    viewing: bool | None = None,
 ) -> None:
+    """viewing: 受け取る人がそのスレッドを見ているか（呼び出し側でまとめて調べたとき。None ならここで調べる）。"""
     if recipient_user_id == actor_user_id:
         return
 
     settings = await get_notification_settings(db, recipient_user_id)
     if not _is_type_enabled(settings, notification_type):
         return
+
+    # スレッドを見ている間に届いたものは作らない（ギフトは記録に残すため、既読で作る）
+    is_read = False
+    if post_id and notification_type in THREAD_READ_NOTIFICATION_TYPES:
+        if viewing is None:
+            viewing = recipient_user_id in await get_thread_viewing_user_ids(post_id, [recipient_user_id])
+        if viewing:
+            if notification_type != NOTIFICATION_TYPE_TOKEN_GIFT:
+                return
+            is_read = True
 
     if await _is_actor_blocked(db, recipient_user_id, actor_user_id):
         return
@@ -243,8 +337,8 @@ async def _create_notification(
             """
             INSERT INTO board_notifications (
                 recipient_user_id, notification_type, actor_user_id,
-                post_id, message_id, post_vote_id, reaction_id, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::timestamptz, NOW()))
+                post_id, message_id, post_vote_id, reaction_id, created_at, read_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::timestamptz, NOW()), CASE WHEN $9 THEN NOW() END)
             """,
             recipient_user_id,
             notification_type,
@@ -254,11 +348,13 @@ async def _create_notification(
             post_vote_id,
             reaction_id,
             created_at,
+            is_read,
         )
     except asyncpg.PostgresError as e:
         raise DataBaseError(e) from e
 
-    await invalidate_notification_cache(recipient_user_id)
+    if not is_read:
+        await invalidate_notification_cache(recipient_user_id)
 
 
 async def create_admin_warning_notification(
@@ -542,6 +638,7 @@ async def _create_notification_with_message_priority(
     actor_user_id: int,
     post_id: int,
     message_id: int,
+    viewing: bool,
 ) -> None:
     """候補種別のうち、優先度が高く設定がオンのもの1件だけ通知する。"""
     settings = await get_notification_settings(db, recipient_user_id)
@@ -557,6 +654,7 @@ async def _create_notification_with_message_priority(
             actor_user_id=actor_user_id,
             post_id=post_id,
             message_id=message_id,
+            viewing=viewing,
         )
         return
 
@@ -650,6 +748,8 @@ async def create_message_notifications(
             if not any(_is_type_enabled(settings, ntype) for ntype in candidate_types):
                 candidate_types.add(NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE)
 
+    # いまこのスレッドを見ている人には作らない（受け取る人全員の分を MGET 1回で調べる）
+    viewing_user_ids = await get_thread_viewing_user_ids(post.id, candidates.keys())
     for recipient_user_id, candidate_types in candidates.items():
         await _create_notification_with_message_priority(
             db,
@@ -658,6 +758,7 @@ async def create_message_notifications(
             actor_user_id=sender_user_id,
             post_id=post.id,
             message_id=message_id,
+            viewing=recipient_user_id in viewing_user_ids,
         )
 
 
@@ -955,9 +1056,12 @@ async def _build_notification_where(
         params.append(notification_filter)
         where_clauses.append(f"notification_type = ${len(params)}")
 
-    if unread_only and last_read_at is not None:
-        params.append(last_read_at)
-        where_clauses.append(f"created_at > ${len(params)}")
+    if unread_only:
+        # スレッドを開いて既読にしたもの・見ている間に届いたギフトを除く
+        where_clauses.append("read_at IS NULL")
+        if last_read_at is not None:
+            params.append(last_read_at)
+            where_clauses.append(f"created_at > ${len(params)}")
 
     if settings is None:
         settings = await get_notification_settings(db, user_id)

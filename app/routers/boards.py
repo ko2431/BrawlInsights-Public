@@ -25,13 +25,16 @@ from app.services.notification_service import (
     VALID_THREAD_NOTIFICATION_MODES,
     empty_board_notification_context,
     get_board_notification_context,
+    get_notification_settings,
     get_notifications_for_display,
     get_thread_notification_state,
     handle_message_reaction_notification,
     handle_post_like_notification,
     keep_reaction_notification_on_remove,
     mark_all_notifications_as_read,
+    mark_thread_notifications_as_read,
     set_thread_notification_mode,
+    set_thread_viewing,
 )
 from app.services.token_gift_service import (
     TOKEN_GIFT_COMMENT_MAX_LENGTH,
@@ -167,6 +170,10 @@ CHAT_MESSAGES_OLDER_LOAD = 200
                         thread_id,
                         {"type": "user_stopped_typing", "data": {"id": user_info["id"]}}
                     )
+                # 画面を表示している間（viewing は45秒おきに届く）は、このスレッドの通知を作らない
+                elif event_type in ("viewing", "away"):
+                    if user_info["id"]:
+                        await set_thread_viewing(user_info["id"], thread_id, event_type == "viewing")
                 else:
                     logger.warning(f"未定義のイベントタイプを受信: {event_type}")
 
@@ -200,6 +207,8 @@ CHAT_MESSAGES_OLDER_LOAD = 200
                 thread_id,
                 {"type": "user_stopped_typing", "data": {"id": user_info["id"]}}
             )
+            if user_info["id"]:
+                await set_thread_viewing(user_info["id"], thread_id, False)
             await manager.disconnect(websocket, thread_id)
 
 @router.post("/chat/{thread_id}/messages", name="create_chat_message")
