@@ -31,7 +31,7 @@
     <p class="terms-page__section">{% if lang == "ja" %}開発者は、本サービスの提供にあたり、以下の情報を収集することがあります。
             <br>1. ユーザーからご提供いただく情報
             <br><span class="indent">• アカウント登録時（任意）にご提供いただく情報：ユーザー名、パスワードなど、開発者が定める情報。
-            <br><span class="indent">• 本サービスの機能の利用に伴いご提供または発生する情報：ゲームに関する公開情報その他のプレイヤーデータ、投稿・送信した内容など。
+            <br><span class="indent">• 本サービスの機能の利用に伴いご提供または発生する情報：ゲームに関する公開情報その他のプレイヤーデータ、投稿・送信した内容、大会その他の企画への参加に関する情報など。
             <br><span class="indent">• 有料機能の利用、任意の支援、お問い合わせ、アンケートその他開発者が指定する方法によりご提供いただく情報。
             <br>2. 本サービスのご利用時に自動的に収集する情報
             <br><span class="indent"></span>• Cookie（クッキー）および類似技術: 本サービスでは、利便性の向上、セッション管理（ログイン状態の維持など）、アクセス状況の把握のためにCookieを使用します。
@@ -48,7 +48,7 @@
         {% else %}The Developer may collect the following information in providing the Service:
             <br>1. Information provided by Users
             <br><span class="indent">• Information provided at the time of account registration (optional): Information specified by the Developer, such as username and password.
-            <br><span class="indent">• Information provided or generated in connection with use of the Service's functions: Publicly available game-related information and other player data, content posted or transmitted, and the like.
+            <br><span class="indent">• Information provided or generated in connection with use of the Service's functions: Publicly available game-related information and other player data, content posted or transmitted, information relating to participation in tournaments and other events, and the like.
             <br><span class="indent">• Information provided through use of paid features, optional support, inquiries, surveys, or other methods designated by the Developer.
             <br>2. Information automatically collected when using the Service
             <br><span class="indent"></span>• Cookies and similar technologies: The Service uses Cookies to improve convenience, manage sessions (such as maintaining login status), and understand access status.
@@ -73,7 +73,7 @@
             <br>5. ユーザーにご自身の登録情報の閲覧、変更、削除を行っていただくため
             <br>6. ユーザーの興味や関心に合わせた広告を配信するため
             <br>7. 本サービスに関する重要なお知らせなど、必要に応じた連絡のため
-            <br>8. 投稿・送信機能の提供、表示および運営のため
+            <br>8. 投稿・送信、大会その他の企画など、ユーザー間で利用する機能の提供、表示および運営のため
             <br>9. アプリ内通貨その他の特典の付与および管理のため
             <br>10. 有料機能および任意の支援の提供、確認のため
             <br>11. 本サービスの改善、利用状況の把握、アンケートその他の調査のため
@@ -86,7 +86,7 @@
             <br>5. To allow Users to view, change, or delete their own registered information.
             <br>6. To deliver advertisements tailored to the user's interests and concerns.
             <br>7. To provide necessary communications, such as important notices regarding the Service.
-            <br>8. To provide, display, and operate posting and transmission functions.
+            <br>8. To provide, display, and operate functions used between Users, such as posting and transmission, and tournaments and other events.
             <br>9. To grant and manage in-app currency and other benefits.
             <br>10. To provide and confirm paid features and optional support.
             <br>11. To improve the Service, understand usage, and conduct surveys and other research.
@@ -100,12 +100,14 @@
             <br>3. 公衆衛生の向上または児童の健全な育成の推進のために特に必要がある場合であって、本人の同意を得ることが困難であるとき
             <br>4. 国の機関もしくは地方公共団体またはその委託を受けた者が法令の定める事務を遂行することに対して協力する必要がある場合であって、本人の同意を得ることにより当該事務の遂行に支障を及ぼすおそれがあるとき
             <br>なお、本サービスの提供に必要な範囲で業務を委託する場合、および外国にある事業者へ情報が取り扱われる場合については、次条に定めるとおりとします。
+            <br>また、投稿・送信した内容や、大会その他の企画への参加に関する情報（表示名、ゲームのアカウント、成績など）のように、機能の性質上公開されることを前提とする情報は、ユーザーが当該機能を利用することにより、他のユーザーを含む第三者が閲覧できる形で本サービス上に表示されます。
         {% else %}The Developer will not provide personal information (as defined in Article 2, Paragraph 1 of the Act on the Protection of Personal Information; the same shall apply hereinafter) to a third party without the prior consent of the User, except in the following cases. However, this excludes cases permitted by the Act on the Protection of Personal Information and other laws and regulations.
             <br>1. When based on laws and regulations.
             <br>2. When it is necessary for the protection of a person's life, body, or property, and it is difficult to obtain the consent of the individual.
             <br>3. When it is particularly necessary for the improvement of public health or the promotion of the sound upbringing of children, and it is difficult to obtain the consent of the individual.
             <br>4. When it is necessary to cooperate with a national agency, a local government, or an individual or entity entrusted by either of the foregoing in executing affairs prescribed by laws and regulations, and obtaining the consent of the individual is likely to impede the execution of said affairs.
-            <br>Where the Developer outsources operations to the extent necessary to provide the Service, or where information is handled by an operator located in a foreign country, the handling shall be as set forth in the following Article.{% endif %}</p>
+            <br>Where the Developer outsources operations to the extent necessary to provide the Service, or where information is handled by an operator located in a foreign country, the handling shall be as set forth in the following Article.
+            <br>In addition, information that is intended to be public by the nature of the function, such as content posted or transmitted and information relating to participation in tournaments and other events (display names, game accounts, results, etc.), will be displayed on the Service in a form viewable by third parties, including other Users, when the User uses the relevant function.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第4条（外部送信等）
         {% else %}Article 4 (Transmission to External Operators, etc.){% endif %}</h2>
@@ -157,8 +159,8 @@
 
     <h2 class="section-title">{% if lang == "ja" %}第10条（情報の保存期間）
         {% else %}Article 10 (Retention Period of Information){% endif %}</h2>
-    <p class="terms-page__section">{% if lang == "ja" %}開発者は、収集した情報を、利用目的の達成に必要な期間保存します。保存期間は情報の種類や機能により異なり、法令上の保存が必要な場合を除き、不要となった情報は、開発者が適切と判断する方法により削除または匿名化します。アカウントの利用を終了した場合でも、公開済みの投稿、不正利用の防止その他運営上必要な記録が残ることがあります。
-        {% else %}The Developer will retain collected information for the period necessary to achieve the purposes of use. Retention periods may differ depending on the type of information and the function concerned. Except where retention is required by law, information that is no longer needed will be deleted or anonymized in a manner the Developer deems appropriate. Even after an account is terminated, publicly posted content, records necessary to prevent misuse, and other records necessary for operation of the Service may remain.{% endif %}</p>
+    <p class="terms-page__section">{% if lang == "ja" %}開発者は、収集した情報を、利用目的の達成に必要な期間保存します。保存期間は情報の種類や機能により異なり、法令上の保存が必要な場合を除き、不要となった情報は、開発者が適切と判断する方法により削除または匿名化します。アカウントの利用を終了した場合でも、公開済みの投稿、大会その他の企画の記録、不正利用の防止その他運営上必要な記録が残ることがあります。
+        {% else %}The Developer will retain collected information for the period necessary to achieve the purposes of use. Retention periods may differ depending on the type of information and the function concerned. Except where retention is required by law, information that is no longer needed will be deleted or anonymized in a manner the Developer deems appropriate. Even after an account is terminated, publicly posted content, records of tournaments and other events, records necessary to prevent misuse, and other records necessary for operation of the Service may remain.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第11条（ユーザーの権利：個人情報の開示・訂正・削除・利用停止等）
         {% else %}Article 11 (User Rights: Disclosure, Correction, Deletion, Suspension of Use, etc. of Personal Information){% endif %}</h2>
@@ -194,9 +196,9 @@
             <br>Please also contact the above for reports of rights infringement or other issues concerning posts or other content on the Service.{% endif %}</p>
     
     <p class="terms-page__section">{% if lang == "ja" %}制定日：2025年5月23日
-            <br>最終改定日：2026年9月9日
+            <br>最終改定日：2026年10月22日
         {% else %}Date of Enactment: May 23, 2025
-            <br>Last Updated: September 9, 2026{% endif %}</p>
+            <br>Last Updated: October 22, 2026{% endif %}</p>
     
     {# 戻るボタン #}
     {% if platform != "web" %}
