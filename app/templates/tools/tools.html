@@ -18,7 +18,7 @@
 {% set ranked_notice = '<b>【New】ガチバトルマップ一覧</b>が全面リニューアル。UIが刷新され、情報も自動更新されるようになりました！' if lang == 'ja' else '<b>【New】The Ranked Map List</b> has been completely renewed. The UI has been redesigned, and the information now updates automatically!' %}
 {% set maps_notice = '<b>【New】</b>新コンテンツ、<b>マップ一覧</b>が登場。現在出現していないマップも含め、全マップを画像付きで確認できます！' if lang == 'ja' else '<b>【New】</b>New content, <b>All Maps</b>, is here. Browse every map with images, including maps not currently in rotation!' %}
 {% set rewards_notice = '<b>【New】</b>新コンテンツ、<b>ボックスシミュレーター</b>が新登場。演出付きで、運の良さの判定や累計排出状況の確認もできる高度なツールです！' if lang == 'ja' else '<b>【New】</b>New content, <b>Box Simulator</b>, is here. An advanced tool with opening animations that also rates your luck and tracks your cumulative drops!' %}
-{% set all_notice = '<b>【New】マップ一覧</b>と<b>マップ掲示板</b>が新登場。10/29(木)まで、マップ掲示板を含む各種掲示板利用で<b>ブロスタパス+</b>などが当たる。詳細は<a href="/ja/help/announcements#243" style="text-decoration: underline; font-weight: bold;">こちら</a>！' if lang == 'ja' else '<b>【New】All Maps</b> and <b>Map Boards</b> are here. Until Oct 28 UTC, you can win <b>Brawl Pass Plus</b> and more by using boards, including Map Boards. Check <a href="/en/help/announcements#243" style="text-decoration: underline; font-weight: bold;">here</a> for details!' %}
+{% set tournament_notice = '<b>【New】大会開催ツール</b>が新登場。誰でも簡単な設定でブロスタの高度な大会を開催したり、既存の大会に参加したりできます！' if lang == 'ja' else '<b>【New】The Community Tournament Hub</b> is here. Anyone can host advanced Brawl Stars tournaments with simple settings, or join existing ones!' %}
 {% set store_lang = 'ja' if lang == 'ja' else 'en' %}
 {% set event_lang = 'jp' if lang == 'ja' else 'en' %}
 
@@ -44,11 +44,13 @@
     {'href': url_for('reward_calc', lang=lang), 'image': url_for('static', path='/images/banners/brawlpass_calc_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/brawlpass_calc_banner_slim_' + lang + '.png'), 'alt': '報酬量計算機'},
     {'href': url_for('trophy_reward_calc', lang=lang), 'image': url_for('static', path='/images/banners/trophy_reward_banner_' + lang + '.webp'), 'slim': url_for('static', path='/images/banners/trophy_reward_banner_slim_' + lang + '.webp'), 'alt': 'トロフィー目標報酬計算機' if lang == 'ja' else 'Trophy Road Reward Calculator'},
 ] %}
-{# 大会開催ツールのバナーは、ルーターから渡されたときだけ先頭に出す（段階公開のゲート付き） #}
-{% set others_banners = ([tournament_banner] if tournament_banner else []) + [
+{# 大会開催ツールのバナーは、ルーターから渡されたときだけ出す（段階公開のゲート付き）。「その他」の先頭に加え、「すべて」でもいちばん先頭に置く #}
+{% set tournament_banners = [tournament_banner] if tournament_banner else [] %}
+{% set others_rest_banners = [
     {'href': url_for('brawl_videos', lang=lang), 'image': url_for('static', path='/images/banners/brawl_videos_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/brawl_videos_banner_slim_' + lang + '.png'), 'alt': 'ブロスタ動画'},
     {'href': url_for('app_faq', lang=lang), 'image': url_for('static', path='/images/banners/app_faq_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/app_faq_banner_slim_' + lang + '.png'), 'alt': 'アプリFAQ'},
 ] %}
+{% set others_banners = tournament_banners + others_rest_banners %}
 {% set ranked_suggest = [
     {'href': url_for('ranked_tier_list', lang=lang), 'image': url_for('static', path='/images/banners/ranked_tier_list_banner_' + lang + '.png'), 'alt': 'ガチバトルTier表'},
     {'href': url_for('ranked_rank_distribution', lang=lang), 'image': url_for('static', path='/images/banners/ranked_dist_banner_' + lang + '.png'), 'slim': url_for('static', path='/images/banners/ranked_dist_banner_slim_' + lang + '.png'), 'alt': 'ガチバトルランク分布' if lang == 'ja' else 'Ranked Rank Distribution'},
@@ -90,12 +92,12 @@
             </nav>
         </div>
 
-        {{ hub_panel('tools', 'all', 'このタブでは、ブロスタに関連するさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, a variety of tools related to Brawl Stars are available.', ranked_banners + brawlers_banners + maps_banners + rewards_banners + others_banners, all_notice, external_items=external_links, external_legend=external_legend) }}
+        {{ hub_panel('tools', 'all', 'このタブでは、ブロスタに関連するさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, a variety of tools related to Brawl Stars are available.', tournament_banners + ranked_banners + brawlers_banners + maps_banners + rewards_banners + others_rest_banners, tournament_notice, external_items=external_links, external_legend=external_legend) }}
         {{ hub_panel('tools', 'ranked', 'このタブでは、ガチバトルのさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to Ranked.', ranked_banners, ranked_notice, suggest_items=ranked_suggest, suggest_legend=looking_legend) }}
         {{ hub_panel('tools', 'brawlers', 'このタブでは、キャラクター関連のさまざまなツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to brawlers.', brawlers_banners, brawler_notice, brawlers_suggest, looking_legend) }}
         {{ hub_panel('tools', 'maps', 'このタブでは、マップ周期やマップ一覧、トロフィー増減表を利用できます。' if lang == 'ja' else 'On this tab, you can use the map rotation, the map list, and the trophy change table.', maps_banners, maps_notice, suggest_items=maps_suggest, suggest_legend=looking_legend) }}
         {{ hub_panel('tools', 'rewards', 'このタブでは、ブロスタパスや各種ドロップ／ボックスなどの、さまざまな報酬関連ツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools related to rewards such as Brawl Pass, drop chances, and more.', rewards_banners, rewards_notice, suggest_items=external_links[:3], suggest_legend=looking_legend) }}
-        {{ hub_panel('tools', 'others', 'このタブでは、FAQやお役立ち外部リンクなど、その他のツールを利用できます。' if lang == 'ja' else 'On this tab, you can use various tools such as the FAQ and useful external links.', others_banners, external_items=external_links, external_legend=external_legend) }}
+        {{ hub_panel('tools', 'others', 'このタブでは、大会開催ツールやお役立ち外部リンクなど、その他のツールを利用できます。' if lang == 'ja' else 'On this tab, you can use other tools such as the Community Tournament Hub and useful external links.', others_banners, tournament_notice, external_items=external_links, external_legend=external_legend) }}
 
         {% include "components/ad_banner.html" %}
     </div>

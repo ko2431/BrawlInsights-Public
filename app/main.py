@@ -55,6 +55,8 @@ app.include_router(integrity_router)
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+    # [この部分は公開用リポジトリでは非公開にされています]
                     # [この部分は公開用リポジトリでは非公開にされています]
             except Exception as e:
                 _log_middleware_exception(
