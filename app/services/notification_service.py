@@ -21,6 +21,7 @@ NOTIFICATION_TYPE_OWN_POST_MESSAGE = "own_post_message"
 NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE = "participated_thread_message"
 NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE = "subscribed_thread_message"
 NOTIFICATION_TYPE_MESSAGE_REPLY = "message_reply"
+NOTIFICATION_TYPE_MESSAGE_MENTION = "message_mention"
 NOTIFICATION_TYPE_MESSAGE_REACTION = "message_reaction"
 NOTIFICATION_TYPE_TOKEN_GIFT = "token_gift"
 NOTIFICATION_TYPE_ADMIN_WARNING = "admin_warning"
@@ -43,6 +44,7 @@ NOTIFICATION_TYPE_SETTING_KEYS = {
     NOTIFICATION_TYPE_OWN_POST_MESSAGE: "notification_own_post_message_enabled",
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE: "notification_participated_thread_message_enabled",
     NOTIFICATION_TYPE_MESSAGE_REPLY: "notification_message_reply_enabled",
+    NOTIFICATION_TYPE_MESSAGE_MENTION: "notification_message_mention_enabled",
     NOTIFICATION_TYPE_MESSAGE_REACTION: "notification_message_reaction_enabled",
     NOTIFICATION_TYPE_TOKEN_GIFT: "notification_token_gift_enabled",
 }
@@ -56,12 +58,13 @@ VALID_NOTIFICATION_FILTERS = frozenset({
 
 MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
     NOTIFICATION_TYPE_MESSAGE_REPLY,
+    NOTIFICATION_TYPE_MESSAGE_MENTION,
     NOTIFICATION_TYPE_OWN_POST_MESSAGE,
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
     NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
 )
 
-# スレッド単位の通知オフで抑止する種別（リプライ・リアクションは抑止しない）
+# スレッド単位の通知オフで抑止する種別（リプライ・メンション・リアクションは抑止しない）
 THREAD_MESSAGE_NOTIFICATION_TYPES = frozenset({
     NOTIFICATION_TYPE_OWN_POST_MESSAGE,
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
@@ -74,6 +77,7 @@ THREAD_READ_NOTIFICATION_TYPES = (
     NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
     NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
     NOTIFICATION_TYPE_MESSAGE_REPLY,
+    NOTIFICATION_TYPE_MESSAGE_MENTION,
     NOTIFICATION_TYPE_MESSAGE_REACTION,
     NOTIFICATION_TYPE_TOKEN_GIFT,
 )
@@ -180,6 +184,7 @@ async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dic
                    notification_own_post_message_enabled,
                    notification_participated_thread_message_enabled,
                    notification_message_reply_enabled,
+                   notification_message_mention_enabled,
                    notification_message_reaction_enabled,
                    notification_token_gift_enabled,
                    notifications_last_read_at
@@ -200,6 +205,7 @@ async def get_notification_settings(db: asyncpg.Connection, user_id: int) -> dic
         "notification_own_post_message_enabled": bool(row["notification_own_post_message_enabled"]),
         "notification_participated_thread_message_enabled": bool(row["notification_participated_thread_message_enabled"]),
         "notification_message_reply_enabled": bool(row["notification_message_reply_enabled"]),
+        "notification_message_mention_enabled": bool(row["notification_message_mention_enabled"]),
         "notification_message_reaction_enabled": bool(row["notification_message_reaction_enabled"]),
         "notification_token_gift_enabled": bool(row["notification_token_gift_enabled"]),
         "notifications_last_read_at": row["notifications_last_read_at"],
@@ -223,6 +229,7 @@ async def update_notification_setting(
         "notification_own_post_message_enabled",
         "notification_participated_thread_message_enabled",
         "notification_message_reply_enabled",
+        "notification_message_mention_enabled",
         "notification_message_reaction_enabled",
         "notification_token_gift_enabled",
     }
@@ -514,6 +521,7 @@ def _build_thread_notification_state(
         "is_theme": is_theme_post_type(post.type),
         "recent_limit": BRAWLER_GUIDE_PARTICIPATED_THREAD_NOTIFICATION_LIMIT,
         "reply_enabled": _is_type_enabled(settings, NOTIFICATION_TYPE_MESSAGE_REPLY),
+        "mention_enabled": _is_type_enabled(settings, NOTIFICATION_TYPE_MESSAGE_MENTION),
         "reaction_enabled": _is_type_enabled(settings, NOTIFICATION_TYPE_MESSAGE_REACTION),
     }
 
@@ -666,7 +674,9 @@ async def create_message_notifications(
     message_id: int,
     sender_user_id: int,
     reply_to_message_id: int | None = None,
+    mention_user_ids: list[int] | None = None,
 ) -> None:
+    """mention_user_ids: 本文でメンションした人（呼び出し側で範囲を確かめたもの）。"""
     if not sender_user_id:
         return
 
@@ -695,6 +705,9 @@ async def create_message_notifications(
             and reply_target.user_id != sender_user_id
         ):
             add_candidate(reply_target.user_id, NOTIFICATION_TYPE_MESSAGE_REPLY)
+
+    for mentioned_user_id in mention_user_ids or []:
+        add_candidate(mentioned_user_id, NOTIFICATION_TYPE_MESSAGE_MENTION)
 
     if is_theme_post_type(post.type):
         for participant_id in await _create_brawler_guide_participated_recipient_ids(
@@ -1004,6 +1017,12 @@ def _build_reply_title(actor_name: str, lang: str) -> str:
     if lang == "ja":
         return f"<b>{actor_name}</b>さんがあなたのメッセージにリプライしました"
     return f"<b>{actor_name}</b> replied to your message"
+
+
+def _build_mention_title(actor_name: str, post_type: str, lang: str) -> str:
+    if lang == "ja":
+        return f"<b>{actor_name}</b>さんが{POST_TYPE_LABELS_JA.get(post_type, post_type)}のスレッドであなたをメンションしました"
+    return f"<b>{actor_name}</b> mentioned you in a {POST_TYPE_LABELS_EN.get(post_type, post_type)} thread"
 
 
 def _build_message_title(
@@ -1357,6 +1376,7 @@ async def _aggregate_notification_rows(
             NOTIFICATION_TYPE_PARTICIPATED_THREAD_MESSAGE,
             NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
             NOTIFICATION_TYPE_MESSAGE_REPLY,
+            NOTIFICATION_TYPE_MESSAGE_MENTION,
         ):
             message_id = latest_row["message_id"]
             if not message_id or message_id not in message_texts:
@@ -1365,6 +1385,8 @@ async def _aggregate_notification_rows(
             post_type = post_types.get(message_id, "team")
             if ntype == NOTIFICATION_TYPE_MESSAGE_REPLY:
                 item["title_html"] = _build_reply_title(actor["user_name"], lang)
+            elif ntype == NOTIFICATION_TYPE_MESSAGE_MENTION:
+                item["title_html"] = _build_mention_title(actor["user_name"], post_type, lang)
             else:
                 item["title_html"] = _build_message_title(
                     actor["user_name"],

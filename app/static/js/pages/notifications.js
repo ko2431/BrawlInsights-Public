@@ -12,6 +12,7 @@
         'own_post_message',
         'participated_thread_message',
         'subscribed_thread_message',
+        'message_mention',
         'message_reply',
         'message_reaction',
         'token_gift',

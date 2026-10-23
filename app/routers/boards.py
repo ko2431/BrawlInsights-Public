@@ -15,7 +15,7 @@ from app.core import cache as cache_module
 from app.core.realtime import hub as realtime_hub
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block, try_progress_tutorial_board
-from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS, get_theme_board_posts, is_theme_post_type, get_or_create_theme_map_post, get_theme_brawler_board_colors, resolve_theme_map_display, invalidate_theme_board_posts_cache, get_theme_brawler_index_json, get_or_create_theme_brawler_post, THEME_CATEGORY_MAP
+from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS, get_theme_board_posts, is_theme_post_type, get_or_create_theme_map_post, get_theme_brawler_board_colors, resolve_theme_map_display, invalidate_theme_board_posts_cache, get_theme_brawler_index_json, get_or_create_theme_brawler_post, THEME_CATEGORY_MAP, resolve_board_mentions, get_cached_board_mention_candidates
 from app.services.notification_service import (
     NOTIFICATION_PAGE_SIZE,
     VALID_NOTIFICATION_FILTERS,
@@ -234,6 +234,8 @@ async def create_chat_message(
         raise HTTPException(status_code=403, detail="You do not have permission to post in this chat")
 
     try:
+        # 本文の「@名前」から、メンションした人を読み取る（範囲はスレッド主と最近書いた人。ゲストは数えない）
+        mentions = await resolve_board_mentions(db, post, user.id if user else None, message_data.message)
         message_id = await create_message(
             db=db,
             thread_id=thread_id,
@@ -241,6 +243,7 @@ async def create_chat_message(
             message=message_data.message,
             user_id=user.id if user else None,
             reply_to_message_id=message_data.reply_to_message_id,
+            mentions=mentions,
         )
         
         # トークンとアドバンスミッション
@@ -285,6 +288,7 @@ async def create_chat_message(
                 message_id=message_id,
                 sender_user_id=user.id,
                 reply_to_message_id=message_data.reply_to_message_id,
+                mention_user_ids=[mention["id"] for mention in mentions],
             )
         
         return {"success": True, "message_id": message_id}
@@ -292,6 +296,31 @@ async def create_chat_message(
         raise HTTPException(status_code=400, detail=str(e))
     except DataBaseError as e:
         logger.error(f"メッセージ作成中(スレッド:{thread_id})にDBエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Database error")
+
+
+@router.get("/chat/{thread_id}/mention-candidates", name="get_chat_mention_candidates")
+async def get_chat_mention_candidates(
+    request: Request,
+    thread_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    """入力欄で「@」を打ったときの候補（スレッド主と、最近書いた人）。画面ごとに最初の1回だけ呼ばれる。
+    """
+    user: User | None = getattr(request.state, "current_user", None)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Login required")
+
+    post = await get_post(db, id=thread_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Chat thread not found")
+    if not await post.is_permitted_to_chat(db, user.id):
+        raise HTTPException(status_code=403, detail="You do not have permission to post in this chat")
+
+    try:
+        return {"ok": True, "items": await get_cached_board_mention_candidates(db, post)}
+    except DataBaseError as e:
+        logger.error(f"メンションの候補の取得中(スレッド:{thread_id}, User ID: {user.id})にDBエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
 
 

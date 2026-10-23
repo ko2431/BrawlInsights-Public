@@ -1243,6 +1243,7 @@ async def update_notification_settings_process(
         "notification_own_post_message_enabled",
         "notification_participated_thread_message_enabled",
         "notification_message_reply_enabled",
+        "notification_message_mention_enabled",
         "notification_message_reaction_enabled",
         "notification_token_gift_enabled",
     }

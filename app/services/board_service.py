@@ -16,6 +16,7 @@ from app.utils.url_detect import text_contains_detected_url
 from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, delete_cache, get_redis
 from app.services import reaction_rules
+from app.services.mention_rules import has_mention_mark, name_in_text_sql, pick_mentions
 from app.core.board_trending import GENERAL_BOARD_TRENDING
 from app.core.text_search import GeneralBoardSearch, LIKE_ESCAPE_SQL, escape_like_literal, search_normalize_sql
 from app.services.all_maps_service import resolve_board_map
@@ -354,6 +355,151 @@ async def check_invitation_link(db: asyncpg.Connection, text: str, type: str) ->
     # [この部分は公開用リポジトリでは非公開にされています]
 
 # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def get_cached_board_mention_candidates(db: asyncpg.Connection, post: "Post") -> list[dict]:
+    """入力欄の候補（スレッドごとに少しの間キャッシュする。ブロックした人・自分は画面側で除く）。"""
+    cache_key = f"board_mention_candidates:{post.id}"
+    cached = await get_cache(cache_key)
+    if cached is not None:
+        return cached
+    items = await get_board_mention_candidates(db, post, limit=BOARD_MENTION_CANDIDATE_LIMIT)
+    await set_cache(cache_key, items, ttl=BOARD_MENTION_CANDIDATES_CACHE_TTL)
+    return items
+
+
+async def resolve_board_mentions(db: asyncpg.Connection, post: "Post", user_id: int | None, body: str) -> list[dict]:
+    """送る本文からメンションを読み取る（範囲に入っていて、本文に「@名前」がある人）。ゲストのメッセージは数えない。"""
+    if not user_id or not has_mention_mark(body):
+        return []
+    return pick_mentions(body, await get_board_mention_candidates(db, post, text=body), user_id)
+
+
+async def _mention_display_info(db: asyncpg.Connection, mentions: list[dict] | None) -> list[dict] | None:
+    """保存したメンション（{id, name}）に、本文の「@名前」を押したときのメニューで使う今のユーザー情報を足す。
+    name は本文に書かれた名前のまま（改名しても本文と合わせるため）。無効になったアカウントは user_name を空にする。"""
+    if not mentions:
+        return None
+    result = []
+    for mention in mentions:
+        user = await get_user(db, mention["id"])
+        tag = user.main_account if user else None
+        result.append({
+            "id": mention["id"],
+            "name": mention["name"],
+            "user_name": user.name if user else "",
+            "main_account_tag": tag or "",
+            "main_account_name": (await get_player_name(tag, db) if tag else None) or "",
+        })
+    return result
+
+
+def _deleted_reply_to_preview(reply_to_message_id: int) -> dict:
+    return {
+        "id": reply_to_message_id,
+        "user_id": None,
+        "user_name": None,
+        "user_icon_path": None,
+        "user_is_admin": False,
+        "user_is_sub_admin": False,
+        "message": None,
+        "is_deleted": True,
+        "message_type": None,
+        "gift_amount": None,
+    }
+
+
+async def attach_reply_to_previews(db: asyncpg.Connection, messages: list[Message]) -> None:
+    """メッセージ一覧にリプライ先プレビューを一括で付与する。"""
+    reply_ids = {m.reply_to_message_id for m in messages if m.reply_to_message_id}
+    if not reply_ids:
+        for message in messages:
+            message.reply_to = None
+        return
+
+    try:
+        rows = await db.fetch(
+            """
+            SELECT
+                m.id, m.thread_id, m.user_id, m.message, m.is_deleted, m.message_type,
+                g.amount AS gift_amount
+            FROM messages m
+            LEFT JOIN token_gifts g ON g.message_id = m.id
+            WHERE m.id = ANY($1::int[])
+            """,
+            list(reply_ids),
+        )
+    except asyncpg.PostgresError as e:
+        raise DataBaseError(e) from e
+
+    previews: dict[int, dict] = {}
+    for row in rows:
+        if row["is_deleted"]:
+            previews[row["id"]] = _deleted_reply_to_preview(row["id"])
+            continue
+
+        preview = {
+            "id": row["id"],
+            "user_id": row["user_id"],
+            "user_name": None,
+            "user_icon_path": None,
+            "user_is_admin": False,
+            "user_is_sub_admin": False,
+            "message": row["message"],
+            "is_deleted": False,
+            "message_type": row["message_type"],
+            "gift_amount": row["gift_amount"],
+        }
+        if row["user_id"]:
+            user = await get_user(db, row["user_id"])
+            if user:
+                preview["user_name"] = user.name
+                icon_id = await get_player_icon_from_db(user.main_account, db)
+                preview["user_icon_path"] = "/" + get_icon_path(icon_id)
+                preview["user_is_admin"] = user.is_admin
+                preview["user_is_sub_admin"] = bool(getattr(user, "is_sub_admin", False))
+        previews[row["id"]] = preview
+
+    for message in messages:
+        if not message.reply_to_message_id:
+            message.reply_to = None
+            continue
+        message.reply_to = previews.get(
+            message.reply_to_message_id,
+            _deleted_reply_to_preview(message.reply_to_message_id),
+        )
+
+
+async def create_message(
+    db: asyncpg.Connection,
+    thread_id: int,
+    ip: str,
+    message: str,
+    message_type: str = "message",
+    user_id: int | None = None,
+    reply_to_message_id: int | None = None,
+    mentions: list[dict] | None = None,
+) -> int:
+    """新しいメッセージを作成する。
+
+    Args:
+        db (asyncpg.Connection): データベース接続
+        thread_id (int): スレッドID
+        ip (str): IPアドレス
+        message (str): メッセージ
+        message_type (str): メッセージのタイプ。デフォルトは"message"。
+        user_id (int | None): 送信するユーザーのID。ログインしていないユーザーの場合はNoneでよい。
+        reply_to_message_id (int | None): リプライ先メッセージID。同一スレッドなら削除済みでも許可する。
+        mentions (list[dict] | None): 本文でメンションした人（{id, name}。resolve_board_mentions で範囲を確かめたもの）。
+
+    Raises:
+        ValueError: メッセージの項目に不備がある場合
+        DataBaseError: データベースエラー
+        
+    Returns:
+        int: 追加したメッセージのID
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_message(db: asyncpg.Connection, id: int, include_deleted_message: bool = False) -> Message:
     """メッセージIDをもとに単一のメッセージを取得する。デフォルト時間のキャッシュを使用する。
