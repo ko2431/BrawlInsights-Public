@@ -269,7 +269,7 @@ async def _rank_general_posts_by_trending_score(
 def _general_trending_base_where(
     region: str | None,
     category: str | None,
-    exclude_category: str | None,
+    exclude_categories: tuple[str, ...],
 ) -> tuple[list[str], list[Any]]:
     query_params: list[Any] = []
     where_clauses = ["p.type = 'general'", "p.is_deleted = FALSE"]
@@ -279,9 +279,9 @@ def _general_trending_base_where(
     if category:
         query_params.append(category)
         where_clauses.append(f"p.category = ${len(query_params)}")
-    if exclude_category:
-        query_params.append(exclude_category)
-        where_clauses.append(f"(p.category IS DISTINCT FROM ${len(query_params)})")
+    if exclude_categories:
+        query_params.append(list(exclude_categories))
+        where_clauses.append(f"(p.category IS NULL OR p.category <> ALL(${len(query_params)}::text[]))")
     return where_clauses, query_params
 
 

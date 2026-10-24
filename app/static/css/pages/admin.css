@@ -580,8 +580,9 @@ th {
 .admin-badge--team_knockout { background: #ffe7d4; color: #9a3412; }
 .admin-badge--general_chat { background: #d4e6ff; color: #1e40af; }
 .admin-badge--general_question { background: #fff6d4; color: #854d0e; }
+.admin-badge--general_tournament { background: #d8f7cb; color: #166534; }
 .admin-badge--general_offtopic { background: #e8d4ff; color: #6b21a8; }
-.admin-badge--general_brawl_info { background: #d8f7cb; color: #166534; }
+.admin-badge--general_brawl_info { background: #ffe2c4; color: #9a3412; }
 .admin-badge--general_x { background: #3a3a3a; color: #f5f5f5; }
 .admin-badge--general_discord { background: #4752c4; color: #eef2ff; }
 .admin-badge--general_youtube { background: #ffd4d4; color: #7f1d1d; }
@@ -603,8 +604,9 @@ th {
 .dark .admin-badge--team_knockout { background: #7c2d12; color: #fed7aa; }
 .dark .admin-badge--general_chat { background: #1e3a8a; color: #bfdbfe; }
 .dark .admin-badge--general_question { background: #78350f; color: #fde68a; }
+.dark .admin-badge--general_tournament { background: #14532d; color: #bbf7d0; }
 .dark .admin-badge--general_offtopic { background: #4c1d95; color: #ddd6fe; }
-.dark .admin-badge--general_brawl_info { background: #14532d; color: #bbf7d0; }
+.dark .admin-badge--general_brawl_info { background: #7c2d12; color: #fed7aa; }
 .dark .admin-badge--general_x { background: #171717; color: #e5e5e5; }
 .dark .admin-badge--general_discord { background: #312e81; color: #c7d2fe; }
 .dark .admin-badge--general_youtube { background: #7f1d1d; color: #fecaca; }

@@ -1,16 +1,18 @@
 {# なんでも掲示板の投稿カード（変数は同一ファイル内で定義：Jinja2 include 内の set は親に伝播しない） #}
+{# icon は /images/ からのパス #}
 {% set category_colors = {
-    'chat': {'color1': '#d4e6ff', 'color2': '#d4f0ff', 'icon': 'family_friendly.png', 'dark': false},
-    'question': {'color1': '#fff6d4', 'color2': '#ffeed4', 'icon': 'mystery.png', 'dark': false},
-    'offtopic': {'color1': '#e8d4ff', 'color2': '#f0d4ff', 'icon': 'gameroom.png', 'dark': false},
-    'brawl_info': {'color1': '#d8f7cb', 'color2': '#c5f2b1', 'icon': 'starrdrop.png', 'dark': false},
-    'x': {'color1': '#3a3a3a', 'color2': '#4a4a4a', 'icon': 'x.png', 'dark': true},
-    'discord': {'color1': '#4752c4', 'color2': '#5865f2', 'icon': 'discord.svg', 'dark': true},
-    'youtube': {'color1': '#ffd4d4', 'color2': '#ffd4de', 'icon': 'youtube.png', 'dark': false},
-    'tiktok': {'color1': '#ffd4ef', 'color2': '#ffd4e6', 'icon': 'tiktok_white.png', 'dark': false}
+    'chat': {'color1': '#d4e6ff', 'color2': '#d4f0ff', 'icon': 'ui/family_friendly.png', 'dark': false},
+    'question': {'color1': '#fff6d4', 'color2': '#ffeed4', 'icon': 'ui/mystery.png', 'dark': false},
+    'tournament': {'color1': '#d8f7cb', 'color2': '#c5f2b1', 'icon': 'mode_icons/challenge.png', 'dark': false},
+    'offtopic': {'color1': '#e8d4ff', 'color2': '#f0d4ff', 'icon': 'ui/gameroom.png', 'dark': false},
+    'brawl_info': {'color1': '#ffe2c4', 'color2': '#ffd3a6', 'icon': 'ui/starrdrop.png', 'dark': false},
+    'x': {'color1': '#3a3a3a', 'color2': '#4a4a4a', 'icon': 'ui/x.png', 'dark': true},
+    'discord': {'color1': '#4752c4', 'color2': '#5865f2', 'icon': 'ui/discord.svg', 'dark': true},
+    'youtube': {'color1': '#ffd4d4', 'color2': '#ffd4de', 'icon': 'ui/youtube.png', 'dark': false},
+    'tiktok': {'color1': '#ffd4ef', 'color2': '#ffd4e6', 'icon': 'ui/tiktok_white.png', 'dark': false}
 } %}
-{% set category_names_ja = {'chat': '雑談', 'question': '質問', 'offtopic': 'オフトピック', 'brawl_info': 'ブロスタ情報', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
-{% set category_names_en = {'chat': 'Chat', 'question': 'Question', 'offtopic': 'Off Topic', 'brawl_info': 'Brawl Info', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
+{% set category_names_ja = {'chat': '雑談', 'question': '質問', 'tournament': '大会', 'offtopic': 'オフトピック', 'brawl_info': 'ブロスタ情報', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
+{% set category_names_en = {'chat': 'Chat', 'question': 'Question', 'tournament': 'Tournament', 'offtopic': 'Off Topic', 'brawl_info': 'Brawl Info', 'x': 'X', 'discord': 'Discord', 'youtube': 'YouTube', 'tiktok': 'TikTok'} %}
 {% set link_categories = ['brawl_info', 'x', 'discord', 'youtube', 'tiktok'] %}
 {% set rank_map_ja = {
     22: 'プロ', 21: 'マスター Ⅲ', 20: 'マスター Ⅱ', 19: 'マスター Ⅰ',
@@ -33,8 +35,8 @@
 {% for id, post in posts.items() %}
         {% set author_user_id = post.data.host_id %}
         {% set author_anonymous_id = post.data.host_anonymous_id %}
-        {% set cat = post.data.category or 'chat' %}
-        {% set cat_info = category_colors.get(cat, category_colors['chat']) %}
+        {% set cat = post.data.category if post.data.category in category_colors else 'chat' %}
+        {% set cat_info = category_colors[cat] %}
 
         {# ブロック済みユーザーの投稿はチャットと同様に表示しない #}
         {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
@@ -43,7 +45,7 @@
                 <div class="card post-card post-card--general post-card--tinted{% if cat_info.dark %} post-card--brand-dark{% endif %}" style="--board-c1: {{ cat_info.color1 }}; --board-c2: {{ cat_info.color2 }};">
                     {# ヘッダー: カテゴリーアイコン + カテゴリー名 + 経過時間 #}
                     <div class="post-card__header">
-                        <img src="{{ url_for('static', path='/images/ui/' + cat_info.icon) }}" alt="{{ cat }}" class="post-card__player-icon category-icon--{{ cat }}">
+                        <img src="{{ url_for('static', path='/images/' + cat_info.icon) }}" alt="{{ cat }}" class="post-card__player-icon category-icon--{{ cat }}">
                         <p class="post-card__title">{{ category_names_ja[cat] if lang == "ja" else category_names_en[cat] }}</p>
                         <div style="display: flex; flex: 1;"></div>
                         <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
@@ -213,8 +215,15 @@
                                 </div>
                             </a>
                             {% endif %}
+                        {% elif cat == 'tournament' and post.tournament %}
+                            {# 大会（リンクあり） → 大会ページを開くボタン（内部リンクなので同じタブで開く） #}
+                            <a href="{{ url_for('tournament_detail', lang=lang, public_id=post.tournament.public_id) }}" style="display: flex; flex: 1;">
+                                <div class="button button--primary post-card__link-button">
+                                    {% if lang == "ja" %}大会ページを開く{% else %}Open Tournament{% endif %}
+                                </div>
+                            </a>
                         {% else %}
-                            {# 雑談/質問 → チャットに参加ボタン #}
+                            {# 雑談/質問/大会（リンクなし）/オフトピック → チャットに参加ボタン #}
                             {% if current_user %}
                             <a href="{{ url_for('chat_thread', lang=lang, thread_id=id) }}" style="display: flex; flex: 1;">
                                 <div class="button button--primary post-card__link-button">

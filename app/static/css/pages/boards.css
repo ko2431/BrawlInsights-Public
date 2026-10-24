@@ -601,6 +601,18 @@ body.modal-open {
     min-width: 100%;
     min-height: 100px;
 }
+/* 大会のリンクを追加（主催・参加している大会から選ぶ） */
+.post-modal-tournament-select {
+    margin-top: 5px;
+    height: 38px;
+    padding: 0 10px;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+.post-modal-tournament-select:disabled {
+    color: var(--color-777);
+    cursor: default;
+}
 .not-logged-in-block--board {
     margin-top: 6px;
     border-radius: 10px;
@@ -1349,8 +1361,10 @@ body.modal-open {
     gap: 6px;
     margin-top: 6px;
 }
+/* 上の行（管理者は「情報」が増えて5つ）と下の行（4つ）を別のグリッドにし、どちらも余白なく埋める。
+   名前は折り返さないので、狭い画面では長い名前の列だけが広がり、ほかの列で残りを分ける */
 .general-board-category-grid--admin {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
 }
 .general-board-category-item {
     --board-tint-bg: #242424;
@@ -1381,6 +1395,7 @@ body.modal-open {
     font-size: 12px;
     font-weight: bold;
     color: #333;
+    white-space: nowrap;
 }
 .general-board-category-item--dark span {
     color: #fff;
@@ -1406,10 +1421,6 @@ body.modal-open {
 }
 
 @media (max-width: 539px) {
-    .general-board-category-grid,
-    .general-board-category-grid--admin {
-        grid-template-columns: repeat(4, 1fr);
-    }
     .general-board-category-item {
         border-radius: 8px;
         padding: 4px 3px 2px;
@@ -1432,6 +1443,7 @@ body.modal-open {
 /* カテゴリーアイコン個別サイズ調整 */
 .general-icon--chat    { height: 30px; }
 .general-icon--question { height: 30px; }
+.general-icon--tournament { height: 30px; }
 .general-icon--offtopic { height: 30px; }
 .general-icon--brawl-info { height: 34px; margin: -2px 0; }
 .general-icon--x       { height: 22px; margin: 4px 0; }
@@ -1441,6 +1453,7 @@ body.modal-open {
 @media (max-width: 539px) {
     .general-icon--chat    { height: 26px; }
     .general-icon--question { height: 26px; }
+    .general-icon--tournament { height: 26px; }
     .general-icon--offtopic { height: 26px; }
     .general-icon--brawl-info { height: 30px; margin: -2px 0; }
     .general-icon--x       { height: 20px; margin: 3px 0; }
@@ -1451,6 +1464,7 @@ body.modal-open {
 
 .category-icon--chat    { height: 23px; margin: 0.5px 0; margin-right: 2px; }
 .category-icon--question { height: 24px; margin-right: 2px; }
+.category-icon--tournament { height: 22px; margin: 1px 0; margin-right: 3px; }
 .category-icon--offtopic { height: 24px; margin-right: 2px; }
 .category-icon--brawl_info { height: 27px; margin: -1.5px 0; }
 .category-icon--x       { height: 18px; margin: 3px 0; margin-right: 3px; }
@@ -1460,6 +1474,7 @@ body.modal-open {
 @media (max-width: 539px) {
     .category-icon--chat    { height: 21px; margin-right: 1.5px; }
     .category-icon--question { height: 21px; margin-right: 1.5px; }
+    .category-icon--tournament { height: 19px; margin: 1px 0; margin-right: 2px; }
     .category-icon--offtopic { height: 21px; margin-right: 1.5px; }
     .category-icon--brawl_info { height: 24px; margin: -1.5px 0; }
     .category-icon--x       { height: 16px; margin: 2.5px 0; margin-right: 2px; }

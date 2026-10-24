@@ -1545,6 +1545,7 @@ a.chat-menu__action-btn {
 .chat-header__host-icon--X { height: 32px; }
 .chat-header__host-icon--Discord { height: 32px; }
 .chat-header__host-icon--offtopic { height: 36px; }
+.chat-header__host-icon--tournament { height: 32px; }
 .chat-header__host-icon--brawl_info { height: 40px; margin: -2px 0; }
 .chat-header__host-icon--YouTube { height: 48px; margin: -4px 0; }
 .chat-header__host-icon--TikTok { height: 48px; margin: -4px 0; }

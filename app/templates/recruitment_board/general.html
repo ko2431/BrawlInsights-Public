@@ -64,9 +64,12 @@
                 <label for="filterSelect" class="filter-form__label general-board-filter-form__label">{% if lang == "ja" %}フィルター:{% else %}Filter:{% endif %}</label>
                 <select name="filter" id="filterSelect" class="filter-form__select general-board-filter-form__select">
                     <option value="all" {% if filter == "all" %}selected{% endif %}>{% if lang == "ja" %}すべて表示{% else %}Show All{% endif %}</option>
+                    <option value="all_except_tournament" {% if filter == "all_except_tournament" %}selected{% endif %}>{% if lang == "ja" %}すべて表示（大会除く）{% else %}Show All (excl. Tournament){% endif %}</option>
                     <option value="all_except_offtopic" {% if filter == "all_except_offtopic" %}selected{% endif %}>{% if lang == "ja" %}すべて表示（オフトピック除く）{% else %}Show All (excl. Off Topic){% endif %}</option>
+                    <option value="all_except_tournament_offtopic" {% if filter == "all_except_tournament_offtopic" %}selected{% endif %}>{% if lang == "ja" %}すべて表示（大会、オフトピック除く）{% else %}Show All (excl. Tournament, Off Topic){% endif %}</option>
                     <option value="chat" {% if filter == "chat" %}selected{% endif %}>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</option>
                     <option value="question" {% if filter == "question" %}selected{% endif %}>{% if lang == "ja" %}質問{% else %}Question{% endif %}</option>
+                    <option value="tournament" {% if filter == "tournament" %}selected{% endif %}>{% if lang == "ja" %}大会{% else %}Tournament{% endif %}</option>
                     <option value="offtopic" {% if filter == "offtopic" %}selected{% endif %}>{% if lang == "ja" %}オフトピック{% else %}Off Topic{% endif %}</option>
                     {# <option value="brawl_info" {% if filter == "brawl_info" %}selected{% endif %}>{% if lang == "ja" %}ブロスタ情報{% else %}Brawl Info{% endif %}</option> #} {# 非表示に変更 #}
                     <option value="x" {% if filter == "x" %}selected{% endif %}>X</option>
@@ -209,16 +212,22 @@
                         <img src="{{ url_for('static', path='/images/ui/mystery.png') }}" alt="質問" class="general-icon--question">
                         <span>{% if lang == "ja" %}質問{% else %}Question{% endif %}</span>
                     </div>
+                    <div class="general-board-category-item" data-category="tournament" style="--board-c1: #d8f7cb; --board-c2: #c5f2b1;">
+                        <img src="{{ url_for('static', path='/images/mode_icons/challenge.png') }}" alt="{% if lang == 'ja' %}大会{% else %}Tournament{% endif %}" class="general-icon--tournament">
+                        <span>{% if lang == "ja" %}大会{% else %}Tournament{% endif %}</span>
+                    </div>
                     <div class="general-board-category-item" data-category="offtopic" style="--board-c1: #e8d4ff; --board-c2: #f0d4ff;">
                         <img src="{{ url_for('static', path='/images/ui/gameroom.png') }}" alt="{% if lang == 'ja' %}オフトピック{% else %}Off Topic{% endif %}" class="general-icon--offtopic">
                         <span>{% if lang == "ja" %}オフトピック{% else %}Off Topic{% endif %}</span>
                     </div>
                     {% if current_user.has_perm('board.post_brawl_info') %}
-                    <div class="general-board-category-item" data-category="brawl_info" style="--board-c1: #d8f7cb; --board-c2: #c5f2b1;">
+                    <div class="general-board-category-item" data-category="brawl_info" style="--board-c1: #ffe2c4; --board-c2: #ffd3a6;">
                         <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="ブロスタ情報" class="general-icon--brawl-info">
                         <span>{% if lang == "ja" %}情報{% else %}Info{% endif %}</span>
                     </div>
                     {% endif %}
+                </div>
+                <div class="general-board-category-grid">
                     <div class="general-board-category-item general-board-category-item--dark" data-category="x" style="--board-c1: #3a3a3a; --board-c2: #4a4a4a;">
                         <img src="{{ url_for('static', path='/images/ui/x.png') }}" alt="X" class="general-icon--x" style="filter: invert(1);">
                         <span>X</span>
@@ -251,6 +260,15 @@
                 <p id="link-description" class="info-block__text post-modal-section-description"></p>
                 <textarea id="link-form" class="form-input post-modal-section-form-input" rows="2" placeholder="https://..."></textarea>
                 <div id="link-status" class="form-field-status" style="font-size: 0.8em;"></div>
+            </div>
+
+            {# 3. 大会のリンクを追加 (大会カテゴリのみ表示。主催・参加している大会から選ぶ) #}
+            <div id="tournament-link-section" class="post-modal-section" style="display: none;">
+                <p class="post-modal-section-title">3. {% if lang == "ja" %}大会のリンクを追加{% else %}Add Tournament Link{% endif %}</p>
+                <p class="info-block__text post-modal-section-description">{% if lang == "ja" %}主催・参加している大会を選ぶと、投稿に「大会ページを開く」ボタンが付きます。{% else %}Pick a tournament you're hosting or joining to add an "Open Tournament" button to your post.{% endif %}</p>
+                <select id="tournament-link-select" class="form-input post-modal-tournament-select" disabled>
+                    <option value="">{% if lang == "ja" %}読み込み中...{% else %}Loading...{% endif %}</option>
+                </select>
             </div>
 
             {# 4. 条件設定 (リンクカテゴリのみ表示) #}
@@ -423,7 +441,11 @@
         const linkDescription = document.getElementById('link-description');
         const conditionsSectionTitle = document.getElementById('conditions-section-title');
         const chatSectionTitle = document.getElementById('chat-section-title');
+        const tournamentLinkSection = document.getElementById('tournament-link-section');
+        const tournamentLinkSelect = document.getElementById('tournament-link-select');
         const checkPostPermissionUrl = '{{ url_for('check_post_permission', lang=lang, post_type='general') }}';
+        const tournamentLinkUrl = '{{ url_for('tournament_api_board_links', lang=lang) }}';
+        const TOURNAMENT_CATEGORY = 'tournament';
 
         const LINK_CATEGORIES = ['brawl_info', 'x', 'discord', 'youtube', 'tiktok'];
         const REQUIRED_LINK_CATEGORIES = ['x', 'discord', 'youtube', 'tiktok'];
@@ -478,6 +500,47 @@
             postBtn.disabled = !(postState.selectedCategory && hasComment && postState.isCommentValid && linkOk);
         };
 
+        // 大会のリンク: 主催・参加している大会は「大会」を初めて選んだときに1回だけ取る（失敗したら次に選んだときに取り直す）
+        const tournamentStartFormat = new Intl.DateTimeFormat(lang === 'ja' ? 'ja-JP' : 'en-US', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        let tournamentChoicesRequested = false;
+        const loadTournamentChoices = async () => {
+            if (tournamentChoicesRequested) return;
+            tournamentChoicesRequested = true;
+            let items = null;
+            try {
+                const res = await fetch(tournamentLinkUrl, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (res.ok && data.ok) items = data.items;
+            } catch {}
+            tournamentLinkSelect.textContent = '';
+            if (items === null) {
+                tournamentChoicesRequested = false;
+                tournamentLinkSelect.add(new Option(lang === 'ja' ? '大会を読み込めませんでした' : 'Could not load your tournaments', ''));
+                return;
+            }
+            if (!items.length) {
+                tournamentLinkSelect.add(new Option(lang === 'ja' ? '主催・参加している大会はありません' : "You aren't hosting or joining any tournaments", ''));
+                return;
+            }
+            tournamentLinkSelect.add(new Option(lang === 'ja' ? '選択しない' : 'None', ''));
+            const groups = [
+                [true, lang === 'ja' ? '主催している大会' : 'Hosting'],
+                [false, lang === 'ja' ? '参加している大会' : 'Joining'],
+            ];
+            for (const [hosting, label] of groups) {
+                const groupItems = items.filter(x => x.hosting === hosting);
+                if (!groupItems.length) continue;
+                const group = document.createElement('optgroup');
+                group.label = label;
+                for (const x of groupItems) {
+                    const start = tournamentStartFormat.format(new Date(x.start_at));
+                    group.appendChild(new Option(lang === 'ja' ? `${x.title}（${x.status}・${start}）` : `${x.title} (${x.status}, ${start})`, x.id));
+                }
+                tournamentLinkSelect.appendChild(group);
+            }
+            tournamentLinkSelect.disabled = false;
+        };
+
         const conditionsSection = document.getElementById('conditions-section');
         document.querySelectorAll('.general-board-category-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -504,6 +567,12 @@
                     postState.isValidLink = false;
                     conditionsSectionTitle.textContent = lang === 'ja' ? '3. 条件設定' : '3. Set Conditions';
                     chatSectionTitle.textContent = lang === 'ja' ? '3. チャットスレッド' : '3. Chat Thread';
+                }
+                const isTournament = postState.selectedCategory === TOURNAMENT_CATEGORY;
+                tournamentLinkSection.style.display = isTournament ? 'block' : 'none';
+                if (isTournament) {
+                    chatSectionTitle.textContent = lang === 'ja' ? '4. チャットスレッド' : '4. Chat Thread';
+                    loadTournamentChoices();
                 }
                 updatePostButtonState();
             });
@@ -596,6 +665,9 @@
                     ? (postState.link || (linkForm.value.trim().startsWith('http') ? linkForm.value.trim() : 'https://' + linkForm.value.trim()))
                     : null,
                 host_player_tag: {% if main_account %}'{{ main_account.tag }}'{% else %}null{% endif %},
+                custom_settings: (postedCategory === TOURNAMENT_CATEGORY && tournamentLinkSelect.value)
+                    ? { tournament_id: Number(tournamentLinkSelect.value) }
+                    : {},
                 chat_permission_level: 30,
                 required_ranked_highest_rank: allowsConditions
                     ? (document.getElementById('required-ranked-highest-rank')?.value || null)

@@ -8,12 +8,18 @@
     const AGO_UPDATE_INTERVAL_MS = 60000;
     const DEFAULT_FILTER = 'all';
     const FILTER_INCLUDE_ALL = 'all';
-    const FILTER_EXCLUDE_OFFTOPIC = 'all_except_offtopic';
+    // 「すべて表示」系のフィルターと、除外するカテゴリー（サーバーの GENERAL_BOARD_ALL_FILTERS と同じ）
+    const ALL_FILTER_EXCLUDES = {
+        all: [],
+        all_except_tournament: ['tournament'],
+        all_except_offtopic: ['offtopic'],
+        all_except_tournament_offtopic: ['tournament', 'offtopic'],
+    };
     const STORAGE_KEY_TAB = 'generalBoardTab';
     const STORAGE_KEY_FILTER = 'generalBoardFilter';
     const VALID_TABS = new Set(['latest', 'trending', 'own', 'participated', 'liked']);
     const VALID_FILTERS = new Set([
-        'all', 'all_except_offtopic', 'chat', 'question', 'offtopic',
+        ...Object.keys(ALL_FILTER_EXCLUDES), 'chat', 'question', 'tournament', 'offtopic',
         'brawl_info', 'x', 'discord', 'youtube', 'tiktok',
     ]);
 
@@ -443,14 +449,16 @@
                 }
                 // 投稿後は自分の投稿が見えるよう検索を解除する
                 this.q = '';
-                if (this.filter === FILTER_INCLUDE_ALL) {
-                    // オフトピック含む表示中はカテゴリに関わらずそのまま
-                } else if (this.filter === FILTER_EXCLUDE_OFFTOPIC) {
-                    if (postedCategory === 'offtopic') {
-                        this.filter = FILTER_INCLUDE_ALL;
+                const excludes = ALL_FILTER_EXCLUDES[this.filter];
+                if (excludes) {
+                    // 「すべて表示」系で投稿したカテゴリーを除いていれば、その除外だけを外す
+                    if (excludes.includes(postedCategory)) {
+                        const rest = excludes.filter((c) => c !== postedCategory);
+                        this.filter = Object.keys(ALL_FILTER_EXCLUDES)
+                            .find((key) => ALL_FILTER_EXCLUDES[key].join() === rest.join()) || FILTER_INCLUDE_ALL;
                     }
                 } else if (this.filter !== postedCategory) {
-                    // 個別フィルターと不一致: 「オフトピック含む」に切り替え
+                    // 個別フィルターと不一致: 「すべて表示」に切り替え
                     this.filter = FILTER_INCLUDE_ALL;
                 }
                 return this.load({ updateHistory: true });
