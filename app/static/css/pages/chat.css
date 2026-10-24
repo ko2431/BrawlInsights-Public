@@ -230,6 +230,69 @@ body.has-top-banner .chat-featured-spacer {
     border-right: none;
 }
 
+/* Web版 PC幅: 掲載枠をヘッダー中央に重ね、ヘッダーを枠の高さまで伸ばす（スマホ幅・掲載なしは上の縦積みのまま） */
+.chat-top {
+    flex-shrink: 0;
+}
+@media (min-width: 840px) {
+    .chat-top:has(.bi-featured-slot) {
+        --chat-top-ad-h: 108px;
+        --chat-top-ad-w: calc(var(--chat-top-ad-h) * 21 / 9);
+        --chat-top-ad-gap: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr); /* 長いタイトルで列が広がらないようにする */
+    }
+    .chat-top:has(.bi-featured-slot) > .chat-header,
+    .chat-top:has(.bi-featured-slot) > .chat-web-featured-slot {
+        grid-area: 1 / 1;
+    }
+    /* 掲載枠の表示（Alpine 初期化）を待たずに高さを確保し、後からずれないようにする */
+    .chat-top:has(.bi-featured-slot) > .chat-header {
+        display: flex;
+        align-items: center;
+        min-height: calc(var(--chat-top-ad-h) + 5px * 2 + 1px); /* 上下5px + 下線1px */
+    }
+    .chat-top:has(.bi-featured-slot) .chat-header__content {
+        width: 100%;
+    }
+    .chat-top:has(.bi-featured-slot) .chat-header__details {
+        min-width: 0;
+    }
+    .chat-top:has(.bi-featured-slot) .chat-header__host-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* 右の操作ボタン枠を掲載枠の左端手前まで広げ、長いタイトルは掲載枠の手前で省略させる */
+    .chat-top:has(.bi-featured-slot) .chat-header__actions {
+        flex-basis: calc(50% + var(--chat-top-ad-w) / 2 + var(--chat-top-ad-gap));
+    }
+    .chat-top:has(.bi-featured-slot) > .chat-web-featured-slot {
+        z-index: 11; /* 透明な操作ボタン枠より上に置き、クリックを受ける */
+        width: auto;
+        align-self: center;
+        justify-self: center;
+        margin-bottom: 1px; /* ヘッダー下線の分ずらし、上下の余白を揃える */
+    }
+    .chat-top .chat-web-featured-slot .bi-featured-slot__frame,
+    .chat-top .chat-web-featured-slot .bi-featured-slot__link {
+        width: auto;
+    }
+    .chat-top .chat-web-featured-slot .bi-featured-slot__img {
+        width: var(--chat-top-ad-w);
+        height: var(--chat-top-ad-h);
+        max-height: none;
+        border: 0.5px solid #bbb;
+        border-radius: 8px;
+    }
+    .dark .chat-top .chat-web-featured-slot .bi-featured-slot__img {
+        border-color: #444;
+    }
+    .chat-top .chat-web-featured-slot .bi-featured-slot__label {
+        border-radius: 4px;
+    }
+}
+
 
 .chat-header__actions {
     display: flex;
