@@ -46,7 +46,7 @@
     </div>
     {% endif %}
 
-    {% if special_reward_banners %}
+    {% if special_reward_banners or tournament_home_banner %}
     <div class="home-special-rewards" x-data="homeSpecialRewardBanners()">
         {% for banner in special_reward_banners %}
         <div class="home-special-reward home-special-reward--{% if banner.color in ('red', 'orange', 'yellow', 'green', 'blue', 'purple') %}{{ banner.color }}{% else %}blue{% endif %}"
@@ -63,6 +63,13 @@
             </button>
         </div>
         {% endfor %}
+        {# 大会開催ツールの告知（大会管理画面の「公開設定」で切り替える）。特別報酬の下に、同じ形の緑で #}
+        {% if tournament_home_banner %}
+        <a class="home-special-reward home-special-reward--green home-special-reward--link" href="{{ url_for('tournament_hub', lang=lang) }}">
+            <img class="home-special-reward__icon" src="{{ url_for('static', path='/images/mode_icons/challenge.png') }}" alt="">
+            <p class="home-special-reward__title">{% if lang == 'ja' %}【New】大会の参加・開催はこちらから！{% else %}[New] Join or host tournaments here!{% endif %}</p>
+        </a>
+        {% endif %}
     </div>
     {% endif %}
 

@@ -1059,6 +1059,11 @@
 .home-special-reward:active {
     filter: brightness(0.97);
 }
+/* リンクのバナー（大会開催ツールの告知）。ℹ️ がないので、文字の高さをほかのバナーにそろえる */
+.home-special-reward--link {
+    min-height: 42px;
+    text-decoration: none;
+}
 .dark .home-special-reward:active {
     filter: brightness(1.05);
 }
