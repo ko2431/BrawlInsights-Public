@@ -813,6 +813,64 @@ body.modal-open {
 .dark .post-card__ago-text {
     color: #444;
 }
+/* なんでも掲示板: リポストした投稿は「n分前」の左にアイコン */
+.post-card__ago-text--reposted {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.post-card__repost-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+/* なんでも掲示板: 自分の投稿のリポストボタン（「n分前」の左。目立ちすぎないよう枠線だけ）。
+   大きさ・余白はチーム募集の「後から募集」バッジに揃える（枠線1px分は padding から引く） */
+.post-card__repost-button {
+    flex-shrink: 0;
+    margin: 0 3px 0.5px 0; /* ヘッダーの gap 4px と合わせて、バッジと「n分前」の間隔 7px にする */
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+    box-sizing: border-box;
+    color: #333;
+    background-color: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.1s, opacity 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+}
+.post-card__repost-button:hover {
+    background-color: rgba(255, 255, 255, 0.75);
+    border-color: rgba(0, 0, 0, 0.3);
+}
+.post-card__repost-button:active {
+    transform: scale(0.95);
+}
+.post-card__repost-button.is-unavailable {
+    color: #888;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(0, 0, 0, 0.12);
+}
+.post-card__repost-button.is-unavailable:hover {
+    background-color: rgba(255, 255, 255, 0.35);
+}
+.post-card--brand-dark .post-card__repost-button {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+.post-card--brand-dark .post-card__repost-button:hover {
+    background-color: rgba(255, 255, 255, 0.22);
+}
+.post-card--brand-dark .post-card__repost-button.is-unavailable {
+    color: rgba(255, 255, 255, 0.5);
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.2);
+}
 
 .post-card__info-and-conditions {
     display: flex;

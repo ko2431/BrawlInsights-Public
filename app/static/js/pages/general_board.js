@@ -230,12 +230,30 @@
         return 'Just Now';
     }
 
+    function formatPostedAtTitle(postedAt, lang) {
+        const date = parseUtcDatetime(postedAt);
+        if (!date) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const text = `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        return lang === 'ja' ? `投稿: ${text}` : `Posted: ${text}`;
+    }
+
     function updatePostAgoTexts(root, lang) {
         if (!root) return;
-        root.querySelectorAll('.post-card__ago-text[data-created-at]').forEach((el) => {
+        root.querySelectorAll('.post-card__ago-value[data-created-at]').forEach((el) => {
             const text = formatPostAgoText(el.dataset.createdAt, lang);
             if (text) el.textContent = text;
         });
+        // リポストした投稿は、元の投稿日時をマウスを乗せたときに出す（端末の時刻で）
+        root.querySelectorAll('.post-card__ago-text--reposted[data-posted-at]:not([title])').forEach((el) => {
+            el.title = formatPostedAtTitle(el.dataset.postedAt, lang);
+        });
+        // リポストボタンは時間がたつと押せるようになるため、表示時刻と一緒に更新する
+        if (window.BIRepost) {
+            root.querySelectorAll('.post-card__repost-button').forEach((btn) => {
+                window.BIRepost.applyState(btn, 'is-unavailable');
+            });
+        }
     }
 
     function scheduleFabCooldownRelease(fab, seconds) {
@@ -587,6 +605,15 @@
                 } catch {
                     alert(lang === 'ja' ? 'エラーが発生しました' : 'An error occurred');
                 }
+                return;
+            }
+
+            const repostBtn = event.target.closest('.post-card__repost-button[data-post-id]');
+            if (repostBtn) {
+                if (!window.BIRepost) return;
+                const result = await window.BIRepost.run(repostBtn, lang);
+                // 「最新」の上に移るので一覧を読み直す（ほかの自分の投稿のボタンの状態も更新される）
+                if (result) await reloadPostsFromFragment();
                 return;
             }
 

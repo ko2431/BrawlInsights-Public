@@ -48,7 +48,23 @@
                         <img src="{{ url_for('static', path='/images/' + cat_info.icon) }}" alt="{{ cat }}" class="post-card__player-icon category-icon--{{ cat }}">
                         <p class="post-card__title">{{ category_names_ja[cat] if lang == "ja" else category_names_en[cat] }}</p>
                         <div style="display: flex; flex: 1;"></div>
-                        <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>
+                        {# 自分の投稿: リポスト（押せないときはグレーアウトし、押すと理由を出す） #}
+                        {% if post.repost %}
+                        <button type="button" class="post-card__repost-button"
+                                data-post-id="{{ post.data.id }}"
+                                data-repost-cost="{{ post.repost.cost }}"
+                                data-repost-tokens="{{ post.repost.tokens }}"
+                                data-repost-prohibited="{{ '1' if post.repost.prohibited else '0' }}"
+                                data-repost-post-at="{{ post.repost.post_available_at }}"
+                                data-repost-user-at="{{ post.repost.user_available_at or '' }}">{% if lang == "ja" %}リポスト{% else %}Repost{% endif %}</button>
+                        {% endif %}
+                        {# リポストした投稿は、リポストからの経過時間とアイコン（元の投稿日時は title に出す） #}
+                        <p class="post-card__ago-text{% if post.data.reposted_at %} post-card__ago-text--reposted{% endif %}"{% if post.data.reposted_at %} data-posted-at="{{ post.data.created_at }}"{% endif %}>
+                            {%- if post.data.reposted_at -%}
+                            <svg class="post-card__repost-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="{% if lang == 'ja' %}リポスト{% else %}Reposted{% endif %}"><path d="M17 2.5l3.5 3.5-3.5 3.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/></svg>
+                            {%- endif -%}
+                            <span class="post-card__ago-value" data-created-at="{{ post.data.activity_at or post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</span>
+                        </p>
                     </div>
                     {# ひとことと条件 #}
                     <div class="post-card__info-and-conditions">

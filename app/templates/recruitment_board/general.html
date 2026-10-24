@@ -365,6 +365,7 @@
     {{ super() }}
     <script src="{{ url_for('static', path='/js/url_detect.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/board_fragment_pagination.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', path='/js/board_repost.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/general_board.js') }}?v={{ app_version }}"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {

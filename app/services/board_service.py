@@ -228,6 +228,7 @@ async def _rank_general_posts_by_trending_score(
     スコア = (weight_likes * ln(1+いいね) + weight_comments * ln(1+コメント))
              / (経過時間[h] + age_offset_hours) ^ gravity
     いいね・コメントは候補IDで絞ってから件数を集計し、JOIN による行の膨張を避ける。
+    経過時間はリポストした投稿ではリポストした日時から数える。
     同点（主にいいね・コメント0件）は新しい順。
     """
     cfg = GENERAL_BOARD_TRENDING
@@ -241,7 +242,7 @@ async def _rank_general_posts_by_trending_score(
     limit_sql = f"LIMIT {int(limit)}" if limit else ""
     sql = f"""
         WITH cand AS MATERIALIZED (
-            SELECT p.id, p.created_at FROM posts p WHERE {where_sql}
+            SELECT p.id, COALESCE(p.reposted_at, p.created_at) AS created_at FROM posts p WHERE {where_sql}
         ),
         l AS (
             SELECT pv.post_id, COUNT(*) AS cnt
