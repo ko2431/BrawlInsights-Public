@@ -1,4 +1,4 @@
-from app.services.mention_rules import has_mention_mark, pick_mentions
+from app.services.mention_rules import has_mention_mark, mentions_everyone, pick_mentions
 
 
 def test_pick_mentions():
@@ -22,3 +22,19 @@ def test_has_mention_mark():
     assert not has_mention_mark("よろしく")
     assert not has_mention_mark("")
     assert not has_mention_mark(None)
+
+
+def test_mentions_everyone():
+    """大会のチャットの「@everyone」。個別のメンションと同じく、全角の「＠」・大文字小文字を問わず、直前が英数字なら数えない。"""
+    assert mentions_everyone("@everyone 集合です")
+    assert mentions_everyone("みなさん＠Everyone、開始します")
+    assert mentions_everyone("@EVERYONEよろしく")  # 日本語が続いてもよい
+    assert not mentions_everyone("@everyones")  # 英数字・「_」が続くものは数えない
+    assert not mentions_everyone("@everyone_jp")
+    assert not mentions_everyone("mail@everyone.example")
+    assert not mentions_everyone("everyone")
+    assert not mentions_everyone(None)
+    # 同じ位置に「everyone」より長い名前の人がいれば、その人へのメンション
+    longer = [{"id": 1, "name": "everyoneさん"}]
+    assert not mentions_everyone("@everyoneさん", longer)
+    assert mentions_everyone("@everyone さん", longer)

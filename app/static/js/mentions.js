@@ -37,8 +37,11 @@
         let last = 0;
         for (const hit of text.matchAll(pattern)) {
             if (hit.index > 0 && /[A-Za-z0-9]/.test(text[hit.index - 1])) continue;
+            const user = byName.get(hit[1].toLowerCase());
+            // 大会のチャットの @everyone は、すぐ後に英数字・「_」が続くもの（「@everyones」）を除く（mention_rules.mentions_everyone）
+            if (user.everyone && /[A-Za-z0-9_]/.test(text[hit.index + hit[0].length] || '')) continue;
             if (hit.index > last) parts.push({ text: text.slice(last, hit.index) });
-            parts.push({ text: hit[0], user: byName.get(hit[1].toLowerCase()) });
+            parts.push({ text: hit[0], user });
             last = hit.index + hit[0].length;
         }
         if (last < text.length) parts.push({ text: text.slice(last) });
