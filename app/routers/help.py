@@ -1,3 +1,7 @@
+import json
+from datetime import date
+from pathlib import Path
+
 from fastapi import APIRouter, Request, Depends, HTTPException
 import asyncpg
 
@@ -12,6 +16,96 @@ router = APIRouter(
     prefix="/{lang}/help",
     tags=["Helps"]
 )
+
+VERSION_HISTORY_PATH = Path(__file__).resolve().parent.parent / "data" / "version_history.json"
+# 1つのバージョンでこの件数を超える項目は「残りを表示」にたたむ
+VERSION_HISTORY_VISIBLE_ITEMS = 10
+# このメジャーバージョン以前は Discord ボット時代として1つのグループにまとめる
+VERSION_HISTORY_BOT_ERA_MAX_MAJOR = 10
+_EN_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+# (ファイルの更新時刻, 言語, プラットフォーム) -> 表示用データ。JSON を毎回読まないようにする
+_version_history_cache: dict[tuple[float, str, str], list[dict]] = {}
+
+
+def _vh_text(value: dict | None, lang: str, platform: str) -> str:
+    """{"ja", "en", "ios"?} から表示する文言を選ぶ。en がなければ ja を使う"""
+    if not value:
+        return ""
+    if platform in value:
+        value = value[platform]
+    return value.get(lang) or value.get("ja", "")
+
+
+def _vh_format_date(d: date, lang: str, with_day: bool = True) -> str:
+    if lang == "ja":
+        return f"{d.year}年{d.month}月{d.day}日" if with_day else f"{d.year}年{d.month}月"
+    month = _EN_MONTHS[d.month - 1]
+    return f"{month} {d.day}, {d.year}" if with_day else f"{month} {d.year}"
+
+
+def _vh_period(dates: list[date], lang: str) -> str:
+    start, end = min(dates), max(dates)
+    start_text, end_text = _vh_format_date(start, lang, False), _vh_format_date(end, lang, False)
+    if start_text == end_text:
+        return start_text
+    if lang == "ja" and start.year == end.year:
+        end_text = f"{end.month}月"
+    return f"{start_text} – {end_text}"
+
+
+def build_version_history(lang: str, platform: str) -> list[dict]:
+    """バージョン履歴をメジャーバージョンごとのグループにまとめる(Discord ボット時代は1グループ)"""
+    with VERSION_HISTORY_PATH.open("r", encoding="utf-8") as f:
+        versions = json.load(f)["versions"]
+
+    groups: list[dict] = []
+    for index, row in enumerate(versions):
+        major = int(row["version"].split(".")[0])
+        key = "bot" if major <= VERSION_HISTORY_BOT_ERA_MAX_MAJOR else str(major)
+        if not groups or groups[-1]["key"] != key:
+            if key == "bot":
+                title = f"Ver 1 – {VERSION_HISTORY_BOT_ERA_MAX_MAJOR}"
+                label = "Discordボット" if lang == "ja" else "Discord bot"
+            else:
+                title, label = f"Ver {major}", ""
+            groups.append({"key": key, "title": title, "label": label, "versions": [], "dates": []})
+        group = groups[-1]
+
+        released = date.fromisoformat(row["date"])
+        items = [_vh_text(item, lang, platform) for item in row.get("items", [])]
+        # 残りが1件だけならたたまずに出す
+        split_at = VERSION_HISTORY_VISIBLE_ITEMS if len(items) > VERSION_HISTORY_VISIBLE_ITEMS + 1 else len(items)
+        group["dates"].append(released)
+        group["versions"].append({
+            "version": row["version"],
+            "anchor": "v" + "-".join(row["version"].replace(" ", "").split(".")),
+            "date_iso": row["date"],
+            "date_text": _vh_text(row.get("date_label"), lang, platform) or _vh_format_date(released, lang),
+            "summary": _vh_text(row.get("summary"), lang, platform),
+            "visible_items": items[:split_at],
+            "more_items": items[split_at:],
+            "note": _vh_text(row.get("note"), lang, platform),
+            "is_latest": index == 0,
+        })
+
+    for group in groups:
+        group["period"] = _vh_period(group.pop("dates"), lang)
+    return groups
+
+
+def get_version_history(lang: str, platform: str) -> list[dict]:
+    lang = "ja" if lang == "ja" else "en"
+    # 出し分けがあるのは iOS だけなので、それ以外はまとめてキャッシュする
+    platform = "ios" if platform == "ios" else "default"
+    mtime = VERSION_HISTORY_PATH.stat().st_mtime
+    key = (mtime, lang, platform)
+    cached = _version_history_cache.get(key)
+    if cached is None:
+        # JSON が書き換えられたら、古い更新時刻のものを捨てる
+        for old_key in [k for k in _version_history_cache if k[0] != mtime]:
+            del _version_history_cache[old_key]
+        cached = _version_history_cache[key] = build_version_history(lang, platform)
+    return cached
 
 @router.get("/announcements", name="announcements")
 async def announcements(
@@ -67,7 +161,8 @@ async def about_the_technology(request: Request, lang: str):
 
 @router.get("/version_history", name="version_history")
 async def version_history(request: Request, lang: str):
-    context = {"request": request, "lang": lang}
+    platform = getattr(request.state, "platform", "unknown")
+    context = {"request": request, "lang": lang, "version_groups": get_version_history(lang, platform)}
     return templates.TemplateResponse("help/version_history.html", context)
 
 @router.get("/sponsor_info", name="sponsor_info")

@@ -43,3 +43,307 @@
         font-size: 14px;
     }
 }
+
+/* =============================================== */
+/* バージョン履歴                                   */
+/* =============================================== */
+.vh-page {
+    --vh-accent: #2f6fed;
+    --vh-accent-soft: #eaf1ff;
+    --vh-card-bg: #fff;
+    --vh-border: #e6e6e6;
+    --vh-hover: #f6f7f8;
+    --vh-line: #e3e5e8;
+    --vh-muted: #888;
+    --vh-chip-bg: #f1f2f4;
+}
+.dark .vh-page {
+    --vh-accent: #7aa7ff;
+    --vh-accent-soft: #1d2a44;
+    --vh-card-bg: #2a2a2a;
+    --vh-border: #3a3a3a;
+    --vh-hover: #313131;
+    --vh-line: #444;
+    --vh-muted: #999;
+    --vh-chip-bg: #383838;
+}
+
+.vh-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.vh-lead {
+    flex: 1;
+    font-size: 15px;
+    color: var(--color-555);
+}
+.vh-toolbar__toggle {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-333);
+    background: var(--vh-card-bg);
+    border: 1px solid var(--vh-border);
+    border-radius: 999px;
+    transition: background-color .15s, transform .1s;
+}
+.vh-toolbar__toggle:hover {
+    background: var(--vh-hover);
+}
+.vh-toolbar__toggle:active {
+    transform: scale(.96);
+}
+
+/* --- メジャーバージョンごとのグループ --- */
+.vh-group {
+    margin-bottom: 10px;
+    background: var(--vh-card-bg);
+    border: 1px solid var(--vh-border);
+    border-radius: 14px;
+}
+.vh-group__summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding: 11px 14px;
+    border-radius: 13px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color .15s;
+}
+.vh-group__summary::-webkit-details-marker {
+    display: none;
+}
+.vh-group__summary:hover {
+    background: var(--vh-hover);
+}
+.vh-group[open] > .vh-group__summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.vh-group__title {
+    font-size: 19px;
+    font-weight: 700;
+}
+.vh-group__label {
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-555);
+    background: var(--vh-chip-bg);
+    border-radius: 999px;
+}
+.vh-group__meta {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--vh-muted);
+}
+.vh-group__dot {
+    margin: 0 5px;
+}
+
+/* 開閉の矢印 */
+.vh-chevron {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin: 0 2px 3px 4px;
+    border-right: 2px solid var(--vh-muted);
+    border-bottom: 2px solid var(--vh-muted);
+    transform: rotate(45deg);
+    transition: transform .2s ease;
+}
+.vh-group[open] > summary .vh-chevron {
+    margin-bottom: -3px;
+    transform: rotate(-135deg);
+}
+.vh-chevron--sm {
+    width: 6px;
+    height: 6px;
+    border-color: currentColor;
+}
+
+/* --- 各バージョン(タイムライン) --- */
+.vh-timeline {
+    margin: 0;
+    padding: 4px 14px 2px;
+    list-style: none;
+}
+.vh-group[open] > .vh-timeline {
+    animation: vh-fade-in .18s ease;
+}
+.vh-entry {
+    position: relative;
+    padding: 0 0 14px 20px;
+    scroll-margin-top: calc(12px + var(--banner-ad-height-top, 0px) + env(safe-area-inset-top));
+}
+@media (min-width: 840px) {
+    .vh-entry {
+        scroll-margin-top: calc(56px + var(--banner-ad-height-top, 0px) + env(safe-area-inset-top));
+    }
+}
+/* 縦線は自分の点から次のバージョンの点まで引く */
+.vh-entry::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    bottom: -8px;
+    left: 4px;
+    width: 2px;
+    background: var(--vh-line);
+}
+.vh-entry:last-child::before {
+    display: none;
+}
+.vh-entry::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    background: var(--vh-card-bg);
+    border: 2px solid var(--vh-muted);
+    border-radius: 50%;
+}
+.vh-entry--latest::after {
+    background: var(--vh-accent);
+    border-color: var(--vh-accent);
+    box-shadow: 0 0 0 3px var(--vh-accent-soft);
+}
+
+.vh-entry__head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+}
+.vh-entry__version {
+    font-size: 16px;
+    font-weight: 700;
+}
+.vh-entry__badge {
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    color: #fff;
+    background: var(--vh-accent);
+    border-radius: 999px;
+}
+.dark .vh-entry__badge {
+    color: #111;
+}
+.vh-entry__date {
+    font-size: 13px;
+    color: var(--vh-muted);
+}
+.vh-entry__summary {
+    margin-top: 3px;
+    font-size: 15px;
+    white-space: pre-line;
+}
+.vh-entry__note {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--color-666);
+}
+
+.vh-items {
+    display: grid;
+    gap: 3px;
+    margin-top: 5px;
+}
+.vh-items li {
+    position: relative;
+    padding-left: 13px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--color-333);
+}
+.vh-items li::before {
+    content: "";
+    position: absolute;
+    top: .62em;
+    left: 2px;
+    width: 5px;
+    height: 5px;
+    background: var(--color-aaa);
+    border-radius: 50%;
+}
+.vh-more > .vh-items {
+    margin-top: 3px;
+    animation: vh-fade-in .18s ease;
+}
+
+/* 項目が多いバージョンの「残りを表示」 */
+.vh-more__summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 0 7px;
+    padding: 2px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vh-accent);
+    border-radius: 8px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color .15s;
+}
+.vh-more__summary::-webkit-details-marker {
+    display: none;
+}
+.vh-more__summary:hover {
+    background: var(--vh-accent-soft);
+}
+/* 開いたら全件が並ぶだけにする(たたみ直しは「すべて閉じる」かグループの開閉で) */
+.vh-more[open] > .vh-more__summary {
+    display: none;
+}
+
+@keyframes vh-fade-in {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .vh-group[open] > .vh-timeline,
+    .vh-more > .vh-items {
+        animation: none;
+    }
+}
+
+@media (max-width: 539px) {
+    .vh-lead {
+        font-size: 14px;
+    }
+    .vh-group__summary {
+        padding: 10px 12px;
+    }
+    .vh-group__title {
+        font-size: 17px;
+    }
+    .vh-timeline {
+        padding: 2px 12px 0;
+    }
+    .vh-entry {
+        padding-left: 18px;
+    }
+    .vh-entry__version {
+        font-size: 15px;
+    }
+    .vh-entry__summary {
+        font-size: 14px;
+    }
+    .vh-items li {
+        font-size: 13.5px;
+    }
+}
