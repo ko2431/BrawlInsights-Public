@@ -1,6 +1,6 @@
 /**
- * チャットリンク化と同等のURL検出ユーティリティ。
- * 掲示板のひとこと/コメント禁止判定などでも共用する。
+ * URLの検出とリンク化の規則。掲示板のチャット・大会のチャット・大会のお知らせのリンク化と、
+ * 掲示板のひとこと/コメント禁止判定で共用する（片方だけ規則を変えない）。
  */
 (function (global) {
     'use strict';
@@ -133,9 +133,40 @@
         return findLinkMatches(text, baseOrigin).length > 0;
     }
 
+    // 1つのメッセージでリンクにする数と、リンクの表示の長さ（掲示板のチャット・大会のチャット・お知らせで共通）
+    const MAX_LINKS_PER_MESSAGE = 10;
+    const DISPLAY_MAX_LENGTH = 70;
+
+    function display(text) {
+        const source = String(text || '');
+        return source.length <= DISPLAY_MAX_LENGTH ? source : `${source.slice(0, DISPLAY_MAX_LENGTH)}...`;
+    }
+
+    // 本文をリンクとそれ以外に分ける（[{ text }] と [{ text, link: { href, isInternal } }]）。
+    // リンクにするのは MAX_LINKS_PER_MESSAGE 個まで（それより後ろは文字のまま）
+    function split(text, baseOrigin) {
+        const source = text == null ? '' : String(text);
+        const parts = [];
+        let cursor = 0;
+        let count = 0;
+        for (const link of findLinkMatches(source, baseOrigin)) {
+            if (link.start < cursor) continue;
+            if (count >= MAX_LINKS_PER_MESSAGE) break;
+            if (link.start > cursor) parts.push({ text: source.slice(cursor, link.start) });
+            parts.push({ text: link.matchedText, link: { href: link.href, isInternal: link.isInternal } });
+            cursor = link.end;
+            count += 1;
+        }
+        if (cursor < source.length || !parts.length) parts.push({ text: source.slice(cursor) });
+        return parts;
+    }
+
     global.BrawlInsightsUrlDetect = {
+        MAX_LINKS_PER_MESSAGE,
         findLinkMatches,
         containsUrl,
         resolveLinkFromMatch,
+        display,
+        split,
     };
 })(typeof window !== 'undefined' ? window : globalThis);
