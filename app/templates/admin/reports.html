@@ -308,7 +308,7 @@
                     <td>
                         {{ admin_filter_badge(
                             report.category_ja,
-                            {"unpleasant_content": "green", "hateful_content": "yellow", "spam": "red", "tos_violation": "purple", "tournament_fraud": "red", "tournament_guideline": "purple"}.get(report.category, "gray"),
+                            {"unpleasant_content": "green", "hateful_content": "yellow", "spam": "red", "tos_violation": "purple", "tournament_fraud": "red", "tournament_guideline": "purple", "tournament_host_absent": "yellow"}.get(report.category, "gray"),
                             'category', report.category
                         ) }}
                     </td>
