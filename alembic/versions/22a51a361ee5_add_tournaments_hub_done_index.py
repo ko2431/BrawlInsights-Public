@@ -3,7 +3,8 @@
 大会開催ツールのトップの「終了」タブで、過去のすべての大会を終了の新しい順に30件ずつ出すためのインデックス。
 （公開・未削除の終了した大会だけの部分インデックス。tournaments は小さい表なので、作成は短時間で終わる。
 ACCESS EXCLUSIVE ではなく SHARE ロックだが、書き込みを長く待たせないよう lock_timeout を付ける）
-autogenerate が開発DBにだけある maps_legacy / modes_legacy の削除を混ぜたので取り除いた。
+autogenerate がモデル未定義の maps_legacy / modes_legacy の削除を混ぜたので取り除いた。
+両テーブルは本番DBにも存在し、旧データの補完・移行漏れ確認に使うため維持する。
 
 Revision ID: 22a51a361ee5
 Revises: 5df570c6a1a7
