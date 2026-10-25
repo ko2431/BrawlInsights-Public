@@ -122,6 +122,13 @@ button {
     -webkit-user-select: none; /* iOS Safari用 */
 }
 
+/* iOS（Safari・アプリの WKWebView）の文字の自動拡大を止める。
+   横に長い表の中の折り返さない文字（管理画面のユーザー名など）が、時々大きく表示されるため */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 /* --- body全体の基本スタイル --- */
 body {
     font-family:
