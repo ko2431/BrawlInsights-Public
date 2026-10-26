@@ -140,7 +140,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="15.3.49",
+    version="15.3.50",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
