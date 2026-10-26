@@ -1,1 +1,1791 @@
+# app/db/models.py
+from sqlalchemy import (
+    Column,
+    Integer,
+    SmallInteger,
+    Text,
+    Date,
+    DateTime,
+    Boolean,
+    ForeignKey,
+    Float,
+    UniqueConstraint,
+    Index,
+    desc,
+    PrimaryKeyConstraint,
+    CheckConstraint,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB, INET
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.sql import func
+
+from app.core.text_search import search_normalize_sql
+
+# 全てのモデルクラスが継承する基本クラス。
+# Alembicは、このBaseを継承しているクラスをテーブルとして認識します。
+Base = declarative_base()
+
+
+#^ テーブルのモデル定義 ---
+
+class User(Base):
+    """
+    アプリケーションのユーザー情報を格納するテーブル。
+    """
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(Text, nullable=False, unique=True)
+    password = Column(Text, nullable=False)
+    lang = Column(Text, nullable=False)
+    main_account = Column(Text, ForeignKey('players.tag'), nullable=False)
+    sub_accounts = Column(JSONB, nullable=False, server_default='[]')
+    sub_accounts_limit = Column(Integer, nullable=False, server_default='1')
+    secret_questions = Column(JSONB, nullable=False)
+    saved_accounts = Column(JSONB, nullable=False, server_default='[]')
+    saved_clubs = Column(JSONB, nullable=False, server_default='[]')
+    viewed_accounts = Column(JSONB, nullable=False, server_default='[]')
+    viewed_clubs = Column(JSONB, nullable=False, server_default='[]')
+    custom_settings = Column(JSONB, nullable=False, server_default='{}')
+    registration_datetime = Column(DateTime(timezone=True), nullable=False)
+    last_viewd_datetime = Column(DateTime(timezone=True), nullable=False)
+    last_claim_date = Column(Date, nullable=True)
+    last_bonus_mission_date = Column(Date, nullable=True)
+    is_delete_ads = Column(Boolean, nullable=False, server_default='False')
+    is_admin = Column(Boolean, nullable=False, server_default='False')
+    is_sub_admin = Column(Boolean, nullable=False, server_default='False')
+    # [この部分は公開用リポジトリでは非公開にされています]
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+    is_prohibit_posting = Column(Boolean, nullable=False, server_default='False')
+    is_prohibit_giveaway = Column(Boolean, nullable=False, server_default='False')
+    penalty_level = Column(Integer, nullable=False, server_default='0')
+    penalty_level_changed_at = Column(DateTime(timezone=True), nullable=True)
+    unacked_penalty_count = Column(Integer, nullable=False, server_default='0')
+    saved_accounts_limit = Column(Integer, nullable=False, server_default='0')
+    saved_clubs_limit = Column(Integer, nullable=False, server_default='3')
+    viewed_accounts_limit = Column(Integer, nullable=False, server_default='0')
+    viewed_clubs_limit = Column(Integer, nullable=False, server_default='4')
+    pv_count = Column(Integer, nullable=False, server_default='0')
+    tokens = Column(Integer, nullable=False, server_default='0')
+    token_limit = Column(Integer, nullable=True)
+    token_claim_count = Column(Integer, server_default='0')
+    ad_skip_tickets = Column(Integer, nullable=False, server_default='0')
+    auto_track_elixirs = Column(Integer, nullable=False, server_default='0')
+    ticket_claim_count = Column(Integer, nullable=False, server_default='0')
+    last_ticket_claim_date = Column(Date, nullable=True)
+    last_advance_mission_date = Column(Date, nullable=True)
+    tutorial_missions = Column(JSONB, nullable=False, server_default='{}')
+    is_ios_app_login_cleared = Column(Boolean, nullable=False, server_default='False')
+    is_android_app_login_cleared = Column(Boolean, nullable=False, server_default='False')
+    # [この部分は公開用リポジトリでは非公開にされています]
+    notification_badge_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_post_like_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_own_post_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_participated_thread_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_message_reply_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_message_mention_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_message_reaction_enabled = Column(Boolean, nullable=False, server_default='True')
+    notification_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
+    notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
+    # [この部分は公開用リポジトリでは非公開にされています]
+    last_main_account_changed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            'NOT (is_admin AND is_sub_admin)',
+            name='ck_users_not_admin_and_sub_admin',
+        ),
+        CheckConstraint(
+            'penalty_level >= 0 AND penalty_level <= 80 AND penalty_level % 10 = 0',
+            name='ck_users_penalty_level_step',
+        ),
+        CheckConstraint(
+            'unacked_penalty_count >= 0',
+            name='ck_users_unacked_penalty_count_nonnegative',
+        ),
+        Index(
+            'idx_users_penalty_decay',
+            'penalty_level_changed_at',
+            postgresql_where=text(
+                'penalty_level BETWEEN 10 AND 60 AND NOT is_invalid'
+            ),
+        ),
+        # なんでも掲示板の「@ユーザー名」検索（正規化後の完全一致）。式は text_search.search_normalize_sql と一致させること
+        Index('idx_users_name_search_norm', text(search_normalize_sql('name'))),
+        # サブアカウントのタグからユーザーを逆引きする(ペナルティ同期・ユーザー名検索・管理画面検索)
+        Index('idx_users_sub_accounts', 'sub_accounts', postgresql_using='gin'),
+        Index('idx_users_main_account', 'main_account'),
+        CheckConstraint(
+            'sub_accounts_limit >= 1 AND sub_accounts_limit <= 9',
+            name='ck_users_sub_accounts_limit_range',
+        ),
+    )
+
+    # リレーションシップ
+    player = relationship("Player", back_populates="users", foreign_keys=[main_account])
+    posts = relationship("Post", back_populates="host")
+    messages = relationship("Message", back_populates="user")
+    reactions = relationship("Reaction", back_populates="user")
+    reports = relationship("Report", back_populates="user")
+    feedbacks = relationship("Feedback", back_populates="user")
+
+
+class PurchaseEvent(Base):
+    """
+    課金イベント履歴を格納するテーブル。
+    RevenueCat Webhookを正として記録し、監査・再集計に利用する。
+    """
+    __tablename__ = 'purchase_events'
+
+    id = Column(Integer, primary_key=True)
+    provider = Column(Text, nullable=False)
+    external_event_id = Column(Text, nullable=True, unique=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    app_user_id = Column(Text, nullable=True)
+    event_type = Column(Text, nullable=False)
+    product_id = Column(Text, nullable=True)
+    entitlement_id = Column(Text, nullable=True)
+    transaction_id = Column(Text, nullable=True)
+    original_transaction_id = Column(Text, nullable=True)
+    environment = Column(Text, nullable=True)
+    is_sandbox = Column(Boolean, nullable=False, server_default='False')
+    event_timestamp = Column(DateTime(timezone=True), nullable=True)
+    raw_payload = Column(JSONB, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('ix_purchase_events_user_id', 'user_id'),
+        Index('ix_purchase_events_product_id', 'product_id'),
+        Index('ix_purchase_events_created_at', 'created_at'),
+        Index('ix_purchase_events_event_timestamp', 'event_timestamp'),
+    )
+
+
+class ImageGenerationJob(Base):
+    """
+    プロフィール画像生成ジョブを格納するテーブル。
+    初期リリースではプロフ画像系のみを対象とし、将来バトル履歴画像にも拡張する。
+    """
+    __tablename__ = 'image_generation_jobs'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    player_tag = Column(Text, nullable=False)
+    platform = Column(Text, nullable=False)
+    lang = Column(Text, nullable=False)
+    image_type = Column(Text, nullable=False)
+    orientation = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, server_default='queued')
+    priority = Column(Integer, nullable=False, server_default='0')
+    consume_ticket = Column(Boolean, nullable=False, server_default='False')
+    is_fast_lane = Column(Boolean, nullable=False, server_default='False')
+    cache_key = Column(Text, nullable=True)
+    min_wait_until = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    result_path = Column(Text, nullable=True)
+    result_filename = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index('ix_image_generation_jobs_status_priority_created_at', 'status', desc('priority'), 'created_at'),
+        Index('ix_image_generation_jobs_user_id_created_at', 'user_id', 'created_at'),
+        Index('ix_image_generation_jobs_cache_key_expires_at', 'cache_key', 'expires_at'),
+        Index('ix_image_generation_jobs_player_tag_created_at', 'player_tag', 'created_at'),
+    )
+
+
+class Player(Base):
+    """
+    プレイヤー情報を格納するテーブル。
+    """
+    __tablename__ = 'players'
+
+    tag = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    club_tag = Column(Text, ForeignKey('clubs.tag'), nullable=True)
+    icon_id = Column(Integer, nullable=False)
+    current_trophies = Column(Integer, nullable=False)
+    highest_trophies = Column(Integer, nullable=False)
+    season_trophies = Column(Integer, nullable=False)
+    average_highest_trophies = Column(Float, nullable=False)
+    average_power = Column(Float, nullable=False)
+    max_power_brawlers = Column(Integer, nullable=False)
+    gadgets = Column(Integer, nullable=False)
+    star_powers = Column(Integer, nullable=False)
+    gears = Column(Integer, nullable=False)
+    hyper_charges = Column(Integer, nullable=False, server_default='0')
+    buffies = Column(Integer, nullable=False, server_default='0')
+    team_victories = Column(Integer, nullable=False)
+    solo_victories = Column(Integer, nullable=False)
+    duo_victories = Column(Integer, nullable=False)
+    unlocked_brawlers = Column(Integer, nullable=False)
+    max_tier_brawlers = Column(Integer, nullable=False)
+    ranked_current_rank = Column(Integer, server_default='0')
+    ranked_current_score = Column(Integer, server_default='0')
+    ranked_highest_rank = Column(Integer, server_default='0')
+    ranked_highest_score = Column(Integer, server_default='0')
+    ranked_season_highest_score = Column(Integer, server_default='0')
+    solo_pl_rank = Column(Integer, server_default='0')
+    team_pl_rank = Column(Integer, server_default='0')
+    acc_ranked_current_rank = Column(Integer, server_default='0')
+    acc_ranked_highest_rank = Column(Integer, server_default='0')
+    acc_ranked_season_highest_rank = Column(Integer, server_default='0')
+    highest_club_league = Column(Integer, server_default='0')
+    account_creation_year = Column(Integer, server_default='0')
+    max_winstreak = Column(Integer, server_default='0')
+    winstreak_brawler = Column(Integer, server_default='0')
+    region = Column(Text, nullable=True)
+    previous_names = Column(JSONB, nullable=False)
+    previous_clubs = Column(JSONB, nullable=False)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+    level = Column(Integer, nullable=False, server_default='0')  # 0=未閲覧, 10=非アクティブ, 20=アクティブ, 30=自動追跡有効
+    last_viewed_at = Column(DateTime(timezone=True), nullable=True)  # 最終閲覧日時(レベル格下げ判定用)
+    last_updated_at = Column(DateTime(timezone=True), nullable=True)  # 最終DB更新日時(タスク取得順用)
+    auto_track_expiration = Column(DateTime(timezone=True), nullable=True)  # 自動追跡有効期限
+    fame_points = Column(Integer, nullable=True)
+    legacy_rank_35s = Column(Integer, nullable=True)
+    season_high_trophies = Column(Integer, nullable=True)
+    prestige = Column(Integer, nullable=True)  # 旧トップランカー(廃止制度)
+    total_mastery = Column(Integer, nullable=True)
+    titles = Column(Integer, nullable=True)
+    brawlpass = Column(Integer, nullable=True)
+    record_points = Column(Integer, nullable=True)
+    record_level = Column(Integer, nullable=True)
+    favorite_skin = Column(Integer, nullable=True)
+    owned_skin_count = Column(Integer, nullable=True)
+    owned_skins_synced_at = Column(DateTime(timezone=True), nullable=True)  # BSInfoから所持スキンを最後に取得できた日時 (NULLは所持スキン不明)
+    first_profile_avatar = Column(Integer, nullable=True)
+    second_profile_avatar = Column(Integer, nullable=True)
+    battle_card_emote = Column(Integer, nullable=True)
+    battle_card_title = Column(Integer, nullable=True)
+    battle_card_frame = Column(Integer, nullable=True)
+    battle_card_stars = Column(JSONB, nullable=False, server_default='{}')
+    milestone = Column(Integer, nullable=True)
+    exp_level = Column(Integer, nullable=True)
+    exp_points = Column(Integer, nullable=True)
+    total_prestige_level = Column(Integer, nullable=True)  # 新トップランカー
+    prestige_1_brawlers = Column(Integer, nullable=True)  # prestigeLevel>=1 のキャラ数
+    prestige_2_brawlers = Column(Integer, nullable=True)  # prestigeLevel>=2 のキャラ数
+    prestige_3_brawlers = Column(Integer, nullable=True)  # prestigeLevel>=3 のキャラ数
+    hide_name_history = Column(Boolean, nullable=False, server_default='False')
+    hide_club_history = Column(Boolean, nullable=False, server_default='False')
+    battle_log_limit = Column(Integer, nullable=True, server_default=None)
+    battle_log_retention_months = Column(Integer, nullable=True, server_default=None)  # NULL=システムデフォルト(4ヶ月)を適用
+
+    # リレーションシップ
+    club = relationship("Club") # club_tagに紐づくClubオブジェクトにアクセスできる
+    users = relationship("User", foreign_keys="[User.main_account]") # main_accountに紐づくUserにアクセス
+
+    # パフォーマンス改善のためのインデックスを __table_args__ で定義
+    __table_args__ = (
+        # pg_bigm: 1〜2文字の短いクエリに強い。gin_bigm_ops は LIKE のみ（ILIKE では使えない）
+        Index(
+            'idx_gin_players_name_bigm',
+            'name',
+            postgresql_using='gin',
+            postgresql_ops={'name': 'gin_bigm_ops'}
+        ),
+        # pg_trgm: 3文字以上の ILIKE に強い（'%ブロスタプレイヤー%'など）
+        # 短い検索はアプリ側で LIKE に切り替え、bigm インデックスを使う
+        Index(
+            'idx_gin_players_name_trgm',
+            'name',
+            postgresql_using='gin',
+            postgresql_ops={'name': 'gin_trgm_ops'}
+        ),
+        Index('idx_players_level_updated_at', 'level', 'last_updated_at'),
+        Index('idx_players_lower_name', func.lower("name")),
+
+        # 改名前検索: 値配列への @> 用。jsonb_path_exists / @? '$.*' では Seq Scan になる
+        Index(
+            'idx_gin_players_previous_name_values',
+            text("jsonb_path_query_array(previous_names, '$.*'::jsonpath)"),
+            postgresql_using='gin',
+            postgresql_ops={
+                "jsonb_path_query_array(previous_names, '$.*'::jsonpath)": 'jsonb_path_ops'
+            },
+        ),
+    )
+
+
+class Club(Base):
+    """
+    クラブの情報を格納するテーブル。
+    """
+    __tablename__ = 'clubs'
+    tag = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    type = Column(Text, nullable=False)
+    trophies = Column(Integer, nullable=False)
+    badge_id = Column(Integer, nullable=False)
+    region = Column(Text, nullable=True)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+
+    # リレーションシップを追加
+    players = relationship("Player", back_populates="club")
+    posts = relationship("Post", back_populates="host_club")
+
+
+class Battle(Base):
+    """
+    バトルを格納するテーブル。
+    """
+    __tablename__ = 'battles'
+
+    tag = Column(Text, nullable=False)
+    datetime = Column(DateTime(timezone=True), nullable=False)
+    event_id = Column(Integer, nullable=True)  # マップID（コンペ等では0）
+    event_mode = Column(Text, nullable=True)
+    event_map = Column(Text, nullable=True)
+    battle_mode = Column(Text, nullable=True)
+    mode_id = Column(Integer, nullable=True)  # ゲームモードID（48000000+）
+    battle_type = Column(Text, nullable=True)
+    result = Column(Text, nullable=False)
+    rank = Column(Integer, nullable=True)
+    brawler = Column(Integer, nullable=True)
+    power = Column(Integer, nullable=True)
+    trophies = Column(Integer, nullable=True)
+    trophy_change = Column(Integer, nullable=True)
+    team_size = Column(Integer, nullable=False)
+    num_of_teams = Column(Integer, nullable=False)
+    ranked_score_after = Column(Integer, nullable=True)
+    is_starplayer = Column(Boolean, nullable=True)
+    brawlers = Column(JSONB, nullable=True)
+    teammate_tags = Column(JSONB, nullable=False, server_default='[]')
+    opponent_tags = Column(JSONB, nullable=False, server_default='[]')
+    teammate_names = Column(JSONB, nullable=False, server_default='[]')
+    opponent_names = Column(JSONB, nullable=False, server_default='[]')
+    teammate_brawlers = Column(JSONB, nullable=False, server_default='[]')
+    opponent_brawlers = Column(JSONB, nullable=False, server_default='[]')
+
+    __table_args__ = (
+        PrimaryKeyConstraint('tag', 'datetime', name='battles_pkey'),
+        Index('idx_battles_tag_time', 'tag', desc('datetime')),
+        Index('idx_battles_datetime', 'datetime'),
+        CheckConstraint("result IN ('w', 'd', 'l')", name='ck_battles_result')
+    )
+
+
+class ArchivedBattle(Base):
+    """
+    保存期限切れのバトルを移管するアーカイブテーブル。
+    battlesテーブルと同一カラム構成 + アーカイブ日時。
+    VPSのバックアップ対象外とする。
+    """
+    __tablename__ = 'archived_battles'
+
+    tag = Column(Text, nullable=False)
+    datetime = Column(DateTime(timezone=True), nullable=False)
+    event_id = Column(Integer, nullable=True)  # マップID（コンペ等では0）
+    event_mode = Column(Text, nullable=True)
+    event_map = Column(Text, nullable=True)
+    battle_mode = Column(Text, nullable=True)
+    mode_id = Column(Integer, nullable=True)  # ゲームモードID（48000000+）
+    battle_type = Column(Text, nullable=True)
+    result = Column(Text, nullable=False)
+    rank = Column(Integer, nullable=True)
+    brawler = Column(Integer, nullable=True)
+    power = Column(Integer, nullable=True)
+    trophies = Column(Integer, nullable=True)
+    trophy_change = Column(Integer, nullable=True)
+    team_size = Column(Integer, nullable=False)
+    num_of_teams = Column(Integer, nullable=False)
+    ranked_score_after = Column(Integer, nullable=True)
+    is_starplayer = Column(Boolean, nullable=True)
+    brawlers = Column(JSONB, nullable=True)
+    teammate_tags = Column(JSONB, nullable=False, server_default='[]')
+    opponent_tags = Column(JSONB, nullable=False, server_default='[]')
+    teammate_names = Column(JSONB, nullable=False, server_default='[]')
+    opponent_names = Column(JSONB, nullable=False, server_default='[]')
+    teammate_brawlers = Column(JSONB, nullable=False, server_default='[]')
+    opponent_brawlers = Column(JSONB, nullable=False, server_default='[]')
+    archived_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('tag', 'datetime', name='archived_battles_pkey'),
+        Index('idx_archived_battles_datetime', 'datetime'),
+    )
+
+
+class PlayerLog(Base):
+    """
+    プレイヤーの日ごとの状態を記録するテーブル。
+    """
+    __tablename__ = 'player_logs'
+
+    tag = Column(Text, ForeignKey('players.tag'), nullable=False)
+    date = Column(Date, nullable=False)
+    current_trophies = Column(Integer, nullable=False)
+    highest_trophies = Column(Integer, nullable=False)
+    season_trophies = Column(Integer, nullable=False)
+    average_highest_trophies = Column(Float, nullable=False)
+    average_power = Column(Float, nullable=False)
+    max_power_brawlers = Column(Integer, nullable=False)
+    gadgets = Column(Integer, nullable=False)
+    star_powers = Column(Integer, nullable=False)
+    gears = Column(Integer, nullable=False)
+    hyper_charges = Column(Integer, nullable=False, server_default='0')
+    buffies = Column(Integer, nullable=False, server_default='0')
+    team_victories = Column(Integer, nullable=False)
+    solo_victories = Column(Integer, nullable=False)
+    duo_victories = Column(Integer, nullable=False)
+    unlocked_brawlers = Column(Integer, nullable=False)
+    max_tier_brawlers = Column(Integer, nullable=False)
+    ranked_current_rank = Column(Integer, server_default='0')
+    ranked_highest_rank = Column(Integer, server_default='0')
+    ranked_current_score = Column(Integer, server_default='0')
+    ranked_highest_score = Column(Integer, server_default='0')
+    ranked_season_highest_score = Column(Integer, server_default='0')
+    acc_ranked_current_rank = Column(Integer, server_default='0')
+    acc_ranked_highest_rank = Column(Integer, server_default='0')
+    acc_ranked_season_highest_rank = Column(Integer, server_default='0')
+    max_winstreak = Column(Integer, server_default='0')
+    winstreak_brawler = Column(Integer, server_default='0')
+    fame_points = Column(Integer, nullable=True)
+    season_high_trophies = Column(Integer, nullable=True)
+    prestige = Column(Integer, nullable=True)  # 旧トップランカー(廃止制度)
+    total_mastery = Column(Integer, nullable=True)
+    titles = Column(Integer, nullable=True)
+    brawlpass = Column(Integer, nullable=True)
+    record_points = Column(Integer, nullable=True)
+    record_level = Column(Integer, nullable=True)
+    owned_skin_count = Column(Integer, nullable=True)
+    exp_level = Column(Integer, nullable=True)
+    exp_points = Column(Integer, nullable=True)
+    total_prestige_level = Column(Integer, nullable=True)  # 新トップランカー
+    prestige_1_brawlers = Column(Integer, nullable=True)
+    prestige_2_brawlers = Column(Integer, nullable=True)
+    prestige_3_brawlers = Column(Integer, nullable=True)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('tag', 'date', name='player_logs_pkey'),
+    )
+
+
+class PlayerMetricThreshold(Base):
+    """
+    プレイヤー評価指標の閾値を格納するテーブル。
+    """
+    __tablename__ = 'player_metric_thresholds'
+
+    metric_key = Column(Text, primary_key=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    population = Column(Integer, nullable=False)
+    thresholds_json = Column(JSONB, nullable=False)
+    method = Column(Text, nullable=False)
+    top_k = Column(Integer, nullable=False)
+
+
+class Brawler(Base):
+    """
+    キャラクターの情報を格納するテーブル。
+    """
+    __tablename__ = 'brawlers'
+
+    id = Column(Integer, primary_key=True)
+    en = Column(Text, nullable=False)
+    ja = Column(JSONB, nullable=False, server_default='[]')
+    is_temporary = Column(Boolean, nullable=False, server_default='False')
+    rarity = Column(Integer, nullable=True)
+    
+    prestige_borders = relationship("PrestigeBorder", back_populates="brawler")
+
+
+
+class BrawlerAccessoryStats(Base):
+    """
+    キャラクターのアクセサリー（ガジェット・スタパ・ギア）の所持率などの統計データを日次で記録するテーブル。
+    """
+    __tablename__ = 'brawler_accessory_stats'
+
+    date = Column(Date, nullable=False)
+    brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=False)
+
+    # 統計データ (日次スナップショット)
+    gadget_stats = Column(JSONB, nullable=False, server_default='{}')
+    star_power_stats = Column(JSONB, nullable=False, server_default='{}')
+    gear_stats = Column(JSONB, nullable=False, server_default='{}')
+    hypercharge_stats = Column(JSONB, nullable=False, server_default='{}')
+    buffie_stats = Column(JSONB, nullable=False, server_default='{}')
+
+    # リレーションシップ
+    brawler = relationship("Brawler")
+
+    __table_args__ = (
+        # 日付とキャラIDで複合主キー
+        PrimaryKeyConstraint('date', 'brawler_id', name='brawler_accessory_stats_pkey'),
+        # 特定キャラの時系列データを引くためのインデックス
+        Index('idx_brawler_accessory_stats_brawler_date', 'brawler_id', desc('date')),
+    )
+
+
+class PlayerBrawlerDB(Base):
+    """
+    プレイヤーの所持キャラクター情報を格納するテーブル。
+    level 20以上のプレイヤーのみデータを保存する。
+    """
+    __tablename__ = 'player_brawlers'
+
+    tag = Column(Text, ForeignKey('players.tag', ondelete='CASCADE'), nullable=False)
+    brawler_id = Column(Integer, nullable=False)
+
+    # 基本データ (BrawlPlex API)
+    power = Column(Integer, nullable=False)
+    rank = Column(Integer, nullable=False)          # ゲーム内ランク
+    trophies = Column(Integer, nullable=False)
+    highest_trophies = Column(Integer, nullable=False)
+    prestige_level = Column(Integer, nullable=False, server_default='0')
+    current_win_streak = Column(Integer, nullable=False, server_default='0')
+    max_win_streak = Column(Integer, nullable=False, server_default='0')
+
+    # バフィー
+    buffie_star_power = Column(Boolean, nullable=False, server_default='False')
+    buffie_gadget = Column(Boolean, nullable=False, server_default='False')
+    buffie_hyper_charge = Column(Boolean, nullable=False, server_default='False')
+
+    # 所持アクセサリーID (JSONB)
+    star_power_ids = Column(JSONB, nullable=False, server_default='[]')
+    gadget_ids = Column(JSONB, nullable=False, server_default='[]')
+    gear_ids = Column(JSONB, nullable=False, server_default='[]')
+    hyper_charge_ids = Column(JSONB, nullable=False, server_default='[]')
+
+    # スキン
+    skin_id = Column(Integer, nullable=True)              # 現在装備中のスキンID
+    owned_skin_ids = Column(JSONB, nullable=False, server_default='[]')  # 所持スキンIDリスト (BSInfo APIベース)
+
+    # MeowAPI追加データ
+    highest_season_trophies = Column(Integer, nullable=True)
+    mastery = Column(Integer, nullable=True)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('tag', 'brawler_id', name='player_brawlers_pkey'),
+        Index('idx_player_brawlers_brawler', 'brawler_id'),  # キャラ別分析用
+        Index('idx_player_brawlers_tag', 'tag'),              # プレイヤー別検索用
+    )
+
+
+class Accessory(Base):
+    """
+    アクセサリー（ガジェット・スターパワー・ギア・ハイパーチャージ）のマスターデータ。
+    PlayerBrawlerデータから自動で追加され、日本語名・説明文・クールダウンはワーカーがBSInfoから同期する。
+    説明文はパワーレベル11の代表値を保存する。
+    """
+    __tablename__ = 'accessories'
+
+    id = Column(Integer, primary_key=True)           # アクセサリーID
+    brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    type = Column(Text, nullable=False)              # "gadget" / "starPower" / "gear" / "hyperCharge"
+    rarity = Column(Integer, nullable=True)          # ギア用レア度
+    en = Column(Text, nullable=False)                # 英語名 (Title Case: "Spark Plug")
+    ja = Column(Text, nullable=True)                 # 日本語名 (BSInfo同期)
+    description_en = Column(Text, nullable=True)     # 英語説明文 (BSInfo同期、パワー11)
+    description_ja = Column(Text, nullable=True)     # 日本語説明文 (BSInfo同期、パワー11)
+    buffie_description_en = Column(Text, nullable=True)  # バフィー有効時の英語説明文 (BSInfo同期、パワー11)
+    buffie_description_ja = Column(Text, nullable=True)  # バフィー有効時の日本語説明文 (BSInfo同期、パワー11)
+    cooldown = Column(Integer, nullable=True)        # クールダウン秒数 (ガジェット専用、BSInfo同期)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')  # ゲーム内削除などで表示対象外にするフラグ
+
+
+class Buffy(Base):
+    """
+    バフィーのマスターデータ。ワーカーがBSInfoから日次で同期する(IDはスキンと同じ29xxxxxx系)。
+    """
+    __tablename__ = 'buffies'
+
+    id = Column(Integer, primary_key=True)            # バフィーID
+    brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=False)
+    type = Column(Text, nullable=False)               # "default" / "gadget" / "starPower" / "hypercharge" / "bling" / "ghostly"
+    en = Column(Text, nullable=True)                  # 英語名 (BSInfo同期: "SHELLY'S GADGET BUFFIE")
+    ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期: "シェリーのガジェットバフィー")
+    is_invalid = Column(Boolean, nullable=False, server_default='False')  # ゲーム内削除などで表示対象外にするフラグ
+
+    __table_args__ = (
+        Index('idx_buffies_brawler', 'brawler_id'),
+    )
+
+
+class Skin(Base):
+    """
+    スキン情報。PlayerBrawlerデータから自動で新規追加される。
+    デフォルトスキン（name=null）も保存してスキン装着率分析に使用する。
+    """
+    __tablename__ = 'skins'
+
+    id = Column(Integer, primary_key=True)            # スキンID
+    brawler_id = Column(Integer, ForeignKey('brawlers.id'), nullable=True)
+    en = Column(Text, nullable=True)                  # 英語名 (Title Case化、デフォルトスキンはNull)
+    ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期、未入力時のみ)
+    rarity = Column(Integer, nullable=True)           # レアリティ (BSInfo同期、未入力時のみ。0はレアリティなし)
+    is_limited = Column(Boolean, nullable=True)       # 限定スキンか (管理者が入力)
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    coins_price = Column(Integer, nullable=True)      # コイン価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
+    description_en = Column(Text, nullable=True)      # 英語説明文 (管理者が入力)
+    description_ja = Column(Text, nullable=True)      # 日本語説明文 (管理者が入力)
+    ownership_rate = Column(Float, nullable=True)     # スキン所持率（日次自動集計）
+    equip_rate = Column(Float, nullable=True)         # スキン装備率（日次自動集計）
+
+
+class Pin(Base):
+    """
+    プレイヤーのバトルカード用ピンズ（エモート）情報を格納するテーブル。
+    """
+    __tablename__ = 'pins'
+
+    id = Column(Integer, primary_key=True)            # ピンズID
+    brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=True)
+    rarity = Column(Integer, nullable=True)           # BSInfo同期 (DEFAULT=0, COMMON=10, RARE=20, EPIC=30, COLLECTORS=40)
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
+    description_en = Column(Text, nullable=True)
+    description_ja = Column(Text, nullable=True)
+    equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
+
+
+class Title(Base):
+    """
+    プレイヤーのバトルカード用タイトル情報を格納するテーブル。
+    """
+    __tablename__ = 'titles'
+
+    id = Column(Integer, primary_key=True)            # タイトルID
+    brawler_id = Column(Integer, ForeignKey('brawlers.id', ondelete='CASCADE'), nullable=True)
+    rarity = Column(Integer, nullable=True)           # BSInfo同期、未入力時のみ (PlayerTitleGold=10, Plus=20, TitlePrestige=30)
+    en = Column(Text, nullable=True)                  # 英語名 (BSInfo同期、未入力時のみ)
+    ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期、未入力時のみ)
+    equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
+
+
+class Frame(Base):
+    """
+    プレイヤーのバトルカード用フレーム情報を格納するテーブル。
+    """
+    __tablename__ = 'frames'
+
+    id = Column(Integer, primary_key=True)            # フレームID
+    type = Column(Text, nullable=True)                # フレームのタイプ
+    en = Column(Text, nullable=True)                  # 英語名
+    ja = Column(Text, nullable=True)                  # 日本語名
+    equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
+
+
+class PlayerIcon(Base):
+    """
+    プレイヤーアイコンの使用率ランキング用マスターデータ。
+    """
+    __tablename__ = 'player_icons'
+
+    id = Column(Integer, primary_key=True)            # アイコンID
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
+    equip_rate = Column(Float, nullable=True)         # 使用率（日次自動集計）
+
+
+class Spray(Base):
+    """
+    スプレーのカタログ情報。BSInfo APIから同期する。
+    """
+    __tablename__ = 'sprays'
+
+    id = Column(Integer, primary_key=True)            # スプレーID
+    rarity = Column(Integer, nullable=True)           # BSInfo同期 (DEFAULT=0, COMMON=10, COLLECTORS=40)
+    bling_price = Column(Integer, nullable=True)      # ジュエルチップ価格 (BSInfo同期、未設定はNULL)
+    gems_price = Column(Integer, nullable=True)       # エメラルド価格 (BSInfo同期、未設定はNULL)
+
+
+class Mode(Base):
+    """
+    ゲームモードの静的情報。主キーは公式/BSInfoのモードID（48000000+）。
+    slug は公式APIの camelCase（gemGrab）。en は表示用 Title Case（Gem Grab）。
+    """
+    __tablename__ = 'modes'
+
+    id = Column(Integer, primary_key=True)
+    slug = Column(Text, nullable=True)
+    en = Column(Text, nullable=True)
+    ja = Column(Text, nullable=True)
+    en_is_manual = Column(Boolean, nullable=False, server_default='False')
+    ja_is_manual = Column(Boolean, nullable=False, server_default='False')
+    desc_ja = Column(Text, nullable=True)
+    desc_en = Column(Text, nullable=True)
+    desc2_ja = Column(Text, nullable=True)
+    desc2_en = Column(Text, nullable=True)
+    overtime = Column(Boolean, nullable=True)
+    overtime_text_ja = Column(Text, nullable=True)
+    overtime_text_en = Column(Text, nullable=True)
+    format_ja = Column(Text, nullable=True)
+    format_en = Column(Text, nullable=True)
+    color = Column(Text, nullable=True)
+    bg_color = Column(Text, nullable=True)
+    battle_time = Column(Integer, nullable=True)
+    respawn_time = Column(Integer, nullable=True)
+    disabled = Column(Boolean, nullable=False, server_default='True')
+    is_boss_fight = Column(Boolean, nullable=False, server_default='False')
+    is_special_event = Column(Boolean, nullable=False, server_default='False')
+    is_not_rewarding_trophies = Column(Boolean, nullable=False, server_default='False')
+    is_trophy_mode = Column(Boolean, nullable=False, server_default='False')
+    rounds = Column(Integer, nullable=True)
+    team_size = Column(Integer, nullable=True)
+    team_count = Column(Integer, nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('uq_modes_slug', 'slug', unique=True, postgresql_where=text('slug IS NOT NULL')),
+        Index('idx_modes_en', 'en'),
+    )
+
+
+class Map(Base):
+    """
+    マップの静的情報。主キーは公式/BSInfoのマップID（15始まり）。
+    """
+    __tablename__ = 'maps'
+
+    id = Column(Integer, primary_key=True)
+    en = Column(Text, nullable=True)
+    ja = Column(Text, nullable=True)
+    en_is_manual = Column(Boolean, nullable=False, server_default='False')
+    ja_is_manual = Column(Boolean, nullable=False, server_default='False')
+    codename = Column(Text, nullable=True)
+    theme = Column(Integer, nullable=True)
+    mode_id = Column(Integer, ForeignKey('modes.id', ondelete='SET NULL'), nullable=True)
+    disabled = Column(Boolean, nullable=False, server_default='False')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_maps_en', 'en'),
+        Index('idx_maps_mode_id', 'mode_id'),
+    )
+
+
+class EventRotationObservation(Base):
+    """公式API /v1/events/rotation の出現履歴。api_slot_id + start_time で一意。"""
+    __tablename__ = 'event_rotation_observations'
+
+    id = Column(Integer, primary_key=True)
+    api_slot_id = Column(Integer, nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    map_id = Column(Integer, nullable=False)
+    mode_slug = Column(Text, nullable=True)
+    api_mode_id = Column(Integer, nullable=True)
+    map_name_en = Column(Text, nullable=True)
+    first_seen_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('api_slot_id', 'start_time', name='uq_event_rotation_observations_slot_start'),
+        Index('idx_event_rotation_observations_slot_start', 'api_slot_id', 'start_time'),
+    )
+
+
+class MapRotationSlot(Base):
+    """マップ周期ページの表示スロット。複数の公式slotIdを1つにまとめられる。"""
+    __tablename__ = 'map_rotation_slots'
+
+    id = Column(Integer, primary_key=True)
+    display_order = Column(Integer, nullable=False, server_default='0')
+    name_ja = Column(Text, nullable=False)
+    name_en = Column(Text, nullable=False)
+    icons = Column(JSONB, nullable=False, server_default='[]')
+    icon_path = Column(Text, nullable=True)
+    api_slot_ids = Column(JSONB, nullable=False, server_default='[]')
+    primary_api_slot_id = Column(Integer, nullable=False)
+    duration_minutes = Column(Integer, nullable=False, server_default='1440')
+    is_visible = Column(Boolean, nullable=False, server_default='True')
+    needs_review = Column(Boolean, nullable=False, server_default='False')
+    auto_created = Column(Boolean, nullable=False, server_default='False')
+    last_observed_at = Column(DateTime(timezone=True), nullable=True)
+    inference_state = Column(JSONB, nullable=False, server_default='{}')
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_map_rotation_slots_display_order', 'display_order'),
+        Index('idx_map_rotation_slots_primary_api_slot', 'primary_api_slot_id'),
+    )
+
+
+class MapRotationCycle(Base):
+    """スロットの周期。confirmed と working はスロットごとに最大1件。"""
+    __tablename__ = 'map_rotation_cycles'
+
+    id = Column(Integer, primary_key=True)
+    slot_id = Column(Integer, ForeignKey('map_rotation_slots.id', ondelete='CASCADE'), nullable=False)
+    status = Column(Text, nullable=False)
+    cycle_length = Column(Integer, nullable=True)
+    duration_minutes = Column(Integer, nullable=False)
+    anchor_start = Column(DateTime(timezone=True), nullable=False)
+    maps = Column(JSONB, nullable=False, server_default='[]')
+    source = Column(Text, nullable=False, server_default='auto')
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('confirmed', 'working', 'archived')",
+            name='ck_map_rotation_cycles_status',
+        ),
+        CheckConstraint(
+            "source IN ('seed', 'auto', 'manual')",
+            name='ck_map_rotation_cycles_source',
+        ),
+        Index('idx_map_rotation_cycles_slot_status', 'slot_id', 'status'),
+        Index(
+            'uq_map_rotation_cycles_confirmed',
+            'slot_id',
+            unique=True,
+            postgresql_where=text("status = 'confirmed'"),
+        ),
+        Index(
+            'uq_map_rotation_cycles_working',
+            'slot_id',
+            unique=True,
+            postgresql_where=text("status = 'working'"),
+        ),
+    )
+
+
+class MapRotationEpisode(Base):
+    """周期変更のまとまり。進行中は最大1件。"""
+    __tablename__ = 'map_rotation_episodes'
+
+    id = Column(Integer, primary_key=True)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    started_at_override = Column(DateTime(timezone=True), nullable=True)
+    expected_complete_at = Column(DateTime(timezone=True), nullable=True)
+    expected_complete_override = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(Text, nullable=False, server_default='active')
+    trigger_slot_id = Column(Integer, ForeignKey('map_rotation_slots.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'completed', 'cancelled')",
+            name='ck_map_rotation_episodes_status',
+        ),
+        Index(
+            'uq_map_rotation_episodes_active',
+            'status',
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+    )
+
+
+class RankedMapObservation(Base):
+    """ガチバトル(soloRanked)のマップ出現数を1時間単位で集計したもの。マッププール推論の材料。"""
+    __tablename__ = 'ranked_map_observations'
+
+    hour = Column(DateTime(timezone=True), nullable=False)
+    map_id = Column(Integer, nullable=False)
+    mode_id = Column(Integer, nullable=True)
+    # バトル履歴の event_map そのもの。ranked_stats_* の map 列と突き合わせるのに使う
+    map_name = Column(Text, nullable=True)
+    battle_count = Column(Integer, nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('hour', 'map_id', name='ranked_map_observations_pkey'),
+    )
+
+
+class RankedMapPool(Base):
+    """シーズン内の期間ごとのガチバトルのマッププール。シーズン途中でマップが変わると seq が増える。"""
+    __tablename__ = 'ranked_map_pools'
+
+    id = Column(Integer, primary_key=True)
+    season = Column(Integer, nullable=False)
+    seq = Column(Integer, nullable=False)
+    start_at = Column(DateTime(timezone=True), nullable=False)
+    end_at = Column(DateTime(timezone=True), nullable=True)
+    maps = Column(JSONB, nullable=False, server_default='[]')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('season', 'seq', name='uq_ranked_map_pools_season_seq'),
+    )
+
+
+class RankedSeason(Base):
+    """ガチバトルのシーズンごとの設定。最大レベルキャラと、マップ検出の補正。"""
+    __tablename__ = 'ranked_seasons'
+
+    season = Column(Integer, primary_key=True, autoincrement=False)
+    # NULL は未設定、[] は対象キャラなし
+    max_power_brawler_ids = Column(JSONB, nullable=True)
+    excluded_map_ids = Column(JSONB, nullable=False, server_default='[]')
+    auto_locked = Column(Boolean, nullable=False, server_default='False')
+    visibility = Column(Text, nullable=False, server_default='auto')
+    coverage = Column(Float, nullable=True)
+    computed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("visibility IN ('auto', 'show', 'hide')", name='ck_ranked_seasons_visibility'),
+    )
+
+
+class Announcement(Base):
+    """
+    お知らせを格納するテーブル。
+    """
+    __tablename__ = 'announcements'
+
+    id = Column(Text, primary_key=True)
+    datetime = Column(DateTime(timezone=True), nullable=False)
+    en_title = Column(Text, nullable=False)
+    ja_title = Column(Text, nullable=True)
+    en_text = Column(Text, nullable=False)
+    ja_text = Column(Text, nullable=True)
+    category = Column(Integer, nullable=True)
+
+
+class SecretQuestion(Base):
+    """
+    パスワードリセット用の秘密の質問を格納するテーブル。
+    """
+    __tablename__ = 'secret_questions'
+
+    id = Column(Integer, primary_key=True) # SERIAL PRIMARY KEY
+    en = Column(Text, nullable=False, unique=True)
+    ja = Column(Text, nullable=True, unique=True)
+
+
+class GiftCode(Base):
+    """
+    ギフトコードの情報を格納するテーブル。
+    """
+    __tablename__ = 'gift_codes'
+
+    code = Column(Text, primary_key=True)
+    reward = Column(JSONB, nullable=False)
+    is_admin_only = Column(Boolean, nullable=False, server_default='False')
+    num_of_uses = Column(Integer, nullable=False, server_default='0')
+    usage_log = Column(JSONB, nullable=False, server_default='[]')
+    usage_limit_per_user = Column(Integer, nullable=True)
+    usage_limit_total = Column(Integer, nullable=True)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+    start_datetime = Column(DateTime(timezone=True), nullable=True)  # 利用開始日時。NULL=即時利用可
+    expiration_datetime = Column(DateTime(timezone=True), nullable=True)
+
+
+class PrestigeBorder(Base):
+    """
+    キャラクターごとのトップランカーボーダー情報を格納するテーブル。
+    """
+    __tablename__ = 'prestige_borders'
+
+    date = Column(Date, nullable=False)
+    brawler_id = Column(Integer, ForeignKey('brawlers.id'), nullable=False)
+    border = Column(Integer, nullable=False)
+    
+    # リレーションシップ
+    brawler = relationship("Brawler", back_populates="prestige_borders")
+
+    __table_args__ = (
+        PrimaryKeyConstraint('date', 'brawler_id', name='prestige_borders_pkey'),
+    )
+
+
+class Feedback(Base):
+    """
+    ユーザーからのフィードバックを格納するテーブル。
+    """
+    __tablename__ = 'feedbacks'
+
+    id = Column(Integer, primary_key=True) # SERIAL PRIMARY KEY
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    datetime = Column(DateTime(timezone=True), nullable=False)
+    feedback_type = Column(Text, nullable=False)
+    comment = Column(Text, nullable=False, server_default='')
+    is_checked = Column(Boolean, nullable=False, server_default='False')
+
+    # リレーションシップ
+    user = relationship("User", back_populates="feedbacks")
+
+
+class Region(Base):
+    """
+    地域の静的情報を格納するテーブル。
+    """
+    __tablename__ = 'regions'
+
+    id = Column(Integer, primary_key=True) # SERIAL PRIMARY KEY
+    code = Column(Text, nullable=False, unique=True)
+    en = Column(Text, nullable=False)
+    ja = Column(Text, nullable=False)
+
+
+class UsageStats(Base):
+    """
+    日々の使用統計を格納するテーブル。
+    """
+    __tablename__ = 'usage_stats'
+
+    date = Column(Date, primary_key=True)
+    users = Column(Integer, nullable=False)
+    ja_users = Column(Integer, nullable=False)
+    en_users = Column(Integer, nullable=False)
+    invalid_users = Column(Integer, nullable=False)
+    delete_ads_users = Column(Integer, nullable=False)
+    total_user_pv_count = Column(Integer, nullable=False)
+    players = Column(Integer, nullable=False)
+    viewed_players = Column(Integer, nullable=False)
+    acquire_automatically_players = Column(Integer, nullable=False)
+    invalid_players = Column(Integer, nullable=False)
+    inactive_players = Column(Integer, nullable=False)
+    player_logs = Column(Integer, nullable=False)
+    battles = Column(Integer, nullable=False)
+    clubs = Column(Integer, nullable=False)
+    # 新しい6つのカラムを追加
+    posts = Column(Integer, nullable=False, server_default='0')
+    team_posts = Column(Integer, nullable=False, server_default='0')
+    friend_posts = Column(Integer, nullable=False, server_default='0')
+    club_posts = Column(Integer, nullable=False, server_default='0')
+    general_posts = Column(Integer, nullable=False, server_default='0')
+    messages = Column(Integer, nullable=False, server_default='0')
+    reactions = Column(Integer, nullable=False, server_default='0')
+
+
+class Post(Base):
+    """
+    募集掲示板の投稿を格納するテーブル。
+    """
+    __tablename__ = 'posts'
+
+    id = Column(Integer, primary_key=True)
+    type = Column(Text, nullable=False) # "team", "friend", "club", "general", "theme" など
+    host_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    host_ip = Column(INET, nullable=False)
+    host_anonymous_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    reposted_at = Column(DateTime(timezone=True), nullable=True) # 最後にリポストした日時（なんでも掲示板のみ）。「最新」「話題」は COALESCE(reposted_at, created_at) で並べる
+    region = Column(Text, nullable=True)
+    host_player_tag = Column(Text, ForeignKey('players.tag', ondelete='SET NULL'), nullable=True)
+    host_club_tag = Column(Text, ForeignKey('clubs.tag', ondelete='SET NULL'), nullable=True)
+    link = Column(Text, nullable=True)
+    comment = Column(Text, nullable=True)
+    conditions_application_type = Column(Text, nullable=False, server_default='and') # "and" または "or"
+    chat_permission_level = Column(Integer, nullable=False, server_default='30')
+    is_deleted = Column(Boolean, nullable=False, server_default='False', index=True)
+    is_closed = Column(Boolean, nullable=False, server_default='False', index=True)
+    auto_close_exempt = Column(Boolean, nullable=False, server_default='False')
+    is_later_recruitment = Column(Boolean, nullable=False, server_default='False', index=True)
+    category = Column(Text, nullable=True)
+    mode = Column(Text, nullable=True)
+    hashtags = Column(JSONB, nullable=False, server_default='[]')
+    custom_settings = Column(JSONB, nullable=False, server_default='{}')
+    permitted_ids = Column(JSONB, nullable=False, server_default='[]')
+    prohibited_ids = Column(JSONB, nullable=False, server_default='[]')
+    
+    # 参加条件
+    required_highest_trophies = Column(Integer, nullable=True)
+    required_current_trophies = Column(Integer, nullable=True)
+    required_ranked_highest_rank = Column(Integer, nullable=True)
+    required_ranked_current_rank = Column(Integer, nullable=True)
+    required_ranked_highest_score = Column(Integer, nullable=True)
+    required_ranked_current_score = Column(Integer, nullable=True)
+    required_solo_pl_rank = Column(Integer, nullable=True)
+    required_max_power_brawlers = Column(Integer, nullable=True)
+    required_prestige = Column(Integer, nullable=True)
+    other_conditions = Column(JSONB, nullable=False, server_default='{}')
+
+    # SQLAlchemyのリレーションシップ (任意ですが、アプリ内で使う際に非常に便利です)
+    messages = relationship("Message", back_populates="post")
+    reports = relationship("Report", back_populates="post")
+    
+    __table_args__ = (
+        # CREATE INDEX ON posts (type, created_at DESC); を正しく定義
+        Index('idx_posts_type_created_at_desc', 'type', desc('created_at')),
+        # なんでも掲示板の「最新」「話題」の並び順（リポストした投稿はリポストした日時）
+        Index('idx_posts_type_activity_at_desc', 'type', text('COALESCE(reposted_at, created_at) DESC')),
+        Index(
+            'idx_posts_host_id_created_at_desc',
+            'host_id',
+            desc('created_at'),
+            postgresql_where=text('host_id IS NOT NULL'),
+        ),
+        Index('idx_posts_type_category', 'type', 'category'),
+        # なんでも掲示板の本文検索（正規化後の LIKE '%語%'）。pg_bigm なので1〜2文字でも効く
+        Index(
+            'idx_posts_general_comment_search_bigm',
+            text(f"({search_normalize_sql('comment')}) gin_bigm_ops"),
+            postgresql_using='gin',
+            postgresql_where=text("type = 'general'"),
+        ),
+        Index(
+            'uq_posts_theme_brawler_id',
+            text("(custom_settings->>'brawler_id')"),
+            unique=True,
+            postgresql_where=text(
+                "type = 'theme' AND category = 'brawler' AND is_deleted = FALSE"
+            ),
+        ),
+        Index(
+            'uq_posts_theme_map_id',
+            text("(custom_settings->>'map_id')"),
+            unique=True,
+            postgresql_where=text(
+                "type = 'theme' AND category = 'map' AND is_deleted = FALSE"
+            ),
+        ),
+    )
+
+
+class PostVote(Base):
+    """
+    投稿への投票(👍/将来的な👎)を格納するテーブル。
+    """
+    __tablename__ = 'post_votes'
+
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    # 1=👍, -1=👎(将来用)
+    vote_type = Column(SmallInteger, nullable=False, server_default='1')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint('vote_type IN (1, -1)', name='ck_post_votes_vote_type'),
+        UniqueConstraint('post_id', 'user_id', name='uq_post_votes_post_user'),
+        Index('idx_post_votes_post_vote_type', 'post_id', 'vote_type'),
+        Index('idx_post_votes_user_id', 'user_id'),
+    )
+
+
+class PostRepost(Base):
+    """
+    なんでも掲示板の投稿のリポスト履歴。ユーザー単位の間隔の判定と、運用状況の確認に使う。
+    """
+    __tablename__ = 'post_reposts'
+
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    tokens_spent = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint('tokens_spent >= 0', name='ck_post_reposts_tokens_spent_nonnegative'),
+        Index('idx_post_reposts_user_id_created_at_desc', 'user_id', desc('created_at')),
+        Index('idx_post_reposts_post_id_created_at_desc', 'post_id', desc('created_at')),
+    )
+
+
+class Message(Base):
+    """
+    投稿に付属するチャットスレッドのメッセージを格納するテーブル。
+    """
+    __tablename__ = 'messages'
+
+    id = Column(Integer, primary_key=True)
+    thread_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    user_ip = Column(INET, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    message_type = Column(Text, nullable=False, server_default='message')
+    message = Column(Text, nullable=False)
+    is_deleted = Column(Boolean, nullable=False, server_default='False')
+    reply_to_message_id = Column(Integer, ForeignKey('messages.id', ondelete='SET NULL'), nullable=True)
+    mentions = Column(JSONB, nullable=True)  # メンション [{"id": ユーザーID, "name": 送信時の名前}]。本文には「@名前」の平文で入る
+
+    # リレーションシップ
+    post = relationship("Post", back_populates="messages")
+    user = relationship("User", back_populates="messages")
+    reactions = relationship("Reaction", back_populates="message", cascade="all, delete-orphan")
+    reply_to_message = relationship("Message", remote_side=[id], foreign_keys=[reply_to_message_id])
+    
+    __table_args__ = (
+        # CREATE INDEX ON messages (thread_id, created_at ASC); を正しく定義
+        Index('idx_messages_thread_id_created_at_asc', 'thread_id', 'created_at'),
+        Index('idx_messages_reply_to_message_id', 'reply_to_message_id'),
+        Index(
+            'idx_messages_user_id_created_at_desc',
+            'user_id',
+            desc('created_at'),
+            postgresql_where=text('user_id IS NOT NULL'),
+        ),
+    )
+
+
+class TokenGift(Base):
+    """
+    チャット上のトークン進呈の経済記録。コメント削除後も進呈そのものは残す。
+    """
+    __tablename__ = 'token_gifts'
+
+    id = Column(Integer, primary_key=True)
+    thread_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    message_id = Column(Integer, ForeignKey('messages.id', ondelete='CASCADE'), nullable=False)
+    giver_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    recipient_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    amount = Column(Integer, nullable=False)
+    fee = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    is_comment_deleted = Column(Boolean, nullable=False, server_default='False')
+    giver_ip = Column(INET, nullable=False)
+    recipient_ip = Column(INET, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('message_id', name='uq_token_gifts_message_id'),
+        CheckConstraint('amount > 0', name='ck_token_gifts_amount_positive'),
+        CheckConstraint('fee >= 0', name='ck_token_gifts_fee_nonnegative'),
+        Index('idx_token_gifts_thread_id_created_at', 'thread_id', 'created_at'),
+        Index('idx_token_gifts_giver_user_id_created_at', 'giver_user_id', desc('created_at')),
+        Index('idx_token_gifts_recipient_user_id_created_at', 'recipient_user_id', desc('created_at')),
+    )
+
+
+class Reaction(Base):
+    """
+    チャットメッセージへのリアクションを格納するテーブル。
+    """
+    __tablename__ = 'reactions'
+
+    id = Column(Integer, primary_key=True)
+    message_id = Column(Integer, ForeignKey('messages.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    emoji = Column(Text, nullable=False)
+
+    # リレーションシップ
+    message = relationship("Message", back_populates="reactions")
+    
+    # 複合ユニーク制約: 1ユーザーは1メッセージに同じ絵文字で1回しかリアクションできない
+    __table_args__ = (UniqueConstraint('message_id', 'user_id', 'emoji', name='_message_user_emoji_uc'),)
+
+
+class Report(Base):
+    """
+    投稿やメッセージへの通報を格納するテーブル。
+    """
+    __tablename__ = 'reports'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    user_ip = Column(INET, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    target_type = Column(Text, nullable=False) # "post" or "message"
+    target_id = Column(Integer, nullable=False) # 通報対象のID
+    category = Column(Text, nullable=False)
+    text = Column(Text, nullable=True)
+    is_checked = Column(Boolean, nullable=False, server_default='False')
+    
+    # Postへのリレーションシップ (target_typeが'post'の場合)
+    # primaryjoinで条件を指定することで、target_typeとtarget_idが一致するものを引ける
+    post = relationship(
+        "Post",
+        primaryjoin="and_(Report.target_type=='post', foreign(Report.target_id)==Post.id)",
+        back_populates="reports",
+        uselist=False
+    )
+    
+    __table_args__ = (
+        # CREATE INDEX ON reports (is_checked, created_at DESC); を正しく定義
+        Index('idx_reports_is_checked_created_at_desc', 'is_checked', desc('created_at')),
+    )
+
+
+class RankedStatsBrawler(Base):
+    """
+    ガチバトルのキャラクターごとの日次集計データを格納するテーブル。
+    """
+    __tablename__ = 'ranked_stats_brawler'
+
+    #^ カラム定義 ---
+    date = Column(Date, nullable=False)
+    mode = Column(Text, nullable=False)
+    map = Column(Text, nullable=False)
+    rank_tier = Column(Integer, nullable=False)
+    brawler_id = Column(Integer, nullable=False)
+
+    #^ 集計データ ---
+    total_games_in_condition = Column(Integer, nullable=False)
+    games_played = Column(Integer, nullable=False)
+    wins = Column(Integer, nullable=False)
+    use_rate = Column(Float, nullable=False)
+    win_rate = Column(Float, nullable=False)
+    star_player_count = Column(Integer, nullable=False)
+    star_player_rate = Column(Float, nullable=False)
+
+    #^ 管理用 ---
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    #^ 複合主キーを定義
+    __table_args__ = (
+        PrimaryKeyConstraint('date', 'mode', 'map', 'rank_tier', 'brawler_id', name='ranked_stats_brawler_pkey'),
+        Index('idx_brawler_mode_rank_date', 'mode', 'rank_tier', 'date'),
+    )
+
+
+class RankedStatsSynergy(Base):
+    """
+    キャラクター2体間の相性（シナジー/カウンター）に関する日次集計データを格納するテーブル。
+    """
+    __tablename__ = 'ranked_stats_synergy'
+
+    #^ カラム定義 ---
+    date = Column(Date, nullable=False)
+    mode = Column(Text, nullable=False)
+    map = Column(Text, nullable=False)
+    rank_tier = Column(Integer, nullable=False)
+    brawler_id_1 = Column(Integer, nullable=False)
+    brawler_id_2 = Column(Integer, nullable=False)
+
+    #^ 集計データ ---
+    synergy_games_played = Column(Integer, nullable=False)
+    synergy_wins = Column(Integer, nullable=False)
+    synergy_win_rate = Column(Float, nullable=False)
+    counter_games_played = Column(Integer, nullable=False)
+    counter_wins = Column(Integer, nullable=False)
+    counter_win_rate = Column(Float, nullable=False)
+
+    #^ 管理用 ---
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    #^ 複合主キーとチェック制約
+    __table_args__ = (
+        PrimaryKeyConstraint('date', 'mode', 'map', 'rank_tier', 'brawler_id_1', 'brawler_id_2', name='ranked_stats_synergy_pkey'),
+        CheckConstraint('brawler_id_1 < brawler_id_2', name='ck_synergy_brawler_order'),
+        Index('idx_synergy_mode_rank_date', 'mode', 'rank_tier', 'date'),
+    )
+
+
+class RankedStatsComposition(Base):
+    """
+    3キャラクターのチーム編成ごとの日次統計データを格納するテーブル。
+    """
+    __tablename__ = 'ranked_stats_composition'
+
+    #^ カラム定義 ---
+    date = Column(Date, nullable=False)
+    mode = Column(Text, nullable=False)
+    map = Column(Text, nullable=False)
+    rank_tier = Column(Integer, nullable=False)
+    brawler_id_1 = Column(Integer, nullable=False)
+    brawler_id_2 = Column(Integer, nullable=False)
+    brawler_id_3 = Column(Integer, nullable=False)
+    
+    #^ 集計データ ---
+    games_played = Column(Integer, nullable=False)
+    wins = Column(Integer, nullable=False)
+    win_rate = Column(Float, nullable=False)
+
+    #^ 管理用 ---
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    #^ 複合主キーとチェック制約
+    __table_args__ = (
+        PrimaryKeyConstraint('date', 'mode', 'map', 'rank_tier', 'brawler_id_1', 'brawler_id_2', 'brawler_id_3', name='ranked_stats_composition_pkey'),
+        CheckConstraint('brawler_id_1 < brawler_id_2 AND brawler_id_2 < brawler_id_3', name='ck_composition_brawler_order'),
+        Index('idx_composition_mode_rank_date', 'mode', 'rank_tier', 'date'),
+    )
+
+
+class TrophyStatsBrawler(Base):
+    """
+    マルチプレイ（トロフィー帯）のキャラクターごとの日次集計。
+    trophy_band: 0-12 は現行トロフィー帯、13-99 は将来の分割用、100 は大会、101 はトロフィーなし。
+    """
+    __tablename__ = 'trophy_stats_brawler'
+
+    date = Column(Date, nullable=False)
+    mode_id = Column(Integer, nullable=False)
+    map_id = Column(Integer, nullable=False)
+    trophy_band = Column(SmallInteger, nullable=False)
+    brawler_id = Column(Integer, nullable=False)
+
+    games_played = Column(Integer, nullable=False)
+    wins = Column(Integer, nullable=False)
+    draws = Column(Integer, nullable=False)
+    star_player_count = Column(Integer, nullable=False)
+    star_player_opportunities = Column(Integer, nullable=False)
+
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            'date', 'mode_id', 'map_id', 'trophy_band', 'brawler_id',
+            name='trophy_stats_brawler_pkey',
+        ),
+        Index('idx_trophy_stats_brawler_mode_map_date', 'mode_id', 'map_id', 'date'),
+    )
+
+
+class BoardNotification(Base):
+    """
+    掲示板の通知イベントを格納するテーブル。
+    表示時に post_like / message_reaction は対象ごとに集約する。
+    """
+    __tablename__ = 'board_notifications'
+
+    id = Column(Integer, primary_key=True)
+    recipient_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    notification_type = Column(Text, nullable=False)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=True)
+    message_id = Column(Integer, ForeignKey('messages.id', ondelete='CASCADE'), nullable=True)
+    post_vote_id = Column(Integer, ForeignKey('post_votes.id', ondelete='CASCADE'), nullable=True)
+    reaction_id = Column(Integer, ForeignKey('reactions.id', ondelete='CASCADE'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    # 通知ごとの既読（対象のスレッドを開いたとき・見ている間に届いたとき）。一覧を開いたときの既読は users.notifications_last_read_at
+    read_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index('idx_board_notifications_recipient_created_at', 'recipient_user_id', desc('created_at')),
+        Index('idx_board_notifications_recipient_type_post', 'recipient_user_id', 'notification_type', 'post_id'),
+        Index('idx_board_notifications_recipient_type_message', 'recipient_user_id', 'notification_type', 'message_id'),
+        Index('idx_board_notifications_post_id', 'post_id'),
+        Index('idx_board_notifications_message_id', 'message_id'),
+        # リアクションを外したときの CASCADE（reactions.id → reaction_id）で全件を走査しないように。値があるのはリアクションの通知だけ
+        Index('idx_board_notifications_reaction_id', 'reaction_id', postgresql_where=text('reaction_id IS NOT NULL')),
+    )
+
+
+class ThreadNotificationSetting(Base):
+    """
+    ユーザーがスレッドごとに明示的に設定した通知オン/オフを格納するテーブル。
+    行が無い場合はアカウント全体の通知設定に従うデフォルト動作となる。
+    """
+    __tablename__ = 'thread_notification_settings'
+
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    thread_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
+    mode = Column(Text, nullable=False)  # 'on' または 'off'
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('user_id', 'thread_id', name='thread_notification_settings_pkey'),
+        CheckConstraint("mode IN ('on', 'off')", name='ck_thread_notification_settings_mode'),
+        Index('idx_thread_notification_settings_thread_id', 'thread_id'),
+    )
+
+
+class UserBlock(Base):
+    """
+    ユーザー間のブロック関係を格納するテーブル。
+    """
+    __tablename__ = 'user_blocks'
+
+    id = Column(Integer, primary_key=True)
+    # ブロックした側
+    blocker_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    blocker_anonymous_id = Column(Text, nullable=True)
+    # ブロックされた側
+    blocked_user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    blocked_anonymous_id = Column(Text, nullable=True)
+    # ブロックのきっかけになった投稿 (ゲストをブロックした場合のみ。ブロック一覧での表示に使う)
+    source_post_id = Column(Integer, ForeignKey('posts.id', ondelete='SET NULL'), nullable=True)
+    # 作成日時
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        #* 制約① ---
+        # blocker_user_id と blocker_anonymous_id のうち、片方のみがNULLであることを保証
+        CheckConstraint(
+            'num_nonnulls(blocker_user_id, blocker_anonymous_id) = 1',
+            name='ck_user_blocks_blocker_one_not_null'
+        ),
+        # blocked_user_id と blocked_anonymous_id のうち、片方のみがNULLであることを保証
+        CheckConstraint(
+            'num_nonnulls(blocked_user_id, blocked_anonymous_id) = 1',
+            name='ck_user_blocks_blocked_one_not_null'
+        ),
+
+        #* 制約② ---
+        # ブロックする側とブロックされる側の組み合わせの重複を禁止
+        UniqueConstraint(
+            'blocker_user_id', 'blocked_user_id',
+            name='uq_user_blocks_user_to_user'
+        ),
+        UniqueConstraint(
+            'blocker_user_id', 'blocked_anonymous_id',
+            name='uq_user_blocks_user_to_anonymous'
+        ),
+        UniqueConstraint(
+            'blocker_anonymous_id', 'blocked_user_id',
+            name='uq_user_blocks_anonymous_to_user'
+        ),
+        UniqueConstraint(
+            'blocker_anonymous_id', 'blocked_anonymous_id',
+            name='uq_user_blocks_anonymous_to_anonymous'
+        ),
+
+        #* パフォーマンス向上のためのインデックス ---
+        Index('idx_user_blocks_blocker', 'blocker_user_id', 'blocker_anonymous_id'),
+    )
+
+
+class Faq(Base):
+    """
+    よくある質問を格納するテーブル。
+    """
+    __tablename__ = 'faqs'
+
+    id = Column(Integer, primary_key=True)                                      # 自動採番
+    priority = Column(Integer, nullable=False, server_default='0')              # 低いほど優先
+    category_ja = Column(Text, nullable=False)                                  # カテゴリ (日本語)
+    category_en = Column(Text, nullable=False)                                  # カテゴリ (英語)
+    title_ja = Column(Text, nullable=False)                                     # 質問タイトル (日本語)
+    title_en = Column(Text, nullable=False)                                     # 質問タイトル (英語)
+    body_ja = Column(Text, nullable=False)                                      # 回答本文 (日本語)
+    body_en = Column(Text, nullable=True)                                       # 回答本文 (英語, 任意)
+    is_deleted = Column(Boolean, nullable=False, server_default='False')        # 論理削除フラグ
+
+
+class BrawlVideo(Base):
+    """
+    ブロスタ動画ページに表示する動画を格納するテーブル。
+    スポンサー動画と非スポンサー動画をDBで管理し、管理画面から編集する。
+    """
+    __tablename__ = 'brawl_videos'
+
+    id = Column(Integer, primary_key=True)
+    title_ja = Column(Text, nullable=False)                                     # 日本語タイトル
+    title_en = Column(Text, nullable=True)                                      # 英語タイトル（任意。空の場合はtitle_jaで代替）
+    platform = Column(Text, nullable=False, server_default='youtube')           # 'youtube' / 将来: 'tiktok' 等
+    video_id = Column(Text, nullable=False)                                     # YouTubeのVideo ID等
+    thumbnail_url = Column(Text, nullable=True)                                 # カスタムサムネイルURL（空の場合はYouTubeから自動取得）
+    is_sponsored = Column(Boolean, nullable=False, server_default='False')      # スポンサー動画フラグ
+    sponsor_name = Column(Text, nullable=True)                                  # スポンサー名（ラベル表示用）
+    display_order = Column(Integer, nullable=False, server_default='0')         # 表示順（小さいほど先）
+    is_active = Column(Boolean, nullable=False, server_default='True')          # 表示有効フラグ
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index('ix_brawl_videos_display_order', 'display_order'),
+        Index('ix_brawl_videos_is_active', 'is_active'),
+    )
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
+class SpecialRewardLink(Base):
+    """ブロスタ特別報酬リンクの定義。"""
+    __tablename__ = 'special_reward_links'
+
+    id = Column(Integer, primary_key=True)
+    link_type = Column(Text, nullable=False)
+    name_ja = Column(Text, nullable=False)
+    name_en = Column(Text, nullable=False)
+    url = Column(Text, nullable=True)
+    max_uses = Column(Integer, nullable=True)
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    is_invalid = Column(Boolean, nullable=False, server_default='False')
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "link_type IN ('single_unlimited', 'single_limited', 'link_set')",
+            name='ck_special_reward_links_type',
+        ),
+        CheckConstraint(
+            """(
+                (link_type = 'single_unlimited' AND url IS NOT NULL AND max_uses IS NULL)
+                OR (link_type = 'single_limited' AND url IS NOT NULL AND max_uses >= 1)
+                OR (link_type = 'link_set' AND url IS NULL AND max_uses >= 1)
+            )""",
+            name='ck_special_reward_links_shape',
+        ),
+        Index('ix_special_reward_links_created_by_user_id', 'created_by_user_id'),
+        Index('ix_special_reward_links_is_invalid', 'is_invalid'),
+        Index(
+            'uq_special_reward_links_url',
+            'url',
+            unique=True,
+            postgresql_where=text('url IS NOT NULL'),
+        ),
+    )
+
+
+class SpecialRewardLinkItem(Base):
+    """リンクセットの個別URL。"""
+    __tablename__ = 'special_reward_link_items'
+
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey('special_reward_links.id', ondelete='CASCADE'), nullable=False)
+    url = Column(Text, nullable=False)
+    claimed_at = Column(DateTime(timezone=True), nullable=True)
+    claimed_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    source = Column(Text, nullable=True)
+    # [この部分は公開用リポジトリでは非公開にされています]
+    banner_id = Column(Integer, ForeignKey('special_reward_home_banners.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('url', name='uq_special_reward_link_items_url'),
+        # [この部分は公開用リポジトリでは非公開にされています]
+        Index('ix_special_reward_link_items_link_id_claimed_at', 'link_id', 'claimed_at'),
+    )
+
+
+class SpecialRewardHomeBanner(Base):
+    """ホーム画面の特別報酬バナー掲載設定。"""
+    __tablename__ = 'special_reward_home_banners'
+
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey('special_reward_links.id', ondelete='CASCADE'), nullable=False)
+    starts_at = Column(DateTime(timezone=True), nullable=False)
+    ends_at = Column(DateTime(timezone=True), nullable=False)
+    icon_path = Column(Text, nullable=True)
+    color = Column(Text, nullable=False)
+    title_ja = Column(Text, nullable=False)
+    title_en = Column(Text, nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    click_count = Column(Integer, nullable=False, server_default='0')
+    ended_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "ended_reason IS NULL OR ended_reason IN ('scheduled', 'stock_empty', 'manual')",
+            name='ck_special_reward_home_banners_ended_reason',
+        ),
+        CheckConstraint(
+            "color IN ('red', 'orange', 'yellow', 'green', 'blue', 'purple')",
+            name='ck_special_reward_home_banners_color',
+        ),
+        CheckConstraint('ends_at > starts_at', name='ck_special_reward_home_banners_period'),
+        Index('ix_special_reward_home_banners_link_id', 'link_id'),
+        Index('ix_special_reward_home_banners_period', 'starts_at', 'ends_at'),
+    )
+
+
+class SpecialRewardLinkClaim(Base):
+    """特別報酬リンクの消費・タップログ。"""
+    __tablename__ = 'special_reward_link_claims'
+
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey('special_reward_links.id', ondelete='CASCADE'), nullable=False)
+    item_id = Column(Integer, ForeignKey('special_reward_link_items.id', ondelete='SET NULL'), nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    source = Column(Text, nullable=False)
+    # [この部分は公開用リポジトリでは非公開にされています]
+    banner_id = Column(Integer, ForeignKey('special_reward_home_banners.id', ondelete='SET NULL'), nullable=True)
+    ip = Column(INET, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        # [この部分は公開用リポジトリでは非公開にされています]
+        Index(
+            'uq_special_reward_link_claims_home_user',
+            'link_id',
+            'user_id',
+            unique=True,
+            postgresql_where=text("source = 'home_banner' AND user_id IS NOT NULL"),
+        ),
+        # [この部分は公開用リポジトリでは非公開にされています]
+        Index('ix_special_reward_link_claims_link_id_created_at', 'link_id', desc('created_at')),
+        Index('ix_special_reward_link_claims_user_id', 'user_id'),
+    )
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
+class WorkerTaskRun(Base):
+    """
+    バックグラウンドワーカーのタスク実行台帳。
+    APScheduler はメモリ上のため、成否・進捗・手動実行キューはここを正とする。
+    """
+    __tablename__ = 'worker_task_runs'
+
+    id = Column(Integer, primary_key=True)
+    task_key = Column(Text, nullable=False)
+    status = Column(Text, nullable=False)
+    trigger = Column(Text, nullable=False)
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    heartbeat_at = Column(DateTime(timezone=True), nullable=True)
+    progress = Column(JSONB, nullable=False, server_default='{}')
+    result = Column(JSONB, nullable=True)
+    error_message = Column(Text, nullable=True)
+    worker_id = Column(Text, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'running', 'success', 'failed', 'interrupted', 'skipped')",
+            name='ck_worker_task_runs_status',
+        ),
+        CheckConstraint(
+            "trigger IN ('cron', 'manual', 'catchup', 'resume', 'startup')",
+            name='ck_worker_task_runs_trigger',
+        ),
+        Index('ix_worker_task_runs_task_key_id', 'task_key', desc('id')),
+        Index('ix_worker_task_runs_status_id', 'status', 'id'),
+        Index(
+            'uq_worker_task_runs_inflight',
+            'task_key',
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+    )
+
+
+class MainAccountRewardClaim(Base):
+    """
+    プレイヤーアカウント(ブロスタタグ)単位の報酬受け取り台帳。main_account列にはメイン・サブを問わずタグが入る。
+    同じタグを登録している複数ユーザー間で、トークン等の獲得上限を共有するために使う。
+    period はデイリー報酬なら 'YYYY-MM-DD'(UTC)、1回限りの報酬なら 'once'。
+    """
+    __tablename__ = 'main_account_reward_claims'
+
+    main_account = Column(Text, nullable=False)
+    reward_key = Column(Text, nullable=False)
+    period = Column(Text, nullable=False)
+    count = Column(Integer, nullable=False, server_default='0')
+    last_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        PrimaryKeyConstraint('main_account', 'reward_key', 'period', name='pk_main_account_reward_claims'),
+        CheckConstraint('count >= 0', name='ck_main_account_reward_claims_count_nonnegative'),
+        Index('ix_main_account_reward_claims_updated_at', 'updated_at'),
+    )
+
+
+class UserPlayerAccountEvent(Base):
+    """
+    ユーザーのメイン・サブアカウント(プレイヤータグ)の登録・解除・入れ替えの履歴。
+    解除済みのタグもペナルティ時のブラックリスト対象にするため、および管理画面での調査用に残す。
+    """
+    __tablename__ = 'user_player_account_events'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    tag = Column(Text, nullable=False)
+    action = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('add_main', 'add_sub', 'remove', 'set_main', 'set_sub')",
+            name='ck_user_player_account_events_action',
+        ),
+        Index('ix_user_player_account_events_user_id_created_at', 'user_id', 'created_at'),
+        Index('ix_user_player_account_events_tag', 'tag'),
+    )
+
+
 # [この部分は公開用リポジトリでは非公開にされています]

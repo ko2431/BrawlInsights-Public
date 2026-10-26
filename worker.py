@@ -18,7 +18,35 @@ from app.background_tasks.tasks import player_update_task_loop
 from app.services.meowapi import _api_client as _meow_api_client
 from app.services.bsinfoapi import _api_client as _bsinfo_api_client
 
-# [この部分は公開用リポジトリでは非公開にされています]
+#* グローバル変数 ---
+running_tasks: Set[asyncio.Task] = set()
+shutdown_event = asyncio.Event()
+
+
+def _log_background_task_done(task: asyncio.Task) -> None:
+    running_tasks.discard(task)
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error(f"バックグラウンドタスク '{task.get_name()}' が異常終了しました: {exc}", exc_info=exc)
+
+
+#* シグナルハンドラ ---
+def handle_shutdown_signal(sig, frame):
+    logger.info(f"シグナル {sig} を受信しました。安全なシャットダウンを開始します...")
+    if not shutdown_event.is_set():
+        shutdown_event.set()
+    else:
+        logger.warning("シャットダウン処理は既に実行中です。")
+
+async def cleanup_resources():
+    """
+    リソースの解放処理を行う。
+    """
+    logger.info("リソースの解放処理を開始します...")
+    await shutdown_scheduler()
+    # [この部分は公開用リポジトリでは非公開にされています]
     await close_redis()
     await close_db_connection()
     try:

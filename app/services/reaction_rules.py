@@ -1,6 +1,42 @@
 """チャットのリアクション（掲示板のチャット・大会のチャット・大会のお知らせ）で共通のルール。
 
-- 使える絵文字は、絵文字ピッカーに渡す絵文字データ（app/static/reaction_emojis/* [この部分は公開用リポジトリでは非公開にされています] */
+- 使える絵文字は、絵文字ピッカーに渡す絵文字データ（app/static/reaction_emojis/*.json）と同じもの。
+  データは scripts/build_reaction_emoji_data.py で作る（NG の絵文字・国旗・肌の色・新しすぎる絵文字を除く）。
+  同じ絵文字の表記の揺れ（異体字セレクタ U+FE0F の有無）は、データの表記にそろえる
+- 1つのメッセージに付けられる絵文字は MAX_KINDS_PER_MESSAGE 種類まで（すでに付いている種類に乗るのは自由）
+- 付け外しはユーザーごとに回数を制限する（掲示板・大会で共通。画面側でも連打はまとめてから送る）
+"""
+from __future__ import annotations
+
+import datetime
+import functools
+import hashlib
+import json
+from pathlib import Path
+
+import asyncpg
+
+from app.core.cache import get_redis, is_transient_redis_error, log_transient_redis_warning
+from app.core.logger import logger
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "static" / "reaction_emojis"
+MAX_KINDS_PER_MESSAGE = 10
+VARIATION_SELECTOR = "️"
+
+# 子どもも見る画面に並ぶため、ピッカーにも出さず、送られてきても受け付けない（データを作り直すと反映される）
+NG_EMOJIS = frozenset({
+    "🖕",  # 立てた中指
+    "🍆",  # なす
+    "🍑",  # もも
+    "💦",  # 汗のしずく
+    "👅",  # 舌
+    "👙",  # ビキニ
+    "🩲",  # ブリーフ
+    "🔞",  # 18禁
+    "🚬",  # たばこ
+})
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 def emoji_key(value: str) -> str:

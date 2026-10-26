@@ -87,14 +87,11 @@ def upgrade() -> None:
         sa.Column('claimed_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('claimed_by_user_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('source', sa.Text(), nullable=True),
-        sa.Column('play_id', sa.Integer(), sa.ForeignKey('minigame_plays.id', ondelete='SET NULL'), nullable=True),
+        # [この部分は公開用リポジトリでは非公開にされています]
         sa.Column('banner_id', sa.Integer(), sa.ForeignKey('special_reward_home_banners.id', ondelete='SET NULL'), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.UniqueConstraint('url', name='uq_special_reward_link_items_url'),
-        sa.CheckConstraint(
-            "source IS NULL OR source IN ('home_banner', 'minigame')",
-            name='ck_special_reward_link_items_source',
-        ),
+        # [この部分は公開用リポジトリでは非公開にされています]
     )
     op.create_index(
         'ix_special_reward_link_items_link_id_claimed_at',
@@ -109,14 +106,11 @@ def upgrade() -> None:
         sa.Column('item_id', sa.Integer(), sa.ForeignKey('special_reward_link_items.id', ondelete='SET NULL'), nullable=True),
         sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('source', sa.Text(), nullable=False),
-        sa.Column('play_id', sa.Integer(), sa.ForeignKey('minigame_plays.id', ondelete='SET NULL'), nullable=True),
+        # [この部分は公開用リポジトリでは非公開にされています]
         sa.Column('banner_id', sa.Integer(), sa.ForeignKey('special_reward_home_banners.id', ondelete='SET NULL'), nullable=True),
         sa.Column('ip', postgresql.INET(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.CheckConstraint(
-            "source IN ('home_banner', 'minigame')",
-            name='ck_special_reward_link_claims_source',
-        ),
+        # [この部分は公開用リポジトリでは非公開にされています]
     )
     op.create_index(
         'uq_special_reward_link_claims_home_user',
@@ -125,13 +119,7 @@ def upgrade() -> None:
         unique=True,
         postgresql_where=sa.text("source = 'home_banner' AND user_id IS NOT NULL"),
     )
-    op.create_index(
-        'uq_special_reward_link_claims_minigame_play',
-        'special_reward_link_claims',
-        ['play_id'],
-        unique=True,
-        postgresql_where=sa.text("source = 'minigame' AND play_id IS NOT NULL"),
-    )
+    # [この部分は公開用リポジトリでは非公開にされています]
     op.create_index(
         'ix_special_reward_link_claims_link_id_created_at',
         'special_reward_link_claims',
@@ -143,7 +131,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index('ix_special_reward_link_claims_user_id', table_name='special_reward_link_claims')
     op.drop_index('ix_special_reward_link_claims_link_id_created_at', table_name='special_reward_link_claims')
-    op.drop_index('uq_special_reward_link_claims_minigame_play', table_name='special_reward_link_claims')
+    # [この部分は公開用リポジトリでは非公開にされています]
     op.drop_index('uq_special_reward_link_claims_home_user', table_name='special_reward_link_claims')
     op.drop_table('special_reward_link_claims')
     op.drop_index('ix_special_reward_link_items_link_id_claimed_at', table_name='special_reward_link_items')

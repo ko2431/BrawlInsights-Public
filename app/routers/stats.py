@@ -8,7 +8,7 @@ import math
 from app.services.player_account_service import build_player_account_options, resolve_user_player_tag
 from app.utils.utils import format_tag
 from app.core.logger import logger
-from app.core.admin_permissions import is_admin_request
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.core.templating import templates
 from app.db.db import get_shared_db
 from app.services.brawl_service import (get_prestige_borders, get_available_brawlers, get_player_ranking, get_player_alltime_ranking,
@@ -46,5 +46,28 @@ def _validate_region(region: str, regions: list[dict]) -> str:
     logger.info(f"不正な地域コード \"{region}\" が指定されたため、グローバルとして扱います")
     return "global"
 
+
+#* /---*---*---*---*---*---*---*---*/
+#* 統計データタブメインページ
+#* /---*---*---*---*---*---*---*---*/
+@router.get("", name="stats")
+async def stats(
+    request: Request,
+    lang: str,
+    # db: asyncpg.Connection = Depends(get_shared_db) # DB接続が必要な場合
+):
+    
+    # テンプレートに渡すコンテキスト
+    context = {
+        "request": request,
+        "lang": lang,
+        "current_page": "stats"
+    }
+
+    try:
+        return templates.TemplateResponse("stats/stats.html", context)
+    except Exception as render_err: # テンプレートレンダリングエラーも捕捉
+        logger.error(f"Template rendering error: {render_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error rendering page")
 
 # [この部分は公開用リポジトリでは非公開にされています]

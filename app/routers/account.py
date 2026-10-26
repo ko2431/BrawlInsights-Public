@@ -12,35 +12,389 @@ from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError, PlayerNotFoundError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db, get_player_summaries_from_db
 from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_user_block_list, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
-from app.services.admin_notification_service import emit_admin_notification, format_admin_user_label
-from app.services import minigame_service
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services import main_account_reward_service
 from app.services import player_verification_service
-from app.services.minigame_service import (
-    AD_SKIP_TICKET_COST,
-    DEFAULT_AD_DAILY_LIMIT,
-    MINIGAME_AD_PLAY_CUTOFF_SECONDS,
-    USER_HISTORY_LIMIT,
-    resolve_prices,
-)
 from app.services.user_service import _current_token_claim_date, _normalize_daily_claim_count
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
-from app.services.special_reward_link_service import (
-    SpecialRewardLinkError,
-    claim_minigame_reward,
-    list_claimable_minigame_rewards,
-)
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.utils.utils import format_tag, confirm_tag, get_remote_ip, get_icon_path
 from app.db.db import get_shared_db
 from app.core.logger import logger
 
 router = APIRouter(
-    prefix="/{lang}/account", # [この部分は公開用リポジトリでは非公開にされています]
+    prefix="/{lang}/account", # このルーターのURLは /{lang}/account から始まる
+    tags=["Account"] # APIドキュメント用タグ
+)
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
+# --- ログイン必須の依存関係 ---
+async def get_current_active_user(request: Request) -> User:
+    """
+    現在のリクエストからアクティブなログインユーザーを取得する。
+    未ログインの場合はHTTP 401エラーを発生させる。
+    request.state.current_user は UserToStateMiddleware で設定済みと想定。
+    """
+    user = getattr(request.state, "current_user", None)
+    if not user:
+        # 適切なエラーメッセージとリダイレクト先を検討
+        # ここでは汎用的な401を返す
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}, # APIならBearerだが、Webページなら不要かも
+        )
+    return user
+
+
 # [この部分は公開用リポジトリでは非公開にされています]
+
+# --- アカウント設定ページ表示 ---
+@router.get("", response_class=HTMLResponse, name="account_page")
+async def account_page(
+    request: Request,
+    lang: str,
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    tutorial_missions = []
+    tutorial_all_complete = False
+    tutorial_token_total = 0
+    tutorial_mission_reward = 15
+    current_user_for_counts: User | None = getattr(request.state, "current_user", None)
+    token_ad_claimed_today = (current_user_for_counts.token_claim_count or 0) if current_user_for_counts else 0
+    ticket_ad_claimed_today = (current_user_for_counts.ticket_claim_count or 0) if current_user_for_counts else 0
+    # [この部分は公開用リポジトリでは非公開にされています]
+
+    # メイン・サブアカウントの一覧 (アカウント情報の表示用。名前・アイコンは1回のクエリでまとめて取得)
+    player_accounts = []
+    if current_user_obj:
+        player_summaries = await get_player_summaries_from_db(current_user_obj.player_tags, db)
+        # 改名履歴・クラブ履歴の非公開設定 (サブアカウントがある場合のみ、まとめて1回のクエリで取得する)
+        hide_settings: dict[str, tuple[bool, bool]] = {}
+        if current_user_obj.sub_accounts:
+            try:
+                rows = await db.fetch(
+                    "SELECT tag, hide_name_history, hide_club_history FROM players WHERE tag = ANY($1::text[])",
+                    current_user_obj.player_tags,
+                )
+                hide_settings = {r["tag"]: (bool(r["hide_name_history"]), bool(r["hide_club_history"])) for r in rows}
+            except asyncpg.PostgresError as e:
+                logger.warning(f"登録アカウントの非公開設定の取得に失敗しました (ID: {current_user_obj.id}): {e}")
+        for index, tag in enumerate(current_user_obj.player_tags):
+            summary = player_summaries.get(tag, {})
+            hide_name, hide_club = hide_settings.get(tag, (False, False))
+            player_accounts.append({
+                "tag": tag,
+                "name": summary.get("name") or tag,
+                "icon_id": summary.get("icon_id"),
+                "is_main": index == 0,
+                "hide_name_history": hide_name,
+                "hide_club_history": hide_club,
+            })
+        if player_accounts:
+            # メインアカウントは既存の取得結果(キャッシュあり)を使う
+            player_accounts[0]["hide_name_history"] = bool(current_user_main_account_hide_name_history)
+            player_accounts[0]["hide_club_history"] = bool(current_user_main_account_hide_club_history)
+
+    # テンプレートに渡すコンテキスト
+    context = {
+        "request": request,
+        "lang": lang,
+        "current_page": "account", # 下部タブバーのハイライト用
+        "secret_questions_list_for_edit": secret_questions_list, # テンプレートに渡す
+        "secret_questions_list_json": secret_questions_list_json_str, # Alpine.jsの初期データ用
+        "current_user_main_account_name": current_user_main_account_name, # メインアカウント名
+        "current_user_main_account_hide_name_history": current_user_main_account_hide_name_history,
+        "current_user_main_account_hide_club_history": current_user_main_account_hide_club_history,
+        "basic_mission": basic_mission,
+        "advance_mission": advance_mission,
+        "giveaway_info": giveaway_info,
+        # [この部分は公開用リポジトリでは非公開にされています]
+        "is_prohibit_giveaway": bool(getattr(current_user_obj, "is_prohibit_giveaway", False)) if current_user_obj else False,
+        "is_survey_cleared": is_survey_cleared,
+        "is_discord_joined": is_discord_joined,
+        "is_ios_app_login_cleared": bool(getattr(current_user_obj, "is_ios_app_login_cleared", False)) if current_user_obj else False,
+        "is_android_app_login_cleared": bool(getattr(current_user_obj, "is_android_app_login_cleared", False)) if current_user_obj else False,
+        "notification_badge_enabled": notification_badge_enabled,
+        "notification_post_like_enabled": notification_post_like_enabled,
+        "notification_own_post_message_enabled": notification_own_post_message_enabled,
+        "notification_participated_thread_message_enabled": notification_participated_thread_message_enabled,
+        "notification_message_reply_enabled": notification_message_reply_enabled,
+        "notification_message_mention_enabled": notification_message_mention_enabled,
+        "notification_message_reaction_enabled": notification_message_reaction_enabled,
+        "notification_token_gift_enabled": notification_token_gift_enabled,
+        # [この部分は公開用リポジトリでは非公開にされています]
+        "ticket_sell_options": get_ticket_sell_options(
+            current_user_obj.ad_skip_tickets
+            if current_user_obj and not current_user_obj.is_delete_ads
+            else 0
+        ),
+        "ticket_sell_token_rate": TICKET_SELL_TOKEN_RATE,
+        "elixir_sell_options": get_elixir_sell_options(
+            (current_user_obj.auto_track_elixirs or 0) if current_user_obj else 0
+        ),
+        "elixir_sell_divisor": ELIXIR_SELL_DIVISOR,
+        "tutorial_missions": tutorial_missions,
+        "tutorial_all_complete": tutorial_all_complete,
+        "tutorial_token_total": tutorial_token_total,
+        "tutorial_mission_reward": tutorial_mission_reward,
+        "token_ad_claimed_today": token_ad_claimed_today,
+        "ticket_ad_claimed_today": ticket_ad_claimed_today,
+        "player_accounts": player_accounts,
+        "sub_accounts_limit": (current_user_obj.sub_accounts_limit or 1) if current_user_obj else 1,
+        "sub_accounts_max_limit": SUB_ACCOUNTS_MAX_LIMIT,
+        "sub_account_expand_cost": SUB_ACCOUNT_EXPAND_COST,
+    }
+    return templates.TemplateResponse("account_settings.html", context)
+
+@router.post("/change-language", name="account_change_language")
+async def change_language_process(
+    request: Request,
+    lang: str,
+    new_lang: str = Form(...),
+    db: asyncpg.Connection = Depends(get_shared_db)
+):
+    if new_lang not in ["ja", "en"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid language code")
+
+    current_user_from_state: User | None = getattr(request.state, "current_user", None)
+
+    if current_user_from_state and current_user_from_state.lang != new_lang:
+        try:
+            current_user_from_state.lang = new_lang
+            await current_user_from_state.update(db)
+            logger.info(f"ユーザー '{current_user_from_state.name}' (ID: {current_user_from_state.id}) の言語設定を '{new_lang}' に更新しました。")
+        except Exception as e:
+            logger.error(f"ユーザー '{current_user_from_state.name}' の言語設定更新中にエラー: {e}")
+            # エラーが発生した場合は、DB更新は失敗するが画面遷移は試みる
+    
+    # Refererヘッダーから元のページのパスを取得する
+    referer = request.headers.get("referer")
+    redirect_url_str = f"/{new_lang}/" # デフォルトのフォールバック先
+
+    if referer:
+        # RefererのURLからパス部分を取得
+        from urllib.parse import urlparse
+        referer_path = urlparse(referer).path
+        path_parts = list(Path(referer_path).parts)
+
+        # パスが /ja/... や /en/... の形式かチェック
+        if len(path_parts) > 1 and path_parts[1] in ["ja", "en"]:
+            path_parts[1] = new_lang # 言語部分を置き換える
+            redirect_url_str = str(Path(*path_parts))
+        else:
+            # 言語コードで始まらないパスの場合は、先頭に新しい言語コードを付与
+            redirect_url_str = f"/{new_lang}{referer_path}".replace("//", "/") # /が二重になるのを防ぐ
+
+    # クエリパラメータを維持する
+    if request.url.query:
+        redirect_url_str += f"?{request.url.query}"
+
+    # JSONResponseの代わりにRedirectResponseを返す
+    # POSTリクエスト後のリダイレクトには 303 See Other を使うのが一般的
+    return RedirectResponse(url=redirect_url_str, status_code=status.HTTP_303_SEE_OTHER)
+
+# ユーザー名変更 ---
+class UsernameChangeRequest(BaseModel):
+    new_username: str = Field(min_length=2, max_length=32)
+
+@router.post("/change-username", name="account_change_username")
+async def change_username_process(
+    request: Request,
+    lang: str,
+    payload: UsernameChangeRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user) # ログイン必須
+):
+    new_username = payload.new_username.strip()
+
+    if new_username == current_user.name:
+        return JSONResponse({
+            "success": True, # 実質変更なしなので成功扱い
+            "message": "現在のユーザー名と同じです。" if lang == "ja" else "Same as current username."
+        })
+
+    if await is_user_name_used(db, new_username):
+        return JSONResponse({
+            "success": False,
+            "message": "このユーザー名は既に使用されています。" if lang == "ja" else "This username is already taken."
+        }, status_code=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        old_name = current_user.name
+        current_user.name = new_username
+        await current_user.update(db)
+        # セッションのusernameも更新
+        request.session["username"] = new_username
+        logger.info(f"ユーザー '{old_name}' (ID: {current_user.id}) がユーザー名を '{new_username}' に変更しました。")
+        return JSONResponse({
+            "success": True,
+            "message": "ユーザー名を更新しました。" if lang == "ja" else "Username updated successfully.",
+            "new_username": new_username # フロントエンドで表示を更新するため
+        })
+    except DataBaseError as e:
+        logger.error(f"ユーザー名変更中 (ID: {current_user.id}) にDBエラー: {e}")
+        return JSONResponse({"success": False, "message": "データベースエラーが発生しました。" if lang == "ja" else "A database error occurred."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        logger.error(f"ユーザー名変更中 (ID: {current_user.id}) に予期せぬエラー: {e}")
+        return JSONResponse({"success": False, "message": "予期せぬエラーが発生しました。" if lang == "ja" else "An unexpected error occurred."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- 現在のパスワード検証 ---
+class VerifyCurrentPasswordRequest(BaseModel):
+    current_password: str
+
+@router.post("/verify-current-password", name="account_verify_current_password")
+async def verify_current_password_process(
+    request: Request,
+    lang: str,
+    payload: VerifyCurrentPasswordRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if await verify_password(db, current_user.id, payload.current_password):
+        return JSONResponse({"verified": True, "message": "現在のパスワードが確認されました。" if lang == "ja" else "Current password verified."})
+    else:
+        return JSONResponse({
+            "verified": False,
+            "message": "現在のパスワードが正しくありません。" if lang == "ja" else "Incorrect current password."
+        }, status_code=status.HTTP_400_BAD_REQUEST) # 400 Bad Request or 401 Unauthorized
+
+
+# --- パスワード変更 ---
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=32, pattern=r"^[a-zA-Z0-9]+$")
+    # new_password_confirm はPydanticモデル内ではなく、エンドポイントで直接比較する
+
+@router.post("/change-password", name="account_change_password")
+async def change_password_process(
+    request: Request,
+    lang: str,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password_confirm: str = Form(...), # フォームから直接受け取る
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    # 1. 現在のパスワードを確認
+    if not await verify_password(db, current_user.id, current_password):
+        return JSONResponse({
+            "success": False,
+            "message": "現在のパスワードが正しくありません。" if lang == "ja" else "Incorrect current password.",
+            "reverify_current": True # フロントエンドに現在のパスワードの再入力を促す
+        }, status_code=status.HTTP_400_BAD_REQUEST)
+
+    # 2. 新しいパスワードのバリデーション (Pydanticモデルでも行えるが、ここでは明示的に)
+    if new_password != new_password_confirm:
+        return JSONResponse({"success": False, "message": "新しいパスワードが一致しません。" if lang == "ja" else "New passwords do not match."}, status_code=status.HTTP_400_BAD_REQUEST)
+    
+    password_pattern = r"^[a-zA-Z0-9]+$"
+    if not (8 <= len(new_password) <= 32 and re.match(password_pattern, new_password)):
+        return JSONResponse({"success": False, "message": "新しいパスワードは8～32文字の英数字である必要があります。" if lang == "ja" else "New password must be 8-32 alphanumeric characters."}, status_code=status.HTTP_400_BAD_REQUEST)
+
+    # 3. パスワードを更新
+    try:
+        await current_user.update_password(db, new_password)
+        logger.info(f"ユーザー '{current_user.name}' (ID: {current_user.id}) がパスワードを変更しました。")
+        # パスワード変更後は現在のセッションを無効化し、再ログインを促すのが一般的
+        request.session.clear() # セッションをクリア
+        return JSONResponse({
+            "success": True,
+            "message": "パスワードを変更しました。セキュリティのため、再ログインしてください。" if lang == "ja" else "Password changed successfully. Please log in again for security."
+        })
+    except DataBaseError as e:
+        logger.error(f"パスワード変更中 (ID: {current_user.id}) にDBエラー: {e}")
+        return JSONResponse({"success": False, "message": "データベースエラーが発生しました。" if lang == "ja" else "A database error occurred."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        logger.error(f"パスワード変更中 (ID: {current_user.id}) に予期せぬエラー: {e}")
+        return JSONResponse({"success": False, "message": "予期せぬエラーが発生しました。" if lang == "ja" else "An unexpected error occurred."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- 秘密の質問変更リクエストモデル ---
+class SecretQuestionsChangeRequest(BaseModel):
+    current_password: str
+    new_questions: dict[int, str] # {question_id: answer_text} の形式を期待
+
+    @field_validator('new_questions')
+    @classmethod
+    def questions_must_be_two_and_different(cls, v: dict[int, str]):
+        if len(v) != 2:
+            raise ValueError('Two security questions must be provided.')
+        question_ids = list(v.keys())
+        if question_ids[0] == question_ids[1]:
+            raise ValueError('Security questions must be different.')
+        if not all(answer.strip() for answer in v.values()): # 回答が空でないか
+            raise ValueError('Answers cannot be empty.')
+        return v
+
+@router.post("/change-secret-questions", name="account_change_secret_questions") # 既存のエンドポイントを修正
+async def change_secret_questions_process( # 関数名を変更
+    request: Request,
+    lang: str,
+    payload: SecretQuestionsChangeRequest, # リクエストボディを受け取る
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user) # ログイン必須
+):
+    # 1. 現在のパスワードを検証
+    if not await verify_password(db, current_user.id, payload.current_password):
+        return JSONResponse({
+            "success": False,
+            "message": "現在のパスワードが正しくありません。" if lang == "ja" else "Incorrect current password.",
+            "reverify_current": True # フロントエンドに現在のパスワードの再入力を促す
+        }, status_code=status.HTTP_400_BAD_REQUEST)
+
+    # 2. 新しい秘密の質問と回答をDBに保存
+    try:
+        # Userオブジェクトの secret_questions 属性を更新し、User.update() を呼び出す
+        # User.secret_questions は { "質問ID文字列": "回答文字列", ... } の形式なので合わせる
+        new_secret_questions_for_db = {str(qid): ans for qid, ans in payload.new_questions.items()}
+        current_user.secret_questions = new_secret_questions_for_db
+        await current_user.update(db)
+        logger.info(f"ユーザー '{current_user.name}' (ID: {current_user.id}) が秘密の質問を変更しました。")
+        return JSONResponse({
+            "success": True,
+            "message": "秘密の質問を更新しました。" if lang == "ja" else "Security questions updated successfully."
+        })
+    except DataBaseError as e:
+        logger.error(f"秘密の質問変更中 (ID: {current_user.id}) にDBエラー: {e}")
+        return JSONResponse({"success": False, "message": "データベースエラーが発生しました。" if lang == "ja" else "A database error occurred."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        logger.error(f"秘密の質問変更中 (ID: {current_user.id}) に予期せぬエラー: {e}")
+        return JSONResponse({"success": False, "message": "予期せぬエラーが発生しました。" if lang == "ja" else "An unexpected error occurred."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- メイン・サブアカウント(プレイヤーアカウント)操作 ---
+class PlayerAccountRegisterRequest(BaseModel):
+    player_tag: str = Field(max_length=20)
+    as_main: bool = False # メインアカウントとして登録するか (これまでのメインはサブに移る)
+
+class PlayerAccountRemoveRequest(BaseModel):
+    player_tag: str = Field(max_length=20)
+
+class PlayerAccountReorderRequest(BaseModel):
+    ordered_tags: list[str] = Field(min_length=1, max_length=SUB_ACCOUNTS_MAX_LIMIT + 1)
+
+
+def _player_account_error(message_ja: str, message_en: str, lang: str, status_code: int = status.HTTP_400_BAD_REQUEST, **extra) -> JSONResponse:
+    return JSONResponse(
+        {"success": False, "message": message_ja if lang == "ja" else message_en, **extra},
+        status_code=status_code,
+    )
+
+
+@router.post("/player-accounts/register", name="account_register_player_account")
+async def register_player_account_process(
+    request: Request,
+    lang: str,
+    payload: PlayerAccountRegisterRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    tag = format_tag(payload.player_tag.strip())
+    if not confirm_tag(tag):
+        return _player_account_error("プレイヤータグの形式が正しくありません。", "Invalid player tag format.", lang)
+    if current_user.is_own_player_tag(tag):
+        return _player_account_error("このプレイヤーは既に登録済みです。", "This player is already registered.", lang)
 
     # [この部分は公開用リポジトリでは非公開にされています]
 
@@ -76,7 +430,78 @@ router = APIRouter(
     if result not in ("added_sub", "set_main"):
         return _player_account_error("登録できませんでした。", "Could not register the player.", lang, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # [この部分は公開用リポジトリでは非公開にされています]
+    # 同じ認証を使い回せないようにする
+    await player_verification_service.consume_verification(request, tag)
+    if result == "set_main":
+        logger.info(f"ユーザー '{current_user.name}' (ID: {current_user.id}) がメインアカウントを '{tag}' ({player_name}) に変更しました。")
+        message = f"「{player_name}」をメインアカウントに登録しました。" if lang == "ja" else f'Registered "{player_name}" as your main account.'
+    else:
+        logger.info(f"ユーザー '{current_user.name}' (ID: {current_user.id}) がサブアカウント '{tag}' ({player_name}) を登録しました。")
+        message = f"「{player_name}」をサブアカウントに登録しました。" if lang == "ja" else f'Registered "{player_name}" as a sub account.'
+    return JSONResponse({"success": True, "message": message})
+
+
+@router.post("/player-accounts/remove", name="account_remove_sub_account")
+async def remove_sub_account_process(
+    request: Request,
+    lang: str,
+    payload: PlayerAccountRemoveRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    tag = format_tag(payload.player_tag.strip())
+    if tag == current_user.main_account:
+        return _player_account_error(
+            "メインアカウントは登録解除できません。先に別のアカウントをメインにしてください。",
+            "The main account cannot be unregistered. Make another account your main account first.",
+            lang,
+        )
+    try:
+        removed = await current_user.remove_sub_account(db, tag)
+    except DataBaseError as e:
+        logger.error(f"サブアカウント解除中 (ID: {current_user.id}) にDBエラー: {e}")
+        return _player_account_error("データベースエラーが発生しました。", "A database error occurred.", lang, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if not removed:
+        return _player_account_error("このプレイヤーはサブアカウントに登録されていません。", "This player is not registered as a sub account.", lang)
+
+    logger.info(f"ユーザー '{current_user.name}' (ID: {current_user.id}) がサブアカウント '{tag}' を登録解除しました。")
+    return JSONResponse({
+        "success": True,
+        "message": "サブアカウントの登録を解除しました。" if lang == "ja" else "Sub account unregistered.",
+    })
+
+
+@router.post("/player-accounts/reorder", name="account_reorder_player_accounts")
+async def reorder_player_accounts_process(
+    request: Request,
+    lang: str,
+    payload: PlayerAccountReorderRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    ordered_tags = [format_tag(tag.strip()) for tag in payload.ordered_tags]
+    previous_main = current_user.main_account
+    try:
+        result = await current_user.reorder_player_accounts(db, ordered_tags)
+    except DataBaseError as e:
+        logger.error(f"アカウント並び替え中 (ID: {current_user.id}) にDBエラー: {e}")
+        return _player_account_error("データベースエラーが発生しました。", "A database error occurred.", lang, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if result == "mismatch":
+        return _player_account_error(
+            "登録中のアカウントが変わっています。ページを再読み込みしてからもう一度お試しください。",
+            "Your registered accounts have changed. Please reload the page and try again.",
+            lang, status.HTTP_409_CONFLICT,
+        )
+    if result == "updated" and current_user.main_account != previous_main:
+        logger.info(f"ユーザー '{current_user.name}' (ID: {current_user.id}) がメインアカウントを '{previous_main}' から '{current_user.main_account}' に入れ替えました。")
+    return JSONResponse({
+        "success": True,
+        "message": "並び順を保存しました。" if lang == "ja" else "Order saved.",
+        "main_account": current_user.main_account,
+    })
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
 # --- ブックマーク操作リクエストモデル ---
 class BookmarkRequest(BaseModel):
@@ -505,21 +930,9 @@ async def use_gift_code_process(
             # giveawayコードの場合、ユーザーの応募回数キャッシュをクリア
             if gift_code_obj.reward.get("giveaway"):
                 await delete_cache(f"giveaway:entries:{code_to_use}:{current_user.id}")
-                await emit_admin_notification(
-                    db,
-                    "giftcode_giveaway_used",
-                    title="プレゼント企画コードが使用されました",
-                    summary=f"コード {gift_code_obj.code} / ユーザー: {format_admin_user_label(current_user.name, current_user.id)} が1口応募",
-                    payload={"code": gift_code_obj.code, "user_id": current_user.id, "entries": 1},
-                )
+                # [この部分は公開用リポジトリでは非公開にされています]
             else:
-                await emit_admin_notification(
-                    db,
-                    "giftcode_used",
-                    title="ギフトコードが使用されました",
-                    summary=f"コード {gift_code_obj.code} / ユーザー: {format_admin_user_label(current_user.name, current_user.id)}",
-                    payload={"code": gift_code_obj.code, "user_id": current_user.id},
-                )
+                # [この部分は公開用リポジトリでは非公開にされています]
             message = msg_ja if lang == "ja" and msg_ja else msg_en
             return JSONResponse({"success": True, "message": message})
         else:
@@ -612,16 +1025,7 @@ async def use_giveaway_max_entries_process(
             consumed_tokens = user_tokens_before - user_tokens_after
 
         await delete_cache(f"giveaway:entries:{code_to_use}:{current_user.id}")
-        await emit_admin_notification(
-            db,
-            "giftcode_giveaway_used",
-            title="プレゼント企画コードが使用されました",
-            summary=(
-                f"コード {gift_code_obj.code} / ユーザー: {format_admin_user_label(current_user.name, current_user.id)} "
-                f"が{payload.entry_count}口応募"
-            ),
-            payload={"code": gift_code_obj.code, "user_id": current_user.id, "entries": payload.entry_count},
-        )
+        # [この部分は公開用リポジトリでは非公開にされています]
 
         if lang == "ja":
             message = (
@@ -1273,55 +1677,7 @@ async def update_notification_settings_process(
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class MinigameTicketSettingRequest(BaseModel):
-    enabled: bool
-
-
-@router.post("/update-minigame-ticket-setting", name="account_update_minigame_ticket_setting")
-async def update_minigame_ticket_setting_process(
-    request: Request,
-    payload: MinigameTicketSettingRequest,
-    db: asyncpg.Connection = Depends(get_shared_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    lang = request.path_params.get("lang", "ja")
-    if current_user.is_delete_ads:
-        return JSONResponse(
-            {
-                "success": False,
-                "message": "広告削除購入済みのため、この設定は変更できません。"
-                if lang == "ja"
-                else "This setting is unavailable because you purchased Remove Ads.",
-            },
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-    try:
-        await db.execute(
-            "UPDATE users SET minigame_use_ad_skip_ticket = $1 WHERE id = $2",
-            payload.enabled,
-            current_user.id,
-        )
-        current_user.minigame_use_ad_skip_ticket = payload.enabled
-        await delete_cache(f"user:{current_user.id}")
-        await delete_cache(f"user_include_invalid:{current_user.id}")
-        logger.info(
-            f"{current_user.name} (ID: {current_user.id}) が minigame_use_ad_skip_ticket を {payload.enabled} に変更しました。"
-        )
-        return JSONResponse({
-            "success": True,
-            "message": "設定を更新しました。" if lang == "ja" else "Settings updated successfully.",
-        })
-    except Exception as e:
-        logger.error(
-            f"ミニゲームチケット設定更新中にエラー (User ID: {current_user.id}): {e}",
-            exc_info=True,
-        )
-        message = (
-            "データベースエラーのため、設定を更新できませんでした。"
-            if lang == "ja"
-            else "Could not update settings due to a database error."
-        )
-        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 def _board_block_owner(request: Request) -> tuple[int | None, str | None]:
@@ -1524,250 +1880,4 @@ async def claim_app_login_mission(
         )
 
 
-# --- ミニゲーム ---
-class MinigamePlayRequest(BaseModel):
-    method: str = Field(..., pattern="^(ad|token)$")
-    use_tickets: bool = False
-
-
-class MinigameCompleteRequest(BaseModel):
-    play_id: int
-    skip: bool = False
-
-
-@router.post("/minigame/play", name="account_minigame_play")
-async def account_minigame_play(
-    request: Request,
-    payload: MinigamePlayRequest,
-    lang: str,
-    db: asyncpg.Connection = Depends(get_shared_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    platform = getattr(request.state, "platform", "web")
-    try:
-        play = await minigame_service.start_play(
-            db,
-            current_user,
-            method=payload.method,
-            platform=platform,
-            lang=lang,
-            require_tickets=bool(payload.use_tickets),
-        )
-        result_prizes = play["result_prizes"]
-        animation_payload = play["animation_payload"]
-        if isinstance(result_prizes, str):
-            result_prizes = json.loads(result_prizes)
-        if isinstance(animation_payload, str):
-            animation_payload = json.loads(animation_payload)
-        return JSONResponse({
-            "success": True,
-            "play": {
-                "id": play["id"],
-                "result_rank": play["result_rank"],
-                "result_prizes": result_prizes,
-                "animation_payload": animation_payload,
-                "tokens_spent": play["tokens_spent"],
-                "tickets_spent": play.get("tickets_spent", 0) or 0,
-                "play_method": play["play_method"],
-            },
-            "user_tokens": current_user.tokens,
-            "user_tickets": current_user.ad_skip_tickets,
-        })
-    except ValueError as e:
-        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
-    except Exception as e:
-        logger.error(f"ミニゲーム開始エラー (User: {current_user.id}): {e}", exc_info=True)
-        message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
-        return JSONResponse({"success": False, "message": message}, status_code=500)
-
-
-@router.post("/minigame/complete", name="account_minigame_complete")
-async def account_minigame_complete(
-    request: Request,
-    payload: MinigameCompleteRequest,
-    lang: str,
-    db: asyncpg.Connection = Depends(get_shared_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    try:
-        result = await minigame_service.complete_play(
-            db, current_user, payload.play_id, skip=payload.skip, lang=lang
-        )
-        if payload.skip or result.get("status") == "skipped":
-            return JSONResponse({
-                "success": True,
-                "message": result.get("message")
-                or ("プレイを中止しました。" if lang == "ja" else "Play abandoned."),
-                "is_none": True,
-                "is_gift": False,
-                "result_rank": result.get("result_rank"),
-                "user_tokens": current_user.tokens,
-                "reload_after_ms": 3000,
-            })
-        result_prizes = result.get("result_prizes") or {}
-        if isinstance(result_prizes, str):
-            result_prizes = json.loads(result_prizes)
-        items = result_prizes.get("items", []) if isinstance(result_prizes, dict) else []
-        label = minigame_service.format_prize_label(items, lang)
-        is_none = len(items) == 1 and items[0].get("type") == "none"
-        is_gift = any(i.get("type") == "gift" for i in items)
-        is_special_reward = any(i.get("type") == "special_reward_link" for i in items)
-        grant_log = result.get("grant_log") or {}
-        if isinstance(grant_log, str):
-            grant_log = json.loads(grant_log)
-        grant_items = grant_log.get("items") or [] if isinstance(grant_log, dict) else []
-
-        if is_none:
-            message = "ご参加ありがとうございました。" if lang == "ja" else "Thank you for playing."
-        elif is_gift:
-            message = (
-                f"おめでとうございます！<b>{label}</b>が当選しました。"
-                if lang == "ja"
-                else f"Congratulations! You won <b>{label}</b>."
-            )
-        elif is_special_reward:
-            message = (
-                f"おめでとうございます！<b>{label}</b>が進呈されました。参加履歴よりお受け取りください。"
-                if lang == "ja"
-                else f"Congratulations! <b>{label}</b> was granted. Please claim it from Play History."
-            )
-        else:
-            message = None
-            for item in grant_items:
-                if item.get("type") == "auto_track_extend":
-                    remaining = (
-                        minigame_service._format_duration_ja(hours=int(item.get("remaining_hours", 0) or 0))
-                        if lang == "ja"
-                        else minigame_service._format_duration_en(hours=int(item.get("remaining_hours", 0) or 0))
-                    )
-                    duration = minigame_service.format_prize_label([item], lang)
-                    duration = duration.replace("プレイヤー自動追跡 ", "").replace("Player auto-tracking ", "")
-                    name = item.get("player_name") or ""
-                    message = (
-                        f"<b>{name}</b>のプレイヤー自動追跡機能の有効期限を"
-                        f"<b>{duration}</b>延長しました (現在の残り期間: {remaining})"
-                        if lang == "ja"
-                        else f"Extended auto-tracking for <b>{name}</b> by <b>{duration}</b>"
-                        f" (remaining: {remaining})"
-                    )
-                    break
-                if item.get("type") == "battle_log_retention":
-                    name = item.get("player_name") or ""
-                    duration = (
-                        minigame_service._format_months_ja(int(item.get("months", 0)))
-                        if lang == "ja"
-                        else minigame_service._format_months_en(int(item.get("months", 0)))
-                    )
-                    after = (
-                        minigame_service._format_months_ja(int(item.get("after_months", 0)))
-                        if lang == "ja"
-                        else minigame_service._format_months_en(int(item.get("after_months", 0)))
-                    )
-                    message = (
-                        f"<b>{name}</b>のバトル履歴保存期間を<b>{duration}</b>延長しました"
-                        f" (現在の保存期間: {after})"
-                        if lang == "ja"
-                        else f"Extended battle log retention for <b>{name}</b> by <b>{duration}</b>"
-                        f" (current retention: {after})"
-                    )
-                    if item.get("compensation_tokens"):
-                        message += (
-                            f"<br>上限超過分として {item['compensation_tokens']}トークンを補填しました"
-                            if lang == "ja"
-                            else f"<br>Compensated {item['compensation_tokens']} tokens for the excess period"
-                        )
-                    break
-
-            if (message is None):
-                grant_parts: list[str] = []
-                for item in grant_items:
-                    if item.get("type") == "ad_skip_ticket":
-                        if item.get("converted_to_tokens"):
-                            grant_parts.append(
-                                f"<br>広告削除設定のためチケットをトークンに変換しました"
-                                f"（トークン: {item.get('before_tokens')} → {item.get('after_tokens')}）"
-                                if lang == "ja"
-                                else f"<br>Tickets were converted to tokens because ads are removed"
-                                f" (tokens: {item.get('before_tokens')} → {item.get('after_tokens')})"
-                            )
-                        else:
-                            grant_parts.append(
-                                f"<br>チケットを{item.get('amount', 0)}枚受け取りました"
-                                f"（チケット数: {item.get('before_tickets')} → {item.get('after_tickets')}）"
-                                if lang == "ja"
-                                else f"<br>Received {item.get('amount', 0)} ticket(s)"
-                                f" (tickets: {item.get('before_tickets')} → {item.get('after_tickets')})"
-                            )
-                    elif item.get("type") == "token":
-                        grant_parts.append(
-                            f"<br>{item.get('amount', 0)}トークンを受け取りました"
-                            f"（トークン: {item.get('before_tokens')} → {item.get('after_tokens')}）"
-                            if lang == "ja"
-                            else f"<br>Received {item.get('amount', 0)} tokens"
-                            f" (tokens: {item.get('before_tokens')} → {item.get('after_tokens')})"
-                        )
-                    elif item.get("type") == "auto_track_elixir":
-                        grant_parts.append(
-                            f"<br>{item.get('amount', 0)}自動追跡エリクサーを受け取りました"
-                            f"（エリクサー: {item.get('before_elixirs')} → {item.get('after_elixirs')}）"
-                            if lang == "ja"
-                            else f"<br>Received {item.get('amount', 0)} Auto-Tracking Elixir(s)"
-                            f" (elixir: {item.get('before_elixirs')} → {item.get('after_elixirs')})"
-                        )
-                grant_detail = "".join(grant_parts)
-                message = (
-                    f"おめでとうございます！<b>{label}</b>が当選しました。{grant_detail}"
-                    if lang == "ja"
-                    else f"Congratulations! You won <b>{label}</b>.{grant_detail}"
-                )
-        return JSONResponse({
-            "success": True,
-            "message": message,
-            "is_none": is_none,
-            "is_gift": is_gift,
-            "result_rank": result.get("result_rank"),
-            "user_tokens": current_user.tokens,
-            "reload_after_ms": 3000,
-        })
-    except ValueError as e:
-        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
-    except Exception as e:
-        logger.error(f"ミニゲーム完了エラー (User: {current_user.id}): {e}", exc_info=True)
-        message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
-        return JSONResponse({"success": False, "message": message}, status_code=500)
-
-
-class MinigameSpecialRewardClaimRequest(BaseModel):
-    play_id: int
-
-
-@router.post("/minigame/special-reward/claim", name="account_minigame_special_reward_claim")
-async def account_minigame_special_reward_claim(
-    request: Request,
-    payload: MinigameSpecialRewardClaimRequest,
-    lang: str,
-    db: asyncpg.Connection = Depends(get_shared_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    try:
-        result = await claim_minigame_reward(
-            db, current_user, payload.play_id, ip=get_remote_ip(request), lang=lang
-        )
-        return JSONResponse({
-            "success": True,
-            "url": result["url"],
-            "already_claimed": result.get("already_claimed", False),
-            "user_tokens": current_user.tokens,
-        })
-    except SpecialRewardLinkError as e:
-        status_code = 429 if e.code == "rate_limited" else 400
-        return JSONResponse({
-            "success": False,
-            "message": e.message(lang),
-            "code": e.code,
-            "user_tokens": current_user.tokens,
-        }, status_code=status_code)
-    except Exception as e:
-        logger.error(f"特別報酬リンク受け取りエラー (User: {current_user.id}): {e}", exc_info=True)
-        message = "エラーが発生しました。" if lang == "ja" else "An error occurred."
-        return JSONResponse({"success": False, "message": message}, status_code=500)
+# [この部分は公開用リポジトリでは非公開にされています]

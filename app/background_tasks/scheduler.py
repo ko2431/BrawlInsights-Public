@@ -7,10 +7,43 @@ from app.core.logger import logger
 from app.background_tasks.task_runner import run_recorded_interval_task
 # [この部分は公開用リポジトリでは非公開にされています]
 
+# --- スケジューラー設定 ---
+jobstores = {
+    'default': MemoryJobStore()
+}
+executors = {
+    'default': AsyncIOExecutor()
+}
+job_defaults = {
+    'coalesce': False,
+    'max_instances': 1,
+    'misfire_grace_time': 60
+}
+
+scheduler = AsyncIOScheduler(
+    jobstores=jobstores,
+    executors=executors,
+    job_defaults=job_defaults,
+    timezone=timezone.utc
+)
+
+
+#* /---*---*---*---*---*---*---*---*/
+#* ヘルパー関数
+#* /---*---*---*---*---*---*---*---*/
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
-# [この部分は公開用リポジトリでは非公開にされています]
+#* /---*---*---*---*---*---*---*---*/
+#* タスクスケジューリング関数
+#* /---*---*---*---*---*---*---*---*/
+async def setup_scheduler():
+    """スケジューラーにジョブを追加する"""
+    now_utc = datetime.now(timezone.utc)
+
+    logger.info("スケジューラーのセットアップを開始します。")
+
+    # [この部分は公開用リポジトリでは非公開にされています]
 
     scheduler.add_job(
         run_recorded_interval_task,

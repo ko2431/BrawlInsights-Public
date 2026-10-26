@@ -11,7 +11,7 @@ import asyncpg
 from app.core.cache import get_redis
 from app.core.logger import logger
 from app.exceptions.custom_exceptions import DataBaseError
-from app.services.admin_notification_service import emit_admin_notification
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services import bsinfoapi
 
 MODE_ID_OFFSET = 48_000_000
@@ -850,13 +850,7 @@ async def sync_maps_and_modes_from_bsinfo(
             continue
         modes_inserted += 1
         label = item.get("name_ja") or bsinfo_name_to_display(item.get("name_en")) or str(mode_id)
-        await emit_admin_notification(
-            db,
-            "mode_created",
-            title="新しいゲームモードが追加されました",
-            summary=f"ID: {mode_id} / {label}",
-            payload={"id": mode_id, "en": item.get("name_en"), "ja": item.get("name_ja")},
-        )
+        # [この部分は公開用リポジトリでは非公開にされています]
 
     maps_inserted = 0
     for item in maps_payload:
@@ -865,13 +859,7 @@ async def sync_maps_and_modes_from_bsinfo(
             continue
         maps_inserted += 1
         label = item.get("name_ja") or item.get("name_en") or str(map_id)
-        await emit_admin_notification(
-            db,
-            "map_created",
-            title="新しいマップが追加されました",
-            summary=f"ID: {map_id} / {label}",
-            payload={"id": map_id, "en": item.get("name_en"), "ja": item.get("name_ja")},
-        )
+        # [この部分は公開用リポジトリでは非公開にされています]
 
     await bump_catalog_version()
     await ensure_catalog(db)
@@ -931,152 +919,7 @@ async def fill_slugs_from_legacy_modes(db: asyncpg.Connection) -> int:
     return updated
 
 
-async def update_map_from_admin(db: asyncpg.Connection, payload: dict[str, Any]) -> None:
-    map_id = int(payload["id"])
-    en = _empty_to_none(payload.get("en"))
-    ja = _empty_to_none(payload.get("ja"))
-    current = await db.fetchrow("SELECT en, ja FROM maps WHERE id = $1", map_id)
-    if current is None:
-        raise DataBaseError(f"map {map_id} not found")
-    en_is_manual = current["en"] != en
-    ja_is_manual = current["ja"] != ja
-    try:
-        result = await db.execute(
-            """
-            UPDATE maps SET
-                en = $2,
-                ja = $3,
-                en_is_manual = CASE WHEN $4 THEN TRUE ELSE en_is_manual END,
-                ja_is_manual = CASE WHEN $5 THEN TRUE ELSE ja_is_manual END,
-                codename = $6,
-                theme = $7,
-                mode_id = $8,
-                disabled = $9,
-                updated_at = NOW()
-            WHERE id = $1
-            """,
-            map_id,
-            en,
-            ja,
-            en_is_manual,
-            ja_is_manual,
-            _empty_to_none(payload.get("codename")),
-            _optional_int(payload.get("theme")),
-            _optional_int(payload.get("mode_id")),
-            bool(payload.get("disabled", False)),
-        )
-    except asyncpg.PostgresError as exc:
-        raise DataBaseError(str(exc)) from exc
-    if result != "UPDATE 1":
-        raise DataBaseError(f"map {map_id} not updated")
-    await bump_catalog_version()
-
-
-async def update_mode_from_admin(db: asyncpg.Connection, payload: dict[str, Any]) -> None:
-    mode_id = int(payload["id"])
-    en = _empty_to_none(payload.get("en"))
-    ja = _empty_to_none(payload.get("ja"))
-    current = await db.fetchrow("SELECT en, ja FROM modes WHERE id = $1", mode_id)
-    if current is None:
-        raise DataBaseError(f"mode {mode_id} not found")
-    en_is_manual = current["en"] != en
-    ja_is_manual = current["ja"] != ja
-    try:
-        result = await db.execute(
-            """
-            UPDATE modes SET
-                slug = $2,
-                en = $3,
-                ja = $4,
-                en_is_manual = CASE WHEN $5 THEN TRUE ELSE en_is_manual END,
-                ja_is_manual = CASE WHEN $6 THEN TRUE ELSE ja_is_manual END,
-                desc_ja = $7,
-                desc_en = $8,
-                desc2_ja = $9,
-                desc2_en = $10,
-                overtime = $11,
-                overtime_text_ja = $12,
-                overtime_text_en = $13,
-                format_ja = $14,
-                format_en = $15,
-                color = $16,
-                bg_color = $17,
-                battle_time = $18,
-                respawn_time = $19,
-                disabled = $20,
-                is_boss_fight = $21,
-                is_special_event = $22,
-                is_not_rewarding_trophies = $23,
-                is_trophy_mode = $24,
-                rounds = $25,
-                team_size = $26,
-                team_count = $27,
-                updated_at = NOW()
-            WHERE id = $1
-            """,
-            mode_id,
-            _empty_to_none(payload.get("slug")),
-            en,
-            ja,
-            en_is_manual,
-            ja_is_manual,
-            _empty_to_none(payload.get("desc_ja")),
-            _empty_to_none(payload.get("desc_en")),
-            _empty_to_none(payload.get("desc2_ja")),
-            _empty_to_none(payload.get("desc2_en")),
-            _optional_bool_or_none(payload.get("overtime")),
-            _empty_to_none(payload.get("overtime_text_ja")),
-            _empty_to_none(payload.get("overtime_text_en")),
-            _empty_to_none(payload.get("format_ja")),
-            _empty_to_none(payload.get("format_en")),
-            _empty_to_none(payload.get("color")),
-            _empty_to_none(payload.get("bg_color")),
-            _optional_int(payload.get("battle_time")),
-            _optional_int(payload.get("respawn_time")),
-            bool(payload.get("disabled", False)),
-            bool(payload.get("is_boss_fight", False)),
-            bool(payload.get("is_special_event", False)),
-            bool(payload.get("is_not_rewarding_trophies", False)),
-            bool(payload.get("is_trophy_mode", False)),
-            _optional_int(payload.get("rounds")),
-            _optional_int(payload.get("team_size")),
-            _optional_int(payload.get("team_count")),
-        )
-    except asyncpg.PostgresError as exc:
-        raise DataBaseError(str(exc)) from exc
-    if result != "UPDATE 1":
-        raise DataBaseError(f"mode {mode_id} not updated")
-    await bump_catalog_version()
-
-
-def _empty_to_none(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, str) and value.strip() == "":
-        return None
-    return value
-
-
-def _optional_int(value: Any) -> int | None:
-    value = _empty_to_none(value)
-    if value is None:
-        return None
-    return int(value)
-
-
-def _optional_bool_or_none(value: Any) -> bool | None:
-    value = _empty_to_none(value)
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"true", "1", "yes"}:
-            return True
-        if lowered in {"false", "0", "no"}:
-            return False
-    return bool(value)
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 async def collect_unresolved_report(

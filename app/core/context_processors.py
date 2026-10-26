@@ -1,10 +1,59 @@
 from fastapi import Request
 from app.core.logger import logger
 from app.core.config import settings
-from app.core.admin_permissions import is_admin_url_path, is_staff
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services.ad_banner_service import get_random_ad_banner
 
-IOS_APP_STORE_URL = "https:// [この部分は公開用リポジトリでは非公開にされています]
+IOS_APP_STORE_URL = "https://apps.apple.com/app/id6751238098"
+ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.brawlinsights.app"
+
+# 同期関数に変更し、request.stateからユーザー情報を取得
+def user_processor(request: Request) -> dict:
+    """
+    request.state から現在のユーザー情報を取得し、テンプレートコンテキストに渡す。
+    この関数は UserToStateMiddleware によって request.state.current_user が
+    設定された後に呼び出されることを想定している。
+    """
+    current_user_from_state = getattr(request.state, "current_user", None)
+    # logger.debug(f"Context Processor: current_user from state is type: {type(current_user_from_state)}")
+    return {"current_user": current_user_from_state}
+
+def platform_processor(request: Request) -> dict:
+    """
+    request.state からプラットフォーム情報を取得し、テンプレートコンテキストに渡す。
+    この関数は PlatformDetectionMiddleware によって request.state.platform が
+    設定された後に呼び出されることを想定している。
+    """
+    platform_from_state = getattr(request.state, "platform", "web") # デフォルトは 'web'
+    return {"platform": platform_from_state}
+
+
+def store_url_processor(request: Request) -> dict:
+    """WebのAndroid端末だけ Play、それ以外（iOS端末・Windows等）は App Store へ誘導する。"""
+    platform = getattr(request.state, "platform", "web")
+    user_agent = request.headers.get("user-agent", "")
+    prefer_play_store = platform == "android" or (platform == "web" and "Android" in user_agent)
+    return {
+        "prefer_play_store": prefer_play_store,
+        "app_store_url": ANDROID_PLAY_STORE_URL if prefer_play_store else IOS_APP_STORE_URL,
+        "ios_app_store_url": IOS_APP_STORE_URL,
+        "android_play_store_url": ANDROID_PLAY_STORE_URL,
+    }
+
+def version_processor(request: Request) -> dict:
+    """
+    request.state からバージョン情報を取得し、テンプレートコンテキストに渡す。
+    """
+    app_client_version_from_state = getattr(request.state, "app_client_version", None)
+    return {"app_client_version": app_client_version_from_state}
+
+def settings_processor(request: Request) -> dict:
+    """
+    設定情報(settings)をテンプレートコンテキストに渡す。
+    """
+    return {"settings": settings}
+
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 def ip_processor(request: Request) -> dict:
@@ -22,7 +71,7 @@ def ip_processor(request: Request) -> dict:
         "client_ip": client_ip,
         "is_test_ip": is_test_ip,
         "use_admob_test_ads": use_admob_test_ads,
-        "is_admin_section": is_admin_url_path(request.url.path),
+        # [この部分は公開用リポジトリでは非公開にされています]
     }
 
 
@@ -37,8 +86,7 @@ def ad_banner_processor(request: Request) -> dict:
     # パスパラメータから lang を取得（/{lang}/ を含むルートのみ。ない場合は 'ja' をデフォルト）
     lang = request.path_params.get("lang", "ja")
 
-    if is_admin_url_path(request.url.path):
-        return {"ad_banner": None}
+    # [この部分は公開用リポジトリでは非公開にされています]
 
     # 広告削除ユーザー（管理者を除く）にはバナーを返さない
     if current_user and current_user.is_delete_ads and not current_user.is_admin:
@@ -81,26 +129,7 @@ def board_notification_processor(request: Request) -> dict:
     }
 
 
-def admin_notification_processor(request: Request) -> dict:
-    """
-    管理者向け通知バッジ情報をテンプレートコンテキストに渡す。
-    UserToStateMiddleware が request.state.admin_notification_context を設定済みであること前提。
-    """
-    empty = {
-        "show_admin_notification_badge": False,
-        "admin_notification_badge_text": "",
-    }
-    current_user = getattr(request.state, "current_user", None)
-    if not current_user or not is_staff(current_user):
-        return empty
-
-    context = getattr(request.state, "admin_notification_context", None)
-    if not isinstance(context, dict):
-        return empty
-    return {
-        "show_admin_notification_badge": bool(context.get("show_admin_notification_badge")),
-        "admin_notification_badge_text": context.get("admin_notification_badge_text") or "",
-    }
+# [この部分は公開用リポジトリでは非公開にされています]
 
 
 def tournament_notification_processor(request: Request) -> dict:

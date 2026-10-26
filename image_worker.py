@@ -17,7 +17,15 @@ def handle_shutdown_signal(sig, frame):
     global shutdown_task
     logger.info(f"シグナル {sig} を受信しました。画像生成ワーカーの安全なシャットダウンを開始します...")
     if shutdown_task is None or shutdown_task.done():
-        # [この部分は公開用リポジトリでは非公開にされています]
+        # イベントループ内で安全に shutdown を開始
+        shutdown_task = asyncio.create_task(shutdown())
+    else:
+        logger.warning("画像生成ワーカーのシャットダウン処理は既に実行中です。")
+
+
+async def cleanup_resources():
+    logger.info("画像生成ワーカーのリソース解放処理を開始します...")
+    # [この部分は公開用リポジトリでは非公開にされています]
     await close_redis()
     await close_db_connection()
     logger.info("画像生成ワーカーのリソースを正常に解放しました。")
@@ -47,7 +55,23 @@ async def shutdown():
             except Exception as e:
                 logger.error(f"画像生成ワーカーのシャットダウン中に予期せぬエラーが発生しました: {e}", exc_info=True)
     finally:
-        # [この部分は公開用リポジトリでは非公開にされています]
+        # 画像生成タスクの終了待ち後に main 側の finally を進める。
+        shutdown_event.set()
+
+
+
+async def main():
+    setup_worker_logger()
+    logger.info("画像生成ワーカーの起動処理を開始します...")
+
+    # シグナルハンドラの設定
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, handle_shutdown_signal, sig, None)
+
+    await connect_to_db(min_size=1, max_size=3)
+    await connect_redis()
+    # [この部分は公開用リポジトリでは非公開にされています]
 
     image_task = asyncio.create_task(image_generation_task_loop(), name="ImageGenerationLoop")
     running_tasks.add(image_task)

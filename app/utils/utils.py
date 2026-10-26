@@ -5,6 +5,132 @@ import datetime
 from typing import Any, Union, Optional
 from fastapi import Request
 
+# プレイヤータグ関連の関数
+def format_tag(input: str) -> str:
+    """プレイヤータグを正しい形式にする。
+
+    Args:
+        input (str): ユーザーから入力された、または正しくない形式の可能性があるプレイヤータグの文字列。
+
+    Returns:
+        str: 正しい形式("#XXXXXXX")のプレイヤータグ。
+    """
+    input = input.replace("#", "") # まず"#"をすべて取る
+    input = "#" + input.upper() # 大文字にして、最初に"#"をつける
+    input = input.replace("O", "0") # オーをゼロに変換
+    return input
+
+def confirm_tag(formatted_tag: str) -> bool:
+    """プレイヤータグが正しい文字(0289CGJLPQRUVY)のみで構成されているか確認する。
+
+    Args:
+        formatted_tag (str): "#XXXXXXX"の形式のプレイヤータグ。
+
+    Returns:
+        bool: プレイヤータグが正しい文字のみで構成されているかどうか。正しければTrue
+    """
+    pattern = f"^#[0289CGJLPQRUVY]+$"
+    return bool(re.match(pattern, formatted_tag))
+
+# トロフィー・ランク関係の簡単な計算をする関数
+def calc_tier(highest_trophies: Union[int, float]) -> int:
+    """最多トロフィーの値からグレードを計算する。
+
+    Args:
+        highest_trophies (Union[int, float]): キャラクターの最多トロフィー。
+
+    Returns:
+        int: グレード(1-50)。最大グレードの場合は51-54のいずれか。トロフィーの値が負の場合は1。
+    """
+    if 0 <= highest_trophies < 1200:
+        return int(- ( - (highest_trophies + 1) // 20 )) if highest_trophies <= 1000 else 51
+    elif 1200 <= highest_trophies < 1500:
+        return 52
+    elif 1500 <= highest_trophies < 2000:
+        return 53
+    elif highest_trophies >= 2000:
+        return 54
+    else:
+        return 1
+
+def calc_old_tier(highest_trophies: Union[int, float]) -> int:
+    """最多トロフィーの値から旧バージョンのランクを計算する。
+
+    Args:
+        highest_trophies (Union[int, float]): キャラクターの最多トロフィー。
+
+    Returns:
+        int: ランク(1-35)。トロフィーの値が負の場合は1。
+    """
+    if highest_trophies < 10: return 1
+    elif 10 <= highest_trophies < 20: return 2
+    elif 20 <= highest_trophies < 30: return 3
+    elif 30 <= highest_trophies < 40: return 4
+    elif 40 <= highest_trophies < 60: return 5
+    elif 60 <= highest_trophies < 80: return 6
+    elif 80 <= highest_trophies < 100: return 7
+    elif 100 <= highest_trophies < 120: return 8
+    elif 120 <= highest_trophies < 140: return 9
+    elif 140 <= highest_trophies < 160: return 10
+    elif 160 <= highest_trophies < 180: return 11
+    elif 180 <= highest_trophies < 220: return 12
+    elif 220 <= highest_trophies < 260: return 13
+    elif 260 <= highest_trophies < 300: return 14
+    elif 300 <= highest_trophies < 340: return 15
+    elif 340 <= highest_trophies < 380: return 16
+    elif 380 <= highest_trophies < 420: return 17
+    elif 420 <= highest_trophies < 460: return 18
+    elif 460 <= highest_trophies < 500: return 19
+    elif 500 <= highest_trophies < 550: return 20
+    elif 550 <= highest_trophies < 600: return 21
+    elif 600 <= highest_trophies < 650: return 22
+    elif 650 <= highest_trophies < 700: return 23
+    elif 700 <= highest_trophies < 750: return 24
+    elif 750 <= highest_trophies < 800: return 25
+    elif 800 <= highest_trophies < 850: return 26
+    elif 850 <= highest_trophies < 900: return 27
+    elif 900 <= highest_trophies < 950: return 28
+    elif 950 <= highest_trophies < 1000: return 29
+    elif 1000 <= highest_trophies < 1050: return 30
+    elif 1050 <= highest_trophies < 1100: return 31
+    elif 1100 <= highest_trophies < 1150: return 32
+    elif 1150 <= highest_trophies < 1200: return 33
+    elif 1200 <= highest_trophies < 1250: return 34
+    else: return 35
+
+def calc_ranked_rank(ranked_score: int) -> int:
+    """ガチバトルスコアからガチバトルランク番号を計算します。
+
+    Args:
+        ranked_score (int): ガチバトルランクスコア
+
+    Returns:
+        int: ガチバトルランク番号(スコア0以下の場合はランク番号0=ランクなしが返る。)
+    """
+    if ranked_score <= 0: return 0
+    elif 0 < ranked_score < 250: return 1
+    elif 250 <= ranked_score < 500: return 2
+    elif 500 <= ranked_score < 750: return 3
+    elif 750 <= ranked_score < 1000: return 4
+    elif 1000 <= ranked_score < 1250: return 5
+    elif 1250 <= ranked_score < 1500: return 6
+    elif 1500 <= ranked_score < 2000: return 7
+    elif 2000 <= ranked_score < 2500: return 8
+    elif 2500 <= ranked_score < 3000: return 9
+    elif 3000 <= ranked_score < 3500: return 10
+    elif 3500 <= ranked_score < 4000: return 11
+    elif 4000 <= ranked_score < 4500: return 12
+    elif 4500 <= ranked_score < 5000: return 13
+    elif 5000 <= ranked_score < 5500: return 14
+    elif 5500 <= ranked_score < 6000: return 15
+    elif 6000 <= ranked_score < 6750: return 16
+    elif 6750 <= ranked_score < 7500: return 17
+    elif 7500 <= ranked_score < 8250: return 18
+    elif 8250 <= ranked_score < 9250: return 19
+    elif 9250 <= ranked_score < 10250: return 20
+    elif 10250 <= ranked_score < 11250: return 21
+    elif ranked_score >= 11250: return 22
+
 # [この部分は公開用リポジトリでは非公開にされています]
 
 def calc_mastery_rank(score: int | float) -> int:

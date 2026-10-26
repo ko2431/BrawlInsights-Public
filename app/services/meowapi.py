@@ -21,4 +21,21 @@ class ApiClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            # [この部分は公開用リポジトリでは非公開にされています]
+            # 改行を削除し、最大200文字に制限
+            error_text = e.response.text.replace("\n", " ").replace("\r", "")
+            summary = (error_text[:200] + '...') if len(error_text) > 200 else error_text
+            
+            logger.warning(
+                f"HTTPエラー: {e.response.status_code} - {e.request.url} 要約レスポンス: {summary}"
+            )
+            return None
+        except httpx.RequestError as e:
+            logger.warning(f"リクエストエラー: {e.request.url} - {e}")
+            return None
+
+    async def aclose(self):
+        """内部のhttpxクライアントを安全に閉じる。アプリケーション終了時に呼び出す。"""
+        await self._client.aclose()
+        logger.info("ApiClient: 接続クライアントを正常に終了しました。")
+
+# [この部分は公開用リポジトリでは非公開にされています]

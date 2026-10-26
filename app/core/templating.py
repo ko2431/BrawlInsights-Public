@@ -9,11 +9,11 @@ from .context_processors import (
     ad_banner_processor,
     page_integrity_processor,
     board_notification_processor,
-    admin_notification_processor,
+    # [この部分は公開用リポジトリでは非公開にされています]
     tournament_notification_processor,
 )
 from app.utils.utils import format_display_datetime, format_last_played_time
-from app.utils.admin_filter_links import admin_filter_active, admin_filter_url
+# [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import mode_icon_candidates
 import re
 from markupsafe import Markup
@@ -31,7 +31,7 @@ templates = Jinja2Templates(
         ad_banner_processor,
         page_integrity_processor,
         board_notification_processor,
-        admin_notification_processor,
+        # [この部分は公開用リポジトリでは非公開にされています]
         tournament_notification_processor,
     ],  # type: ignore
 )
@@ -71,8 +71,7 @@ templates.env.globals['format_display_datetime'] = format_display_datetime
 templates.env.globals['format_last_played_time'] = format_last_played_time
 templates.env.globals['mode_icon_candidates'] = mode_icon_candidates
 templates.env.globals['version_at_least'] = version_at_least
-templates.env.globals['admin_filter_url'] = admin_filter_url
-templates.env.globals['admin_filter_active'] = admin_filter_active
+# [この部分は公開用リポジトリでは非公開にされています]
 
 NG_WORDS = [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています]
 def censor_filter(text: str) -> str:

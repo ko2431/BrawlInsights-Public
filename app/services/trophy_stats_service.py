@@ -42,6 +42,12 @@ KNOWN_INCLUDED_BATTLE_TYPES = frozenset({
 SHOWDOWN_SLUGS = frozenset({"soloShowdown", "duoShowdown", "trioShowdown"})
 DUELS_SLUG = "duels"
 MAP_ALL_SENTINEL_PREFIX = "m"
+# フィルター候補はTier表と同じ集計窓（終了日を含む過去31日）に合わせる。
+# マップ周期の手動リストとは別で、その期間に記録があるマップと特別イベントを載せる。
+TROPHY_FILTER_POOL_LOOKBACK_DAYS = 31
+PG_INT4_MIN = -2_147_483_648
+PG_INT4_MAX = 2_147_483_647
+
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
