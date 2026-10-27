@@ -1021,6 +1021,20 @@
     <script src="{{ url_for('static', path='/js/modal_back.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/visual_viewport_lock.js') }}?v={{ app_version }}"></script>
 
+    {# プッシュ通知（ログインしている人だけ。アカウントタブの設定・ログアウトの前の解除・投稿やエントリーの後の案内で使う） #}
+    {# push_web_key がないとき（デプロイで git pull してから、アプリを再起動するまでの古いプロセス）は読み込まない #}
+    {% if current_user and not is_admin_section and push_web_key is defined %}
+    <script>
+        window.BI_PUSH = {
+            lang: '{{ lang }}',
+            uid: {{ current_user.id }},
+            vapidKey: {{ push_web_key | tojson }},
+            appReleased: {{ 'true' if push_app_released else 'false' }},
+        };
+    </script>
+    <script src="{{ url_for('static', path='/js/push.js') }}?v={{ app_version }}"></script>
+    {% endif %}
+
     <script>
         function handleModeIconError(img) {
             if (!img) return;

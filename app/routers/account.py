@@ -18,6 +18,7 @@ from app.services import player_verification_service
 from app.services.user_service import _current_token_claim_date, _normalize_daily_claim_count
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
+from app.services import push_rules, push_service
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.utils.utils import format_tag, confirm_tag, get_remote_ip, get_icon_path
 from app.db.db import get_shared_db
@@ -125,6 +126,8 @@ async def account_page(
         "notification_message_mention_enabled": notification_message_mention_enabled,
         "notification_message_reaction_enabled": notification_message_reaction_enabled,
         "notification_token_gift_enabled": notification_token_gift_enabled,
+        "push_settings": push_settings,
+        "admin_push_level": admin_push_level,
         # [この部分は公開用リポジトリでは非公開にされています]
         "ticket_sell_options": get_ticket_sell_options(
             current_user_obj.ad_skip_tickets

@@ -330,6 +330,63 @@
     margin-top: 5px;
 }
 
+/* オン・オフのスイッチの行（.bi-switch は components.css）。スイッチは右端にそろえる */
+.info-item:has(> .bi-switch) {
+    justify-content: space-between;
+    gap: 10px;
+}
+.info-item:has(> .bi-switch) > .info-item__label {
+    margin-right: 0;
+}
+
+/* プッシュ通知（1つの箱の中を、大会・掲示板・管理者の小見出しで分ける。切り替えはスイッチ） */
+.push-settings__heading {
+    margin: 12px 0 4px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-333);
+}
+.push-settings__group {
+    margin: 10px 0 0;
+    padding-bottom: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-888);
+}
+.push-settings .info-item {
+    justify-content: space-between;
+    gap: 10px;
+}
+.push-settings .info-item__label:has(+ select) {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.push-settings .info-item > select {
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+}
+.push-settings__device {
+    border-bottom: 1px solid #f0f0f0;
+}
+.dark .push-settings__device {
+    border-color: #333;
+}
+.push-settings__device > .info-item {
+    border-bottom: none;
+}
+/* 種類ごとの項目を出さない端末では、下の区切り線も出さない */
+.push-settings__device--alone {
+    border-bottom: none;
+}
+.push-settings__note {
+    margin: 0;
+    padding: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--color-777);
+}
+
 .editable-item .info-item__edit-form {
     width: 100%;
     padding: 10px 15px 5px;

@@ -88,6 +88,18 @@ class User(Base):
     notification_message_reaction_enabled = Column(Boolean, nullable=False, server_default='True')
     notification_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
     notifications_last_read_at = Column(DateTime(timezone=True), nullable=True)
+    # プッシュ通知で届けるか（種類ごと。掲示板はアプリ内の通知の設定もオンのときだけ届く。端末の登録は push_devices）
+    push_tournament_progress_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_tournament_chat_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_tournament_notice_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_post_like_enabled = Column(Boolean, nullable=False, server_default='False')
+    push_own_post_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_participated_thread_message_enabled = Column(Boolean, nullable=False, server_default='False')
+    push_subscribed_thread_message_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_message_mention_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_message_reply_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_message_reaction_enabled = Column(Boolean, nullable=False, server_default='False')
+    push_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
     # [この部分は公開用リポジトリでは非公開にされています]
     last_main_account_changed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -120,6 +132,7 @@ class User(Base):
             'sub_accounts_limit >= 1 AND sub_accounts_limit <= 9',
             name='ck_users_sub_accounts_limit_range',
         ),
+        # [この部分は公開用リポジトリでは非公開にされています]
     )
 
     # リレーションシップ
@@ -1448,6 +1461,31 @@ class BoardNotification(Base):
         Index('idx_board_notifications_message_id', 'message_id'),
         # リアクションを外したときの CASCADE（reactions.id → reaction_id）で全件を走査しないように。値があるのはリアクションの通知だけ
         Index('idx_board_notifications_reaction_id', 'reaction_id', postgresql_where=text('reaction_id IS NOT NULL')),
+    )
+
+
+class PushDevice(Base):
+    """
+    プッシュ通知を受け取る端末。token はアプリなら FCM のトークン、Web なら Web Push の endpoint。
+    同じ端末で別のアカウントにログインし直したら、token で user_id を付け替える。
+    user_id が NULL の行は、未ログインの端末（今は作らない。お知らせのプッシュのため）。
+    """
+    __tablename__ = 'push_devices'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    platform = Column(Text, nullable=False)
+    token = Column(Text, nullable=False, unique=True)
+    p256dh = Column(Text, nullable=True)  # Web Push の鍵
+    auth = Column(Text, nullable=True)
+    lang = Column(Text, nullable=False, server_default='ja')
+    app_version = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("platform IN ('ios', 'android', 'web')", name='ck_push_devices_platform'),
+        Index('idx_push_devices_user_id', 'user_id'),
     )
 
 

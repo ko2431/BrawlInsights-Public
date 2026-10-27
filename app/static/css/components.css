@@ -1245,3 +1245,186 @@
         height: 22px;
     }
 }
+
+/* =============================================== */
+/* プッシュ通知の案内（push.js。大会のエントリー・募集の投稿の後に1回だけ。大会の通知のトーストと同じ位置） */
+/* =============================================== */
+.bi-push-suggest {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 50%;
+    z-index: 2001;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: min(420px, calc(100% - 24px));
+    padding: 10px 12px;
+    border: 1px solid #e3e6ea;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+    color: #222;
+    opacity: 0;
+    transform: translate(-50%, -8px) scale(0.98);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.bi-push-suggest.is-shown {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+.bi-push-suggest__icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+.bi-push-suggest__body {
+    flex: 1;
+    min-width: 0;
+}
+.bi-push-suggest__text {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.bi-push-suggest__actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+.bi-push-suggest__btn {
+    padding: 5px 12px;
+    border: 1px solid #d5d9de;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.bi-push-suggest__btn:hover {
+    background: #f1f2f4;
+}
+.bi-push-suggest__btn:active {
+    transform: scale(0.96);
+}
+.bi-push-suggest__btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.bi-push-suggest__btn--primary,
+.bi-push-suggest__btn--primary:hover {
+    border-color: #333;
+    background: #333;
+    color: #fff;
+}
+.dark .bi-push-suggest {
+    border-color: #3a3a3a;
+    background: #2a2a2a;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    color: #eee;
+}
+.dark .bi-push-suggest__btn {
+    border-color: #4a4a4a;
+}
+.dark .bi-push-suggest__btn:hover {
+    background: #3a3a3a;
+}
+.dark .bi-push-suggest__btn--primary,
+.dark .bi-push-suggest__btn--primary:hover {
+    border-color: #ccc;
+    background: #fff;
+    color: #333;
+}
+@media (min-width: 840px) {
+    /* PCはヘッダーの下に、右寄せで出す */
+    .bi-push-suggest {
+        top: calc(env(safe-area-inset-top, 0px) + 50px);
+        left: auto;
+        right: 20px;
+        transform: translateY(-8px) scale(0.98);
+    }
+    .bi-push-suggest.is-shown {
+        transform: none;
+    }
+}
+
+/* =============================================== */
+/* スイッチ（iOS 風。大会の作成画面の .tn-toggle と同じ色）。<button role="switch" aria-checked> に付ける */
+/* is-locked: 今は切り替えられない（押すと理由を出す）、is-busy: 保存中 */
+/* =============================================== */
+.bi-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: #ccc;
+    cursor: pointer;
+    transition: background-color 0.18s ease, opacity 0.15s ease;
+}
+.bi-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.18s ease, width 0.15s ease;
+}
+.bi-switch[aria-checked="true"] {
+    background: #3ba42a;
+}
+.bi-switch[aria-checked="true"]::after {
+    transform: translateX(16px);
+}
+/* 押している間はつまみを少し伸ばす */
+.bi-switch:not(.is-locked):not(.is-busy):active::after {
+    width: 24px;
+}
+.bi-switch[aria-checked="true"]:not(.is-locked):not(.is-busy):active::after {
+    transform: translateX(12px);
+}
+.bi-switch:focus-visible {
+    outline: 2px solid #3ba42a;
+    outline-offset: 2px;
+}
+.bi-switch.is-busy {
+    opacity: 0.6;
+    cursor: progress;
+}
+.bi-switch.is-locked {
+    background: #e4e4e4;
+    cursor: not-allowed;
+}
+.bi-switch.is-locked::after {
+    background: #f6f6f6;
+    box-shadow: none;
+}
+/* オンのまま今は切り替えられないもの（親のスイッチがオフのときなど）は、薄い緑 */
+.bi-switch.is-locked[aria-checked="true"] {
+    background: #b8deb2;
+}
+.dark .bi-switch {
+    background: #555;
+}
+.dark .bi-switch[aria-checked="true"] {
+    background: #4cb83a;
+}
+.dark .bi-switch.is-locked {
+    background: #3a3a3a;
+}
+.dark .bi-switch.is-locked::after {
+    background: #5a5a5a;
+}
+.dark .bi-switch.is-locked[aria-checked="true"] {
+    background: #34592e;
+}

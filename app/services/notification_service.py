@@ -6,6 +6,7 @@ from app.core.cache import delete_cache, get_cache, get_redis, is_transient_redi
 from app.core.logger import logger
 from app.core.templating import censor_filter
 from app.exceptions.custom_exceptions import DataBaseError
+from app.services import push_service
 from app.services.board_service import get_message, get_post, get_player_icon_from_db, is_theme_post_type
 from app.services.user_service import get_blocked_ids, get_user
 from app.utils.utils import get_icon_path
@@ -286,6 +287,8 @@ async def mark_thread_notifications_as_read(
     count = int(status.split()[-1])
     if count:
         await delete_cache(_badge_cache_key(user_id))
+    # このスレッドの一般メッセージのプッシュ通知は、次の新着でまた1回送る
+    await push_service.reset_thread(user_id, thread_id)
     return count
 
 
@@ -340,12 +343,13 @@ async def _create_notification(
         return
 
     try:
-        await db.execute(
+        notification_id = await db.fetchval(
             """
             INSERT INTO board_notifications (
                 recipient_user_id, notification_type, actor_user_id,
                 post_id, message_id, post_vote_id, reaction_id, created_at, read_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::timestamptz, NOW()), CASE WHEN $9 THEN NOW() END)
+            RETURNING id
             """,
             recipient_user_id,
             notification_type,
@@ -362,6 +366,15 @@ async def _create_notification(
 
     if not is_read:
         await invalidate_notification_cache(recipient_user_id)
+        # プッシュ通知（送るかどうか・まとめるかは worker が決める）
+        await push_service.enqueue_board(
+            notification_id=notification_id,
+            recipient_user_id=recipient_user_id,
+            notification_type=notification_type,
+            actor_user_id=actor_user_id,
+            post_id=post_id,
+            message_id=message_id,
+        )
 
 
 async def create_admin_warning_notification(
@@ -371,17 +384,21 @@ async def create_admin_warning_notification(
     actor_user_id: int,
     post_id: int | None = None,
     message_id: int | None = None,
-) -> None:
-    """警告対象者への専用通知。ブロック設定や通知オフでは抑制しない。"""
+) -> int | None:
+    """警告対象者への専用通知。ブロック設定や通知オフでは抑制しない。作った通知の id を返す。
+
+    ペナルティのトランザクションの中で呼ばれるので、プッシュ通知はコミットの後で呼び出し側が積む（push_service.enqueue_board）。
+    """
     if not recipient_user_id or recipient_user_id == actor_user_id:
-        return
+        return None
     try:
-        await db.execute(
+        notification_id = await db.fetchval(
             """
             INSERT INTO board_notifications (
                 recipient_user_id, notification_type, actor_user_id,
                 post_id, message_id
             ) VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
             """,
             recipient_user_id,
             NOTIFICATION_TYPE_ADMIN_WARNING,
@@ -392,6 +409,7 @@ async def create_admin_warning_notification(
     except asyncpg.PostgresError as e:
         raise DataBaseError(e) from e
     await invalidate_notification_cache(recipient_user_id)
+    return notification_id
 
 
 async def handle_post_like_notification(

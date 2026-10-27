@@ -73,6 +73,13 @@ class Settings:
         "0", "false", "no", "off",
     )
 
+    # プッシュ通知。Web Push は VAPID の鍵（base64url。秘密鍵は32バイトの生の値）、
+    # アプリは FCM HTTP v1（サービスアカウントの鍵の JSON ファイルのパス）。どちらも未設定ならその送り先には送らない
+    VAPID_PUBLIC_KEY: str | None = os.getenv("VAPID_PUBLIC_KEY") or None
+    VAPID_PRIVATE_KEY: str | None = os.getenv("VAPID_PRIVATE_KEY") or None
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "https://brawlinsights.com")
+    FCM_SERVICE_ACCOUNT_FILE: str | None = os.getenv("FCM_SERVICE_ACCOUNT_FILE") or None
+
     def __init__(self):
         if self._cluster_nodes_raw:
             try:

@@ -43,6 +43,7 @@
             <br><span class="indent-2"></span>• アクセスされたページやリソースのURL
             <br><span class="indent-2"></span>• リファラー情報
             <br><span class="indent"></span>• デバイス情報: 本サービスの利用状況分析のため、ユーザーが使用するデバイスの種類などの情報を収集する場合があります。
+            <br><span class="indent"></span>• プッシュ通知の送信先情報: ユーザーがプッシュ通知を受け取る設定をオンにした場合、通知の送信先としてブラウザまたは端末に発行される情報（プッシュ通知サービスの送信先、通知の暗号化に用いる鍵など）、表示言語、アプリのバージョン、および受け取る通知の種類の設定を記録します。
             <br>3. 外部の事業者から取得する情報
             <br><span class="indent">• 本サービスの提供に必要な範囲で、外部の事業者から提供を受ける情報。
         {% else %}The Developer may collect the following information in providing the Service:
@@ -60,6 +61,7 @@
             <br><span class="indent-2"></span>• URL of accessed pages or resources
             <br><span class="indent-2"></span>• Referrer information
             <br><span class="indent"></span>• Device information: For the purpose of analyzing the usage of the Service, information such as the type of device used by the User may be collected.
+            <br><span class="indent"></span>• Push notification delivery information: If a User turns on push notifications, the Service records the information issued to the browser or device as the destination for notifications (such as the push service endpoint and the keys used to encrypt notifications), the display language, the app version, and the User's settings for which notifications to receive.
             <br>3. Information obtained from external operators
             <br><span class="indent">• Information received from external operators to the extent necessary to provide the Service.{% endif %}</p>
 
@@ -74,10 +76,11 @@
             <br>6. ユーザーの興味や関心に合わせた広告を配信するため
             <br>7. 本サービスに関する重要なお知らせなど、必要に応じた連絡のため
             <br>8. 投稿・送信、大会その他の企画など、ユーザー間で利用する機能の提供、表示および運営のため
-            <br>9. アプリ内通貨その他の特典の付与および管理のため
-            <br>10. 有料機能および任意の支援の提供、確認のため
-            <br>11. 本サービスの改善、利用状況の把握、アンケートその他の調査のため
-            <br>12. 上記の利用目的に付随する目的のため
+            <br>9. 掲示板・大会などに関する通知を、ユーザーが選んだ方法（プッシュ通知を含みます）で配信するため
+            <br>10. アプリ内通貨その他の特典の付与および管理のため
+            <br>11. 有料機能および任意の支援の提供、確認のため
+            <br>12. 本サービスの改善、利用状況の把握、アンケートその他の調査のため
+            <br>13. 上記の利用目的に付随する目的のため
         {% else %}The Developer will use the collected information for the following purposes:
             <br>1. To provide, maintain, protect, and improve the Service (including account authentication, display of game results, provision of information, etc.).
             <br>2. To respond to inquiries from Users (including identity verification).
@@ -87,10 +90,11 @@
             <br>6. To deliver advertisements tailored to the user's interests and concerns.
             <br>7. To provide necessary communications, such as important notices regarding the Service.
             <br>8. To provide, display, and operate functions used between Users, such as posting and transmission, and tournaments and other events.
-            <br>9. To grant and manage in-app currency and other benefits.
-            <br>10. To provide and confirm paid features and optional support.
-            <br>11. To improve the Service, understand usage, and conduct surveys and other research.
-            <br>12. For purposes incidental to the above purposes of use.{% endif %}</p>
+            <br>9. To deliver notifications about boards, tournaments, and the like by the methods the User chooses (including push notifications).
+            <br>10. To grant and manage in-app currency and other benefits.
+            <br>11. To provide and confirm paid features and optional support.
+            <br>12. To improve the Service, understand usage, and conduct surveys and other research.
+            <br>13. For purposes incidental to the above purposes of use.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第3条（情報の第三者提供）
         {% else %}Article 3 (Provision of Information to Third Parties){% endif %}</h2>
@@ -111,8 +115,8 @@
 
     <h2 class="section-title">{% if lang == "ja" %}第4条（外部送信等）
         {% else %}Article 4 (Transmission to External Operators, etc.){% endif %}</h2>
-    <p class="terms-page__section">{% if lang == "ja" %}本サービスは、提供、配信、解析、広告、決済等のため、外国にある事業者を含む外部の事業者へ、必要な範囲で情報を送信し、または取り扱いを委託することがあります。これには、アクセス解析、広告配信、アプリストア等を通じた決済、コンテンツ配信その他のインフラの提供などが含まれます。送信先の例としては、Googleおよびその関連会社、アプリストアの運営者などが挙げられます。送信される情報の例としては、端末やブラウザに関する情報、利用状況、決済の成立に必要な識別子などが含まれますが、これらに限りません。詳細は、各事業者のプライバシーポリシー等をご確認ください。
-        {% else %}The Service may, to the extent necessary, transmit information to, or outsource the handling of information to, external operators, including operators located in foreign countries, for purposes such as providing and delivering the Service, analytics, advertising, and payments. This includes access analytics, advertisement delivery, payments through app stores and the like, content delivery, and other infrastructure. Examples of recipients include Google and its affiliates, and operators of app stores. Examples of information transmitted include, but are not limited to, information about devices and browsers, usage information, and identifiers necessary to complete payments. For further details, please refer to the privacy policies of the respective operators.{% endif %}</p>
+    <p class="terms-page__section">{% if lang == "ja" %}本サービスは、提供、配信、解析、広告、決済等のため、外国にある事業者を含む外部の事業者へ、必要な範囲で情報を送信し、または取り扱いを委託することがあります。これには、アクセス解析、広告配信、アプリストア等を通じた決済、コンテンツ配信その他のインフラの提供などが含まれます。送信先の例としては、Googleおよびその関連会社、アプリストアの運営者などが挙げられます。送信される情報の例としては、端末やブラウザに関する情報、利用状況、決済の成立に必要な識別子などが含まれますが、これらに限りません。また、ユーザーがプッシュ通知を受け取る設定をオンにした場合、通知を届けるため、ご利用のブラウザまたはOSが使用するプッシュ通知サービス（Google、Apple、Mozilla、Microsoftなどが提供するもの）へ、通知の内容（見出し、本文の一部、開くページ）と送信先の情報を送信します。詳細は、各事業者のプライバシーポリシー等をご確認ください。
+        {% else %}The Service may, to the extent necessary, transmit information to, or outsource the handling of information to, external operators, including operators located in foreign countries, for purposes such as providing and delivering the Service, analytics, advertising, and payments. This includes access analytics, advertisement delivery, payments through app stores and the like, content delivery, and other infrastructure. Examples of recipients include Google and its affiliates, and operators of app stores. Examples of information transmitted include, but are not limited to, information about devices and browsers, usage information, and identifiers necessary to complete payments. In addition, if a User turns on push notifications, the Service sends the content of notifications (the title, part of the text, and the page to open) and the delivery information to the push notification service used by the User's browser or OS (such as those provided by Google, Apple, Mozilla, and Microsoft) in order to deliver them. For further details, please refer to the privacy policies of the respective operators.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第5条（アクセス解析ツールの利用）
         {% else %}Article 5 (Use of Access Analysis Tools){% endif %}</h2>
@@ -160,7 +164,9 @@
     <h2 class="section-title">{% if lang == "ja" %}第10条（情報の保存期間）
         {% else %}Article 10 (Retention Period of Information){% endif %}</h2>
     <p class="terms-page__section">{% if lang == "ja" %}開発者は、収集した情報を、利用目的の達成に必要な期間保存します。保存期間は情報の種類や機能により異なり、法令上の保存が必要な場合を除き、不要となった情報は、開発者が適切と判断する方法により削除または匿名化します。アカウントの利用を終了した場合でも、公開済みの投稿、大会その他の企画の記録、不正利用の防止その他運営上必要な記録が残ることがあります。
-        {% else %}The Developer will retain collected information for the period necessary to achieve the purposes of use. Retention periods may differ depending on the type of information and the function concerned. Except where retention is required by law, information that is no longer needed will be deleted or anonymized in a manner the Developer deems appropriate. Even after an account is terminated, publicly posted content, records of tournaments and other events, records necessary to prevent misuse, and other records necessary for operation of the Service may remain.{% endif %}</p>
+            <br>プッシュ通知の送信先情報は、ユーザーがその端末で受け取る設定をオフにしたとき、ログアウトしたとき、アカウントを削除したとき、または送信先が無効になったときに削除します。プッシュ通知は、本サービスの設定画面、またはブラウザ・端末の設定からいつでも停止できます。
+        {% else %}The Developer will retain collected information for the period necessary to achieve the purposes of use. Retention periods may differ depending on the type of information and the function concerned. Except where retention is required by law, information that is no longer needed will be deleted or anonymized in a manner the Developer deems appropriate. Even after an account is terminated, publicly posted content, records of tournaments and other events, records necessary to prevent misuse, and other records necessary for operation of the Service may remain.
+            <br>Push notification delivery information is deleted when the User turns off notifications on that device, logs out, or deletes their account, or when the destination becomes invalid. Users can stop push notifications at any time from the settings screen of the Service or from the settings of their browser or device.{% endif %}</p>
 
     <h2 class="section-title">{% if lang == "ja" %}第11条（ユーザーの権利：個人情報の開示・訂正・削除・利用停止等）
         {% else %}Article 11 (User Rights: Disclosure, Correction, Deletion, Suspension of Use, etc. of Personal Information){% endif %}</h2>
@@ -196,9 +202,9 @@
             <br>Please also contact the above for reports of rights infringement or other issues concerning posts or other content on the Service.{% endif %}</p>
     
     <p class="terms-page__section">{% if lang == "ja" %}制定日：2025年5月23日
-            <br>最終改定日：2026年10月22日
+            <br>最終改定日：2026年10月27日
         {% else %}Date of Enactment: May 23, 2025
-            <br>Last Updated: October 22, 2026{% endif %}</p>
+            <br>Last Updated: October 27, 2026{% endif %}</p>
     
     {# 戻るボタン #}
     {% if platform != "web" %}

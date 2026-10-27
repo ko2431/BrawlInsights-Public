@@ -28,7 +28,7 @@ from app.core.cache import connect_redis, close_redis, set_cache, get_cache, is_
 from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_shared_db_if_logged_in, get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning, PoolAcquireTimeoutError
 #-from app.background_tasks.scheduler import start_scheduler, shutdown_scheduler
 #-from app.background_tasks.tasks import player_update_task_loop
-from app.routers import player, club, auth, account, stats, tools, boards, help, billing, special_reward_links
+from app.routers import player, club, auth, account, stats, tools, boards, help, billing, special_reward_links, push
 # [この部分は公開用リポジトリでは非公開にされています]
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.core.page_integrity import integrity_router, IntegrityGateMiddleware
@@ -36,7 +36,7 @@ from app.core.templating import templates
 from app.services.user_service import User, get_user, get_home_announcements
 from app.services.special_reward_link_service import get_public_home_banners
 from app.services import main_account_reward_service
-from app.services import reaction_rules
+from app.services import reaction_rules, push_service
 from app.services.brawl_service import get_player_name, get_player_icon_from_db, get_player_summaries_from_db, get_club_name, get_club_badge_id_from_db
 from app.services.notification_service import empty_board_notification_context, get_board_notification_context
 # [この部分は公開用リポジトリでは非公開にされています]
@@ -140,7 +140,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="15.3.50",
+    version="15.3.52",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -149,6 +149,9 @@ app = FastAPI(
 templates.env.globals['app_version'] = app.version
 # リアクションの絵文字ピッカーのデータの版（データを作り直したときだけ取り直させる）
 templates.env.globals['reaction_emoji_data_version'] = reaction_rules.data_version()
+# プッシュ通知（Web Push の公開鍵・アプリ版のプッシュがストアに出たか）。push.js に渡す
+templates.env.globals['push_web_key'] = push_service.web_push_public_key()
+templates.env.globals['push_app_released'] = push_service.APP_PUSH_RELEASED
 
 
 #* /---*---*---*---*---*---*---*---*/
@@ -168,6 +171,7 @@ app.include_router(boards.router)
 app.include_router(help.router)
 # [この部分は公開用リポジトリでは非公開にされています]
 app.include_router(special_reward_links.router)
+app.include_router(push.router)
 # [この部分は公開用リポジトリでは非公開にされています]
 app.include_router(integrity_router)
 
@@ -201,6 +205,23 @@ async def robots_txt():
     # ファイルの内容を読み込んでプレーンテキストとして返す
     content = robots_path.read_text(encoding="utf-8")
     return PlainTextResponse(content=content)
+
+
+#* /---*---*---*---*---*---*---*---*/
+#* Service Worker（プッシュ通知。ルートのスコープで動かすため /sw.js で配る）
+#* /---*---*---*---*---*---*---*---*/
+@app.get("/sw.js", include_in_schema=False, name="service_worker")
+async def service_worker():
+    """プッシュ通知を受け取る Service Worker。更新がすぐ届くよう、ブラウザ・Cloudflare にキャッシュさせない。"""
+    sw_path = Path(__file__).parent / "static" / "js" / "sw.js"
+    if not sw_path.is_file():
+        logger.error(f"sw.jsファイルが見つかりません。パス: {sw_path}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="sw.js not found")
+    return Response(
+        content=sw_path.read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Service-Worker-Allowed": "/"},
+    )
 
 
 #* /---*---*---*---*---*---*---*---*/

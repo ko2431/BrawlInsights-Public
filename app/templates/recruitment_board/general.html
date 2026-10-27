@@ -700,7 +700,10 @@
                     if (fab && cooldown > 0) {
                         scheduleGeneralBoardFabCooldown(fab, cooldown);
                     }
+                    // メッセージをプッシュ通知で受け取れることを1回だけ案内する（一覧を出し直した後。ページごと読み直したときは次のページで。push.js。ログインしている人だけ）
+                    window.BIPush?.suggestLater('board');
                     await navigateGeneralBoardAfterPost(postedCategory);
+                    window.BIPush?.showPending(300);
                 } else {
                     const d = await res.json();
                     alert(`${lang === 'ja' ? '投稿に失敗: ' : 'Failed: '}${d.detail}`);

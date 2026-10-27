@@ -462,7 +462,10 @@
                         if (fab && cooldown > 0) {
                             scheduleRecruitmentBoardFabCooldown('friend', fab, cooldown);
                         }
+                        // メッセージをプッシュ通知で受け取れることを1回だけ案内する（一覧を出し直した後。ページごと読み直したときは次のページで。push.js。ログインしている人だけ）
+                        window.BIPush?.suggestLater('board');
                         await navigateRecruitmentBoardAfterPost('friend');
+                        window.BIPush?.showPending(300);
                     } else {
                         const errorData = await response.json();
                         alert(`{% if lang == "ja" %}投稿に失敗しました: ${errorData.detail}{% else %}Failed to post: ${errorData.detail}{% endif %}`);

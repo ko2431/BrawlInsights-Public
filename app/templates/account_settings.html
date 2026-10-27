@@ -1137,28 +1137,15 @@
                     {# [この部分は公開用リポジトリでは非公開にされています] #}
                     isLoading: false,
                     {# [この部分は公開用リポジトリでは非公開にされています] #}
+                    // スイッチ: 押したらすぐ切り替えて保存し、失敗したら戻す
                     async togglePrivacySetting(type) {
                         if (this.isLoading) return;
 
                         const isCurrentlyHidden = (type === 'name') ? this.hideNameHistory : this.hideClubHistory;
                         const newSetting = !isCurrentlyHidden;
-                        
-                        const typeText = (this.lang === 'ja')
-                            ? ((type === 'name') ? '改名履歴' : 'クラブ履歴')
-                            : ((type === 'name') ? 'Name History' : 'Club History');
-                        
-                        const statusText = (this.lang === 'ja')
-                            ? (newSetting ? '非公開' : '公開')
-                            : (newSetting ? 'Private' : 'Public');
-
                         const account = this.privacyAccount;
-                        const confirmMessage = (this.lang === 'ja')
-                            ? `「${account.name}」の${typeText}を「${statusText}」に設定しますか？`
-                            : `Do you want to set the ${typeText} of “${account.name}” to ${statusText}?`;
-
-                        if (!confirm(confirmMessage)) {
-                            return;
-                        }
+                        const key = (type === 'name') ? 'hide_name_history' : 'hide_club_history';
+                        account[key] = newSetting;
 
                         this.isLoading = true;
                         try {
@@ -1174,13 +1161,8 @@
                             if (!response.ok) {
                                 throw new Error('Response was not ok.');
                             }
-                            // 成功したらフロントエンドの状態を更新
-                            if (type === 'name') {
-                                account.hide_name_history = newSetting;
-                            } else {
-                                account.hide_club_history = newSetting;
-                            }
                         } catch (error) {
+                            account[key] = !newSetting;
                             console.error('Error:', error);
                             alert( (this.lang === 'ja')
                                 ? 'エラーが発生しました。設定を変更できませんでした。'
@@ -1199,43 +1181,23 @@
                     notificationMessageReplyEnabled: {{ notification_message_reply_enabled|tojson }},
                     notificationMessageReactionEnabled: {{ notification_message_reaction_enabled|tojson }},
                     notificationTokenGiftEnabled: {{ notification_token_gift_enabled|tojson }},
+                    // スイッチ: 押したらすぐ切り替えて保存し、失敗したら戻す（プッシュ通知の欄のロックもすぐ変わる）
                     async toggleNotificationSetting(settingKey) {
                         if (this.isLoading) return;
-
-                        const stateMap = {
-                            notification_badge_enabled: this.notificationBadgeEnabled,
-                            notification_post_like_enabled: this.notificationPostLikeEnabled,
-                            notification_own_post_message_enabled: this.notificationOwnPostMessageEnabled,
-                            notification_participated_thread_message_enabled: this.notificationParticipatedThreadMessageEnabled,
-                            notification_message_mention_enabled: this.notificationMessageMentionEnabled,
-                            notification_message_reply_enabled: this.notificationMessageReplyEnabled,
-                            notification_message_reaction_enabled: this.notificationMessageReactionEnabled,
-                            notification_token_gift_enabled: this.notificationTokenGiftEnabled,
+                        const propMap = {
+                            notification_badge_enabled: 'notificationBadgeEnabled',
+                            notification_post_like_enabled: 'notificationPostLikeEnabled',
+                            notification_own_post_message_enabled: 'notificationOwnPostMessageEnabled',
+                            notification_participated_thread_message_enabled: 'notificationParticipatedThreadMessageEnabled',
+                            notification_message_mention_enabled: 'notificationMessageMentionEnabled',
+                            notification_message_reply_enabled: 'notificationMessageReplyEnabled',
+                            notification_message_reaction_enabled: 'notificationMessageReactionEnabled',
+                            notification_token_gift_enabled: 'notificationTokenGiftEnabled',
                         };
-                        const labelMap = {
-                            notification_badge_enabled: { ja: '通知バッジ', en: 'Notification Badge' },
-                            notification_post_like_enabled: { ja: '自分の投稿へのいいね', en: 'Likes on your posts' },
-                            notification_own_post_message_enabled: { ja: '自分の投稿へのメッセージ', en: 'Messages on your posts' },
-                            notification_participated_thread_message_enabled: { ja: '自分がメッセージを送ったスレッドへのメッセージ', en: 'Messages on threads you messaged' },
-                            notification_message_mention_enabled: { ja: '自分へのメンション', en: 'Mentions of you' },
-                            notification_message_reply_enabled: { ja: '自分のメッセージへのリプライ', en: 'Replies to your messages' },
-                            notification_message_reaction_enabled: { ja: '自分のメッセージへのリアクション', en: 'Reactions on your messages' },
-                            notification_token_gift_enabled: { ja: '自分へのトークン進呈', en: 'Token gifts to you' },
-                        };
-
-                        const newSetting = !stateMap[settingKey];
-                        const label = labelMap[settingKey];
-                        const statusText = (this.lang === 'ja')
-                            ? (newSetting ? 'オン' : 'オフ')
-                            : (newSetting ? 'On' : 'Off');
-                        const confirmMessage = (this.lang === 'ja')
-                            ? `${label.ja}を「${statusText}」に設定しますか？`
-                            : `Do you want to set ${label.en} to ${statusText}?`;
-
-                        if (!confirm(confirmMessage)) {
-                            return;
-                        }
-
+                        const prop = propMap[settingKey];
+                        if (!prop) return;
+                        const newSetting = !this[prop];
+                        this[prop] = newSetting;
                         this.isLoading = true;
                         try {
                             const response = await fetch(`/${this.lang}/account/update-notification-settings`, {
@@ -1249,15 +1211,8 @@
                             if (!response.ok) {
                                 throw new Error('Response was not ok.');
                             }
-                            if (settingKey === 'notification_badge_enabled') this.notificationBadgeEnabled = newSetting;
-                            if (settingKey === 'notification_post_like_enabled') this.notificationPostLikeEnabled = newSetting;
-                            if (settingKey === 'notification_own_post_message_enabled') this.notificationOwnPostMessageEnabled = newSetting;
-                            if (settingKey === 'notification_participated_thread_message_enabled') this.notificationParticipatedThreadMessageEnabled = newSetting;
-                            if (settingKey === 'notification_message_mention_enabled') this.notificationMessageMentionEnabled = newSetting;
-                            if (settingKey === 'notification_message_reply_enabled') this.notificationMessageReplyEnabled = newSetting;
-                            if (settingKey === 'notification_message_reaction_enabled') this.notificationMessageReactionEnabled = newSetting;
-                            if (settingKey === 'notification_token_gift_enabled') this.notificationTokenGiftEnabled = newSetting;
                         } catch (error) {
+                            this[prop] = !newSetting;
                             console.error('Error:', error);
                             alert((this.lang === 'ja')
                                 ? 'エラーが発生しました。設定を変更できませんでした。'
@@ -1289,15 +1244,13 @@
                     {% endif %}
                     {# 改名履歴の設定 #}
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}改名履歴を非公開:{% else %}Hide Name History:{% endif %}</span>
-                        <span class="info-item__value" x-text="hideNameHistory ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="togglePrivacySetting('name')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}改名履歴を非公開{% else %}Hide Name History{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}改名履歴を非公開{% else %}Hide Name History{% endif %}" :aria-checked="String(!!hideNameHistory)" :class="{ 'is-busy': isLoading }" @click="togglePrivacySetting('name')"></button>
                     </div>
                     {# クラブ履歴の設定 #}
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}クラブ履歴を非公開:{% else %}Hide Club History:{% endif %}</span>
-                        <span class="info-item__value" x-text="hideClubHistory ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="togglePrivacySetting('club')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}クラブ履歴を非公開{% else %}Hide Club History{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}クラブ履歴を非公開{% else %}Hide Club History{% endif %}" :aria-checked="String(!!hideClubHistory)" :class="{ 'is-busy': isLoading }" @click="togglePrivacySetting('club')"></button>
                     </div>
                 </div>
                 <p class="info-block__text">
@@ -1316,44 +1269,36 @@
             <div class="account-option" x-show="open" x-transition>
                 <div class="account-info-box">
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}通知バッジ:{% else %}Notification Badge:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationBadgeEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_badge_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}通知バッジ{% else %}Notification Badge{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}通知バッジ{% else %}Notification Badge{% endif %}" :aria-checked="String(!!notificationBadgeEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_badge_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分の投稿へのいいね:{% else %}Likes on Your Posts:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationPostLikeEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_post_like_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分の投稿へのいいね{% else %}Likes on Your Posts{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分の投稿へのいいね{% else %}Likes on Your Posts{% endif %}" :aria-checked="String(!!notificationPostLikeEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_post_like_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分の投稿へのメッセージ:{% else %}Messages on Your Posts:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationOwnPostMessageEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_own_post_message_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分の投稿へのメッセージ{% else %}Messages on Your Posts{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分の投稿へのメッセージ{% else %}Messages on Your Posts{% endif %}" :aria-checked="String(!!notificationOwnPostMessageEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_own_post_message_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ:{% else %}Messages on Threads You Messaged:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationParticipatedThreadMessageEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_participated_thread_message_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ{% else %}Messages on Threads You Messaged{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分がメッセージを送ったスレッドへのメッセージ{% else %}Messages on Threads You Messaged{% endif %}" :aria-checked="String(!!notificationParticipatedThreadMessageEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_participated_thread_message_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分へのメンション:{% else %}Mentions of You:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationMessageMentionEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_message_mention_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分へのメンション{% else %}Mentions of You{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分へのメンション{% else %}Mentions of You{% endif %}" :aria-checked="String(!!notificationMessageMentionEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_message_mention_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分のメッセージへのリプライ:{% else %}Replies to Your Messages:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationMessageReplyEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_message_reply_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分のメッセージへのリプライ{% else %}Replies to Your Messages{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分のメッセージへのリプライ{% else %}Replies to Your Messages{% endif %}" :aria-checked="String(!!notificationMessageReplyEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_message_reply_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分のメッセージへのリアクション:{% else %}Reactions on Your Messages:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationMessageReactionEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_message_reaction_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on Your Messages{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on Your Messages{% endif %}" :aria-checked="String(!!notificationMessageReactionEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_message_reaction_enabled')"></button>
                     </div>
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}自分へのトークン進呈:{% else %}Token Gifts to You:{% endif %}</span>
-                        <span class="info-item__value" x-text="notificationTokenGiftEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleNotificationSetting('notification_token_gift_enabled')" class="button button--secondary button--small" :disabled="isLoading">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}自分へのトークン進呈{% else %}Token Gifts to You{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}自分へのトークン進呈{% else %}Token Gifts to You{% endif %}" :aria-checked="String(!!notificationTokenGiftEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNotificationSetting('notification_token_gift_enabled')"></button>
                     </div>
                 </div>
                 <p class="info-block__text">
@@ -1364,6 +1309,66 @@
                     {% endif %}
                 </p>
             </div>
+            {#^ アプリ版は、プッシュ通知に対応したアプリ（15.3）がストアに出るまで、この欄ごと出さない（push_service.APP_PUSH_RELEASED） #}
+            {#^ push_settings がないとき（デプロイで git pull してから、アプリを再起動するまでの古いプロセス）も出さない #}
+            {% if push_settings is defined and (platform == 'web' or push_app_released) %}
+            {#^ プッシュ通知。受け取る種類はアカウントごと、受け取るかどうか（この端末で受け取る）は端末ごと（push.js の biPushSettings） #}
+            {#^ 掲示板の種類は、上のアプリ内の通知の設定がオンのものだけ選べる（オフのものは切り替えられないスイッチにし、押すと理由を出す） #}
+            {#^ 種類ごとの項目は、この端末で受け取れないとき（iPhone・iPad のブラウザなど）は出さず、「この端末で受け取る」がオフの間は切り替えられない #}
+            {% macro push_row(key, label_ja, label_en, in_app=none) %}
+            {% set label = label_ja if lang == 'ja' else label_en %}
+            {% set locked = ('!' ~ in_app) if in_app else 'false' %}
+            <div class="info-item">
+                <span class="info-item__label">{{ label }}</span>
+                <button type="button" role="switch" class="bi-switch" aria-label="{{ label }}"
+                        :aria-checked="String(!{{ locked }} && !!pushValues['{{ key }}'])"
+                        :class="{ 'is-locked': {{ locked }} || pushDetailsLocked(), 'is-busy': pushSaving['{{ key }}'] }"
+                        @click="togglePushSetting('{{ key }}', {{ locked }})"></button>
+            </div>
+            {% endmacro %}
+            <div class="account-option push-settings" x-show="open" x-transition
+                 x-data="biPushSettings({
+                     values: {{ push_settings | tojson | forceescape }},
+                     {# [この部分は公開用リポジトリでは非公開にされています] #}
+                 })">
+                <p class="push-settings__heading">{% if lang == "ja" %}プッシュ通知{% else %}Push Notifications{% endif %}</p>
+                <div class="account-info-box">
+                    <div class="push-settings__device" :class="{ 'push-settings__device--alone': !pushDetailsShown() }">
+                        <div class="info-item">
+                            <span class="info-item__label">{% if lang == "ja" %}この端末で受け取る{% else %}Receive on This Device{% endif %}</span>
+                            <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == 'ja' %}この端末で受け取る{% else %}Receive on This Device{% endif %}"
+                                    :aria-checked="String(pushState === 'on')"
+                                    :class="{ 'is-locked': pushDeviceLocked(), 'is-busy': pushBusy || pushState === 'loading' }"
+                                    @click="togglePushDevice()"></button>
+                        </div>
+                        <p class="push-settings__note" x-show="pushNote()" x-text="pushNote()" x-cloak></p>
+                    </div>
+                    <div x-show="pushDetailsShown()" x-cloak>
+                    <p class="push-settings__group">{% if lang == "ja" %}大会{% else %}Tournaments{% endif %}</p>
+                    {{ push_row('push_tournament_progress_enabled', '大会の進行', 'Tournament Progress') }}
+                    {{ push_row('push_tournament_chat_enabled', '大会のチャットの返信・メンション', 'Replies and Mentions in Tournament Chats') }}
+                    {{ push_row('push_tournament_notice_enabled', '大会のお知らせ', 'Tournament Announcements') }}
+                    <p class="push-settings__group">{% if lang == "ja" %}掲示板{% else %}Boards{% endif %}</p>
+                    {{ push_row('push_post_like_enabled', '自分の投稿へのいいね', 'Likes on Your Posts', 'notificationPostLikeEnabled') }}
+                    {{ push_row('push_own_post_message_enabled', '自分の投稿へのメッセージ', 'Messages on Your Posts', 'notificationOwnPostMessageEnabled') }}
+                    {{ push_row('push_participated_thread_message_enabled', '自分がメッセージを送ったスレッドへのメッセージ', 'Messages on Threads You Messaged', 'notificationParticipatedThreadMessageEnabled') }}
+                    {{ push_row('push_subscribed_thread_message_enabled', '通知をオンにしたスレッドへのメッセージ', 'Messages on Threads You Turned On Notifications For') }}
+                    {{ push_row('push_message_mention_enabled', '自分へのメンション', 'Mentions of You', 'notificationMessageMentionEnabled') }}
+                    {{ push_row('push_message_reply_enabled', '自分のメッセージへのリプライ', 'Replies to Your Messages', 'notificationMessageReplyEnabled') }}
+                    {{ push_row('push_message_reaction_enabled', '自分のメッセージへのリアクション', 'Reactions on Your Messages', 'notificationMessageReactionEnabled') }}
+                    {{ push_row('push_token_gift_enabled', '自分へのトークン進呈', 'Token Gifts to You', 'notificationTokenGiftEnabled') }}
+                    {# [この部分は公開用リポジトリでは非公開にされています] #}
+                    </div>
+                </div>
+                <p class="info-block__text">
+                    {% if lang == "ja" %}
+                        {{ 'ブラウザ' if platform == 'web' else 'アプリ' }}を閉じていても、選んだ通知をプッシュ通知で受け取れます。掲示板の通知は、上の通知設定でオンにしているものだけが届きます。「この端末で受け取る」は端末ごとに、受け取る通知はアカウントごとに設定します。
+                    {% else %}
+                        Get the notifications you choose as push notifications, even when the {{ 'browser' if platform == 'web' else 'app' }} is closed. For boards, only the notifications turned on above are sent. "Receive on This Device" is set for each device, and the notifications you receive are set for your account.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
             {{ device_options.board_blocks_option() }}
             {{ device_options.nav_bar_option() }}
         </section>
@@ -1565,32 +1570,21 @@ function accountDeviceOptions() {
         isEnterToSendEnabled: localStorage.getItem('bi_chat_enter_to_send') === 'true',
         toggleEnterToSendSetting() {
             const newSetting = !this.isEnterToSendEnabled;
-            const statusText = (this.lang === 'ja')
-                ? (newSetting ? 'オン' : 'オフ')
-                : (newSetting ? 'On' : 'Off');
-            const confirmMessage = (this.lang === 'ja')
-                ? `改行キーで送信を「${statusText}」に設定しますか？`
-                : `Set Send with Enter to ${statusText}?`;
-            if (confirm(confirmMessage)) {
-                if (newSetting) {
-                    localStorage.setItem('bi_chat_enter_to_send', 'true');
-                } else {
-                    localStorage.removeItem('bi_chat_enter_to_send');
-                }
-                this.isEnterToSendEnabled = newSetting;
+            if (newSetting) {
+                localStorage.setItem('bi_chat_enter_to_send', 'true');
+            } else {
+                localStorage.removeItem('bi_chat_enter_to_send');
             }
+            this.isEnterToSendEnabled = newSetting;
         },
         isNavBarEnabled: localStorage.getItem('brawlInsightsShowNavBar') === 'true',
         toggleNavBarSetting() {
             const newSetting = !this.isNavBarEnabled;
-            const confirmMessage = (this.lang === 'ja')
-                ? `ナビゲーションバーを「${newSetting ? '表示' : '非表示'}」に変更しますか？`
-                : `Change navigation bar to ${newSetting ? 'Visible' : 'Hidden'}?`;
-
-            if (confirm(confirmMessage)) {
-                localStorage.setItem('brawlInsightsShowNavBar', newSetting);
-                window.location.reload(); // 設定を反映させるためにページをリロード
-            }
+            localStorage.setItem('brawlInsightsShowNavBar', newSetting);
+            this.isNavBarEnabled = newSetting;
+            // 戻る／進むボタン（base.html の .navigation-controls）をその場で出し入れする
+            const nav = document.querySelector('.navigation-controls');
+            if (nav && window.Alpine) window.Alpine.$data(nav).showNav = newSetting;
         },
         openBoardBlocks() {
             window.dispatchEvent(new CustomEvent('open-board-blocks'));
@@ -3327,9 +3321,11 @@ function accountSettingsPage() {
             }
         },
 
-        confirmLogout() {
+        async confirmLogout() {
             const message = "{% if lang == 'ja' %}ログアウトしますか？{% else %}Are you sure you want to logout?{% endif %}";
             if (confirm(message)) {
+                // この端末のプッシュ通知の登録を消してから（共有の端末で、前の人の通知が届かないように）
+                if (window.BIPush) await window.BIPush.beforeLogout();
                 window.location.href = "{{ url_for('logout', lang=lang) }}";
             }
         },

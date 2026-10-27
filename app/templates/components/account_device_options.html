@@ -83,9 +83,8 @@
             <div class="account-option" x-show="open" x-transition>
                 <div class="account-info-box">
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}改行キーで送信:{% else %}Send with Enter:{% endif %}</span>
-                        <span class="info-item__value" x-text="isEnterToSendEnabled ? (lang === 'ja' ? 'オン' : 'On') : (lang === 'ja' ? 'オフ' : 'Off')"></span>
-                        <button type="button" @click="toggleEnterToSendSetting()" class="button button--secondary button--small">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}改行キーで送信{% else %}Send with Enter{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}改行キーで送信{% else %}Send with Enter{% endif %}" :aria-checked="String(!!isEnterToSendEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleEnterToSendSetting()"></button>
                     </div>
                 </div>
                 <p class="info-block__text">
@@ -121,13 +120,8 @@
             <div class="account-option" x-show="open" x-transition>
                 <div class="account-info-box">
                     <div class="info-item">
-                        <span class="info-item__label">{% if lang == "ja" %}ナビゲーションバー:{% else %}Navigation Bar:{% endif %}</span>
-                        <span class="info-item__value"
-                            x-text="isNavBarEnabled
-                                ? (lang === 'ja' ? '表示' : 'Visible')
-                                : (lang === 'ja' ? '非表示' : 'Hidden')">
-                        </span>
-                        <button type="button" @click="toggleNavBarSetting()" class="button button--secondary button--small">{% if lang == "ja" %}変更{% else %}Change{% endif %}</button>
+                        <span class="info-item__label">{% if lang == "ja" %}ナビゲーションバーを表示{% else %}Show Navigation Bar{% endif %}</span>
+                        <button type="button" role="switch" class="bi-switch" aria-label="{% if lang == "ja" %}ナビゲーションバーを表示{% else %}Show Navigation Bar{% endif %}" :aria-checked="String(!!isNavBarEnabled)" :class="{ 'is-busy': isLoading }" @click="toggleNavBarSetting()"></button>
                     </div>
                 </div>
                 <p class="info-block__text">

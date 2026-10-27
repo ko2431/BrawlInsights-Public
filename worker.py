@@ -123,6 +123,13 @@ async def _run_player_update_loop() -> None:
             pass
 
 
+async def _run_push_loop() -> None:
+    """プッシュ通知の送信ループ（Web・アプリに届くよう積まれた通知を送る）。"""
+    from app.services.push_sender import push_loop
+
+    await push_loop(shutdown_event)
+
+
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
@@ -151,6 +158,10 @@ async def main():
     update_task = asyncio.create_task(_run_player_update_loop(), name="PlayerUpdateLoop")
     running_tasks.add(update_task)
     update_task.add_done_callback(_log_background_task_done)
+
+    push_task = asyncio.create_task(_run_push_loop(), name="PushLoop")
+    running_tasks.add(push_task)
+    push_task.add_done_callback(_log_background_task_done)
 
     # [この部分は公開用リポジトリでは非公開にされています]
 
