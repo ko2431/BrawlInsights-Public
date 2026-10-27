@@ -168,6 +168,10 @@ async def connect_to_db(*, min_size: int | None = None, max_size: int | None = N
 
     全プロセスの max_size の合計は PostgreSQL の max_connections を下回るようにすること。
     超えると、アクセス集中時に各プロセスのプールが一斉に広がり、DB の接続枠を使い切る。
+
+    再試行しても作成できなければ例外を送出する。プールなしで起動を続けると全リクエストが失敗し続けるため、
+    プロセスを落として systemd（Restart=always）や Uvicorn のワーカー再起動に任せる。
+    VPS 再起動直後など、PostgreSQL の起動（クラッシュリカバリを含む）が再試行時間を超えた場合もこれで復帰する。
     """
     global _pool
     if _pool is not None:
@@ -194,7 +198,7 @@ async def connect_to_db(*, min_size: int | None = None, max_size: int | None = N
                 await asyncio.sleep(min(_CONNECT_RETRY_INTERVAL, remaining))
                 continue
             logger.error(f"データベース接続エラー。PostgreSQLのコネクションプール作成に失敗しました。: {e}", exc_info=True)
-            return
+            raise RuntimeError(f"Failed to connect to PostgreSQL: {e}") from e
 
 async def close_db_connection():
     """
