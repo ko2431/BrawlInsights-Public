@@ -12,15 +12,7 @@
 {% block content %}
 {% set ja = lang == "ja" %}
 <div class="announcements-page__container ann-detail">
-    {% if platform != "web" %}
-    <div class="back-button__container"
-         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
-         x-show="showManualBackButton"
-         style="display: none;" {# FOUC(ちらつき)防止 #}>
-        <div class="back-button">＜ {% if ja %}戻る{% else %}Back{% endif %}</div>
-    </div>
-    {% endif %}
-
+    {# アプリ版の汎用の戻るボタンは、すぐ下の一覧へのリンクと重なるので上には出さない（下には出す） #}
     <a class="ann-detail__list-link" href="{{ url_for('announcements', lang=lang) }}">{% if ja %}お知らせ一覧{% else %}All news{% endif %}</a>
 
     {% if admin_preview %}
