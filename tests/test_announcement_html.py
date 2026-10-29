@@ -146,3 +146,18 @@ def test_clean_post_input_requires_texts_for_each_language():
         clean_post_input(_post_input(show_web=False, show_ios=False, show_android=False))
     with pytest.raises(AnnouncementError):
         clean_post_input(_post_input(category="9"))
+
+
+def test_sanitize_keeps_list_start_and_alignment():
+    """番号付きの開始番号と、段落・画像の左・中央・右の配置は残す。"""
+    html = (
+        '<ol start="3"><li><p>三</p></li></ol><ol start="0"><li><p>x</p></li></ol><ol start="abc"><li><p>y</p></li></ol>'
+        '<p class="ta-right">右</p><h3 class="ta-center">中</h3>'
+        '<figure class="bi-figure" data-size="half" data-align="right"><img src="/static/images/a.png"></figure>'
+        '<figure class="bi-figure" data-align="top"><img src="/static/images/a.png"></figure>'
+    )
+    out = sanitize_body(html)
+    assert '<ol start="3">' in out and out.count("<ol>") == 2
+    assert '<p class="ta-right">右</p>' in out and '<h3 class="ta-center">中</h3>' in out
+    assert 'data-size="half" data-align="right"' in out
+    assert 'data-align="top"' not in out

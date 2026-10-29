@@ -285,22 +285,24 @@
                     width: { default: null },
                     height: { default: null },
                     size: { default: 'auto' },
+                    align: { default: 'center' },
                 };
             },
             parseHTML() {
-                const fromImg = (img, size) => ({
+                const fromImg = (img, size, align) => ({
                     src: img.getAttribute('src'),
                     alt: img.getAttribute('alt') || '',
                     width: img.getAttribute('width'),
                     height: img.getAttribute('height'),
                     size: ['full', 'half', 'auto'].includes(size) ? size : 'auto',
+                    align: ['left', 'center', 'right'].includes(align) ? align : 'center',
                 });
                 return [
                     {
                         tag: 'figure.bi-figure',
                         getAttrs: (el) => {
                             const img = el.querySelector('img');
-                            return img && img.getAttribute('src') ? fromImg(img, el.getAttribute('data-size')) : false;
+                            return img && img.getAttribute('src') ? fromImg(img, el.getAttribute('data-size'), el.getAttribute('data-align')) : false;
                         },
                     },
                     { tag: 'img[src]', getAttrs: (img) => fromImg(img, 'auto') },
@@ -311,7 +313,7 @@
                 const img = { src: a.src, alt: a.alt || '' };
                 if (a.width) img.width = String(a.width);
                 if (a.height) img.height = String(a.height);
-                return ['figure', { class: 'bi-figure', 'data-size': a.size || 'auto' }, ['img', img]];
+                return ['figure', { class: 'bi-figure', 'data-size': a.size || 'auto', 'data-align': a.align || 'center' }, ['img', img]];
             },
         });
 
@@ -323,8 +325,8 @@
                     attributes: {
                         align: {
                             default: null,
-                            parseHTML: (el) => (el.classList.contains('ta-center') ? 'center' : null),
-                            renderHTML: (attrs) => (attrs.align === 'center' ? { class: 'ta-center' } : {}),
+                            parseHTML: (el) => (el.classList.contains('ta-center') ? 'center' : el.classList.contains('ta-right') ? 'right' : null),
+                            renderHTML: (attrs) => (attrs.align === 'center' || attrs.align === 'right' ? { class: `ta-${attrs.align}` } : {}),
                         },
                     },
                 }];
@@ -456,7 +458,7 @@
             preview: { title_html: '', body_html: '' },
             revisions: { open: false, loading: false, items: [] },
             linkForm: { href: '', text: '', button: false, needText: false, editing: false },
-            imageForm: { q: '', items: [], total: 0, loading: false, selected: null, size: 'auto', alt: '', editing: false },
+            imageForm: { q: '', items: [], total: 0, loading: false, selected: null, size: 'auto', align: 'center', alt: '', editing: false },
             giftForm: { code: '', label: '' },
             onlyForm: { web: true, ios: false, android: false, scope: 'inline', editing: false },
             htmlForm: { text: '' },
@@ -576,6 +578,9 @@
                     extensions: isTitle ? ext.title() : ext.body(placeholder),
                     content: html,
                     editable: this.editable,
+                    // 「1. 」「- 」「### 」「---」などを打ったときに、勝手にリスト・見出しなどに変えない（打ったとおりに残す）
+                    enableInputRules: false,
+                    enablePasteRules: ['link'],
                     editorProps: {
                         attributes: { spellcheck: 'false', 'aria-label': `${lang === 'ja' ? '日本語' : '英語'}の${isTitle ? 'タイトル' : '本文'}` },
                         handlePaste(view, event) {
@@ -736,6 +741,16 @@
                 this.refreshActive();
             },
 
+            currentAlign(ed) {
+                const sel = ed.state.selection;
+                if (sel.node && sel.node.type.name === 'figure') return sel.node.attrs.align || 'center';
+                for (let d = sel.$from.depth; d > 0; d -= 1) {
+                    const node = sel.$from.node(d);
+                    if (node.type.name === 'paragraph' || node.type.name === 'heading') return node.attrs.align || 'left';
+                }
+                return 'left';
+            },
+
             refreshActive() {
                 const ed = editors[focusedKey];
                 if (!ed) return;
@@ -764,7 +779,8 @@
                     heading: is('heading', { level: 3 }),
                     bulletList: is('bulletList'),
                     orderedList: is('orderedList'),
-                    center: (attr('paragraph', 'align') || attr('heading', 'align')) === 'center',
+                    align: this.currentAlign(ed),
+                    listStart: is('orderedList') ? (attr('orderedList', 'start') || 1) : null,
                     note: is('noteBox'),
                     fold: is('fold'),
                     link: is('link'),
@@ -809,9 +825,20 @@
                     case 'heading': c.toggleHeading({ level: 3 }); break;
                     case 'bulletList': c.toggleBulletList(); break;
                     case 'orderedList': c.toggleOrderedList(); break;
-                    case 'center': {
-                        const align = this.active.center ? null : 'center';
-                        c.updateAttributes('paragraph', { align }).updateAttributes('heading', { align });
+                    case 'align': {
+                        // 画像を選んでいれば画像の配置、それ以外は段落・見出しの配置（ボタン・ギフトコードもこれに従う）
+                        const sel = ed.state.selection;
+                        if (sel.node && sel.node.type.name === 'figure') {
+                            c.updateAttributes('figure', { align: arg || 'center' });
+                        } else {
+                            const align = arg === 'left' ? null : arg;
+                            c.updateAttributes('paragraph', { align }).updateAttributes('heading', { align });
+                        }
+                        break;
+                    }
+                    case 'listStart': {
+                        const start = Math.max(1, Math.min(9999, parseInt(arg, 10) || 1));
+                        c.updateAttributes('orderedList', { start });
                         break;
                     }
                     case 'hr': c.setHorizontalRule(); break;
@@ -929,6 +956,7 @@
                 this.imageForm.editing = !!node;
                 this.imageForm.selected = node ? { src: node.attrs.src, width: node.attrs.width, height: node.attrs.height } : null;
                 this.imageForm.size = node ? node.attrs.size : 'auto';
+                this.imageForm.align = node ? (node.attrs.align || 'center') : 'center';
                 this.imageForm.alt = node ? node.attrs.alt : '';
                 this.dialog = 'image';
                 if (!this.imageForm.items.length) this.searchImages();
@@ -960,6 +988,7 @@
                     width: img.width || null,
                     height: img.height || null,
                     size: this.imageForm.size,
+                    align: this.imageForm.align,
                 };
                 if (this.imageForm.editing) {
                     ed.chain().focus().updateAttributes('figure', attrs).run();

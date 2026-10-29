@@ -288,6 +288,9 @@
 .ann-body .ta-center {
     text-align: center;
 }
+.ann-body .ta-right {
+    text-align: right;
+}
 .ann-body h3 {
     margin: .3em 0 .1em;
     font-size: 1.15em;
@@ -395,6 +398,15 @@
     height: auto;
     margin: 0 auto;
     border-radius: 10px;
+}
+/* 配置（data-align がないものは中央。今までの画像と同じ） */
+.ann-body figure.bi-figure[data-align="left"] img {
+    margin-left: 0;
+    margin-right: auto;
+}
+.ann-body figure.bi-figure[data-align="right"] img {
+    margin-left: auto;
+    margin-right: 0;
 }
 .ann-body figure.bi-figure[data-size="full"] img {
     width: 100%;

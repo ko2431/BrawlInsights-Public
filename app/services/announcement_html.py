@@ -21,6 +21,9 @@ ONLY_VALUES = frozenset({"web", "ios", "android", "web,ios", "web,android", "ios
 COLOR_TAGS = frozenset(f"c{i}" for i in range(10))
 SIZE_CLASSES = frozenset({"fs-s", "fs-l", "fs-xl"})
 FIGURE_SIZES = frozenset({"full", "half", "auto"})
+FIGURE_ALIGNS = frozenset({"left", "center", "right"})
+ALIGN_CLASSES = frozenset({"ta-center", "ta-right"})
+MAX_LIST_START = 9999
 VOID_TAGS = frozenset({"br", "hr", "img"})
 INTERNAL_HOSTS = ("brawlinsights.com", "www.brawlinsights.com")
 # 画像はサイト内の静的ファイルと、アップロードした画像（画像の土台ができてから）だけ
@@ -36,10 +39,11 @@ TITLE_TAGS = _INLINE_TAGS
 _BODY_ATTRIBUTES = {
     "a": {"href"},
     "img": {"src", "alt", "width", "height"},
+    "ol": {"start"},
 }
 _BODY_CLASSES = {
-    "p": {"ta-center"},
-    "h3": {"ta-center"},
+    "p": set(ALIGN_CLASSES),
+    "h3": set(ALIGN_CLASSES),
     "span": set(SIZE_CLASSES),
     "a": {"bi-btn"},
     "div": {"bi-note", "bi-fold__body"},
@@ -49,7 +53,7 @@ _BODY_CLASSES = {
 _BODY_ATTRIBUTE_VALUES = {
     "span": {"data-only": set(ONLY_VALUES)},
     "div": {"data-only": set(ONLY_VALUES)},
-    "figure": {"data-size": set(FIGURE_SIZES)},
+    "figure": {"data-size": set(FIGURE_SIZES), "data-align": set(FIGURE_ALIGNS)},
 }
 _TITLE_CLASSES = {"span": set()}
 _TITLE_ATTRIBUTE_VALUES = {"span": {"data-only": set(ONLY_VALUES)}}
@@ -60,6 +64,9 @@ def _attribute_filter(tag: str, attr: str, value: str) -> str | None:
         return value if _is_allowed_image_src(value) else None
     if tag == "img" and attr in ("width", "height"):
         return value if value.isdigit() and 0 < int(value) <= MAX_IMAGE_DIMENSION else None
+    if tag == "ol" and attr == "start":
+        # 番号付きの開始番号（途中の番号から始める・前のリストから通しにする）
+        return value if value.isdigit() and 0 < int(value) <= MAX_LIST_START else None
     if tag == "a" and attr == "href":
         # プロトコル相対の URL（//example.com）は外部へのリンクとして紛らわしいので落とす
         return None if value.startswith("//") else value
