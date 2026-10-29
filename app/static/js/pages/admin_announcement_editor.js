@@ -557,6 +557,25 @@
                     event.preventDefault();
                     event.returnValue = '';
                 });
+                // エディターの外（カテゴリーの選択・ボタンなど）にいても、⌘Z・⇧⌘Z・Ctrl+Y は最後に触ったエディターで元に戻す。
+                // ブラウザの「元に戻す」（Safari では閉じたタブを開き直す）に渡さない。普通の入力欄はその欄の中で戻すので除く
+                window.addEventListener('keydown', (event) => {
+                    if (event.isComposing || !(event.metaKey || event.ctrlKey) || event.altKey) return;
+                    const key = event.key.toLowerCase();
+                    const isUndo = key === 'z' && !event.shiftKey;
+                    const isRedo = (key === 'z' && event.shiftKey) || (key === 'y' && event.ctrlKey && !event.metaKey);
+                    if (!isUndo && !isRedo) return;
+                    const target = event.target;
+                    if (target.closest?.('.ProseMirror')) return;
+                    if (target.closest?.('input:not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea')) return;
+                    if (this.dialog) return;
+                    const ed = editors[focusedKey];
+                    if (!ed || !this.editable) return;
+                    event.preventDefault();
+                    if (isUndo) ed.chain().focus().undo().run();
+                    else ed.chain().focus().redo().run();
+                    this.refreshActive();
+                }, true);
                 this.$root.addEventListener('keydown', (event) => {
                     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === 'KeyK' && this.bodyFocused) {
                         event.preventDefault();

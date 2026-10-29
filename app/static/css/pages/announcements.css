@@ -310,6 +310,16 @@
 .ann-body li {
     display: list-item;
 }
+/* 番号・記号は li の大きさで描かれるので、1行目の文字の大きさに合わせる */
+.ann-body li:has(> p:first-child .fs-s)::marker {
+    font-size: smaller;
+}
+.ann-body li:has(> p:first-child .fs-l)::marker {
+    font-size: larger;
+}
+.ann-body li:has(> p:first-child .fs-xl)::marker {
+    font-size: 1.45em;
+}
 .ann-body li > p {
     margin: 0;
 }
