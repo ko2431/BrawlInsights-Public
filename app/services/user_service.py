@@ -15,6 +15,7 @@ from app.db.db import get_db_connection_for_bg_task, load_serialized_within_requ
 from app.utils.utils import format_utc_date, parse_utc_datetime, format_utc_datetime, is_expired, parse_utc_date
 from app.models.missing import MISSING
 from app.services import main_account_reward_service
+from app.services.announcement_html import sanitize_text_for_ios_display
 # [この部分は公開用リポジトリでは非公開にされています]
 
 

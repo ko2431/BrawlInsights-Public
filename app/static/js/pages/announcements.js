@@ -1,244 +1,174 @@
 // /app/static/js/pages/announcements.js
+// お知らせの一覧（長い本文の折りたたみ・「もっと見る」・古いリンクの転送）と個別ページ（共有）。
 (function () {
-    const CATEGORY_KEY = 'bi_announcements_category';
-    const VIEW_KEY = 'bi_announcements_view';
-    const VALID_CATEGORIES = new Set(['all', '1', '2', '3', '4', '5']);
-    const VIEWPORT_MARKER_PX = 96;
+    const CLAMP_SLACK_PX = 8;
 
-    function readSession(key) {
-        try {
-            return sessionStorage.getItem(key);
-        } catch {
-            return null;
-        }
-    }
-
-    function writeSession(key, value) {
-        try {
-            sessionStorage.setItem(key, value);
-        } catch {
-            /* quota / private mode */
-        }
-    }
-
-    function readSavedCategory() {
-        const saved = readSession(CATEGORY_KEY);
-        return VALID_CATEGORIES.has(saved) ? saved : 'all';
-    }
-
-    function readSavedView() {
-        try {
-            const raw = readSession(VIEW_KEY);
-            if (!raw) return null;
-            const state = JSON.parse(raw);
-            if (!state || typeof state !== 'object') return null;
-            const id = state.id != null ? String(state.id) : '';
-            return id ? { id } : null;
-        } catch {
-            return null;
-        }
-    }
-
-    function isShown(el) {
-        if (!el) return false;
-        if (el.hasAttribute('hidden')) return false;
-        const style = window.getComputedStyle(el);
-        return style.display !== 'none' && style.visibility !== 'hidden';
-    }
-
-    function announcementItems() {
-        return document.querySelectorAll('.announcement-item[id]');
-    }
-
-    function getHashTarget() {
-        const raw = window.location.hash.slice(1);
-        if (!raw) return null;
-        let id = raw;
-        try {
-            id = decodeURIComponent(raw);
-        } catch {
-            id = raw;
-        }
-        const byId = document.getElementById(id);
-        if (byId) return byId;
-        try {
-            return document.querySelector(`#${CSS.escape(id)}`);
-        } catch {
-            return null;
-        }
-    }
-
-    function announcementFromHash() {
-        const target = getHashTarget();
-        if (!target) return null;
-        return target.closest('.announcement-item') || (target.classList.contains('announcement-item') ? target : null);
-    }
-
-    function categoryOfItem(el) {
-        if (!el) return null;
-        const value = el.dataset.category;
-        return VALID_CATEGORIES.has(value) ? value : 'all';
-    }
-
-    function viewedAnnouncementId() {
-        let current = '';
-        for (const el of announcementItems()) {
-            if (!isShown(el)) continue;
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom <= 0) continue;
-            if (rect.top <= VIEWPORT_MARKER_PX) {
-                current = el.id;
-                continue;
+    function setupClamp(root) {
+        root.querySelectorAll('.ann-item__body.is-clamped:not([data-clamp-ready])').forEach((body) => {
+            body.dataset.clampReady = '1';
+            const button = body.parentElement.querySelector('.ann-item__expand');
+            if (body.scrollHeight <= body.clientHeight + CLAMP_SLACK_PX) {
+                body.classList.remove('is-clamped');
+                return;
             }
-            if (!current) current = el.id;
-            break;
-        }
-        return current;
+            if (button) button.hidden = false;
+        });
     }
 
-    function disableBrowserScrollRestoration() {
+    function expand(item) {
+        const body = item.querySelector('.ann-item__body');
+        const button = item.querySelector('.ann-item__expand');
+        if (!body) return;
+        body.classList.remove('is-clamped');
+        body.classList.add('is-expanding');
+        window.setTimeout(() => body.classList.remove('is-expanding'), 320);
+        if (button) button.hidden = true;
+    }
+
+    function itemCount(list) {
+        return list.querySelectorAll('.ann-item').length;
+    }
+
+    function rememberCount(list, pageSize) {
+        // 「もっと見る」で増やした件数を URL に残し、個別ページから戻ったときに同じ件数で開く
         try {
-            history.scrollRestoration = 'manual';
+            const url = new URL(window.location.href);
+            const n = itemCount(list);
+            if (n > pageSize) url.searchParams.set('n', String(n));
+            else url.searchParams.delete('n');
+            history.replaceState(history.state, '', url.toString());
         } catch {
             /* ignore */
         }
     }
 
-    function scrollToAnnouncement(el) {
-        if (!el || !isShown(el)) return false;
-        el.scrollIntoView({ block: 'start', behavior: 'auto' });
-        return true;
+    function decodeHash() {
+        const raw = window.location.hash.slice(1);
+        if (!raw) return '';
+        try {
+            return decodeURIComponent(raw);
+        } catch {
+            return raw;
+        }
     }
 
-    function keepAnnouncementInView(el) {
-        if (!scrollToAnnouncement(el)) return;
+    function findItemByKey(list, key) {
+        const byId = document.getElementById(key);
+        if (byId && byId.classList.contains('ann-item')) return byId;
+        try {
+            return list.querySelector(`.ann-item[data-legacy="${CSS.escape(key)}"]`);
+        } catch {
+            return null;
+        }
+    }
 
-        const retry = () => scrollToAnnouncement(el);
-        window.setTimeout(retry, 120);
-        window.setTimeout(retry, 400);
+    function handleHash(page, list) {
+        // 旧形式のリンク（/help/announcements#243・#G91・#web1）。ページにあればそこへ、なければ個別ページへ
+        const key = decodeHash();
+        if (!key) return;
+        const item = findItemByKey(list, key);
+        const base = page.dataset.detailBase.replace(/\/$/, '');
+        if (item) {
+            expand(item);
+            item.scrollIntoView({ block: 'start' });
+            return;
+        }
+        const target = /^\d+$/.test(key) ? `${base}/${key}` : `${base}/legacy/${encodeURIComponent(key)}`;
+        window.location.replace(target);
+    }
 
-        const images = el.querySelectorAll('img');
-        if (!images.length) return;
+    function initList() {
+        const page = document.getElementById('announcementsPage');
+        const list = document.getElementById('announcementList');
+        if (!page || !list) return;
+        const pageSize = Number(page.dataset.pageSize) || 20;
 
-        let pending = images.length;
-        const onDone = () => {
-            pending -= 1;
-            if (pending <= 0) retry();
-        };
-        images.forEach((img) => {
-            if (img.complete) {
-                onDone();
+        setupClamp(list);
+        list.addEventListener('click', (event) => {
+            const button = event.target.closest('.ann-item__expand');
+            if (button) expand(button.closest('.ann-item'));
+        });
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+            if (!list.contains(event.target) && event.target !== list) return;
+            setupClamp(list);
+            rememberCount(list, pageSize);
+        });
+        document.body.addEventListener('htmx:responseError', (event) => {
+            const button = event.target.closest?.('.ann-more__button');
+            if (button) button.classList.add('is-error');
+        });
+        window.addEventListener('hashchange', () => handleHash(page, list));
+        handleHash(page, list);
+    }
+
+    function copyText(text) {
+        // http の開発環境などでは navigator.clipboard がないので、選択してコピーする方法も使う
+        if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text).then(() => true, () => false);
+        }
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        area.setSelectionRange(0, text.length);
+        let ok = false;
+        try {
+            ok = document.execCommand('copy');
+        } catch {
+            ok = false;
+        }
+        area.remove();
+        return Promise.resolve(ok);
+    }
+
+    function isShareCanceled(error) {
+        return error && (error.name === 'AbortError' || /cancel/i.test(String(error.message || error)));
+    }
+
+    function initShare() {
+        document.addEventListener('click', async (event) => {
+            const button = event.target.closest('.ann-detail__share');
+            if (!button) return;
+            const url = window.location.origin + window.location.pathname;
+            const title = document.title;
+            const nativeShare = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.Share;
+            if (nativeShare) {
+                try {
+                    await window.Capacitor.Plugins.Share.share({ title, url });
+                } catch (error) {
+                    if (!isShareCanceled(error)) console.error(error);
+                }
                 return;
             }
-            img.addEventListener('load', onDone, { once: true });
-            img.addEventListener('error', onDone, { once: true });
+            if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+                try {
+                    await navigator.share({ url, title });
+                    return;
+                } catch (error) {
+                    if (isShareCanceled(error)) return;
+                }
+            }
+            if (!(await copyText(url))) return;
+            const label = button.querySelector('.ann-detail__share-label');
+            if (!label || button.classList.contains('is-copied')) return;
+            const original = label.textContent;
+            label.textContent = button.dataset.copiedLabel || original;
+            button.classList.add('is-copied');
+            window.setTimeout(() => {
+                label.textContent = original;
+                button.classList.remove('is-copied');
+            }, 1600);
         });
     }
 
-    window.announcements = function announcements() {
-        return {
-            categoryFilter: readSavedCategory(),
-            _restoring: true,
-            _saveTimer: 0,
-            _persistWatchReady: false,
+    function init() {
+        initList();
+        initShare();
+    }
 
-            init() {
-                disableBrowserScrollRestoration();
-                this.categoryFilter = readSavedCategory();
-                this.bindPersistence();
-                this.queueRestore();
-                window.addEventListener('hashchange', () => this.restoreView());
-                this.$nextTick(() => {
-                    this.$watch('categoryFilter', (value) => {
-                        if (this._restoring || !this._persistWatchReady) return;
-                        if (!VALID_CATEGORIES.has(value)) return;
-                        writeSession(CATEGORY_KEY, value);
-                        this.$nextTick(() => this.saveViewState());
-                    });
-                    this._persistWatchReady = true;
-                });
-            },
-
-            queueRestore() {
-                this.$nextTick(() => {
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => this.restoreView());
-                    });
-                });
-            },
-
-            bindPersistence() {
-                const save = () => this.saveViewState();
-                window.addEventListener('scroll', () => this.scheduleSaveViewState(), { passive: true });
-                window.addEventListener('pagehide', save);
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'hidden') save();
-                });
-                document.addEventListener('click', (event) => {
-                    if (event.target.closest?.('a[href]')) save();
-                }, true);
-            },
-
-            scheduleSaveViewState() {
-                if (this._restoring) return;
-                window.clearTimeout(this._saveTimer);
-                this._saveTimer = window.setTimeout(() => this.saveViewState(), 120);
-            },
-
-            saveViewState() {
-                if (this._restoring) return;
-                const id = viewedAnnouncementId();
-                if (!id) return;
-                writeSession(VIEW_KEY, JSON.stringify({ id }));
-            },
-
-            applySavedCategory() {
-                const savedCategory = readSavedCategory();
-                this.categoryFilter = savedCategory;
-                const select = this.$el?.querySelector('#categoryFilter');
-                if (select && select.value !== savedCategory) {
-                    select.value = savedCategory;
-                }
-                return savedCategory;
-            },
-
-            ensureItemVisible(el) {
-                if (!el || isShown(el)) return;
-                this.categoryFilter = categoryOfItem(el);
-            },
-
-            finishRestore() {
-                window.setTimeout(() => {
-                    this._restoring = false;
-                    this.saveViewState();
-                }, 450);
-            },
-
-            restoreView() {
-                this._restoring = true;
-                this.applySavedCategory();
-
-                const hashedItem = announcementFromHash();
-                if (hashedItem) {
-                    this.ensureItemVisible(hashedItem);
-                    this.$nextTick(() => {
-                        this.ensureItemVisible(hashedItem);
-                        keepAnnouncementInView(hashedItem);
-                        this.finishRestore();
-                    });
-                    return;
-                }
-
-                const saved = readSavedView();
-                this.$nextTick(() => {
-                    const el = saved ? document.getElementById(saved.id) : null;
-                    if (el) {
-                        this.ensureItemVisible(el);
-                        this.$nextTick(() => keepAnnouncementInView(el));
-                    }
-                    this.finishRestore();
-                });
-            },
-        };
-    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
 })();

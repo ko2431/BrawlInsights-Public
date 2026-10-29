@@ -947,7 +947,7 @@ class RankedSeason(Base):
 
 class Announcement(Base):
     """
-    お知らせを格納するテーブル。
+    お知らせを格納していた旧テーブル。2026-10-29 に announcement_posts へ写した（移行の元として1リリースだけ残す）。
     """
     __tablename__ = 'announcements'
 
@@ -958,6 +958,102 @@ class Announcement(Base):
     en_text = Column(Text, nullable=False)
     ja_text = Column(Text, nullable=True)
     category = Column(Integer, nullable=True)
+
+
+class AnnouncementPost(Base):
+    """
+    お知らせ（アナウンス）。検討メモ notes_private/announcement_plan_2026-10-29.md の 3章。
+    予約は「status = 'published' かつ published_at が未来」。削除は論理削除（deleted_at）。
+    タイトル・本文は announcement_html.py の決まった形の HTML（保存の前に消毒する）。
+    """
+    __tablename__ = 'announcement_posts'
+
+    id = Column(Integer, primary_key=True)
+    legacy_key = Column(Text, nullable=True, unique=True)  # 旧テーブルの ID（古いリンクの転送用）
+    category = Column(SmallInteger, nullable=True)  # 1 緊急 / 2 お知らせ / 3 アップデート / 4 プレゼント企画 / 5 当選発表
+    status = Column(Text, nullable=False, server_default='draft')
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    show_web = Column(Boolean, nullable=False, server_default='True')
+    show_ios = Column(Boolean, nullable=False, server_default='True')
+    show_android = Column(Boolean, nullable=False, server_default='True')
+    show_ja = Column(Boolean, nullable=False, server_default='True')
+    show_en = Column(Boolean, nullable=False, server_default='True')
+    on_home = Column(Boolean, nullable=False, server_default='True')
+    listed = Column(Boolean, nullable=False, server_default='True')
+    title_ja = Column(Text, nullable=False, server_default='')
+    title_en = Column(Text, nullable=False, server_default='')
+    body_ja = Column(Text, nullable=False, server_default='')
+    body_en = Column(Text, nullable=False, server_default='')
+    cover_url = Column(Text, nullable=True)  # 個別ページの OGP の画像（本文の最初の画像）
+    source_type = Column(Text, nullable=True)  # 連携元（9章）
+    source_id = Column(Text, nullable=True)
+    source_role = Column(Text, nullable=True)
+    version = Column(Integer, nullable=False, server_default='1')  # 保存のたびに +1（同時編集の検出）
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    updated_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('draft', 'published')", name='ck_announcement_posts_status'),
+        CheckConstraint("status = 'draft' OR published_at IS NOT NULL", name='ck_announcement_posts_published_at'),
+        CheckConstraint("category IS NULL OR category BETWEEN 1 AND 5", name='ck_announcement_posts_category'),
+        Index(
+            'ix_announcement_posts_public', desc('published_at'), desc('id'),
+            postgresql_where=text("status = 'published' AND deleted_at IS NULL"),
+        ),
+        Index('ix_announcement_posts_source', 'source_type', 'source_id'),
+    )
+
+
+class AnnouncementRevision(Base):
+    """お知らせの変更の履歴。保存・削除・復元のたびに1件。snapshot は編集できる列すべて。"""
+    __tablename__ = 'announcement_revisions'
+
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey('announcement_posts.id', ondelete='CASCADE'), nullable=False)
+    version = Column(Integer, nullable=False)
+    action = Column(Text, nullable=False)
+    snapshot = Column(JSONB, nullable=False)
+    edited_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    edited_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('create', 'update', 'delete', 'restore', 'migrate')",
+            name='ck_announcement_revisions_action',
+        ),
+        Index('ix_announcement_revisions_post_id', 'post_id', desc('id')),
+    )
+
+
+class AnnouncementTemplate(Base):
+    """
+    お知らせのテンプレート（kind = 'template'。新しく作るときのひな形）と
+    部品（kind = 'snippet'。本文に差し込むよく使う文面。差し込むときに中身を写す）。
+    """
+    __tablename__ = 'announcement_templates'
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(Text, nullable=False, server_default='template')
+    name = Column(Text, nullable=False)
+    category = Column(SmallInteger, nullable=True)
+    title_ja = Column(Text, nullable=False, server_default='')
+    title_en = Column(Text, nullable=False, server_default='')
+    body_ja = Column(Text, nullable=False, server_default='')
+    body_en = Column(Text, nullable=False, server_default='')
+    settings = Column(JSONB, nullable=False, server_default='{}')  # 掲載先の既定値（show_* など）
+    sort_order = Column(Integer, nullable=False, server_default='0')
+    updated_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("kind IN ('template', 'snippet')", name='ck_announcement_templates_kind'),
+        CheckConstraint("category IS NULL OR category BETWEEN 1 AND 5", name='ck_announcement_templates_category'),
+    )
 
 
 class SecretQuestion(Base):

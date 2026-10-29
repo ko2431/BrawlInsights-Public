@@ -25,3 +25,4 @@ cairosvg>=2.7.0  # SVG→PNG 変換 (image_renderer.py で使用)
 tdigest==0.5.2
 pywebpush==2.5.0 # プッシュ通知 (Web Push の暗号化・VAPID)
 google-auth==2.62.0 # プッシュ通知 (FCM HTTP v1 の認証)
+nh3==0.3.7 # お知らせの本文の消毒（許可リスト。announcement_html.py）

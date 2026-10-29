@@ -2,15 +2,17 @@ import json
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 import asyncpg
 
 from app.core.logger import logger
 from app.core.templating import templates
 from app.services.brawl_service import calc_num_of_available_brawlers
-from app.services.user_service import get_announcements, select_announcements_for_display
+from app.core.admin_permissions import PERM_ANNOUNCEMENTS_VIEW, user_has_perm
+from app.services import announcement_service
 from app.exceptions.custom_exceptions import DataBaseError
-from app.db.db import get_shared_db
+from app.db.db import PoolAcquireTimeoutError, get_db_connection_for_bg_task, get_shared_db
 
 router = APIRouter(
     prefix="/{lang}/help",
@@ -111,26 +113,98 @@ def get_version_history(lang: str, platform: str) -> list[dict]:
 async def announcements(
     request: Request,
     lang: str,
-    db: asyncpg.Connection = Depends(get_shared_db)
+    category: int | None = Query(None, ge=1, le=5),
+    n: int = Query(announcement_service.LIST_PAGE_SIZE, ge=1, le=announcement_service.LIST_MAX_ITEMS),
 ):
-    # お知らせを取得。ただしプラットフォーム指定のお知らせは該当プラットフォームのみに表示
-    platform = getattr(request.state, "platform", "unknown")
+    """お知らせの一覧。最初は20件、「もっと見る」の後に戻ったときは n 件まで出す（検討メモ 7.2）。"""
+    platform = getattr(request.state, "platform", "web")
+    limit = -(-n // announcement_service.LIST_PAGE_SIZE) * announcement_service.LIST_PAGE_SIZE
     try:
-        all_announcements = await get_announcements(db)
-    except DataBaseError as e:
-        logger.error(f"アナウンス一覧取得中にデータベースエラー: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="データベースエラー")
-    announcements = select_announcements_for_display(all_announcements, platform)
-    
-    # テンプレートに渡すコンテキスト
-    context = {
+        page = await announcement_service.get_list_page(platform, lang, category, 0, limit)
+    except (DataBaseError, PoolAcquireTimeoutError) as e:
+        logger.error(f"お知らせの一覧の取得中にエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="データベースエラー")
+    return templates.TemplateResponse("announcements.html", {
         "request": request,
         "lang": lang,
         "current_page": "home",
-        "announcements": announcements
-    }
+        "items": page["items"],
+        "has_more": page["has_more"],
+        "next_offset": limit,
+        "category": category,
+        "categories": announcement_service.CATEGORIES,
+    })
 
-    return templates.TemplateResponse("announcements.html", context)
+
+@router.get("/announcements/page", name="announcements_page")
+async def announcements_page(
+    request: Request,
+    lang: str,
+    category: int | None = Query(None, ge=1, le=5),
+    offset: int = Query(0, ge=0, le=announcement_service.LIST_MAX_OFFSET),
+):
+    """「もっと見る」で足す20件（HTML の断片）。"""
+    platform = getattr(request.state, "platform", "web")
+    offset -= offset % announcement_service.LIST_PAGE_SIZE
+    try:
+        page = await announcement_service.get_list_page(platform, lang, category, offset, announcement_service.LIST_PAGE_SIZE)
+    except (DataBaseError, PoolAcquireTimeoutError) as e:
+        logger.error(f"お知らせの一覧の取得中にエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="データベースエラー")
+    return templates.TemplateResponse("announcements/_page.html", {
+        "request": request,
+        "lang": lang,
+        "items": page["items"],
+        "has_more": page["has_more"],
+        "next_offset": offset + announcement_service.LIST_PAGE_SIZE,
+        "category": category,
+    })
+
+
+@router.get("/announcements/legacy/{key}", name="announcement_legacy")
+async def announcement_legacy(request: Request, lang: str, key: str):
+    """旧 ID（#web1・#G91 などの古いリンク）から個別ページへ。見つからなければ一覧へ。"""
+    try:
+        post_id = await announcement_service.resolve_legacy_key(key)
+    except (DataBaseError, PoolAcquireTimeoutError) as e:
+        logger.error(f"お知らせの旧 ID の解決中にエラー: {e}", exc_info=True)
+        post_id = None
+    if post_id is None:
+        return RedirectResponse(request.url_for("announcements", lang=lang), status_code=302)
+    return RedirectResponse(request.url_for("announcement_detail", lang=lang, post_id=post_id), status_code=301)
+
+
+@router.get("/announcements/{post_id:int}", name="announcement_detail")
+async def announcement_detail(request: Request, lang: str, post_id: int):
+    """お知らせの個別ページ。下書き・予約・削除済みは、閲覧の権限のある管理者だけに見せる。"""
+    platform = getattr(request.state, "platform", "web")
+    try:
+        data = await announcement_service.get_public_post(post_id, platform, lang)
+    except (DataBaseError, PoolAcquireTimeoutError) as e:
+        logger.error(f"お知らせ #{post_id} の取得中にエラー: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="データベースエラー")
+    admin_preview = None
+    user = getattr(request.state, "current_user", None)
+    if data["state"] != "ok" and user_has_perm(user, PERM_ANNOUNCEMENTS_VIEW):
+        async with get_db_connection_for_bg_task() as db:
+            preview = await announcement_service.get_admin_preview_post(db, post_id, platform, lang)
+        if preview is not None:
+            admin_preview = preview.pop("row")
+            data = preview
+    if data["state"] == "not_found":
+        raise HTTPException(status_code=404, detail="お知らせが見つかりません")
+    return templates.TemplateResponse("announcement_detail.html", {
+        "request": request,
+        "lang": lang,
+        "current_page": "home",
+        "state": data["state"],
+        "item": data.get("item"),
+        "newer": data.get("newer"),
+        "older": data.get("older"),
+        "admin_preview": admin_preview,
+        "categories": announcement_service.CATEGORIES,
+    }, status_code=200)
+
 
 @router.get("/automatic_acquisition", name="automatic_acquisition")
 async def automatic_acquisition(

@@ -1,0 +1,14 @@
+{# /app/templates/announcements/_page.html #}
+{# 一覧の20件分と「もっと見る」。最初の表示と「もっと見る」の両方で使う #}
+{% from "announcements/_item.html" import ann_item with context %}
+{% for item in items %}{{ ann_item(item, lang) }}{% endfor %}
+{% if has_more %}
+<div class="ann-more">
+    <button type="button" class="button button--secondary ann-more__button"
+            hx-get="{{ url_for('announcements_page', lang=lang) }}?offset={{ next_offset }}{% if category %}&category={{ category }}{% endif %}"
+            hx-target="closest .ann-more" hx-swap="outerHTML" hx-indicator="this">
+        <span class="ann-more__label">{% if lang == "ja" %}もっと見る{% else %}Show more{% endif %}</span>
+        <span class="ann-more__loading">{% if lang == "ja" %}読み込み中…{% else %}Loading…{% endif %}</span>
+    </button>
+</div>
+{% endif %}

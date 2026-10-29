@@ -1,0 +1,12 @@
+{# /app/templates/announcements/_item.html #}
+{# お知らせの一覧の1件。長い本文は畳み、「続きを読む」でその場で開く（announcements.js） #}
+{% macro ann_item(item, lang) %}
+<article class="ann-item" id="{{ item.id }}"{% if item.legacy_key and item.legacy_key != item.id|string %} data-legacy="{{ item.legacy_key }}"{% endif %}>
+    <a class="ann-item__head" href="{{ url_for('announcement_detail', lang=lang, post_id=item.id) }}">
+        <time class="ann-item__date">{{ item.date }}</time>
+        <h2 class="ann-item__title">{{ item.title_html|safe }}</h2>
+    </a>
+    <div class="ann-item__body ann-body is-clamped">{{ item.body_html|safe }}</div>
+    <button type="button" class="ann-item__expand" hidden>{% if lang == "ja" %}続きを読む{% else %}Read more{% endif %}</button>
+</article>
+{% endmacro %}

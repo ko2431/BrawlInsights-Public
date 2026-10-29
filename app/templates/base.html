@@ -21,13 +21,13 @@
     <meta property="og:type" content="{% block og_type %}article{% endblock %}"/> {# ページのタイプ #}
     <meta property="og:site_name" content="Brawl Insights - {% if lang == 'ja' %}ブロスタ戦績確認ツール{% else %}Statistics Checking Tool for Brawl Stars{% endif %}"/> {# ホームページのタイトル #}
     <meta property="og:description" content="{{ self.og_description() }}"/> {# ページの説明 #}
-    <meta property="og:image" content="{{ url_for('static', path='/images/ui/twitter_card_' + lang + '.png') }}"/> {# サムネイル画像のURL (設定する場合は追加) #}
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', path='/images/ui/twitter_card_' + lang + '.png') }}{% endblock %}"/> {# サムネイル画像のURL (ページごとに og_image で差し替えられる) #}
     <meta property="og:url" content="{{ request.url }}"/> {# ページのURL #}
 
     {# Twitterカード用 #}
     <meta name="twitter:card" content="summary_large_image"/> {# Xで共有された場合のTwitterカードの大きさ。summary(小)またはsummary_large_image(大) #}
     <meta name="twitter:creator" content="@LMDKosuke"/> {# コンテンツ作成者の@ユーザー名 #}
-    <meta name="twitter:image" content="{{ url_for('static', path='/images/ui/twitter_card_' + lang + '.png') }}">
+    <meta name="twitter:image" content="{{ self.og_image() }}">
     
     {#^ --- CSSの読み込み順序を考慮 --- #}
     {# 1. 基本スタイル #}

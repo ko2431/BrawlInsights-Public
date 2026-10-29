@@ -85,11 +85,20 @@
             </div>
             <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 2px; line-height: 1.55;">
                 {% for announcement in announcements %}
+                    {# title_html がないのは、デプロイ中に古いプロセスが旧形式のお知らせを渡したとき（次のリリースで else を消す） #}
+                    {% if announcement.title_html is defined %}
+                    <a href="{{ url_for('announcement_detail', lang=lang, post_id=announcement.id) }}" class="announcement-title" data-announcement-id="{{ announcement.id }}">
+                        <div>
+                            {{ announcement.date_short }} <b>{{ announcement.title_html|safe }}</b>
+                        </div>
+                    </a>
+                    {% else %}
                     <a href="{{ url_for('announcements', lang=lang) }}#{{ announcement.id }}" class="announcement-title">
                         <div>
                             {{ announcement.datetime_jst_str[:10] if lang == "ja" else announcement.datetime_utc_str[:10] }} <b>{{ announcement.ja_title|safe if lang == "ja" and announcement.ja_title else announcement.en_title|safe }}</b>
                         </div>
                     </a>
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>

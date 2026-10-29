@@ -1,0 +1,22 @@
+{
+  "name": "brawlinsights-editor-bundle",
+  "private": true,
+  "description": "アナウンス管理のエディター（Tiptap）を1つのファイルにまとめる。出力は app/static/js/vendor/tiptap/tiptap.bundle.js",
+  "scripts": {
+    "build": "esbuild entry.js --bundle --format=esm --minify --target=es2020 --legal-comments=external --outfile=../../app/static/js/vendor/tiptap/tiptap.bundle.js"
+  },
+  "devDependencies": {
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-bold": "3.32.0",
+    "@tiptap/extension-document": "3.32.0",
+    "@tiptap/extension-italic": "3.32.0",
+    "@tiptap/extension-link": "3.32.0",
+    "@tiptap/extension-strike": "3.32.0",
+    "@tiptap/extension-text": "3.32.0",
+    "@tiptap/extension-underline": "3.32.0",
+    "@tiptap/extensions": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "esbuild": "0.28.2"
+  }
+}

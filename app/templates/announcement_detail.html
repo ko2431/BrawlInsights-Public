@@ -1,0 +1,87 @@
+{# /app/templates/announcement_detail.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if state == "ok" %}{{ item.title_text }} - {% endif %}{% if lang == "ja" %}お知らせ{% else %}News{% endif %} - Brawl Insights{% endblock %}
+{% block og_description %}{% if state == "ok" and item.description %}{{ item.description }}{% elif lang == "ja" %}このサイトのお知らせを掲載しています。{% else %}This page contains news about this site.{% endif %}{% endblock %}
+{% block og_image %}{% if state == "ok" and item.cover_url and item.cover_url.startswith('/static/') %}{{ url_for('static', path=item.cover_url[7:]) }}{% else %}{{ super() }}{% endif %}{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/announcements.css') }}?v={{ app_version }}">
+{% endblock %}
+
+{% block content %}
+{% set ja = lang == "ja" %}
+<div class="announcements-page__container ann-detail">
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if ja %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+
+    <a class="ann-detail__list-link" href="{{ url_for('announcements', lang=lang) }}">{% if ja %}お知らせ一覧{% else %}All news{% endif %}</a>
+
+    {% if admin_preview %}
+    {% set preview_state = "削除済み" if admin_preview.deleted_at else ("下書き" if admin_preview.status == "draft" else "予約") %}
+    <div class="ann-detail__admin-note">
+        <span>管理者にだけ表示しています（{{ preview_state }}）。</span>
+        <a href="{{ url_for('admin_announcement_edit', lang=lang, post_id=admin_preview.id) }}">編集する</a>
+    </div>
+    {% endif %}
+
+    {% if state == "hidden" %}
+    <div class="ann-detail__hidden">
+        <p>{% if ja %}このお知らせは、お使いの環境では表示されません。{% else %}This news item isn't available on your device or language.{% endif %}</p>
+        <a class="button button--secondary" href="{{ url_for('announcements', lang=lang) }}">{% if ja %}お知らせ一覧へ{% else %}Go to all news{% endif %}</a>
+    </div>
+    {% else %}
+    <article class="ann-detail__article">
+        <time class="ann-item__date">{{ item.date }}</time>
+        <h1 class="ann-detail__title">{{ item.title_html|safe }}</h1>
+        <div class="ann-body ann-detail__body">{{ item.body_html|safe }}</div>
+    </article>
+
+    <div class="ann-detail__actions">
+        <button type="button" class="ann-detail__share" data-copied-label="{% if ja %}リンクをコピーしました{% else %}Link copied{% endif %}">
+            <span class="ann-detail__share-label">{% if ja %}リンクを共有{% else %}Share link{% endif %}</span>
+        </button>
+    </div>
+
+    {% if newer or older %}
+    <nav class="ann-detail__nav" aria-label="{% if ja %}前後のお知らせ{% else %}Other news{% endif %}">
+        {% if newer %}
+        <a class="ann-detail__nav-link" href="{{ url_for('announcement_detail', lang=lang, post_id=newer.id) }}">
+            <span class="ann-detail__nav-label">{% if ja %}新しいお知らせ{% else %}Newer{% endif %}</span>
+            <span class="ann-detail__nav-title">{{ newer.title_html|safe }}</span>
+        </a>
+        {% endif %}
+        {% if older %}
+        <a class="ann-detail__nav-link ann-detail__nav-link--older" href="{{ url_for('announcement_detail', lang=lang, post_id=older.id) }}">
+            <span class="ann-detail__nav-label">{% if ja %}前のお知らせ{% else %}Older{% endif %}</span>
+            <span class="ann-detail__nav-title">{{ older.title_html|safe }}</span>
+        </a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% endif %}
+
+    {# バナー広告 #}
+    {% include "components/ad_banner.html" %}
+
+    {% if platform != "web" %}
+    <div class="back-button__container"
+         x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+         x-show="showManualBackButton"
+         style="display: none;" {# FOUC(ちらつき)防止 #}>
+        <div class="back-button">＜ {% if ja %}戻る{% else %}Back{% endif %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', path='/js/pages/announcements.js') }}?v={{ app_version }}"></script>
+{% endblock %}

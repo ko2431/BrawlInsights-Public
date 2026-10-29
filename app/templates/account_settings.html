@@ -952,10 +952,10 @@
                     <span class="info-item__label giveaway-title" style="color: var(--color-222); padding-top: 4px;">
                         {% if lang == "ja" %}
                             第{{ giveaway_info.code }}回プレゼント企画開催中！
-                            <br>景品・規約など詳細は<a href="{{ url_for('announcements', lang=lang) }}#G{{ giveaway_info.code }}" style="font-weight: bold; text-decoration: underline;">こちら</a>。
+                            <br>景品・規約など詳細は<a href="/{{ lang }}/help/announcements/legacy/G{{ giveaway_info.code }}" style="font-weight: bold; text-decoration: underline;">こちら</a>。
                         {% else %}
                             Giveaway #{{ giveaway_info.code }} is now open!
-                            <br>Check <a href="{{ url_for('announcements', lang=lang) }}#G{{ giveaway_info.code }}" style="font-weight: bold; text-decoration: underline;">Announcements</a> for prize details and terms. Terms and conditions apply.
+                            <br>Check <a href="/{{ lang }}/help/announcements/legacy/G{{ giveaway_info.code }}" style="font-weight: bold; text-decoration: underline;">Announcements</a> for prize details and terms. Terms and conditions apply.
                         {% endif %}
                     </span>
                     <span class="info-item__label giveaway-entry-count" style="padding: 4px 0;">

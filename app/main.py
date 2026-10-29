@@ -33,7 +33,8 @@ from app.routers import player, club, auth, account, stats, tools, boards, help,
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.core.page_integrity import integrity_router, IntegrityGateMiddleware
 from app.core.templating import templates
-from app.services.user_service import User, get_user, get_home_announcements
+from app.services.user_service import User, get_user
+from app.services import announcement_service
 from app.services.special_reward_link_service import get_public_home_banners
 from app.services import main_account_reward_service
 from app.services import reaction_rules, push_service
@@ -140,7 +141,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="15.3.52",
+    version="15.3.54",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -286,6 +287,7 @@ async def sitemap(request: Request, db: asyncpg.Connection = Depends(get_shared_
         "/ja/help/search_specification", "/en/help/search_specification",
         "/ja/help/about_the_technology", "/en/help/about_the_technology",
         "/ja/help/version_history", "/en/help/version_history",
+        "/ja/help/announcements", "/en/help/announcements",
         "/ja/stats", "/en/stats",
         "/ja/stats/prestige", "/en/stats/prestige",
         "/ja/stats/ranked_tier_list", "/en/stats/ranked_tier_list",
@@ -850,10 +852,10 @@ async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depe
         # サポート外言語はデフォルト(例: ja)へリダイレクト
         return RedirectResponse(url=request.url_for('home', lang='ja'), status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     
-    # お知らせ(最初の3件)を取得。ただしプラットフォーム指定のお知らせは該当プラットフォームのみに表示
+    # お知らせ(最新3件)を取得。端末・言語ごとの掲載先はお知らせ側で絞る（キャッシュから返す）
     platform = getattr(request.state, "platform", "unknown")
     try:
-        announcements = await get_home_announcements(platform)
+        announcements = await announcement_service.get_home_items(platform, lang)
     except DataBaseError as e:
         logger.error(f"アナウンス一覧取得中にデータベースエラー: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="データベースエラー")
