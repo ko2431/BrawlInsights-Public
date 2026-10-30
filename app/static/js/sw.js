@@ -18,6 +18,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(self.registration.showNotification(title, {
         body: data.body || '',
         icon: data.icon || '/static/images/ui/logo.png',
+        // 大きい画像（お知らせの本文の最初の画像。Chrome・Android などで出る）
+        image: data.image || undefined,
         tag: data.tag || undefined,
         // 同じ tag で置き換えたときも知らせる（まとめた件数が変わったとき）
         renotify: !!data.tag,

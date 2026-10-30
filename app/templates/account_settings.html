@@ -1357,6 +1357,9 @@
                     {{ push_row('push_message_reply_enabled', '自分のメッセージへのリプライ', 'Replies to Your Messages', 'notificationMessageReplyEnabled') }}
                     {{ push_row('push_message_reaction_enabled', '自分のメッセージへのリアクション', 'Reactions on Your Messages', 'notificationMessageReactionEnabled') }}
                     {{ push_row('push_token_gift_enabled', '自分へのトークン進呈', 'Token Gifts to You', 'notificationTokenGiftEnabled') }}
+                    {#^ お知らせはプレゼント企画などの宣伝を含むので既定オフ（本人がオンにしたときだけ。App Store 4.5.4・AD25） #}
+                    <p class="push-settings__group">{% if lang == "ja" %}お知らせ{% else %}News{% endif %}</p>
+                    {{ push_row('push_announcement_enabled', 'アップデート・プレゼント企画などのお知らせ', 'Updates, Giveaways, and Other News') }}
                     {# [この部分は公開用リポジトリでは非公開にされています] #}
                     </div>
                 </div>

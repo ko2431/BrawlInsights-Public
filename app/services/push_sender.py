@@ -104,7 +104,7 @@ async def process(jobs: list[dict], sender: "Sender") -> None:
     if not jobs:
         return
     async with get_db_connection_for_bg_task() as db:
-        user_jobs = [(int(j["uid"]), j) for j in jobs if j.get("src") in ("board", "tn") and j.get("uid")]
+        user_jobs = [(int(j["uid"]), j) for j in jobs if j.get("src") in ("board", "tn", "direct") and j.get("uid")]
         # [この部分は公開用リポジトリでは非公開にされています]
         if not user_jobs:
             return
@@ -219,6 +219,11 @@ async def _plan(job: dict, user: dict, board: BoardContext, now: float):
     """送るなら「端末の言語 → Push」の関数、送らないなら None。間引きの状態はここで進める。"""
     uid = user["id"]
     src = job.get("src")
+    if src == "direct":
+        pushes = {lang: rules.Push(**data) for lang, data in (job.get("push") or {}).items()}
+        if not pushes:
+            return None
+        return lambda lang: pushes.get(lang) or next(iter(pushes.values()))
     if src == "tn":
         notice = job.get("notice") or {}
         category = notice.get("cat") or rules.tournament_category(notice.get("kind") or "")
@@ -339,12 +344,148 @@ async def _badge(db: asyncpg.Connection, user: dict) -> int | None:
         return None
 
 
+# --- お知らせのプッシュ（AD26・AD30） ----------------------------------------------------------------
+# 一度に多くの端末に送るので、通知のキュー（push_loop）とは別のループ・別の同時数で少しずつ送り、
+# 大会の進行などの通知を遅らせない。送り終えた端末を cursor に残し、worker が止まったら次から続ける
+
+ANNOUNCEMENT_POLL_SECONDS = 15
+ANNOUNCEMENT_CHUNK = 500
+ANNOUNCEMENT_CONCURRENCY = 8
+ANNOUNCEMENT_LATE_SECONDS = 6 * 3600  # 送る時刻（または送信の途中）からこれ以上たっていたら送らない
+
+_DUE_SQL = """
+    SELECT ap.id FROM announcement_pushes ap JOIN announcement_posts p ON p.id = ap.post_id
+    WHERE ap.status IN ('pending', 'sending') AND p.status = 'published' AND p.deleted_at IS NULL
+      AND p.published_at <= now()
+    ORDER BY p.published_at, ap.id
+    LIMIT 10
+"""
+
+
+async def announcement_loop(shutdown_event: asyncio.Event) -> None:
+    if not push_service.is_enabled():
+        logger.info("プッシュ通知の鍵がないため、お知らせのプッシュ通知の送信ループは動かしません。")
+        return
+    sender = Sender(concurrency=ANNOUNCEMENT_CONCURRENCY)
+    logger.info("お知らせのプッシュ通知の送信ループを開始しました。")
+    try:
+        while not shutdown_event.is_set():
+            try:
+                await send_due_announcements(sender, shutdown_event)
+            except Exception as e:
+                warn(f"お知らせのプッシュ通知の送信中にエラー: {e}")
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=ANNOUNCEMENT_POLL_SECONDS)
+            except asyncio.TimeoutError:
+                pass
+    finally:
+        await sender.close()
+
+
+async def send_due_announcements(sender: "Sender", shutdown_event: asyncio.Event | None = None) -> None:
+    async with get_db_connection_for_bg_task() as db:
+        # 送信の途中で長く止まったまま（お知らせを下書きに戻した・消したなど）のものは終わりにする
+        await db.execute(
+            "UPDATE announcement_pushes SET status = 'interrupted', finished_at = now(), updated_at = now() "
+            "WHERE status = 'sending' AND updated_at < now() - make_interval(secs => $1)",
+            ANNOUNCEMENT_LATE_SECONDS,
+        )
+        ids = [r["id"] for r in await db.fetch(_DUE_SQL)]
+        for push_id in ids:
+            if shutdown_event is not None and shutdown_event.is_set():
+                return
+            await _send_announcement(db, push_id, sender, shutdown_event)
+
+
+async def _send_announcement(db: asyncpg.Connection, push_id: int, sender: "Sender",
+                             shutdown_event: asyncio.Event | None) -> None:
+    from app.services import announcement_push_service as aps
+
+    row = await db.fetchrow("SELECT * FROM announcement_pushes WHERE id = $1", push_id)
+    post = await db.fetchrow("SELECT * FROM announcement_posts WHERE id = $1", row["post_id"]) if row else None
+    if row is None or post is None or row["status"] not in ("pending", "sending"):
+        return
+    now = time.time()
+    if row["status"] == "pending":
+        due = max(post["published_at"], row["armed_at"] or post["published_at"]).timestamp()
+        if now - due > ANNOUNCEMENT_LATE_SECONDS:
+            await db.execute(
+                "UPDATE announcement_pushes SET status = 'expired', finished_at = now(), updated_at = now() WHERE id = $1",
+                push_id,
+            )
+            warn(f"お知らせ (ID: {post['id']})のプッシュ通知は、送る時刻から時間がたちすぎたので送りませんでした。")
+            return
+    platforms, langs = aps.targets(post)
+    pushes = aps.build_pushes(post, row, platforms, langs)
+    claimed = await db.fetchrow(
+        """
+        UPDATE announcement_pushes SET status = 'sending', started_at = COALESCE(started_at, now()), updated_at = now(),
+            target_count = CASE WHEN status = 'pending' THEN (
+                SELECT COUNT(*) FROM push_devices d JOIN users u ON u.id = d.user_id WHERE """ + aps.RECIPIENT_WHERE + """
+            ) ELSE target_count END
+        WHERE id = $3 AND status = $4
+        RETURNING *
+        """,
+        platforms, langs, push_id, row["status"],
+    )
+    if claimed is None:
+        return
+    if row["status"] == "pending":
+        logger.info(f"お知らせ (ID: {post['id']})のプッシュ通知を送り始めます（{claimed['target_count']}台）。")
+    cursor, sent, failed, gone = claimed["cursor"], claimed["sent_count"], claimed["failed_count"], claimed["gone_count"]
+    while True:
+        if shutdown_event is not None and shutdown_event.is_set():
+            return  # sending のまま。次に worker が動いたら cursor の次から続ける
+        devices = await db.fetch(
+            f"""
+            SELECT d.id, d.user_id, d.platform, d.token, d.p256dh, d.auth, d.lang
+            FROM push_devices d JOIN users u ON u.id = d.user_id
+            WHERE {aps.RECIPIENT_WHERE} AND d.id > $3
+            ORDER BY d.id
+            LIMIT $4
+            """,
+            platforms, langs, cursor, ANNOUNCEMENT_CHUNK,
+        )
+        if not devices:
+            break
+        results = await asyncio.gather(
+            *(sender.deliver(d, pushes[(d["platform"], d["lang"])], None) for d in devices), return_exceptions=True,
+        )
+        gone_tokens = []
+        for device, result in zip(devices, results):
+            if result == OK:
+                sent += 1
+            elif result == GONE:
+                gone += 1
+                gone_tokens.append(device["token"])
+            else:
+                failed += 1
+                if isinstance(result, Exception):
+                    warn(f"お知らせのプッシュ通知を送れませんでした (user={device['user_id']}): {result}")
+        if gone_tokens:
+            await push_service.remove_devices(db, gone_tokens)
+        cursor = devices[-1]["id"]
+        await db.execute(
+            "UPDATE announcement_pushes SET cursor = $2, sent_count = $3, failed_count = $4, gone_count = $5, "
+            "updated_at = now() WHERE id = $1",
+            push_id, cursor, sent, failed, gone,
+        )
+        if len(devices) < ANNOUNCEMENT_CHUNK:
+            break
+    await db.execute(
+        "UPDATE announcement_pushes SET status = 'sent', finished_at = now(), updated_at = now() WHERE id = $1", push_id,
+    )
+    logger.info(
+        f"お知らせ (ID: {post['id']})のプッシュ通知を送りました（{sent}台に送信、失敗 {failed}台、失効して削除 {gone}台）。"
+    )
+
+
 # --- 送り先 -----------------------------------------------------------------------------------
 
 class Sender:
-    def __init__(self) -> None:
+    def __init__(self, concurrency: int = CONCURRENCY) -> None:
         self.client = httpx.AsyncClient(http2=True, timeout=10.0)
-        self.sem = asyncio.Semaphore(CONCURRENCY)
+        self.sem = asyncio.Semaphore(concurrency)
         self.fcm = FcmClient(settings.FCM_SERVICE_ACCOUNT_FILE) if settings.FCM_SERVICE_ACCOUNT_FILE else None
         self.web = (WebPushClient(settings.VAPID_PRIVATE_KEY, settings.VAPID_SUBJECT)
                     if settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY else None)

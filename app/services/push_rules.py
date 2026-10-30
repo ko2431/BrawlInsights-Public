@@ -17,6 +17,8 @@ CAT_TN_CHAT = "tn_chat"
 CAT_TN_NOTICE = "tn_notice"
 CAT_BOARD = "board"
 CAT_ADMIN = "admin"
+CAT_NEWS = "news"  # お知らせ（Android の通知チャンネルの id もこれ）
+ANNOUNCEMENT_SETTING_KEY = "push_announcement_enabled"
 
 TOURNAMENT_SETTING_KEYS = {
     CAT_TN_PROGRESS: "push_tournament_progress_enabled",
@@ -37,7 +39,8 @@ BOARD_SETTING_KEYS = {
 }
 BOARD_WARNING = "admin_warning"  # 管理者からの警告。設定はなく、いつも届ける
 
-PUSH_SETTING_KEYS = tuple(TOURNAMENT_SETTING_KEYS.values()) + tuple(push for push, _ in BOARD_SETTING_KEYS.values())
+PUSH_SETTING_KEYS = (tuple(TOURNAMENT_SETTING_KEYS.values()) + tuple(push for push, _ in BOARD_SETTING_KEYS.values())
+                     + (ANNOUNCEMENT_SETTING_KEY,))
 PUSH_SETTING_DEFAULTS = {
     **{key: True for key in TOURNAMENT_SETTING_KEYS.values()},
     "push_post_like_enabled": False,
@@ -48,6 +51,7 @@ PUSH_SETTING_DEFAULTS = {
     "push_message_reply_enabled": True,
     "push_message_reaction_enabled": False,
     "push_token_gift_enabled": True,
+    ANNOUNCEMENT_SETTING_KEY: False,  # プレゼント企画などの宣伝を含むので、本人がオンにしたときだけ（AD25）
 }
 ADMIN_PUSH_LEVELS = (0, 20, 30)
 
@@ -147,6 +151,7 @@ POST_TYPE_LABELS = {
 THEME_POST_TYPES = frozenset({"theme", "brawler_guide"})
 BODY_MAX_CHARS = 120
 ICON_PATH = "/static/images/ui/logo.png"
+SITE_ORIGIN = "https://brawlinsights.com"  # FCM の画像は絶対 URL（アプリが読む）
 
 
 @dataclass
@@ -161,6 +166,7 @@ class Push:
     time_sensitive: bool = False
     ttl: int = DEFAULT_TTL_SECONDS
     kind: str = ""
+    image: str = ""  # 大きい画像（サイト内のパス。Chrome・Android などで出る）
 
 
 def clip(text: str | None, limit: int = BODY_MAX_CHARS) -> str:
@@ -283,6 +289,23 @@ def admin_push(lang: str, *, event_key: str, title: str, summary: str, target_pa
                 channel="admin", kind=event_key)
 
 
+ANNOUNCEMENT_TITLE_MAX = 60
+ANNOUNCEMENT_BODY_MAX = 120
+
+
+def announcement_push(lang: str, *, post_id: int, title: str, body: str, image: str = "") -> Push:
+    """お知らせ。タップで個別ページ。同じお知らせの通知は置き換える。"""
+    return Push(
+        title=clip(title, ANNOUNCEMENT_TITLE_MAX) or ("お知らせ" if lang == "ja" else "News"),
+        body=clip(body, ANNOUNCEMENT_BODY_MAX),
+        url=f"/{lang}/help/announcements/{int(post_id)}",
+        tag=f"news{int(post_id)}",
+        channel=CAT_NEWS,
+        kind="announcement",
+        image=image,
+    )
+
+
 # --- 送り先ごとの形 ---------------------------------------------------------------------------
 
 # Web Push の送り先として受け付けるサービス（登録された URL へサーバーから送るので、ほかのホストは受け付けない）
@@ -308,7 +331,10 @@ def is_allowed_web_endpoint(url: str) -> bool:
 
 def web_payload(push: Push) -> dict:
     """Service Worker（sw.js）が受け取る形。"""
-    return {"title": push.title, "body": push.body, "url": push.url, "tag": push.tag, "icon": ICON_PATH}
+    payload = {"title": push.title, "body": push.body, "url": push.url, "tag": push.tag, "icon": ICON_PATH}
+    if push.image:
+        payload["image"] = push.image
+    return payload
 
 
 def fcm_message(token: str, push: Push, badge: int | None = None, *, now: float) -> dict:
@@ -323,9 +349,12 @@ def fcm_message(token: str, push: Push, badge: int | None = None, *, now: float)
     if badge is not None:
         android_notification["notification_count"] = badge
         aps["badge"] = badge
+    notification = {"title": push.title, "body": push.body}
+    if push.image:
+        notification["image"] = SITE_ORIGIN + push.image  # iOS で出すにはアプリの Notification Service Extension が要る
     return {
         "token": token,
-        "notification": {"title": push.title, "body": push.body},
+        "notification": notification,
         "data": {"url": push.url, "kind": push.kind, "tag": push.tag},
         "android": {
             "priority": "high" if push.high else "normal",

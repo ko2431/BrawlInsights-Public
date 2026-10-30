@@ -130,6 +130,13 @@ async def _run_push_loop() -> None:
     await push_loop(shutdown_event)
 
 
+async def _run_announcement_push_loop() -> None:
+    """お知らせのプッシュ通知（公開の時刻になったものを、通知のキューとは別に少しずつ送る）。"""
+    from app.services.push_sender import announcement_loop
+
+    await announcement_loop(shutdown_event)
+
+
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
@@ -162,6 +169,10 @@ async def main():
     push_task = asyncio.create_task(_run_push_loop(), name="PushLoop")
     running_tasks.add(push_task)
     push_task.add_done_callback(_log_background_task_done)
+
+    announcement_push_task = asyncio.create_task(_run_announcement_push_loop(), name="AnnouncementPushLoop")
+    running_tasks.add(announcement_push_task)
+    announcement_push_task.add_done_callback(_log_background_task_done)
 
     # [この部分は公開用リポジトリでは非公開にされています]
 

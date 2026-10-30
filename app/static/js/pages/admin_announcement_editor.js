@@ -545,9 +545,13 @@
         let toastTimer = 0;
         let suppressDirty = false;
         let uploadSeq = 0;
+        let pushEstimateKey = '';
+        let pushEstimateTimer = 0;
+        let pushPollTimer = 0;
         const prefs = readPrefs();
 
         const post = raw.post ? { ...raw.post, category: raw.post.category == null ? '' : String(raw.post.category) } : {};
+        if (raw.mode === 'post' && !post.push) post.push = { status: 'none', enabled: false, editable: true, with_image: true };
         const tpl = raw.template
             ? { ...raw.template, category: raw.template.category == null ? '' : String(raw.template.category), settings: { ...(raw.template.settings || {}) } }
             : { kind: 'template', settings: {} };
@@ -555,6 +559,10 @@
         return {
             mode: raw.mode,
             canEdit: !!raw.canEdit,
+            canPush: !!raw.canPush,
+            pushEstimate: { devices: null, by_platform: {}, same_day: 0, loading: false },
+            pushDefaults: { title_ja: '', title_en: '', body_ja: '', body_en: '' },
+            pushTesting: false,
             urls: raw.urls,
             post,
             tpl,
@@ -652,6 +660,43 @@
                 return '';
             },
 
+            get pushEditable() {
+                return this.mode === 'post' && this.canPush && this.editable && !!this.post.push && this.post.push.editable;
+            },
+            get pushDue() {
+                // 送る時刻（公開と同時）。予約の公開ならその時刻、それ以外は保存したとき
+                const p = this.post;
+                if (p.publish_mode === 'at' && p.published_at) {
+                    const at = new Date(`${p.published_at}:00+09:00`);
+                    if (at > new Date()) return { now: false, text: p.published_at.replace('T', ' ') };
+                }
+                return { now: true, text: '' };
+            },
+            get pushStatusText() {
+                const push = this.post.push || {};
+                const counts = () => {
+                    const parts = [`${(push.sent_count || 0).toLocaleString()}台に送信`];
+                    if (push.failed_count) parts.push(`失敗 ${push.failed_count.toLocaleString()}台`);
+                    if (push.gone_count) parts.push(`受け取れなくなった端末 ${push.gone_count.toLocaleString()}台`);
+                    return parts.join('・');
+                };
+                switch (push.status) {
+                    case 'sent': return `送りました（${push.started_at}）: ${counts()}`;
+                    case 'sending': return `送っています: ${(push.sent_count + push.failed_count + push.gone_count).toLocaleString()} / ${(push.target_count || 0).toLocaleString()}台`;
+                    case 'expired': return '送る時刻から時間がたちすぎたため、送りませんでした。';
+                    case 'interrupted': return `途中で止まりました（${push.started_at}）: ${counts()}`;
+                    default: return '';
+                }
+            },
+            get pushPlanText() {
+                const push = this.post.push || {};
+                if (!push.enabled || !push.editable) return '';
+                if (this.post.status !== 'published') return '公開すると、そのときにプッシュ通知を送ります（下書きのあいだは送りません）。';
+                const due = this.pushDue;
+                if (!due.now) return `${due.text}（日本時間）の公開と同時に送ります。それまではオフにすれば止められます。`;
+                return this.post.state === 'published' ? '保存すると、すぐに送ります。' : '公開と同時に送ります。';
+            },
+
             // --- 読み込み ---------------------------------------------------------------------
             async init() {
                 // 上の帯の高さ（折り返すと変わる）に合わせて、ツールバーを固定する位置を決める
@@ -680,6 +725,11 @@
                 this.ready = true;
                 this.refreshActive();
                 this.checkLocalDraft();
+                if (this.mode === 'post' && this.post.push) {
+                    if (this.post.push.enabled && this.pushEditable) this.loadPushEstimate(true);
+                    const status = this.post.push.status;
+                    if (status === 'sending' || (status === 'pending' && this.post.state === 'published')) this.pollPush();
+                }
                 window.addEventListener('beforeunload', (event) => {
                     if (!this.dirty && !this.uploading) return;
                     event.preventDefault();
@@ -798,6 +848,7 @@
                         source_type: p.source_type,
                         source_id: p.source_id,
                         source_role: p.source_role,
+                        push: this.pushInput(),
                         ...texts,
                     };
                 }
@@ -828,6 +879,7 @@
                     }, 800);
                 }, 120);
                 if (this.previewOpen) this.schedulePreview();
+                this.schedulePushEstimate();
             },
 
             checkLocalDraft() {
@@ -854,6 +906,11 @@
                 suppressDirty = true;
                 const target = this.mode === 'post' ? this.post : this.tpl;
                 for (const [key, value] of Object.entries(data)) {
+                    if (key === 'push') {
+                        // 下書きの復元・最新の読み込み。送った後の状態（status など）は、送ってきたものがあればそれに
+                        if (this.mode === 'post' && value) this.post.push = { ...this.post.push, ...value };
+                        continue;
+                    }
                     if (key.startsWith('title_') || key.startsWith('body_')) {
                         const editor = editors[key];
                         if (editor) {
@@ -886,6 +943,114 @@
                     const body = editors[`body_${lang}`];
                     this.counts[lang] = body ? body.getText().replace(/\s/g, '').length : 0;
                 }
+                if (this.mode === 'post') this.refreshPushDefaults();
+            },
+
+            // --- プッシュ通知（文面が空なら、タイトル・本文の先頭から作る。サーバーの announcement_push_service と同じ） ------
+            refreshPushDefaults() {
+                const text = (key, limit) => {
+                    const editor = editors[key];
+                    const value = editor ? editor.getText({ blockSeparator: ' ' }).replace(/\s+/g, ' ').trim() : '';
+                    return limit && value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+                };
+                this.pushDefaults = {
+                    title_ja: text('title_ja', 60), title_en: text('title_en', 60),
+                    body_ja: text('body_ja', 120), body_en: text('body_en', 120),
+                };
+            },
+
+            togglePush() {
+                if (!this.pushEditable) return;
+                this.post.push.enabled = !this.post.push.enabled;
+                this.markDirty();
+                if (this.post.push.enabled) this.loadPushEstimate(true);
+            },
+
+            pushEstimateParams() {
+                const p = this.post;
+                const params = new URLSearchParams();
+                for (const key of ['web', 'ios', 'android', 'ja', 'en']) if (p[`show_${key}`]) params.set(key, '1');
+                if (p.id) params.set('post_id', String(p.id));
+                if (!this.pushDue.now) params.set('at', p.published_at);
+                return params.toString();
+            },
+
+            schedulePushEstimate() {
+                if (this.mode !== 'post' || !this.post.push || !this.post.push.enabled || !this.pushEditable) return;
+                clearTimeout(pushEstimateTimer);
+                pushEstimateTimer = setTimeout(() => this.loadPushEstimate(), 400);
+            },
+
+            async loadPushEstimate(force = false) {
+                const params = this.pushEstimateParams();
+                if (!force && params === pushEstimateKey) return;
+                pushEstimateKey = params;
+                this.pushEstimate.loading = true;
+                try {
+                    const res = await fetch(`${this.urls.pushEstimate}?${params}`);
+                    if (!res.ok) throw new Error(String(res.status));
+                    const data = await res.json();
+                    this.pushEstimate = { devices: data.devices, by_platform: data.by_platform || {}, same_day: data.same_day || 0, loading: false };
+                } catch {
+                    this.pushEstimate = { devices: null, by_platform: {}, same_day: 0, loading: false };
+                }
+            },
+
+            pushEstimateText() {
+                const e = this.pushEstimate;
+                if (e.loading && e.devices == null) return '数えています…';
+                if (e.devices == null) return '';
+                const names = { web: 'Web', ios: 'iOS', android: 'Android' };
+                const parts = Object.entries(e.by_platform).map(([k, n]) => `${names[k] || k} ${n.toLocaleString()}`);
+                return `届く端末の目安: ${e.devices.toLocaleString()}台${parts.length > 1 ? `（${parts.join('・')}）` : ''}`;
+            },
+
+            async sendPushTest() {
+                if (!this.canPush || this.pushTesting) return;
+                this.pushTesting = true;
+                try {
+                    const texts = this.collect();
+                    const data = await this.postJson(this.urls.pushTest, {
+                        id: this.post.id || null,
+                        title_ja: texts.title_ja, title_en: texts.title_en, body_ja: texts.body_ja, body_en: texts.body_en,
+                        push: this.pushInput(),
+                    });
+                    this.showToast(data.message);
+                } catch (e) {
+                    this.showToast(e.message, true);
+                } finally {
+                    this.pushTesting = false;
+                }
+            },
+
+            pushInput() {
+                const push = this.post.push || {};
+                return {
+                    enabled: !!push.enabled,
+                    title_ja: push.title_ja || '', title_en: push.title_en || '',
+                    body_ja: push.body_ja || '', body_en: push.body_en || '',
+                    with_image: push.with_image !== false,
+                };
+            },
+
+            pollPush() {
+                // 送信中・送る時刻が来たものは、終わるまで少しずつ読み直す（最長10分）
+                clearTimeout(pushPollTimer);
+                const started = Date.now();
+                const tick = async () => {
+                    if (!this.post.id) return;
+                    try {
+                        const res = await fetch(`${this.urls.list.replace(/\/$/, '')}/${this.post.id}/push`);
+                        const data = await res.json();
+                        if (data.push) this.post.push = { ...this.post.push, ...data.push, ...(data.push.editable ? this.pushInput() : {}) };
+                    } catch {
+                        /* 次で読み直す */
+                    }
+                    const status = this.post.push && this.post.push.status;
+                    const waiting = status === 'sending' || (status === 'pending' && this.post.state === 'published');
+                    if (waiting && Date.now() - started < 10 * 60 * 1000) pushPollTimer = setTimeout(tick, 3000);
+                };
+                pushPollTimer = setTimeout(tick, 2000);
             },
 
             onEditorFocus(key) {
@@ -1625,12 +1790,30 @@
                 }
                 const p = this.post;
                 const wasPublic = p.state === 'published' || p.state === 'scheduled';
+                const lines = [];
                 if (p.status === 'published' && !wasPublic) {
                     const when = p.publish_mode === 'at' && p.published_at ? `${p.published_at.replace('T', ' ')}（日本時間）に` : '今すぐ';
-                    if (!confirm(`このお知らせを${when}公開しますか？`)) return;
+                    lines.push(`このお知らせを${when}公開します。`);
                 }
+                // プッシュ通知を送ることになる保存（AD28・AD32）
+                const pushSends = this.pushEditable && p.push.enabled && p.status === 'published'
+                    && (p.push.status !== 'pending' || this.serialize() !== baseline);
+                if (pushSends) {
+                    await this.loadPushEstimate(true);
+                    const due = this.pushDue;
+                    const count = this.pushEstimate.devices == null ? '' : `（届く端末の目安: ${this.pushEstimate.devices.toLocaleString()}台）`;
+                    if (this.pushEstimate.same_day) {
+                        lines.push(`この日はすでにほかのお知らせで${this.pushEstimate.same_day}件のプッシュ通知を送っています（送る予定を含む）。`);
+                    }
+                    lines.push(due.now
+                        ? `保存すると、すぐにプッシュ通知を送ります${count}。送ったプッシュ通知は取り消せません。`
+                        : `${due.text}（日本時間）の公開と同時に、プッシュ通知を送ります${count}。`);
+                }
+                if (lines.length && !confirm(`${lines.join('\n\n')}\n\nよろしいですか？`)) return;
                 this.saving = true;
                 const payload = { ...this.collect(), id: p.id || null, version: p.version || null };
+                // プッシュの設定は、送る権限があって送る前のときだけ送る
+                if (!this.pushEditable) delete payload.push;
                 try {
                     const data = await this.postJson(this.urls.save, payload);
                     Object.assign(this.post, {
@@ -1639,6 +1822,7 @@
                         state: data.state,
                         updated_at: data.updated_at,
                     });
+                    if (data.push) this.post.push = { ...this.post.push, ...data.push };
                     if (data.published_at) {
                         this.post.published_at = data.published_at;
                         this.post.publish_mode = 'at';
@@ -1651,8 +1835,10 @@
                     baseline = this.serialize();
                     this.dirty = false;
                     this.setMessage('', 'info');
-                    this.showToast(data.message);
+                    this.showToast(data.push && data.push.status === 'pending' && data.state === 'published'
+                        ? `${data.message}プッシュ通知を送っています。` : data.message);
                     if (this.revisions.open) this.loadRevisions();
+                    if (data.push && (data.push.status === 'sending' || (data.push.status === 'pending' && data.state === 'published'))) this.pollPush();
                 } catch (e) {
                     if (e.code === 'conflict') this.setMessage(e.message, 'error', 'reload');
                     else this.setMessage(e.message, 'error');

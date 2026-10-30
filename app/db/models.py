@@ -100,6 +100,7 @@ class User(Base):
     push_message_reply_enabled = Column(Boolean, nullable=False, server_default='True')
     push_message_reaction_enabled = Column(Boolean, nullable=False, server_default='False')
     push_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
+    push_announcement_enabled = Column(Boolean, nullable=False, server_default='False')  # お知らせ（宣伝を含むので既定オフ。AD25）
     # [この部分は公開用リポジトリでは非公開にされています]
     last_main_account_changed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -1040,6 +1041,46 @@ class AnnouncementTemplate(Base):
         CheckConstraint("category IS NULL OR category BETWEEN 1 AND 5", name='ck_announcement_templates_category'),
     )
 
+
+class AnnouncementPush(Base):
+    """
+    お知らせのプッシュ通知（検討メモ announcement_plan の 8章・AD25〜AD33）。お知らせ1件につき1回だけ。
+    送るのは公開と同時（予約の公開ならその時刻）で、worker の push_sender.announcement_loop が送る。
+    送る前にお知らせを下書きに戻す・削除すると送らない（送る時刻はお知らせの published_at に付いていく）。
+    文面が空なら、送るときにお知らせのタイトル・本文の先頭から作る。
+    status: pending（送る前）・sending（送信中。worker が止まったら cursor の次から続ける）・sent・canceled（オフにした）・
+    expired（worker が長く止まっていて、送る時刻から時間がたちすぎた）・interrupted（送信中に長く止まった）
+    """
+    __tablename__ = 'announcement_pushes'
+
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey('announcement_posts.id', ondelete='CASCADE'), nullable=False, unique=True)
+    status = Column(Text, nullable=False, server_default='pending')
+    title_ja = Column(Text, nullable=False, server_default='')
+    title_en = Column(Text, nullable=False, server_default='')
+    body_ja = Column(Text, nullable=False, server_default='')
+    body_en = Column(Text, nullable=False, server_default='')
+    with_image = Column(Boolean, nullable=False, server_default='True')
+    armed_at = Column(DateTime(timezone=True), nullable=True)  # 最後にオンにして保存した日時
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    cursor = Column(Integer, nullable=False, server_default='0')  # 送り終えた端末（push_devices.id）の最後
+    target_count = Column(Integer, nullable=False, server_default='0')
+    sent_count = Column(Integer, nullable=False, server_default='0')
+    failed_count = Column(Integer, nullable=False, server_default='0')
+    gone_count = Column(Integer, nullable=False, server_default='0')  # 失効していて削除した端末
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    updated_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'sending', 'sent', 'canceled', 'expired', 'interrupted')",
+            name='ck_announcement_pushes_status',
+        ),
+        Index('ix_announcement_pushes_active', 'status', postgresql_where=text("status IN ('pending', 'sending')")),
+    )
 
 class Media(Base):
     """

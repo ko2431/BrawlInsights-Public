@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import asdict
 
 import asyncpg
 
@@ -79,6 +80,11 @@ async def enqueue_board(*, notification_id: int | None, recipient_user_id: int, 
 async def enqueue_tournament(notices: list[tuple[int, dict]]) -> None:
     """大会の通知（tournament_notify.deliver から。コミット後）。notice は画面内の通知と同じもの。"""
     await enqueue([{"src": "tn", "uid": int(uid), "notice": notice} for uid, notice in notices])
+
+
+async def enqueue_direct(user_id: int, pushes: dict[str, rules.Push]) -> None:
+    """作ったものをそのまま1人に送る（お知らせのプッシュの試し送り）。pushes は端末の言語 → 通知。設定は見ない。"""
+    await enqueue([{"src": "direct", "uid": int(user_id), "push": {lang: asdict(push) for lang, push in pushes.items()}}])
 
 
 # [この部分は公開用リポジトリでは非公開にされています]

@@ -16,7 +16,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from PIL import Image
 
-from app.core.admin_permissions import PERM_ANNOUNCEMENTS_EDIT
+from app.core.admin_permissions import PERM_ANNOUNCEMENTS_EDIT, PERM_ANNOUNCEMENTS_PUSH
 from app.core.logger import logger
 from app.core.templating import templates
 from app.db.db import get_shared_db
@@ -28,7 +28,8 @@ from app.routers.admin import (
     jst_local_str_to_utc_dt,
 )
 from app.services import announcement_service as svc
-from app.services import media_service
+from app.services import announcement_push_service as push_svc
+from app.services import media_service, push_service
 from app.services.announcement_html import html_to_text, render_html, sanitize_body, sanitize_title
 from app.services.user_service import User
 
@@ -104,6 +105,10 @@ def _template_for_editor(row: dict[str, Any]) -> dict[str, Any]:
 
 def _can_edit(user: User) -> bool:
     return bool(user and user.has_perm(PERM_ANNOUNCEMENTS_EDIT))
+
+
+def _can_push(user: User) -> bool:
+    return bool(user and user.has_perm(PERM_ANNOUNCEMENTS_PUSH))
 
 
 def _parse_published_at(payload: dict[str, Any]) -> datetime.datetime | None:
@@ -186,9 +191,15 @@ async def _editor_context(request: Request, lang: str, db: asyncpg.Connection, u
         "mode": mode,
         "categories": svc.CATEGORIES,
         "can_edit": _can_edit(user),
+        "can_push": _can_push(user) and push_service.is_enabled(),
+        "push_configured": push_service.is_enabled(),
         "snippets": [_template_for_editor(s) for s in snippets],
         "editor_data": {"post": post, "template": template},
     }
+    if mode == "post" and post is not None:
+        # 複製・テンプレートから作るときは、プッシュの設定は引き継がない
+        row = await push_svc.get_push(db, post["id"]) if post.get("id") else None
+        post["push"] = push_svc.push_for_editor(row)
     if mode == "post" and post and post.get("state") == "new":
         context["templates_list"] = [
             {"id": t["id"], "name": t["name"], "category": t["category"]}
@@ -365,7 +376,9 @@ async def admin_announcement_data(
     row = await svc.get_admin_post(db, post_id)
     if row is None:
         raise HTTPException(status_code=404, detail="お知らせが見つかりません")
-    return {"post": _post_for_editor(row)}
+    data = _post_for_editor(row)
+    data["push"] = push_svc.push_for_editor(await push_svc.get_push(db, post_id))
+    return {"post": data}
 
 
 @router.get("/{post_id:int}/revisions", name="admin_announcement_revisions")
@@ -404,6 +417,86 @@ async def admin_announcement_revision(
 
 
 # --- 保存・削除・復元 ------------------------------------------------------------------------
+# --- プッシュ通知（AD26〜AD32） ----------------------------------------------------------------
+def _flag(value: str | None) -> bool:
+    return value in ("1", "true", "on")
+
+
+@router.get("/push-estimate", name="admin_announcement_push_estimate")
+async def admin_announcement_push_estimate(
+    request: Request,
+    lang: str,
+    web: str | None = Query(None), ios: str | None = Query(None), android: str | None = Query(None),
+    ja: str | None = Query(None), en: str | None = Query(None),
+    post_id: int | None = Query(None, ge=1),
+    at: str | None = Query(None, max_length=20),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """届く端末の目安と、その日にほかのお知らせで送った・送る予定の数（at は予約の日時。なければ今）。"""
+    post = {"show_web": _flag(web), "show_ios": _flag(ios), "show_android": _flag(android),
+            "show_ja": _flag(ja), "show_en": _flag(en)}
+    platforms, langs = push_svc.targets(post)
+    when = jst_local_str_to_utc_dt(at) if at else None
+    now = datetime.datetime.now(datetime.timezone.utc)
+    result = await push_svc.estimate(db, platforms, langs)
+    result["same_day"] = await push_svc.count_same_day(db, post_id, max(when or now, now))
+    return result
+
+
+@router.get("/{post_id:int}/push", name="admin_announcement_push_status")
+async def admin_announcement_push_status(
+    request: Request,
+    lang: str,
+    post_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """送信中の進み具合（編集画面が少しずつ読み直す）。"""
+    return {"push": push_svc.push_for_editor(await push_svc.get_push(db, post_id))}
+
+
+@router.post("/push-test", name="admin_announcement_push_test")
+async def admin_announcement_push_test(
+    request: Request,
+    lang: str,
+    payload: dict = Body(...),
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """自分の端末にだけ試しに送る（編集中の文面で。お知らせの受け取りの設定は見ない）。"""
+    if not _can_push(current_user):
+        return JSONResponse({"success": False, "message": "プッシュ通知を送る権限がありません。"}, status_code=403)
+    if not push_service.is_enabled():
+        return JSONResponse({"success": False, "message": "プッシュ通知の鍵が設定されていません。"}, status_code=400)
+    try:
+        push_values = push_svc.clean_push_input(payload.get("push") or {})
+    except push_svc.PushInputError as e:
+        return JSONResponse({"success": False, "message": e.message}, status_code=400)
+    devices = await db.fetch("SELECT platform, lang FROM push_devices WHERE user_id = $1", current_user.id)
+    if not devices:
+        return JSONResponse({
+            "success": False,
+            "message": "この管理者のアカウントには、プッシュ通知を受け取る端末がありません。"
+                       "アカウントタブ → オプション → プッシュ通知で「この端末で受け取る」をオンにしてください。",
+        }, status_code=400)
+    post = {
+        "id": payload.get("id") if isinstance(payload.get("id"), int) else 0,
+        "title_ja": sanitize_title(str(payload.get("title_ja") or "")),
+        "title_en": sanitize_title(str(payload.get("title_en") or "")),
+        "body_ja": sanitize_body(str(payload.get("body_ja") or "")),
+        "body_en": sanitize_body(str(payload.get("body_en") or "")),
+    }
+    pushes = push_svc.build_pushes(post, push_values, ["web"], ["ja", "en"])
+    by_lang = {}
+    for lang_key in ("ja", "en"):
+        push = pushes[("web", lang_key)]
+        if not post["id"]:
+            push.url = f"/{lang_key}/help/announcements"  # まだ保存していないお知らせは一覧へ
+        push.tag = f"newstest{post['id']}"
+        by_lang[lang_key] = push
+    await push_service.enqueue_direct(current_user.id, by_lang)
+    return {"success": True, "message": f"自分の端末（{len(devices)}台）に送りました。届くまで数秒かかります。"}
+
+
 @router.post("/preview", name="admin_announcement_preview")
 async def admin_announcement_preview(request: Request, lang: str, payload: dict = Body(...)):
     """プレビュー。保存と同じ消毒と、表示と同じ処理（端末・言語）を通す。"""
@@ -428,12 +521,29 @@ async def admin_announcement_save(
     post_id = payload.get("id")
     if post_id is not None and not isinstance(post_id, int):
         return JSONResponse({"success": False, "message": "ID が正しくありません。"}, status_code=400)
+    push_values = None
+    if payload.get("push") is not None:
+        # プッシュの設定は、送る権限のある人だけが変えられる（ない人の画面からは送ってこない）
+        if not _can_push(current_user):
+            return JSONResponse({"success": False, "message": "プッシュ通知を送る権限がありません。"}, status_code=403)
+        try:
+            push_values = push_svc.clean_push_input(payload["push"])
+        except push_svc.PushInputError as e:
+            return JSONResponse({"success": False, "message": e.message}, status_code=400)
+    push_row = None
     try:
         data = dict(payload)
         data["published_at"] = _parse_published_at(payload)
         values = svc.clean_post_input(data)
         expected = payload.get("version") if isinstance(payload.get("version"), int) else None
-        result = await svc.save_post(db, post_id, values, user_id=current_user.id, expected_version=expected)
+        async with db.transaction():
+            result = await svc.save_post(db, post_id, values, user_id=current_user.id, expected_version=expected)
+            if push_values is not None:
+                before = await push_svc.get_push(db, result["row"]["id"])
+                push_row = await push_svc.save_push(db, result["row"]["id"], push_values, user_id=current_user.id)
+                _log_push_change(current_user, result["row"]["id"], before, push_row)
+            else:
+                push_row = await push_svc.get_push(db, result["row"]["id"])
     except svc.AnnouncementError as e:
         return _error(e)
     except DataBaseError as e:
@@ -466,7 +576,15 @@ async def admin_announcement_save(
         "published_at": _jst_input(row["published_at"]),
         "updated_at": _jst_text(row["updated_at"]),
         "edit_url": str(request.url_for("admin_announcement_edit", lang=lang, post_id=row["id"])),
+        "push": push_svc.push_for_editor(push_row),
     }
+
+
+def _log_push_change(user: User, post_id: int, before, after) -> None:
+    was = before["status"] if before else "none"
+    now = after["status"] if after else "none"
+    if was != now:
+        logger.info(f"{user.name} (ID: {user.id}) がお知らせ (ID: {post_id})のプッシュ通知を {was} → {now} にしました。")
 
 
 async def _set_deleted(request: Request, lang: str, post_id: int, deleted: bool, db: asyncpg.Connection, user: User):
