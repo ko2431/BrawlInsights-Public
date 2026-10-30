@@ -681,20 +681,20 @@
                     return parts.join('・');
                 };
                 switch (push.status) {
-                    case 'sent': return `送りました（${push.started_at}）: ${counts()}`;
-                    case 'sending': return `送っています: ${(push.sent_count + push.failed_count + push.gone_count).toLocaleString()} / ${(push.target_count || 0).toLocaleString()}台`;
-                    case 'expired': return '送る時刻から時間がたちすぎたため、送りませんでした。';
-                    case 'interrupted': return `途中で止まりました（${push.started_at}）: ${counts()}`;
+                    case 'sent': return `送信済み（${push.started_at}）: ${counts()}`;
+                    case 'sending': return `送信中: ${(push.sent_count + push.failed_count + push.gone_count).toLocaleString()} / ${(push.target_count || 0).toLocaleString()}台`;
+                    case 'expired': return '送信の予定時刻から時間がたちすぎたため、送信されませんでした。';
+                    case 'interrupted': return `送信が途中で止まりました（${push.started_at}）: ${counts()}`;
                     default: return '';
                 }
             },
             get pushPlanText() {
                 const push = this.post.push || {};
                 if (!push.enabled || !push.editable) return '';
-                if (this.post.status !== 'published') return '公開すると、そのときにプッシュ通知を送ります（下書きのあいだは送りません）。';
+                if (this.post.status !== 'published') return '公開すると、そのときにプッシュ通知が送信されます（下書きのあいだは送信されません）。';
                 const due = this.pushDue;
-                if (!due.now) return `${due.text}（日本時間）の公開と同時に送ります。それまではオフにすれば止められます。`;
-                return this.post.state === 'published' ? '保存すると、すぐに送ります。' : '公開と同時に送ります。';
+                if (!due.now) return `${due.text}（日本時間）の公開と同時に送信されます。それまではオフにすれば送信を止められます。`;
+                return this.post.state === 'published' ? '保存すると、通知はすぐに送信されます。' : '公開と同時に送信されます。';
             },
 
             // --- 読み込み ---------------------------------------------------------------------
@@ -1803,11 +1803,11 @@
                     const due = this.pushDue;
                     const count = this.pushEstimate.devices == null ? '' : `（届く端末の目安: ${this.pushEstimate.devices.toLocaleString()}台）`;
                     if (this.pushEstimate.same_day) {
-                        lines.push(`この日はすでにほかのお知らせで${this.pushEstimate.same_day}件のプッシュ通知を送っています（送る予定を含む）。`);
+                        lines.push(`この日はすでにほかのお知らせで${this.pushEstimate.same_day}件のプッシュ通知が送信されています（送信の予定を含む）。`);
                     }
                     lines.push(due.now
-                        ? `保存すると、すぐにプッシュ通知を送ります${count}。送ったプッシュ通知は取り消せません。`
-                        : `${due.text}（日本時間）の公開と同時に、プッシュ通知を送ります${count}。`);
+                        ? `保存すると、プッシュ通知はすぐに送信されます${count}。送信されたプッシュ通知は取り消せません。`
+                        : `${due.text}（日本時間）の公開と同時に、プッシュ通知が送信されます${count}。`);
                 }
                 if (lines.length && !confirm(`${lines.join('\n\n')}\n\nよろしいですか？`)) return;
                 this.saving = true;
@@ -1836,7 +1836,7 @@
                     this.dirty = false;
                     this.setMessage('', 'info');
                     this.showToast(data.push && data.push.status === 'pending' && data.state === 'published'
-                        ? `${data.message}プッシュ通知を送っています。` : data.message);
+                        ? `${data.message}プッシュ通知はまもなく送信されます。` : data.message);
                     if (this.revisions.open) this.loadRevisions();
                     if (data.push && (data.push.status === 'sending' || (data.push.status === 'pending' && data.state === 'published'))) this.pollPush();
                 } catch (e) {

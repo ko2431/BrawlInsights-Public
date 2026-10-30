@@ -464,7 +464,7 @@ async def admin_announcement_push_test(
 ):
     """自分の端末にだけ試しに送る（編集中の文面で。お知らせの受け取りの設定は見ない）。"""
     if not _can_push(current_user):
-        return JSONResponse({"success": False, "message": "プッシュ通知を送る権限がありません。"}, status_code=403)
+        return JSONResponse({"success": False, "message": "プッシュ通知を送信する権限がありません。"}, status_code=403)
     if not push_service.is_enabled():
         return JSONResponse({"success": False, "message": "プッシュ通知の鍵が設定されていません。"}, status_code=400)
     try:
@@ -494,7 +494,7 @@ async def admin_announcement_push_test(
         push.tag = f"newstest{post['id']}"
         by_lang[lang_key] = push
     await push_service.enqueue_direct(current_user.id, by_lang)
-    return {"success": True, "message": f"自分の端末（{len(devices)}台）に送りました。届くまで数秒かかります。"}
+    return {"success": True, "message": f"自分の端末（{len(devices)}台）にテストの通知が送信されます。届くまで数秒かかります。"}
 
 
 @router.post("/preview", name="admin_announcement_preview")
@@ -525,7 +525,7 @@ async def admin_announcement_save(
     if payload.get("push") is not None:
         # プッシュの設定は、送る権限のある人だけが変えられる（ない人の画面からは送ってこない）
         if not _can_push(current_user):
-            return JSONResponse({"success": False, "message": "プッシュ通知を送る権限がありません。"}, status_code=403)
+            return JSONResponse({"success": False, "message": "プッシュ通知を送信する権限がありません。"}, status_code=403)
         try:
             push_values = push_svc.clean_push_input(payload["push"])
         except push_svc.PushInputError as e:
