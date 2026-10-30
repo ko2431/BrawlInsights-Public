@@ -20,6 +20,7 @@ from app.core.cache import get_cache, get_redis, set_cache
 from app.core.logger import logger
 from app.db.db import get_db_connection_for_bg_task, load_serialized_within_request_timeout
 from app.exceptions.custom_exceptions import DataBaseError
+from app.services import media_storage
 from app.services.announcement_html import (
     first_image_src,
     html_to_text,
@@ -250,7 +251,7 @@ async def get_public_post(post_id: int, platform: str, lang: str) -> dict[str, A
         body = row["body_en"] if lang == "en" else row["body_ja"]
         item["description"] = html_to_text(body, platform=platform, lang=lang, limit=120)
         item["title_text"] = html_to_text(row["title_en"] if lang == "en" else row["title_ja"], platform=platform, lang=lang)
-        item["cover_url"] = row["cover_url"]
+        _set_cover(item, row, body)
         where = f"{_public_where(platform, lang)} AND listed"
         newer = await db.fetchrow(
             f"SELECT id, title_ja, title_en FROM announcement_posts WHERE {where} "
@@ -301,8 +302,16 @@ async def get_admin_preview_post(db: asyncpg.Connection, post_id: int, platform:
     item = _display_item(row, platform, lang)
     item["description"] = html_to_text(row["body_en"] if lang == "en" else row["body_ja"], limit=120)
     item["title_text"] = html_to_text(row["title_en"] if lang == "en" else row["title_ja"])
-    item["cover_url"] = row["cover_url"]
+    _set_cover(item, row, row["body_en"] if lang == "en" else row["body_ja"])
     return {"state": "ok", "item": item, "newer": None, "older": None, "row": dict(row)}
+
+
+def _set_cover(item: dict[str, Any], row: Any, body: str) -> None:
+    """個別ページの OGP の画像。見ている言語の本文の最初の画像（文字の入った画像は言語ごとに違うことがある）。
+    上げた画像は SNS で読めるよう JPEG のサイズ違い（og_image_path）を使う。"""
+    cover = first_image_src(body) or row["cover_url"]
+    item["cover_url"] = cover
+    item["og_image_path"] = media_storage.variant_url(cover, "og", kind="announcement")
 
 
 # --- 管理画面: 一覧 -----------------------------------------------------------------------

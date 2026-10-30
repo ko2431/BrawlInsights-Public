@@ -28,7 +28,7 @@ from app.core.cache import connect_redis, close_redis, set_cache, get_cache, is_
 from app.db.db import connect_to_db, close_db_connection, get_shared_db, get_shared_db_if_logged_in, get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning, PoolAcquireTimeoutError
 #-from app.background_tasks.scheduler import start_scheduler, shutdown_scheduler
 #-from app.background_tasks.tasks import player_update_task_loop
-from app.routers import player, club, auth, account, stats, tools, boards, help, billing, special_reward_links, push
+from app.routers import player, club, auth, account, stats, tools, boards, help, billing, special_reward_links, push, media
 # [この部分は公開用リポジトリでは非公開にされています]
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.core.page_integrity import integrity_router, IntegrityGateMiddleware
@@ -141,7 +141,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="15.3.56",
+    version="15.3.57",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -173,6 +173,7 @@ app.include_router(help.router)
 # [この部分は公開用リポジトリでは非公開にされています]
 app.include_router(special_reward_links.router)
 app.include_router(push.router)
+app.include_router(media.router)
 # [この部分は公開用リポジトリでは非公開にされています]
 app.include_router(integrity_router)
 
@@ -183,6 +184,9 @@ app.include_router(integrity_router)
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/generated", StaticFiles(directory=str(GENERATED_DIR)), name="generated")
+# アップロードした画像。本番では Nginx が親のディスクから先に返すので、ここに来るのは開発環境だけ
+settings.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media")
 app.mount("/videos", StaticFiles(directory="videos"), name="videos")
 
 
@@ -498,6 +502,7 @@ class LanguageRedirectMiddleware(BaseHTTPMiddleware):
         ]
         excluded_prefixes = [
             "/static/",
+            "/media/",
             "/docs",
             "/.well-known/",
         ]

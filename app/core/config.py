@@ -80,6 +80,15 @@ class Settings:
     VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "https://brawlinsights.com")
     FCM_SERVICE_ACCOUNT_FILE: str | None = os.getenv("FCM_SERVICE_ACCOUNT_FILE") or None
 
+    # アップロードした画像（media_storage.py）。保存するのは親サーバーだけで、Nginx がアップロードの URL を親に送り、
+    # /media/ を親のディスクから直接配る。MEDIA_STORAGE は未設定なら子サーバー（SERVER_NAME が Child-…）以外で有効
+    MEDIA_DIR: Path = Path(os.getenv("MEDIA_DIR") or Path(__file__).resolve().parent.parent.parent / "media")
+    MEDIA_STORAGE_ENABLED: bool = (
+        str(os.getenv("MEDIA_STORAGE")).strip().lower() in ("1", "true", "yes", "on")
+        if os.getenv("MEDIA_STORAGE")
+        else not os.getenv("SERVER_NAME", "Main").lower().startswith("child")
+    )
+
     def __init__(self):
         if self._cluster_nodes_raw:
             try:

@@ -114,6 +114,98 @@
     }
 
     // --- Tiptap の部品（許可リストの書式に対応） ---------------------------------------------
+    // --- 画像のアップロード（サーバーは media_service。10MB まで・JPEG・PNG・WebP・GIF） -------------------
+    const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+    const UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const CLIENT_MAX_SIDE = 2048;
+
+    function isImageFile(file) {
+        return (file.type || '').startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i.test(file.name || '');
+    }
+
+    async function prepareUploadFile(file) {
+        const typeOk = UPLOAD_TYPES.includes(file.type) || (!file.type && /\.(jpe?g|png|webp|gif)$/i.test(file.name || ''));
+        if (typeOk && file.size <= UPLOAD_MAX_BYTES) return file;
+        // 大きすぎるもの・サーバーで読めない形式（iPhone の HEIC など）は、ブラウザで縮めてから送る
+        const url = URL.createObjectURL(file);
+        try {
+            const img = new Image();
+            img.src = url;
+            await img.decode();
+            const scale = Math.min(1, CLIENT_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const toBlob = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+            let blob = file.type === 'image/png' ? await toBlob('image/png') : null;
+            if (!blob || blob.size > UPLOAD_MAX_BYTES) blob = await toBlob('image/jpeg', 0.92);
+            if (!blob) throw new Error('toBlob');
+            const name = (file.name || 'image').replace(/\.[^.]+$/, '') + (blob.type === 'image/png' ? '.png' : '.jpg');
+            return new File([blob], name, { type: blob.type });
+        } catch {
+            throw new Error('この画像は読み込めませんでした。JPEG・PNG・WebP・GIF の画像を選んでください。');
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
+
+    function sendUpload(url, file, onProgress) {
+        // 進み具合を出すため fetch ではなく XHR で送る
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url);
+            xhr.responseType = 'json';
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) onProgress(event.loaded / event.total);
+            };
+            xhr.upload.onload = () => onProgress(1);
+            xhr.onload = () => {
+                const data = xhr.response || {};
+                if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+                    resolve(data);
+                    return;
+                }
+                const fallback = xhr.status === 413 ? '画像は 10MB までです。' : `アップロードできませんでした（${xhr.status}）。`;
+                reject(new Error(data.message || fallback));
+            };
+            xhr.onerror = () => reject(new Error('通信に失敗しました。もう一度試してください。'));
+            const form = new FormData();
+            form.append('file', file, file.name || 'image.png');
+            xhr.send(form);
+        });
+    }
+
+    function makeUploadPlaceholder(file) {
+        // 本文の中の仮の枠（上げている画像と進み具合）。本文の中身には入らない（デコレーション）
+        const dom = document.createElement('div');
+        dom.className = 'aa-upload-ph';
+        dom.contentEditable = 'false';
+        const url = URL.createObjectURL(file);
+        const img = document.createElement('img');
+        img.alt = '';
+        img.onerror = () => img.remove(); // ブラウザで出せない形式（HEIC など）は枠だけ
+        img.src = url;
+        const meter = document.createElement('span');
+        meter.className = 'aa-upload-ph__meter';
+        const bar = document.createElement('span');
+        bar.className = 'aa-upload-ph__bar';
+        meter.appendChild(bar);
+        const label = document.createElement('span');
+        label.className = 'aa-upload-ph__label';
+        label.textContent = '待っています…';
+        dom.append(img, meter, label);
+        return {
+            dom,
+            url,
+            setProgress(ratio) {
+                const percent = Math.round(Math.min(1, ratio) * 100);
+                bar.style.width = `${percent}%`;
+                label.textContent = percent >= 100 ? '仕上げています…' : `アップロード中 ${percent}%`;
+            },
+        };
+    }
+
     function buildExtensions(T) {
         const { Extension, Mark, Node, mergeAttributes } = T;
 
@@ -360,7 +452,39 @@
             },
         });
 
+        // アップロード中の仮の枠。終わったら同じ場所に画像を入れる（枠の周りが消されていたら入れない）
+        const uploadKey = new T.PluginKey('biUploadPlaceholder');
+        const UploadPlaceholder = Extension.create({
+            name: 'uploadPlaceholder',
+            addProseMirrorPlugins() {
+                return [new T.Plugin({
+                    key: uploadKey,
+                    state: {
+                        init: () => T.DecorationSet.empty,
+                        apply(tr, set) {
+                            let next = set.map(tr.mapping, tr.doc);
+                            const meta = tr.getMeta(uploadKey);
+                            if (meta && meta.add) {
+                                // side が正: 同じ位置に入れたものは枠より前に入る（複数の画像を順に入れられる）
+                                const widget = T.Decoration.widget(meta.add.pos, meta.add.dom, { id: meta.add.id, side: meta.add.side, ignoreSelection: true });
+                                next = next.add(tr.doc, [widget]);
+                            } else if (meta && meta.remove) {
+                                next = next.remove(next.find(undefined, undefined, (spec) => spec.id === meta.remove));
+                            }
+                            return next;
+                        },
+                    },
+                    props: {
+                        decorations(state) {
+                            return this.getState(state);
+                        },
+                    },
+                })];
+            },
+        });
+
         return {
+            uploadKey,
             title() {
                 return [
                     T.Document.extend({ content: 'text*' }),
@@ -401,6 +525,7 @@
                     Figure,
                     Align,
                     BLink,
+                    UploadPlaceholder,
                     T.Placeholder.configure({ placeholder }),
                 ];
             },
@@ -419,6 +544,7 @@
         let previewTimer = 0;
         let toastTimer = 0;
         let suppressDirty = false;
+        let uploadSeq = 0;
         const prefs = readPrefs();
 
         const post = raw.post ? { ...raw.post, category: raw.post.category == null ? '' : String(raw.post.category) } : {};
@@ -458,7 +584,9 @@
             preview: { title_html: '', body_html: '' },
             revisions: { open: false, loading: false, items: [] },
             linkForm: { href: '', text: '', button: false, needText: false, editing: false },
-            imageForm: { q: '', items: [], total: 0, loading: false, selected: null, size: 'auto', align: 'center', alt: '', editing: false },
+            imageForm: { tab: 'upload', q: '', items: [], total: 0, loading: false, selected: null, size: 'auto', align: 'center', alt: '', editing: false, progress: null, dragOver: false, justUploaded: false },
+            uploaded: { q: '', items: [], loading: false, loaded: false, hasMore: false, error: '' },
+            uploading: 0,
             giftForm: { code: '', label: '' },
             onlyForm: { web: true, ios: false, android: false, scope: 'inline', editing: false },
             htmlForm: { text: '' },
@@ -553,7 +681,7 @@
                 this.refreshActive();
                 this.checkLocalDraft();
                 window.addEventListener('beforeunload', (event) => {
-                    if (!this.dirty) return;
+                    if (!this.dirty && !this.uploading) return;
                     event.preventDefault();
                     event.returnValue = '';
                 });
@@ -603,18 +731,27 @@
                     editorProps: {
                         attributes: { spellcheck: 'false', 'aria-label': `${lang === 'ja' ? '日本語' : '英語'}の${isTitle ? 'タイトル' : '本文'}` },
                         handlePaste(view, event) {
-                            if (event.clipboardData?.files?.length) {
-                                self.showToast('画像のアップロードは準備中です。今は「画像」→「サイト内の画像」から入れられます。', true);
-                                return true;
-                            }
-                            return false;
+                            // スクリーンショットなどの画像だけの貼り付けは、すぐ上げる（文字も一緒なら普通に貼る）
+                            const data = event.clipboardData;
+                            const files = [...(data?.files || [])].filter(isImageFile);
+                            if (!files.length || (data.getData('text/plain') || '').trim()) return false;
+                            event.preventDefault();
+                            if (isTitle) self.showToast('タイトルには画像を入れられません。', true);
+                            else self.uploadFiles(files, editors[key], view.state.selection.from);
+                            return true;
                         },
-                        handleDrop(view, event) {
-                            if (event.dataTransfer?.files?.length) {
-                                self.showToast('画像のアップロードは準備中です。今は「画像」→「サイト内の画像」から入れられます。', true);
+                        handleDrop(view, event, slice, moved) {
+                            if (moved) return false;
+                            const files = [...(event.dataTransfer?.files || [])].filter(isImageFile);
+                            if (!files.length) return false;
+                            event.preventDefault();
+                            if (isTitle) {
+                                self.showToast('タイトルには画像を入れられません。', true);
                                 return true;
                             }
-                            return false;
+                            const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                            self.uploadFiles(files, editors[key], at ? at.pos : view.state.selection.from);
+                            return true;
                         },
                     },
                     onUpdate: () => this.onEditorUpdate(key),
@@ -966,20 +1103,34 @@
                 this.refreshActive();
             },
 
-            // --- 画像（今はサイト内の画像だけ） -------------------------------------------------------
+            // --- 画像（アップロード・これまでの画像・サイト内の画像） ---------------------------------------
             openImageDialog() {
                 const ed = this.focusedEditor();
                 if (!ed || !this.bodyFocused || !this.editable) return;
                 const sel = ed.state.selection;
                 const node = sel.node && sel.node.type.name === 'figure' ? sel.node : null;
-                this.imageForm.editing = !!node;
-                this.imageForm.selected = node ? { src: node.attrs.src, width: node.attrs.width, height: node.attrs.height } : null;
-                this.imageForm.size = node ? node.attrs.size : 'auto';
-                this.imageForm.align = node ? (node.attrs.align || 'center') : 'center';
-                this.imageForm.alt = node ? node.attrs.alt : '';
+                const f = this.imageForm;
+                f.editing = !!node;
+                f.selected = node ? { src: node.attrs.src, width: node.attrs.width, height: node.attrs.height } : null;
+                f.size = node ? node.attrs.size : 'auto';
+                f.align = node ? (node.attrs.align || 'center') : 'center';
+                f.alt = node ? node.attrs.alt : '';
+                f.progress = null;
+                f.dragOver = false;
+                f.justUploaded = false;
                 this.dialog = 'image';
-                if (!this.imageForm.items.length) this.searchImages();
-                this.$nextTick(() => this.$refs.imageQ?.focus());
+                if (node) this.setImageTab(node.attrs.src.startsWith('/media/') ? 'uploaded' : 'static');
+                else this.setImageTab(f.tab || 'upload');
+            },
+
+            setImageTab(tab) {
+                this.imageForm.tab = tab;
+                if (tab === 'uploaded' && !this.uploaded.loaded) this.searchUploaded();
+                if (tab === 'static' && !this.imageForm.items.length) this.searchImages();
+                this.$nextTick(() => {
+                    if (tab === 'uploaded') this.$refs.uploadedQ?.focus();
+                    else if (tab === 'static') this.$refs.imageQ?.focus();
+                });
             },
 
             async searchImages() {
@@ -995,6 +1146,143 @@
                 } finally {
                     this.imageForm.loading = false;
                 }
+            },
+
+            async searchUploaded(more = false) {
+                const u = this.uploaded;
+                u.loading = true;
+                u.error = '';
+                const offset = more ? u.items.length : 0;
+                try {
+                    const res = await fetch(`${this.urls.uploadedImages}?q=${encodeURIComponent(u.q)}&offset=${offset}`);
+                    if (!res.ok) throw new Error(String(res.status));
+                    const data = await res.json();
+                    u.items = more ? [...u.items, ...(data.items || [])] : (data.items || []);
+                    u.hasMore = !!data.has_more;
+                    u.loaded = true;
+                } catch {
+                    if (!more) u.items = [];
+                    u.error = '読み込めませんでした。';
+                } finally {
+                    u.loading = false;
+                }
+            },
+
+            async removeUploaded(item) {
+                if (!confirm('この画像を「これまでの画像」から外しますか？\n（もう入れてあるお知らせからは消えません）')) return;
+                try {
+                    const data = await this.postJson(`${this.urls.uploadedImages}/${item.id}/remove`);
+                    this.uploaded.items = this.uploaded.items.filter((i) => i.id !== item.id);
+                    if (this.imageForm.selected && this.imageForm.selected.src === item.src && !this.imageForm.editing) this.imageForm.selected = null;
+                    this.showToast(data.message);
+                } catch (e) {
+                    this.showToast(e.message, true);
+                }
+            },
+
+            // 画像のダイアログで選んだ・ドロップしたファイル。新しく入れるときは本文に仮の枠を出してすぐ上げ、
+            // 入れてある画像を差し替えるときはダイアログの中で上げてから「変更する」
+            pickImageFiles(fileList) {
+                const files = [...(fileList || [])].filter(isImageFile);
+                this.imageForm.dragOver = false;
+                if (!files.length) {
+                    this.showToast('画像のファイルを選んでください。', true);
+                    return;
+                }
+                const ed = this.focusedEditor();
+                if (!ed) return;
+                if (this.imageForm.editing) {
+                    this.uploadInDialog(files[0]);
+                    return;
+                }
+                this.dialog = '';
+                this.uploadFiles(files, ed, ed.state.selection.from, { size: this.imageForm.size, align: this.imageForm.align });
+            },
+
+            async uploadInDialog(file) {
+                const f = this.imageForm;
+                f.progress = 0;
+                this.uploading += 1;
+                try {
+                    const prepared = await prepareUploadFile(file);
+                    const data = await sendUpload(this.urls.upload, prepared, (ratio) => {
+                        f.progress = ratio;
+                    });
+                    f.selected = { src: data.src, width: data.width, height: data.height };
+                    f.justUploaded = true;
+                    this.uploaded.loaded = false;
+                    if (data.reused) this.showToast('前に上げた同じ画像を使います。');
+                } catch (e) {
+                    this.showToast(e.message || 'アップロードできませんでした。', true);
+                } finally {
+                    f.progress = null;
+                    this.uploading -= 1;
+                }
+            },
+
+            figureInsertPos(state, pos) {
+                // 段落の途中なら、その段落の後ろ（空の段落ならその前。画像の下に打てる行が残る）。入れられない所なら一番上の段落の後ろ
+                const doc = state.doc;
+                const figure = state.schema.nodes.figure;
+                const $pos = doc.resolve(Math.max(0, Math.min(pos, doc.content.size)));
+                let at = $pos.pos;
+                if ($pos.parent.isTextblock) at = $pos.parent.content.size === 0 ? $pos.before() : $pos.after();
+                const $at = doc.resolve(at);
+                if ($at.parent.canReplaceWith($at.index(), $at.index(), figure)) return at;
+                return $pos.depth >= 1 ? $pos.after(1) : doc.content.size;
+            },
+
+            async uploadFiles(fileList, ed, pos, attrs = {}) {
+                const files = [...fileList].filter(isImageFile);
+                if (!files.length || !ed || !this.editable) return;
+                const key = ext.uploadKey;
+                const at = this.figureInsertPos(ed.state, pos);
+                const holders = files.map((file, index) => {
+                    const id = `upload-${++uploadSeq}`;
+                    const ph = makeUploadPlaceholder(file);
+                    ed.view.dispatch(ed.state.tr.setMeta(key, { add: { id, pos: at, dom: ph.dom, side: index + 1 } }).setMeta('addToHistory', false));
+                    return { id, file, ph };
+                });
+                this.uploading += holders.length;
+                const findPos = (id) => {
+                    const found = key.getState(ed.state).find(undefined, undefined, (spec) => spec.id === id);
+                    return found.length ? found[0].from : null;
+                };
+                const removeHolder = (id) => {
+                    if (!ed.isDestroyed) ed.view.dispatch(ed.state.tr.setMeta(key, { remove: id }).setMeta('addToHistory', false));
+                };
+                let reused = 0;
+                // 順番どおりに入るよう、1枚ずつ上げる
+                for (const h of holders) {
+                    try {
+                        const prepared = await prepareUploadFile(h.file);
+                        const data = await sendUpload(this.urls.upload, prepared, (ratio) => h.ph.setProgress(ratio));
+                        if (ed.isDestroyed) continue;
+                        const where = findPos(h.id);
+                        removeHolder(h.id);
+                        if (where == null) continue; // 枠の周りが消されていたら入れない（これまでの画像には残る）
+                        if (data.reused) reused += 1;
+                        ed.chain().insertContentAt(this.figureInsertPos(ed.state, where), {
+                            type: 'figure',
+                            attrs: {
+                                src: data.src,
+                                alt: '',
+                                width: data.width || null,
+                                height: data.height || null,
+                                size: attrs.size || 'auto',
+                                align: attrs.align || 'center',
+                            },
+                        }, { updateSelection: false }).run();
+                        this.uploaded.loaded = false;
+                    } catch (e) {
+                        removeHolder(h.id);
+                        this.showToast(e.message || 'アップロードできませんでした。', true);
+                    } finally {
+                        this.uploading -= 1;
+                        URL.revokeObjectURL(h.ph.url);
+                    }
+                }
+                if (reused) this.showToast(reused === holders.length ? '前に上げた同じ画像を使いました。' : `${reused}枚は前に上げた同じ画像を使いました。`);
             },
 
             applyImage() {
@@ -1327,6 +1615,10 @@
 
             async save() {
                 if (!this.ready || this.saving || !this.editable) return;
+                if (this.uploading) {
+                    this.showToast('画像をアップロードしています。終わってから保存してください。', true);
+                    return;
+                }
                 if (this.mode === 'template') {
                     await this.saveTemplate();
                     return;

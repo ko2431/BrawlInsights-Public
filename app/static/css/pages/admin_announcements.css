@@ -1289,6 +1289,180 @@
     font-size: 11px;
     word-break: break-all;
 }
+.aa-image-options__picked {
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-555);
+    font-size: 12px;
+}
+.aa-image-options__picked img {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--bg-f0f0f0);
+}
+.aa-image-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.aa-image-pane__more {
+    align-self: center;
+}
+.aa-image-grid__cell {
+    position: relative;
+}
+.aa-image-grid__cell .aa-image-grid__item {
+    width: 100%;
+}
+/* 一覧から外す（触れたときだけ出す。スマホでは常に） */
+.aa-image-grid__remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+    font-size: 14px;
+    line-height: 22px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s, background-color .12s;
+}
+.aa-image-grid__cell:hover .aa-image-grid__remove,
+.aa-image-grid__remove:focus-visible {
+    opacity: 1;
+}
+.aa-image-grid__remove:hover {
+    background: var(--c-red);
+}
+@media (hover: none) {
+    .aa-image-grid__remove {
+        opacity: .85;
+    }
+}
+
+/* アップロード（選ぶ・ドロップ） */
+.aa-dropzone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 132px;
+    padding: 16px;
+    border: 2px dashed var(--color-ccc);
+    border-radius: 12px;
+    background: var(--bg-f8f8f8);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .12s, background-color .12s, transform .12s;
+}
+.aa-dropzone:hover {
+    border-color: var(--color-999);
+}
+.aa-dropzone.is-over {
+    border-color: var(--aa-accent);
+    background: var(--bg-main);
+    transform: scale(1.01);
+}
+.aa-dropzone.is-busy {
+    cursor: progress;
+}
+.aa-dropzone__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+.aa-dropzone:focus-within {
+    outline: 2px solid var(--aa-accent);
+    outline-offset: 2px;
+}
+.aa-dropzone__text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-555);
+    font-size: 12px;
+}
+.aa-dropzone__text b {
+    color: var(--color-222);
+    font-size: 14px;
+}
+.aa-dropzone__note {
+    color: var(--color-888);
+    font-size: 11px;
+}
+.aa-dropzone__meter {
+    width: 220px;
+    max-width: 100%;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--color-ddd);
+}
+.aa-dropzone__meter span {
+    display: block;
+    height: 100%;
+    background: var(--aa-accent);
+    transition: width .15s;
+}
+
+/* 本文の中の、アップロード中の仮の枠（本文の中身には入らない） */
+.aa-upload-ph {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(320px, 100%);
+    min-height: 96px;
+    margin: .4em auto;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--bg-f0f0f0);
+    user-select: none;
+}
+.aa-upload-ph img {
+    display: block;
+    width: 100%;
+    max-height: 240px;
+    object-fit: contain;
+    opacity: .45;
+    filter: grayscale(.3);
+}
+.aa-upload-ph__label {
+    position: absolute;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+}
+.aa-upload-ph__meter {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: rgba(0, 0, 0, .12);
+}
+.aa-upload-ph__bar {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--aa-accent);
+    transition: width .15s;
+}
 .aa-html-textarea {
     min-height: 320px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

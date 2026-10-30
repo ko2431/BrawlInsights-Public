@@ -3,10 +3,11 @@
 
 {% block title %}{% if state == "ok" %}{{ item.title_text }} - {% endif %}{% if lang == "ja" %}お知らせ{% else %}News{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if state == "ok" and item.description %}{{ item.description }}{% elif lang == "ja" %}このサイトのお知らせを掲載しています。{% else %}This page contains news about this site.{% endif %}{% endblock %}
-{% block og_image %}{% if state == "ok" and item.cover_url and item.cover_url.startswith('/static/') %}{{ url_for('static', path=item.cover_url[7:]) }}{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block og_image %}{% if state == "ok" and item.cover_url and item.cover_url.startswith('/static/') %}{{ url_for('static', path=item.cover_url[7:]) }}{% elif state == "ok" and item.og_image_path %}{{ url_for('media', path=item.og_image_path[7:]) }}{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/announcements.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/components/image_viewer.css') }}?v={{ app_version }}">
 {% endblock %}
 
 {% block content %}
@@ -75,5 +76,6 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/image_viewer.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/pages/announcements.js') }}?v={{ app_version }}"></script>
 {% endblock %}

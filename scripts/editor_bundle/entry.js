@@ -11,4 +11,5 @@ export { Strike } from '@tiptap/extension-strike';
 export { Underline } from '@tiptap/extension-underline';
 export { Link } from '@tiptap/extension-link';
 export { Placeholder, UndoRedo } from '@tiptap/extensions';
-export { TextSelection, NodeSelection } from '@tiptap/pm/state';
+export { TextSelection, NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state';
+export { Decoration, DecorationSet } from '@tiptap/pm/view';

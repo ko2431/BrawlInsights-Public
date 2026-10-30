@@ -1,5 +1,6 @@
 // /app/static/js/pages/announcements.js
 // お知らせの一覧（長い本文の折りたたみ・「もっと見る」・古いリンクの転送）と個別ページ（共有）。
+// 本文の画像は、縮めて出しているものだけタップで拡大する（image_viewer.js）。
 (function () {
     const CLAMP_SLACK_PX = 8;
 
@@ -164,9 +165,46 @@
         });
     }
 
+    // --- 画像の拡大 --------------------------------------------------------------------------
+    const ZOOM_SELECTOR = '.ann-body figure.bi-figure img';
+
+    function isShrunk(img) {
+        // 元の大きさより縮めて出している（小さいアイコンなどは拡大しない）
+        return img.naturalWidth > img.clientWidth * 1.15 || img.naturalHeight > img.clientHeight * 1.15;
+    }
+
+    function markZoomable(root) {
+        (root || document).querySelectorAll(ZOOM_SELECTOR).forEach((img) => {
+            if (img.complete && img.naturalWidth) img.classList.toggle('is-zoomable', isShrunk(img));
+        });
+    }
+
+    function initZoom() {
+        const viewer = window.BrawlInsightsImageViewer;
+        if (!viewer) return;
+        document.addEventListener('load', (event) => {
+            const img = event.target;
+            if (img.matches && img.matches(ZOOM_SELECTOR)) img.classList.toggle('is-zoomable', isShrunk(img));
+        }, true);
+        markZoomable();
+        let timer = 0;
+        window.addEventListener('resize', () => {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => markZoomable(), 200);
+        });
+        document.body.addEventListener('htmx:afterSwap', (event) => markZoomable(event.target));
+        document.addEventListener('click', (event) => {
+            const img = event.target.closest && event.target.closest(ZOOM_SELECTOR);
+            if (!img || !img.classList.contains('is-zoomable')) return;
+            event.preventDefault();
+            viewer.open(img.currentSrc || img.src, { alt: img.alt });
+        });
+    }
+
     function init() {
         initList();
         initShare();
+        initZoom();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

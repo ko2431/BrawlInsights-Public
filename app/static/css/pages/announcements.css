@@ -425,6 +425,14 @@
 .ann-body figure.bi-figure[data-size="half"] img {
     max-width: 50%;
 }
+/* 縮めて出している画像はタップで拡大（announcements.js） */
+.ann-body figure.bi-figure img.is-zoomable {
+    cursor: zoom-in;
+    transition: opacity .12s;
+}
+.ann-body figure.bi-figure img.is-zoomable:hover {
+    opacity: .92;
+}
 @media (max-width: 839px) {
     .announcements-page-title--main {
         font-size: 36px;

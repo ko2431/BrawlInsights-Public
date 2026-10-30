@@ -53,3 +53,7 @@ generated/
 _filter_preview_shots/
 
 event_spray_sheets/
+
+# アップロードした画像（media_storage.py。本番では親サーバーのディスクに置き、R2 へ別に送る）
+media/
+media_private/

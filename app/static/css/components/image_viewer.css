@@ -1,0 +1,90 @@
+/* /app/static/css/components/image_viewer.css */
+/* 画像の拡大表示（static/js/image_viewer.js）。写真の表示なので、ライト・ダークとも暗い背景にする */
+.bi-viewer {
+    --bi-viewer-dim: 1;
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    background: rgba(0, 0, 0, calc(.92 * var(--bi-viewer-dim)));
+    opacity: 0;
+    transition: opacity .18s ease;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.bi-viewer.active {
+    opacity: 1;
+}
+.bi-viewer:focus {
+    outline: none;
+}
+.bi-viewer__stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    overflow: hidden;
+    cursor: zoom-out;
+}
+.bi-viewer__img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    cursor: zoom-in;
+    transform-origin: center center;
+    transform: scale(.96);
+    will-change: transform;
+    -webkit-user-drag: none;
+}
+.bi-viewer.active .bi-viewer__img {
+    transform: none;
+}
+.bi-viewer__img.is-animating {
+    transition: transform .2s ease;
+}
+.bi-viewer.is-zoomed .bi-viewer__img {
+    cursor: grab;
+}
+.bi-viewer.is-zoomed .bi-viewer__img:active {
+    cursor: grabbing;
+}
+.bi-viewer__bar {
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    display: flex;
+    gap: 8px;
+}
+.bi-viewer__button {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(40, 40, 40, .72);
+    color: #fff;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    transition: background-color .12s, transform .08s;
+}
+.bi-viewer__close {
+    padding: 0;
+    font-size: 20px;
+    line-height: 36px;
+}
+.bi-viewer__button:hover {
+    background: rgba(70, 70, 70, .85);
+}
+.bi-viewer__button:active {
+    transform: scale(.94);
+}
+.bi-viewer__button:disabled {
+    opacity: .5;
+    cursor: progress;
+}

@@ -28,6 +28,7 @@ from app.routers.admin import (
     jst_local_str_to_utc_dt,
 )
 from app.services import announcement_service as svc
+from app.services import media_service
 from app.services.announcement_html import html_to_text, render_html, sanitize_body, sanitize_title
 from app.services.user_service import User
 
@@ -309,6 +310,33 @@ async def admin_announcement_static_images(
                 pass
         items.append({"src": path, "width": width, "height": height})
     return {"items": items, "total": len(matched)}
+
+
+@router.get("/uploaded-images", name="admin_announcement_uploaded_images")
+async def admin_announcement_uploaded_images(
+    request: Request,
+    lang: str,
+    q: str = Query("", max_length=100),
+    offset: int = Query(0, ge=0, le=100000),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    """「これまでの画像」。お知らせに上げた画像を新しい順に（ファイル名で探せる）。"""
+    return await media_service.list_media(db, "announcement", q=q, offset=offset)
+
+
+@router.post("/uploaded-images/{media_id:int}/remove", name="admin_announcement_uploaded_image_remove")
+async def admin_announcement_uploaded_image_remove(
+    request: Request,
+    lang: str,
+    media_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """「これまでの画像」から外す。お知らせの本文・履歴で使っているかもしれないので、ファイルは残す。"""
+    if not await media_service.remove(db, "announcement", media_id, user_id=current_user.id):
+        return JSONResponse({"success": False, "message": "画像が見つかりません。"}, status_code=404)
+    logger.info(f"お知らせの画像 (ID: {media_id})を「これまでの画像」から外しました（ユーザー ID: {current_user.id}）")
+    return {"success": True, "message": "一覧から外しました。"}
 
 
 @router.get("/{post_id:int}", name="admin_announcement_edit")

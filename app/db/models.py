@@ -945,21 +945,6 @@ class RankedSeason(Base):
     )
 
 
-class Announcement(Base):
-    """
-    お知らせを格納していた旧テーブル。2026-10-29 に announcement_posts へ写した（移行の元として1リリースだけ残す）。
-    """
-    __tablename__ = 'announcements'
-
-    id = Column(Text, primary_key=True)
-    datetime = Column(DateTime(timezone=True), nullable=False)
-    en_title = Column(Text, nullable=False)
-    ja_title = Column(Text, nullable=True)
-    en_text = Column(Text, nullable=False)
-    ja_text = Column(Text, nullable=True)
-    category = Column(Integer, nullable=True)
-
-
 class AnnouncementPost(Base):
     """
     お知らせ（アナウンス）。検討メモ notes_private/announcement_plan_2026-10-29.md の 3章。
@@ -1053,6 +1038,44 @@ class AnnouncementTemplate(Base):
     __table_args__ = (
         CheckConstraint("kind IN ('template', 'snippet')", name='ck_announcement_templates_kind'),
         CheckConstraint("category IS NULL OR category BETWEEN 1 AND 5", name='ck_announcement_templates_category'),
+    )
+
+
+class Media(Base):
+    """
+    アップロードした画像（共通の土台。検討メモ notes_private/push_image_plan_2026-10-27.md の 6章）。
+    ファイルは media_storage.py が保存する（今は親サーバーのディスクの media/{kind}/{key[:2]}/{key}.webp。
+    サイズ違いは {key}_s.webp・{key}_og.jpg）。元のファイルは保存しない。
+    status: active（使える）・pending / rejected（承認制のもの。後で）・removed（一覧から外した。ファイルは残す）。
+    """
+    __tablename__ = 'media'
+
+    id = Column(Integer, primary_key=True)
+    key = Column(Text, nullable=False, unique=True)  # ファイル名（推測できないランダムな名前）
+    kind = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, server_default='active')
+    owner_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    name = Column(Text, nullable=False, server_default='')  # 元のファイル名（管理画面で探す用）
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    bytes = Column(Integer, nullable=False)  # 大きいサイズのファイルの大きさ
+    sha256 = Column(Text, nullable=False)  # 上げられたファイルのハッシュ（同じ画像をもう一度上げたときに使い回す）
+    variants = Column(JSONB, nullable=False, server_default='{}')  # サイズ違い {"s": [幅, 高さ], "og": [幅, 高さ]}
+    ref_type = Column(Text, nullable=True)  # 使っている所（チャットのメッセージなど。後で）
+    ref_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    removed_at = Column(DateTime(timezone=True), nullable=True)
+    removed_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('announcement', 'chat', 'post', 'banner', 'avatar', 'feedback')",
+            name='ck_media_kind',
+        ),
+        CheckConstraint("status IN ('active', 'pending', 'rejected', 'removed')", name='ck_media_status'),
+        Index('ix_media_kind_status', 'kind', 'status', desc('id')),
+        Index('ix_media_kind_sha256', 'kind', 'sha256'),
+        Index('ix_media_ref', 'ref_type', 'ref_id'),
     )
 
 
