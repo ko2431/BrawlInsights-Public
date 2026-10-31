@@ -1121,7 +1121,7 @@
                             <span>{% if lang == 'ja' %}画像は{{ fb.max_images or 3 }}枚まで。内容の欄に貼り付け・ドロップしても添付できます。{% else %}Up to {{ fb.max_images or 3 }} images. You can also paste or drop them into the comment box.{% endif %}</span>
                         </template>
                         <template x-if="!canPickFiles">
-                            <span>{% if lang == 'ja' %}画像の添付は、Web版から行えます。{% else %}Images can be attached from the web version.{% endif %}</span>
+                            <span>{% if lang == 'ja' %}画像は、クリップボードから貼り付けすることで添付できます。{% else %}Images can be attached by pasting them from the clipboard.{% endif %}</span>
                         </template>
                     </p>
                     <p class="fb-note" data-tone="warn" x-show="images.length" style="display: none;">{% if lang == 'ja' %}画像に、他の人の名前など個人の情報が写っていないか確かめてください。{% else %}Please make sure the images don't show other people's personal information, such as their names.{% endif %}</p>
@@ -1132,7 +1132,8 @@
                     </p>
                     {% endif %}
                     <div class="form-actions fb-form__actions">
-                        <button type="submit" class="button button--primary" :disabled="!isFormValid">
+                        {# 内容が短いときは、グレーのまま押せるようにして、押したら理由を出す #}
+                        <button type="submit" class="button button--primary" :disabled="!canPress" :aria-disabled="(canPress && !isFormValid).toString()">
                             <span x-show="!isLoading">{% if lang == 'ja' %}送信{% else %}Send{% endif %}</span>
                             <span x-show="isLoading">{% if lang == 'ja' %}送信中...{% else %}Sending...{% endif %}</span>
                         </button>
@@ -3758,6 +3759,7 @@ function feedbackHandler() {
         },
         images: [], // { localId, preview, progress, uploading, id }
         maxImages: {{ ((feedback_form or {}).max_images or 3) | tojson }},
+        minChars: {{ ((feedback_form or {}).min_chars or 5) | tojson }},
         // iOS の古いアプリはファイルの選択の「写真を撮る」で落ちるので、選択のボタンを出さない（貼り付け・ドロップは使える）
         canPickFiles: {{ ((feedback_form.can_pick_files) if (feedback_form is defined and feedback_form) else (platform == 'web')) | tojson }},
         dragOver: false,
@@ -3771,8 +3773,17 @@ function feedbackHandler() {
             return this.images.some((item) => item.uploading);
         },
 
+        get isLongEnough() {
+            return Array.from(this.feedback.comment.trim()).length >= this.minChars;
+        },
+
+        // 種類を選んでいれば押せる（内容が短いときはグレーのまま押せて、押すと理由を出す）
+        get canPress() {
+            return !!this.feedback.type && !this.isUploading && !this.isLoading;
+        },
+
         get isFormValid() {
-            return this.feedback.type && this.feedback.comment.trim() !== '' && !this.isUploading;
+            return this.canPress && this.isLongEnough;
         },
 
         onDragOver(event) {
@@ -3848,7 +3859,11 @@ function feedbackHandler() {
         },
 
         async submitFeedback() {
-            if (!this.isFormValid || this.isLoading) {
+            if (!this.canPress) {
+                return;
+            }
+            if (!this.isLongEnough) {
+                window.alert(ja ? 'フィードバックの内容が短すぎるため、送信できません。' : 'Your feedback is too short to send.');
                 return;
             }
             if (!window.confirm(this.confirmText())) {

@@ -86,3 +86,20 @@ def test_can_view_private():
     assert media_service.can_view_private(staff, row)
     # 送信する前（どこにも付いていない）の画像は本人だけ
     assert not media_service.can_view_private(staff, {**row, "ref_type": None})
+
+
+def test_frozen_ios_version_is_shown_as_lower_bound():
+    """iOS 26 から UA の版は 18.x に固定なので、18.6 以上は「以降」を付ける。iPad は iPadOS。"""
+    ipad = "Mozilla/5.0 (iPad; CPU OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 BrawlInsightsApp/15.0"
+    env = _env(ipad, "ios", "15.0")
+    assert env["os_version_frozen"] is True
+    assert fs.env_label(env, "ja") == "iOSアプリ 15.0・iPadOS 18.7以降・iPad・日本語"
+    assert fs.env_label(env, "en") == "iOS app 15.0 · iPadOS 18.7+ · iPad · Japanese"
+    assert fs.env_label(_env(IOS_APP, "ios", "15.0"), "ja").startswith("iOSアプリ 15.0・iOS 18.1・")
+
+
+@pytest.mark.asyncio
+async def test_comment_needs_min_chars():
+    with pytest.raises(fs.FeedbackError) as e:
+        await fs.create_feedback(None, user_id=1, feedback_type="bug_report", comment="  ああああ ", env={}, media_ids=[])
+    assert "短すぎる" in e.value.message("ja")

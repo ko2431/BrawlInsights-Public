@@ -70,7 +70,16 @@
     outline: none;
 }
 
-/* 計測スクリプト未到達時の見た目無効化（click は届くように disabled 属性は使わない） */
+/* 計測スクリプト未到達時の見た目無効化（click は届くように disabled 属性は使わない）。
+   aria-disabled="true" も同じ（押すと理由を出すボタン。フォーカス・押している間もグレーのまま） */
+.button[aria-disabled="true"],
+.button[aria-disabled="true"]:hover,
+.button[aria-disabled="true"]:focus,
+.button[aria-disabled="true"]:active,
+.button.button--primary[aria-disabled="true"],
+.button.button--primary[aria-disabled="true"]:hover,
+.button.button--primary[aria-disabled="true"]:focus,
+.button.button--primary[aria-disabled="true"]:active,
 .button.button--gated,
 .button.button--primary.button--gated,
 .button.button--gated:hover,
@@ -85,6 +94,14 @@
     cursor: not-allowed;
     box-shadow: none;
 }
+.dark .button[aria-disabled="true"],
+.dark .button[aria-disabled="true"]:hover,
+.dark .button[aria-disabled="true"]:focus,
+.dark .button[aria-disabled="true"]:active,
+.dark .button.button--primary[aria-disabled="true"],
+.dark .button.button--primary[aria-disabled="true"]:hover,
+.dark .button.button--primary[aria-disabled="true"]:focus,
+.dark .button.button--primary[aria-disabled="true"]:active,
 .dark .button.button--gated,
 .dark .button.button--primary.button--gated,
 .dark .button.button--gated:hover,

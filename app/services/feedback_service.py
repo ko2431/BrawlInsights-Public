@@ -27,6 +27,7 @@ TYPE_LABELS = {
     "bug_report": ("不具合の報告", "Bug Report"),
     "message": ("メッセージ", "Message"),
 }
+COMMENT_MIN_CHARS = 5  # 「あ」などの意味のない送信を防ぐ
 COMMENT_MAX_CHARS = 5000
 MAX_IMAGES = 3
 UA_MAX_CHARS = 500
@@ -50,6 +51,9 @@ _BROWSER_NAMES = {
     "Edge Mobile": "Edge",
     "Opera Mobile": "Opera",
 }
+# iOS 26 から、Safari・アプリの WebView の UA の OS の版は 18.x に固定されている（iPadOS 27 でも「18_7」など）。
+# 18.6 以上は本当の 18.x と見分けられないので「18.7以降」のように出す
+_IOS_FROZEN_FROM = (18, 6)
 _TWO_PART_BROWSERS = {"Safari"}  # 版を「18.1」の形で出す（ほかは「141」のように大きい番号だけ）
 
 
@@ -78,9 +82,14 @@ def client_env(request: Request, lang: str, *, site_version: str) -> dict[str, A
     os_version = "" if os_name in _FROZEN_OS_VERSION else _version(ua.os.version, 2)
     if platform == "app" and os_name == "macOS":
         os_name = "iPadOS"  # iPad のアプリは Mac の UA を名乗る（版は分からない）
+    os_version_frozen = False
     device = ""
     if os_name == "iOS":
         device = ua.device.family if ua.device.family in ("iPhone", "iPad", "iPod") else ""
+        if device == "iPad":
+            os_name = "iPadOS"
+        numbers = tuple(v for v in ua.os.version[:2] if isinstance(v, int))
+        os_version_frozen = len(numbers) == 2 and numbers >= _IOS_FROZEN_FROM
     elif os_name == "Android":
         family = ua.device.family or ""
         if family == "K":
@@ -95,6 +104,7 @@ def client_env(request: Request, lang: str, *, site_version: str) -> dict[str, A
         "app_version": getattr(request.state, "app_client_version", None) or "",
         "os": "" if os_name == "Other" else os_name,
         "os_version": os_version,
+        "os_version_frozen": os_version_frozen,  # UA の版は下限（本当の版はそれ以降のどれか）
         "browser": "" if browser == "Other" else browser,
         "browser_version": browser_version if browser != "Other" else "",
         "device": device,
@@ -117,7 +127,10 @@ def env_parts(env: dict[str, Any] | None, lang: str, *, with_site: bool = False)
         head = (name[0] if ja else name[1]) + (f" {app_version}" if app_version else "")
     parts = [head]
     if env.get("os"):
-        parts.append(" ".join(filter(None, [env["os"], env.get("os_version")])))
+        os_version = env.get("os_version") or ""
+        if os_version and env.get("os_version_frozen"):
+            os_version += "以降" if ja else "+"
+        parts.append(" ".join(filter(None, [env["os"], os_version])))
     if platform == "web" and env.get("browser"):
         parts.append(" ".join(filter(None, [env["browser"], env.get("browser_version")])))
     if env.get("device"):
@@ -156,6 +169,7 @@ def form_context(request: Request, lang: str, *, site_version: str) -> dict[str,
         "env_label": env_label(env, lang),
         "can_pick_files": can_pick_files(env["platform"], env["app_version"]),
         "max_images": MAX_IMAGES,
+        "min_chars": COMMENT_MIN_CHARS,
         "max_chars": COMMENT_MAX_CHARS,
     }
 
@@ -172,6 +186,8 @@ async def create_feedback(db: asyncpg.Connection, *, user_id: int, feedback_type
     comment = (comment or "").strip()
     if feedback_type not in FEEDBACK_TYPES or not comment:
         raise FeedbackError("フィードバックの種類を選び、内容を入力してください。", "Please select a feedback type and enter a comment.")
+    if len(comment) < COMMENT_MIN_CHARS:
+        raise FeedbackError("フィードバックの内容が短すぎるため、送信できません。", "Your feedback is too short to send.")
     if len(comment) > COMMENT_MAX_CHARS:
         raise FeedbackError(
             f"内容は {COMMENT_MAX_CHARS:,} 文字までです。", f"Comments can be up to {COMMENT_MAX_CHARS:,} characters.",
