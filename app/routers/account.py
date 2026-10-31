@@ -1095,8 +1095,8 @@ async def send_feedback_process(
             reply_to_id=payload.reply_to_id,
         )
         message = (
-            "送信されました。返信や回答があると、通知が届きます。" if lang == "ja"
-            else "Thank you for your feedback! You'll be notified when there's a reply or a response."
+            "送信されました。フィードバックをお寄せいただきありがとうございます！" if lang == "ja"
+            else "Thank you for your feedback! Your feedback has been submitted successfully!"
         )
         return JSONResponse({"success": True, "message": message})
     except feedback_service.FeedbackError as e:
