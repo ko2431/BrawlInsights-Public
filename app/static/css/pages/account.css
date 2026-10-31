@@ -1611,3 +1611,4 @@ body.modal-open {
 .bca__gift-status { color: var(--color-333); }
 .bca__mail code { display: block; padding: 4px 8px; border-radius: 6px; background: var(--bg-main); font-size: 13px; font-weight: bold; user-select: all; }
 .bca__mail-body { margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--bg-main); font: inherit; font-size: 12px; white-space: pre-wrap; user-select: all; }
+.bca__deadlines { display: flex; flex-direction: column; gap: 2px; }

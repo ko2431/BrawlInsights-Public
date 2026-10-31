@@ -54,7 +54,19 @@
             <button type="button" class="bca__btn bca__btn--primary bca__btn--big" @click="reveal()" :disabled="busy">{{ "結果を確認する" if ja else "Check my results" }}</button>
             {% if result_url %}<a href="{{ result_url }}" class="bca__btn">{{ "結果を見る（お知らせ）" if ja else "See results (news)" }}</a>{% endif %}
         </div>
-        <p class="bca__deadline">{{ (("結果の確認・受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Check and claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
+        <div class="bca__deadlines">
+            <p class="bca__deadline">{{ (("結果の確認・受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Check and claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
+            {% if dl.has_gifts %}
+            {# ギフトの連絡の期限は受け取りより短いので、結果を確認する前に全員共通で出す（当選は分からない。レビューの指摘 9） #}
+            <p class="bca__deadline">
+                {%- if dl.gift_passed -%}
+                {{ (("※ギフト景品に当選した場合の連絡の期限（" ~ dl.gift_short ~ "）は過ぎています。") if ja else ("*The contact deadline for gift prizes (" ~ dl.gift_short ~ ") has passed.")) }}
+                {%- else -%}
+                {{ (("※ギフト景品に当選した場合の連絡の期限は <b>" ~ dl.gift_short ~ "</b>（発表から" ~ dl.gift_hours ~ "時間）です。") if ja else ("*If you won a gift prize, please contact us by <b>" ~ dl.gift_short ~ "</b> (" ~ dl.gift_hours ~ " hours after the announcement).")) | safe }}
+                {%- endif -%}
+            </p>
+            {% endif %}
+        </div>
     </div>
 
     {% else %}
