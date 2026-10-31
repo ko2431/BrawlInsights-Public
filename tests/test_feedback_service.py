@@ -103,3 +103,60 @@ async def test_comment_needs_min_chars():
     with pytest.raises(fs.FeedbackError) as e:
         await fs.create_feedback(None, user_id=1, feedback_type="bug_report", comment="  ああああ ", env={}, media_ids=[])
     assert "短すぎる" in e.value.message("ja")
+
+
+def test_answer_items_follow_template_shape():
+    items = [
+        {"public_text_ja": "〇〇を追加して欲しいです", "answer_ja": "近日中に実装予定です。\n\nお待ちください！",
+         "public_text_en": "", "answer_en": ""},
+        {"public_text_ja": "a < b & c", "answer_ja": "詳しくは https://example.com/x?a=1 へ",
+         "public_text_en": "Bug", "answer_en": "Fixed."},
+    ]
+    html_ja, count_ja = fs.answer_items_html(items, "ja")
+    assert count_ja == 2
+    assert html_ja.startswith('<ol><li><p><b><c9>"〇〇を追加して欲しいです"</c9></b></p></li></ol><p>近日中に実装予定です。</p><p></p>')
+    assert '<ol start="2"><li><p><b><c9>"a &lt; b &amp; c"</c9></b></p></li></ol>' in html_ja
+    assert '<a href="https://example.com/x?a=1">https://example.com/x?a=1</a>' in html_ja
+    # 英語が空のものは英語版に入れず、番号は 1 から
+    html_en, count_en = fs.answer_items_html(items, "en")
+    assert count_en == 1 and html_en.startswith('<ol><li><p><b><c9>"Bug"</c9></b></p></li></ol><p>Fixed.</p>')
+    body = f"<p>前置き</p><p> {fs.TEMPLATE_MARKER_TEXT} </p><p>締め</p>"
+    assert fs.has_marker(body) and not fs.has_marker("<p>前置き</p>")
+    assert fs.fill_template(body, "<p>X</p>") == "<p>前置き</p><p>X</p><p>締め</p>"
+
+
+def test_clean_answer_input_needs_pairs():
+    out = fs.clean_answer_input({"public_text_ja": " 要約 \r\n\r\n\r\n\r\n続き ", "answer_ja": "回答"})
+    assert out["public_text_ja"] == "要約\n\n続き" and out["answer_en"] == ""
+    with pytest.raises(fs.FeedbackError):
+        fs.clean_answer_input({"public_text_ja": "要約", "answer_ja": ""})
+    with pytest.raises(fs.FeedbackError):
+        fs.clean_answer_input({"public_text_en": "Summary", "answer_en": "Answer"})  # 英語だけは載せられない
+
+
+def test_linkify_escapes_text():
+    assert fs.linkify('<b>x</b> http://a.example/p?q="1"') == (
+        '&lt;b&gt;x&lt;/b&gt; <a href="http://a.example/p?q=">http://a.example/p?q=</a>"1"'
+    )
+
+
+def test_feedback_pushes():
+    from app.services import push_rules as rules
+    reply = rules.feedback_reply_push("en", feedback_id=9, text="x" * 300)
+    assert reply.url == "/en/account?feedback=9#feedback-history" and reply.tag == "fbr9" and len(reply.body) == rules.BODY_MAX_CHARS
+    answer = rules.feedback_answer_push("ja", post_id=270, title="【お知らせ】フィードバックへの回答です！")
+    assert answer.url == "/ja/help/announcements/270" and answer.title.startswith("フィードバックへの回答")
+    assert rules.FEEDBACK_SETTING_KEY in rules.PUSH_SETTING_KEYS and rules.PUSH_SETTING_DEFAULTS[rules.FEEDBACK_SETTING_KEY] is True
+
+
+def test_feedback_route_permissions():
+    from app.core import admin_permissions as ap
+    resolve = ap.resolve_admin_route_permission
+    assert resolve("GET", "/ja/admin/feedbacks/9") == ap.PERM_FEEDBACKS_VIEW
+    assert resolve("POST", "/ja/admin/feedbacks/9/reply") == ap.PERM_FEEDBACKS_REPLY
+    assert resolve("POST", "/ja/admin/feedbacks/9/replies/3/withdraw") == ap.PERM_FEEDBACKS_REPLY
+    assert resolve("POST", "/ja/admin/feedbacks/9/answer") == ap.PERM_FEEDBACKS_ANSWER
+    assert resolve("POST", "/ja/admin/feedbacks/announcement") == ap.PERM_FEEDBACKS_ANSWER
+    assert resolve("POST", "/ja/admin/feedbacks/9/check") == ap.PERM_FEEDBACKS_EDIT
+    assert resolve("POST", "/ja/admin/feedbacks/update") == ap.PERM_FEEDBACKS_EDIT
+    assert resolve("POST", "/ja/admin/feedbacks/9/other") == "admin"

@@ -220,6 +220,10 @@ async def _plan(job: dict, user: dict, board: BoardContext, now: float):
     uid = user["id"]
     src = job.get("src")
     if src == "direct":
+        # setting があれば、その受け取りの設定がオフの人には送らない（フィードバックへの返信・回答）
+        setting = job.get("setting")
+        if setting and not user.get(setting, rules.PUSH_SETTING_DEFAULTS.get(setting, True)):
+            return None
         pushes = {lang: rules.Push(**data) for lang, data in (job.get("push") or {}).items()}
         if not pushes:
             return None

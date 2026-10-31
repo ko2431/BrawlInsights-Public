@@ -1134,7 +1134,7 @@ body.modal-open {
     margin-bottom: 12px;
 }
 .fb-type {
-    padding: 6px 13px;
+    padding: 4px 13px;
     border: 1px solid var(--color-ddd);
     border-radius: 999px;
     background: var(--bg-main);
@@ -1260,7 +1260,7 @@ body.modal-open {
     margin: 6px 0 0;
     color: var(--color-777);
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.35;
 }
 .fb-note[data-tone="warn"] {
     color: #b45309;
@@ -1293,4 +1293,210 @@ body.modal-open {
     display: flex;
     justify-content: flex-end;
     margin-top: 12px;
+}
+.fb-reply-to {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    background: rgba(56, 189, 248, .12);
+    font-size: 12px;
+}
+.fb-reply-to__text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fb-reply-to__clear {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--color-ddd);
+    color: var(--color-444);
+    font-size: 13px;
+    line-height: 22px;
+    cursor: pointer;
+}
+
+/* --- これまでのフィードバック --- */
+.fbh-badge {
+    display: inline-block;
+    min-width: 20px;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 20px;
+    text-align: center;
+    vertical-align: middle;
+}
+.fbh {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.fbh-empty {
+    margin: 4px 0;
+    color: var(--color-777);
+    font-size: 13px;
+}
+.fbh-empty--error {
+    color: #dc2626;
+}
+.fbh-item {
+    padding: 12px 14px;
+    border: 1px solid var(--color-eee);
+    border-radius: 14px;
+    background: var(--bg-fdfdfd);
+    scroll-margin-top: 80px;
+    transition: box-shadow .3s;
+}
+.fbh-item.is-target {
+    box-shadow: 0 0 0 2px #38bdf8;
+}
+.fbh-item__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    font-size: 12px;
+}
+.fbh-item__type {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--bg-f0f0f0);
+    font-weight: bold;
+}
+.fbh-item__at {
+    color: var(--color-888);
+    font-size: 12px;
+}
+.fbh-new {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 16px;
+}
+.fbh-item__follow-of {
+    margin: 6px 0 0;
+    color: var(--color-888);
+    font-size: 12px;
+}
+.fbh-item__comment {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.fbh-item__images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.fbh-item__thumb {
+    padding: 0;
+    border: 1px solid var(--color-ddd);
+    border-radius: 8px;
+    background: var(--color-eee);
+    overflow: hidden;
+    cursor: zoom-in;
+    transition: transform .1s;
+}
+.fbh-item__thumb:active {
+    transform: scale(.96);
+}
+.fbh-item__thumb img {
+    display: block;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+}
+.fbh-item__note {
+    margin: 6px 0 0;
+    color: var(--color-888);
+    font-size: 11px;
+}
+.fbh-reply {
+    margin-top: 10px;
+    padding: 9px 11px;
+    border-radius: 12px;
+    background: rgba(56, 189, 248, .1);
+}
+.fbh-reply--answer {
+    background: rgba(18, 181, 18, .09);
+}
+.fbh-reply__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-size: 12px;
+}
+.fbh-reply__icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+}
+.fbh-reply__body {
+    margin-top: 5px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.fbh-reply__body a,
+.fbh-reply__link {
+    color: #0284c7;
+    text-decoration: underline;
+}
+.dark .fbh-reply__body a,
+.dark .fbh-reply__link {
+    color: #7dd3fc;
+}
+.fbh-reply__link {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.fbh-item__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+.fbh-item__follow {
+    padding: 4px 12px;
+    border: 1px solid var(--color-ddd);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-444);
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: border-color .12s, transform .1s;
+}
+.fbh-item__follow:hover {
+    border-color: var(--color-aaa);
+}
+.fbh-item__follow:active {
+    transform: scale(.96);
+}
+.fbh-more {
+    display: flex;
+    justify-content: center;
 }

@@ -101,6 +101,7 @@ class User(Base):
     push_message_reaction_enabled = Column(Boolean, nullable=False, server_default='False')
     push_token_gift_enabled = Column(Boolean, nullable=False, server_default='True')
     push_announcement_enabled = Column(Boolean, nullable=False, server_default='False')  # お知らせ（宣伝を含むので既定オフ。AD25）
+    push_feedback_enabled = Column(Boolean, nullable=False, server_default='True')  # 自分のフィードバックへの返信・回答
     # [この部分は公開用リポジトリでは非公開にされています]
     last_main_account_changed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -1174,6 +1175,8 @@ class Feedback(Base):
     ユーザーからのフィードバックを格納するテーブル。
     送信時の環境（platform・ui_lang・client_env）は 2026-10-31 から記録する（それより前は NULL。
     検討メモ notes_private/feedback_plan_2026-10-31.md の 3章）。添付の画像は media（kind = feedback、ref_type = feedback）。
+    公開の回答（8章）: answer_state は none（なし）・ready（掲載待ち）・draft（お知らせの下書きに入れた）・published（掲載済み）。
+    個別返信は feedback_replies。
     """
     __tablename__ = 'feedbacks'
 
@@ -1189,9 +1192,51 @@ class Feedback(Base):
     client_env = Column(JSONB, nullable=True)
     checked_at = Column(DateTime(timezone=True), nullable=True)  # 添付の画像の保持の起点
     checked_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    reply_to_id = Column(Integer, ForeignKey('feedbacks.id', ondelete='SET NULL'), nullable=True)  # 「このフィードバックについて追加で送る」の元
+    # 公開の回答。掲載用の本文（管理者が要約・個人の情報を伏せたもの）と回答。文字だけ（改行あり）
+    public_text_ja = Column(Text, nullable=False, server_default='')
+    public_text_en = Column(Text, nullable=False, server_default='')
+    answer_ja = Column(Text, nullable=False, server_default='')
+    answer_en = Column(Text, nullable=False, server_default='')
+    answer_state = Column(Text, nullable=False, server_default='none')
+    announcement_id = Column(Integer, ForeignKey('announcement_posts.id', ondelete='SET NULL'), nullable=True)
+    answer_updated_at = Column(DateTime(timezone=True), nullable=True)
+    answer_updated_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    answer_published_at = Column(DateTime(timezone=True), nullable=True)
+    answer_read_at = Column(DateTime(timezone=True), nullable=True)  # 本人が履歴で掲載済みの回答を見た
 
     # リレーションシップ
     user = relationship("User", back_populates="feedbacks", foreign_keys=[user_id])
+
+    __table_args__ = (
+        CheckConstraint("answer_state IN ('none', 'ready', 'draft', 'published')", name='ck_feedbacks_answer_state'),
+        Index('ix_feedbacks_user_id', 'user_id', desc('id')),
+        # 掲載待ち・下書きに入れたもの（一覧の絞り込みと、お知らせの公開を待つ worker）
+        Index('ix_feedbacks_answer_pending', 'answer_state', 'announcement_id',
+              postgresql_where=text("answer_state IN ('ready', 'draft')")),
+        Index('ix_feedbacks_announcement_id', 'announcement_id', postgresql_where=text('announcement_id IS NOT NULL')),
+    )
+
+
+class FeedbackReply(Base):
+    """
+    運営から送った本人への個別返信（一方向。検討メモ notes_private/feedback_plan_2026-10-31.md の 7章）。
+    本人には「Brawl Insights 運営」として見せる（送った管理者は created_by に残す）。取り消すと本人から見えなくなる。
+    """
+    __tablename__ = 'feedback_replies'
+
+    id = Column(Integer, primary_key=True)
+    feedback_id = Column(Integer, ForeignKey('feedbacks.id', ondelete='CASCADE'), nullable=False)
+    body = Column(Text, nullable=False)
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    read_at = Column(DateTime(timezone=True), nullable=True)  # 本人が履歴で見た
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    withdrawn_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+
+    __table_args__ = (
+        Index('ix_feedback_replies_feedback_id', 'feedback_id', 'id'),
+    )
 
 
 class Region(Base):
@@ -1622,6 +1667,9 @@ class BoardNotification(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     # 通知ごとの既読（対象のスレッドを開いたとき・見ている間に届いたとき）。一覧を開いたときの既読は users.notifications_last_read_at
     read_at = Column(DateTime(timezone=True), nullable=True)
+    # フィードバックへの返信・回答の通知（feedback_reply・feedback_answer）の対象。大きいテーブルなので外部キー・索引は付けない
+    # （フィードバックは消さない。消えていれば表示しない）
+    feedback_id = Column(Integer, nullable=True)
 
     __table_args__ = (
         Index('idx_board_notifications_recipient_created_at', 'recipient_user_id', desc('created_at')),

@@ -26,6 +26,10 @@ NOTIFICATION_TYPE_MESSAGE_MENTION = "message_mention"
 NOTIFICATION_TYPE_MESSAGE_REACTION = "message_reaction"
 NOTIFICATION_TYPE_TOKEN_GIFT = "token_gift"
 NOTIFICATION_TYPE_ADMIN_WARNING = "admin_warning"
+# フィードバックへの運営からの個別返信・公開の回答の掲載（feedback_service が作る。設定ではオフにできない）
+NOTIFICATION_TYPE_FEEDBACK_REPLY = "feedback_reply"
+NOTIFICATION_TYPE_FEEDBACK_ANSWER = "feedback_answer"
+FEEDBACK_NOTIFICATION_TYPES = (NOTIFICATION_TYPE_FEEDBACK_REPLY, NOTIFICATION_TYPE_FEEDBACK_ANSWER)
 
 AGGREGATED_NOTIFICATION_TYPES = {
     NOTIFICATION_TYPE_POST_LIKE,
@@ -55,6 +59,8 @@ VALID_NOTIFICATION_FILTERS = frozenset({
     *NOTIFICATION_TYPE_SETTING_KEYS,
     NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE,
     "admin_warning",
+    NOTIFICATION_TYPE_FEEDBACK_REPLY,
+    NOTIFICATION_TYPE_FEEDBACK_ANSWER,
 })
 
 MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
@@ -1108,6 +1114,8 @@ async def _build_notification_where(
     ]
     # スレッドごとに通知オンにしたものは、アカウント全体の通知設定に関わらず表示する
     enabled_types.append(NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE)
+    # 自分のフィードバックへの返信・回答も設定に関わらず表示する（actor は本人なので、ブロックの対象にもならない）
+    enabled_types.extend(FEEDBACK_NOTIFICATION_TYPES)
     # 警告は通知設定オフでも一覧に出す。未読バッジは last_read_at ではなく
     # unacked_penalty_count で数える（一覧を開いただけでは消えない）。
     if unread_only:
@@ -1259,8 +1267,13 @@ async def _aggregate_notification_rows(
     actor_ids: set[int] = set()
     post_ids: set[int] = set()
     message_ids: set[int] = set()
+    feedback_ids: set[int] = set()
     for key in ordered_keys:
         for row in grouped[key]:
+            if row["notification_type"] in FEEDBACK_NOTIFICATION_TYPES:
+                if row["feedback_id"]:
+                    feedback_ids.add(row["feedback_id"])
+                continue  # 送った管理者は出さない（「Brawl Insights 運営」として出す）
             actor_ids.add(row["actor_user_id"])
             if row["post_id"]:
                 post_ids.add(row["post_id"])
@@ -1317,6 +1330,21 @@ async def _aggregate_notification_rows(
         for message_id, emoji_counts in reactions_by_message.items():
             reaction_summaries[message_id] = "・".join(f"{emoji}{count}" for emoji, count in emoji_counts)
 
+    feedback_metas: dict[int, asyncpg.Record] = {}
+    if feedback_ids:
+        try:
+            feedback_rows = await db.fetch(
+                """
+                SELECT f.id, f.comment, f.announcement_id, f.answer_state, p.show_ja, p.show_en
+                FROM feedbacks f LEFT JOIN announcement_posts p ON p.id = f.announcement_id
+                WHERE f.id = ANY($1::int[])
+                """,
+                list(feedback_ids),
+            )
+        except asyncpg.PostgresError as e:
+            raise DataBaseError(e) from e
+        feedback_metas = {row["id"]: row for row in feedback_rows}
+
     gift_metas: dict[int, dict[str, Any]] = {}
     if message_ids:
         try:
@@ -1351,6 +1379,14 @@ async def _aggregate_notification_rows(
                 seen_actor_ids.append(row["actor_user_id"])
 
         actors = [actor_profiles[actor_id] for actor_id in seen_actor_ids if actor_id in actor_profiles]
+        if ntype in FEEDBACK_NOTIFICATION_TYPES:
+            actors = [{
+                "user_id": 0,
+                "user_name": "Brawl Insights 運営" if lang == "ja" else "Brawl Insights Team",
+                "main_account_tag": None,
+                "main_account_name": None,
+                "icon_path": "/static/images/ui/logo.png",
+            }]
         if not actors:
             if ntype != NOTIFICATION_TYPE_ADMIN_WARNING:
                 continue
@@ -1380,6 +1416,9 @@ async def _aggregate_notification_rows(
             "reaction_summary": "",
             "target_is_empty": False,
             "gift_tier": None,
+            "feedback_id": None,
+            "announcement_id": None,
+            "announcement_lang": lang,
         }
 
         if ntype == NOTIFICATION_TYPE_POST_LIKE:
@@ -1462,6 +1501,33 @@ async def _aggregate_notification_rows(
             item["thread_id"] = latest_row["post_id"]
             item["message_id"] = message_id
             item["gift_tier"] = gift_meta["tier"]
+        elif ntype in FEEDBACK_NOTIFICATION_TYPES:
+            feedback = feedback_metas.get(latest_row["feedback_id"])
+            if feedback is None:
+                continue
+            if ntype == NOTIFICATION_TYPE_FEEDBACK_REPLY:
+                item["title_html"] = (
+                    "運営からフィードバックへの<b>返信</b>が届きました" if lang == "ja"
+                    else "You got a <b>reply</b> to your feedback from the Brawl Insights team"
+                )
+                item["target_kind"] = "feedback"
+            else:
+                # 回答のお知らせを消したなどで外れたものは、フィードバックの履歴を開く
+                if not feedback["announcement_id"]:
+                    item["target_kind"] = "feedback"
+                else:
+                    item["target_kind"] = "announcement"
+                    item["announcement_id"] = feedback["announcement_id"]
+                    # 英語に載っていないお知らせ（英語の回答がないもの）は日本語のページを開く
+                    shown = feedback["show_en"] if lang == "en" else feedback["show_ja"]
+                    item["announcement_lang"] = lang if shown else ("ja" if lang == "en" else "en")
+                item["title_html"] = (
+                    "フィードバックへの<b>回答</b>がお知らせに掲載されました" if lang == "ja"
+                    else "A <b>response</b> to your feedback was posted in News"
+                )
+            item["feedback_id"] = feedback["id"]
+            item["target_text"] = feedback["comment"] or ""
+            item["target_is_empty"] = not item["target_text"]
         elif ntype == NOTIFICATION_TYPE_ADMIN_WARNING:
             if lang == "ja":
                 item["title_html"] = "管理者から<b>警告</b>が届いています。内容を確認してください"

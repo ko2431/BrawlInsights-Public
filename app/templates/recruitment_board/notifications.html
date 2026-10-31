@@ -34,6 +34,8 @@
                         <option value="message_reaction" {% if filter == "message_reaction" %}selected{% endif %}>{% if lang == "ja" %}自分のメッセージへのリアクション{% else %}Reactions on your messages{% endif %}</option>
                         <option value="token_gift" {% if filter == "token_gift" %}selected{% endif %}>{% if lang == "ja" %}自分へのトークン進呈{% else %}Token gifts to you{% endif %}</option>
                         <option value="admin_warning" {% if filter == "admin_warning" %}selected{% endif %}>{% if lang == "ja" %}管理者からの警告{% else %}Admin warnings{% endif %}</option>
+                        <option value="feedback_reply" {% if filter == "feedback_reply" %}selected{% endif %}>{% if lang == "ja" %}フィードバックへの返信{% else %}Feedback replies{% endif %}</option>
+                        <option value="feedback_answer" {% if filter == "feedback_answer" %}selected{% endif %}>{% if lang == "ja" %}フィードバックへの回答{% else %}Feedback responses{% endif %}</option>
                     </select>
                 </div>
                 <noscript><button type="submit" class="button button--primary" style="margin-left: 5px; font-size: 13px; padding: 4px 8px;">{% if lang == "ja" %}適用{% else %}Apply{% endif %}</button></noscript>

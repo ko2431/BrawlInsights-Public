@@ -19,6 +19,7 @@ CAT_BOARD = "board"
 CAT_ADMIN = "admin"
 CAT_NEWS = "news"  # お知らせ（Android の通知チャンネルの id もこれ）
 ANNOUNCEMENT_SETTING_KEY = "push_announcement_enabled"
+FEEDBACK_SETTING_KEY = "push_feedback_enabled"  # 自分のフィードバックへの返信・回答
 
 TOURNAMENT_SETTING_KEYS = {
     CAT_TN_PROGRESS: "push_tournament_progress_enabled",
@@ -40,7 +41,7 @@ BOARD_SETTING_KEYS = {
 BOARD_WARNING = "admin_warning"  # 管理者からの警告。設定はなく、いつも届ける
 
 PUSH_SETTING_KEYS = (tuple(TOURNAMENT_SETTING_KEYS.values()) + tuple(push for push, _ in BOARD_SETTING_KEYS.values())
-                     + (ANNOUNCEMENT_SETTING_KEY,))
+                     + (ANNOUNCEMENT_SETTING_KEY, FEEDBACK_SETTING_KEY))
 PUSH_SETTING_DEFAULTS = {
     **{key: True for key in TOURNAMENT_SETTING_KEYS.values()},
     "push_post_like_enabled": False,
@@ -52,6 +53,7 @@ PUSH_SETTING_DEFAULTS = {
     "push_message_reaction_enabled": False,
     "push_token_gift_enabled": True,
     ANNOUNCEMENT_SETTING_KEY: False,  # プレゼント企画などの宣伝を含むので、本人がオンにしたときだけ（AD25）
+    FEEDBACK_SETTING_KEY: True,  # 本人が送ったものへの返事なので宣伝ではない（フィードバックの F7）
 }
 ADMIN_PUSH_LEVELS = (0, 20, 30)
 
@@ -303,6 +305,31 @@ def announcement_push(lang: str, *, post_id: int, title: str, body: str, image: 
         channel=CAT_NEWS,
         kind="announcement",
         image=image,
+    )
+
+
+def feedback_reply_push(lang: str, *, feedback_id: int, text: str) -> Push:
+    """運営からの個別返信。タップでアカウントタブの「フィードバック履歴」のその1件。"""
+    return Push(
+        title="フィードバックに返信が届きました" if lang == "ja" else "You got a reply to your feedback",
+        body=clip(text),
+        url=f"/{lang}/account?feedback={int(feedback_id)}#feedback-history",
+        tag=f"fbr{int(feedback_id)}",
+        channel=CAT_NEWS,
+        kind="feedback_reply",
+    )
+
+
+def feedback_answer_push(lang: str, *, post_id: int, title: str) -> Push:
+    """公開の回答が載ったお知らせが公開されたとき。タップでそのお知らせ。"""
+    return Push(
+        title=("フィードバックへの回答がお知らせに掲載されました" if lang == "ja"
+               else "A response to your feedback was posted in News"),
+        body=clip(title, ANNOUNCEMENT_TITLE_MAX),
+        url=f"/{lang}/help/announcements/{int(post_id)}",
+        tag=f"fba{int(post_id)}",
+        channel=CAT_NEWS,
+        kind="feedback_answer",
     )
 
 

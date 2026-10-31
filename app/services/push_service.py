@@ -82,9 +82,21 @@ async def enqueue_tournament(notices: list[tuple[int, dict]]) -> None:
     await enqueue([{"src": "tn", "uid": int(uid), "notice": notice} for uid, notice in notices])
 
 
-async def enqueue_direct(user_id: int, pushes: dict[str, rules.Push]) -> None:
-    """作ったものをそのまま1人に送る（お知らせのプッシュの試し送り）。pushes は端末の言語 → 通知。設定は見ない。"""
-    await enqueue([{"src": "direct", "uid": int(user_id), "push": {lang: asdict(push) for lang, push in pushes.items()}}])
+async def enqueue_direct(user_id: int, pushes: dict[str, rules.Push], *, setting: str | None = None) -> None:
+    """作ったものをそのまま1人に送る（お知らせのプッシュの試し送り・フィードバックへの返信）。pushes は端末の言語 → 通知。
+    setting（受け取りの設定のキー）を渡すと、worker がその設定を確かめる。渡さなければ設定は見ない。"""
+    await enqueue_direct_many([(user_id, pushes)], setting=setting)
+
+
+async def enqueue_direct_many(items: list[tuple[int, dict[str, rules.Push]]], *, setting: str | None = None) -> None:
+    jobs = []
+    for user_id, pushes in items:
+        job = {"src": "direct", "uid": int(user_id), "push": {lang: asdict(push) for lang, push in pushes.items()}}
+        if setting:
+            job["setting"] = setting
+        jobs.append(job)
+    if jobs:
+        await enqueue(jobs)
 
 
 # [この部分は公開用リポジトリでは非公開にされています]

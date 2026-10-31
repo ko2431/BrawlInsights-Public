@@ -29,7 +29,7 @@ from app.routers.admin import (
 )
 from app.services import announcement_service as svc
 from app.services import announcement_push_service as push_svc
-from app.services import media_service, push_service
+from app.services import feedback_service, media_service, push_service
 from app.services.announcement_html import html_to_text, render_html, sanitize_body, sanitize_title
 from app.services.user_service import User
 
@@ -201,10 +201,15 @@ async def _editor_context(request: Request, lang: str, db: asyncpg.Connection, u
         row = await push_svc.get_push(db, post["id"]) if post.get("id") else None
         post["push"] = push_svc.push_for_editor(row)
     if mode == "post" and post and post.get("state") == "new":
+        # 「フィードバックへの回答」は、フィードバック確認で選んだものから作る（F11）ので一覧には出さない
         context["templates_list"] = [
             {"id": t["id"], "name": t["name"], "category": t["category"]}
             for t in await svc.list_templates(db, "template")
+            if (t["settings"] or {}).get("role") != feedback_service.FEEDBACK_TEMPLATE_ROLE
         ]
+        context["feedback_answers_url"] = (
+            str(request.url_for("admin_feedbacks", lang=lang)) + "?status_filter=all&answer_filter=ready"
+        )
     return context
 
 
@@ -362,6 +367,11 @@ async def admin_announcement_edit(
     if row is None:
         raise HTTPException(status_code=404, detail="お知らせが見つかりません")
     context = await _editor_context(request, lang, db, current_user, mode="post", post=_post_for_editor(row))
+    if row.get("source_type") == feedback_service.ANNOUNCEMENT_SOURCE_TYPE:
+        context["feedback_answers"] = {
+            "count": await db.fetchval("SELECT count(*) FROM feedbacks WHERE announcement_id = $1", post_id),
+            "url": str(request.url_for("admin_feedbacks", lang=lang)) + f"?status_filter=all&announcement_id={post_id}",
+        }
     return templates.TemplateResponse("admin/announcement_edit.html", context)
 
 
@@ -595,6 +605,7 @@ async def _set_deleted(request: Request, lang: str, post_id: int, deleted: bool,
     except DataBaseError as e:
         logger.error(f"アナウンスの{'削除' if deleted else '復元'}中にデータベースエラー: {e}", exc_info=True)
         return JSONResponse({"success": False, "message": "データベースエラーが発生しました。"}, status_code=500)
+    unlinked = await feedback_service.unlink_announcement(db, post_id) if deleted else 0
     title = html_to_text(row["title_ja"] or row["title_en"], limit=80)
     await _notify_admin_action(
         db, user,
@@ -604,8 +615,10 @@ async def _set_deleted(request: Request, lang: str, post_id: int, deleted: bool,
         {"announcement_id": post_id},
         request=request, target_type="announcement", target_id=post_id,
     )
-    return {"success": True, "message": "削除しました。「削除済み」から復元できます。" if deleted else "復元しました。",
-            "version": row["version"], "state": _post_state(row)}
+    message = "削除しました。「削除済み」から復元できます。" if deleted else "復元しました。"
+    if unlinked:
+        message += f"入れていたフィードバック {unlinked} 件は、掲載待ちに戻りました（復元しても戻りません）。"
+    return {"success": True, "message": message, "version": row["version"], "state": _post_state(row)}
 
 
 @router.post("/{post_id:int}/delete", name="admin_announcement_delete")
@@ -639,6 +652,18 @@ async def admin_announcement_template_save(
         return JSONResponse({"success": False, "message": "ID が正しくありません。"}, status_code=400)
     try:
         values = svc.clean_template_input(payload)
+        # 自動生成の枠の役目（settings.role）は画面から来ないので、保存のときに引き継ぐ
+        current = await svc.get_template(db, template_id) if template_id is not None else None
+        role = ((current or {}).get("settings") or {}).get("role")
+        if role:
+            values["settings"] = {**values["settings"], "role": role}
+        if role == feedback_service.FEEDBACK_TEMPLATE_ROLE:
+            for key, label in (("body_ja", "日本語"), ("body_en", "英語")):
+                if (key == "body_ja" or values[key]) and not feedback_service.has_marker(values[key]):
+                    raise svc.AnnouncementError(
+                        f"{label}の本文に「{feedback_service.TEMPLATE_MARKER_TEXT}」だけの段落を入れてください"
+                        "（フィードバックの回答の一覧が入る場所です）。"
+                    )
         row = await svc.save_template(db, template_id, values, user_id=current_user.id)
     except svc.AnnouncementError as e:
         return _error(e)
@@ -662,6 +687,11 @@ async def admin_announcement_template_delete(
     current_user: User = Depends(get_current_active_user),
 ):
     row = await svc.get_template(db, template_id)
+    if row is not None and (row["settings"] or {}).get("role") == feedback_service.FEEDBACK_TEMPLATE_ROLE:
+        return JSONResponse({
+            "success": False,
+            "message": "このテンプレートはフィードバックへの回答のお知らせの自動生成に使っているため、削除できません。",
+        }, status_code=400)
     if row is None or not await svc.delete_template(db, template_id):
         return JSONResponse({"success": False, "message": "テンプレートが見つかりません。"}, status_code=404)
     logger.info(f"アナウンスの{'部品' if row['kind'] == 'snippet' else 'テンプレート'} #{template_id}「{row['name']}」を削除しました（{current_user.id}）。")

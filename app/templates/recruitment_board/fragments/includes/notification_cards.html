@@ -9,6 +9,8 @@
         <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="{% if lang == 'ja' %}トークン進呈{% else %}Token gift{% endif %}" class="notification-type__icon">
         {% elif notification.notification_type == "admin_warning" %}
         <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}警告{% else %}Warning{% endif %}" class="notification-type__icon">
+        {% elif notification.notification_type in ("feedback_reply", "feedback_answer") %}
+        <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="{% if lang == 'ja' %}フィードバック{% else %}Feedback{% endif %}" class="notification-type__icon">
         {% else %}
         <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}メッセージ{% else %}Message{% endif %}" class="notification-type__icon">
         {% endif %}
@@ -18,7 +20,7 @@
             {% for actor in notification.actors %}
             <img src="{{ actor.icon_path }}"
                  alt="{% if lang == 'ja' %}ユーザーアイコン{% else %}User icon{% endif %}"
-                 class="notification-user-icons__image notification-user-icons__image--clickable"
+                 class="notification-user-icons__image{% if actor.user_id %} notification-user-icons__image--clickable{% endif %}"
                  data-user-id="{{ actor.user_id }}"
                  data-main-account-tag="{{ actor.main_account_tag or '' }}"
                  data-main-account-name="{{ actor.main_account_name or '' }}"
@@ -32,6 +34,10 @@
         </div>
         {% if notification.target_kind == "general_own_posts" %}
         <a href="{{ url_for('general_board', lang=lang) }}?tab=own" class="notification-target__link">
+        {% elif notification.target_kind == "feedback" %}
+        <a href="/{{ lang }}/account?feedback={{ notification.feedback_id }}#feedback-history" class="notification-target__link">
+        {% elif notification.target_kind == "announcement" %}
+        <a href="/{{ notification.announcement_lang or lang }}/help/announcements/{{ notification.announcement_id }}" class="notification-target__link">
         {% elif notification.target_kind == "chat" %}
         <a href="{{ url_for('chat_thread', lang=lang, thread_id=notification.thread_id) }}?from=notifications{% if notification.message_id %}&message_id={{ notification.message_id }}{% endif %}" class="notification-target__link">
         {% else %}

@@ -6,6 +6,7 @@
 {% block head_extra %}
     {# アカウント設定ページ固有のCSS #}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/account.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/components/image_viewer.css') }}?v={{ app_version }}">
 {% endblock %}
 
 {% block content %}
@@ -1079,16 +1080,22 @@
             </h2>
             <p class="account-description" x-show="open" x-transition>
                 {% if lang == "ja" %}
-                    この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}へのお問い合わせ、ご意見(新機能や改善の要望など)、不具合の報告はこちらのフォームからお願いいたします。定期的に、ホーム→お知らせにフィードバックへの回答を掲載しているのでご確認ください。なお、個別に開発者からの返信を希望する場合は本文の中に連絡先(X(旧Twitter)のIDまたはメールアドレス)を記載してください。
+                    この{% if platform == "web" %}サイト{% else %}アプリ{% endif %}へのお問い合わせ、ご意見（新機能や改善の要望など）、不具合の報告はこちらのフォームからお願いいたします。フィードバックはすべて確認しており、回答の一部は定期的に<a href="{{ url_for('announcements', lang=lang) }}?category=2" style="font-weight: bold; text-decoration: underline;">お知らせ</a>に掲載しています。返信・回答の際は通知でお知らせします。
+                    <br>フィードバックの送信履歴と返信は、下の「フィードバック履歴」をご確認ください。
                     <br><a href="{{ url_for('app_faq', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">よくある質問</a>もぜひご確認ください！
                 {% else %}
-                    Please use this form to send inquiries, feedback (such as requests for new features or improvements), or bug reports for this {% if platform == "web" %}site{% else %}app{% endif %}. If you would like a reply, please include your contact information (X (formerly Twitter) ID or email address) in the body of your message.
+                    Please use this form to send inquiries, feedback (such as requests for new features or improvements), or bug reports for this {% if platform == "web" %}site{% else %}app{% endif %}. We read all feedback, and some responses are regularly posted in <a href="{{ url_for('announcements', lang=lang) }}?category=2" style="font-weight: bold; text-decoration: underline;">Notices</a>. You'll be notified when there's a reply or a response.
+                    <br>You can check the feedback you've sent and the replies in "Feedback History" below.
                     <br><a href="{{ url_for('app_faq', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">App FAQ</a> is also available.
                 {% endif %}
             </p>
             {% set fb = feedback_form or {} %}
             <div class="account-info-box feedback-section-box fb-form" x-show="open" x-transition>
-                <form @submit.prevent="submitFeedback()">
+                <form @submit.prevent="submitFeedback()" @feedback-follow-up.window="setReplyTo($event.detail)">
+                    <div class="fb-reply-to" x-show="replyTo" x-transition style="display: none;">
+                        <span class="fb-reply-to__text">{% if lang == 'ja' %}このフィードバックについて追加で送信します:{% else %}Following up on:{% endif %} <span x-text="replyTo ? replyTo.comment : ''"></span></span>
+                        <button type="button" class="fb-reply-to__clear" @click="replyTo = null" aria-label="{% if lang == 'ja' %}解除{% else %}Clear{% endif %}">×</button>
+                    </div>
                     <div class="fb-form__label" id="feedbackTypeLabel">{% if lang == 'ja' %}種類{% else %}Type{% endif %}</div>
                     <div class="fb-types" role="radiogroup" aria-labelledby="feedbackTypeLabel">
                         {% for value, label_ja, label_en in [("inquiry", "お問い合わせ", "Inquiry"), ("suggestion", "ご意見・ご要望", "Suggestion/Request"), ("bug_report", "不具合の報告", "Bug Report"), ("message", "メッセージ", "Message")] %}
@@ -1144,6 +1151,69 @@
                 {# フィードバック送信後の結果メッセージをここに表示 #}
             </div>
         </section>
+
+        {#^ --- フィードバック履歴（運営からの返信・掲載された回答） --- #}
+        {% if feedback_history is defined %}
+        <section class="account-section" id="feedback-history" x-data="feedbackHistory()">
+            <h2 class="section-title" @click="toggle()" style="cursor: pointer;">
+                <span>{% if lang == "ja" %}フィードバック履歴{% else %}Feedback History{% endif %}</span>
+                <span class="fbh-badge" x-show="unread > 0" x-text="unread" style="display: none;"></span>
+                <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+            </h2>
+            <div class="fbh" x-show="open" x-transition>
+                <p class="fbh-empty" x-show="loaded && !items.length" style="display: none;">{% if lang == "ja" %}まだフィードバックは送信されていません。{% else %}You haven't sent any feedback yet.{% endif %}</p>
+                <p class="fbh-empty" x-show="!loaded && loading">{% if lang == "ja" %}読み込み中…{% else %}Loading…{% endif %}</p>
+                <p class="fbh-empty fbh-empty--error" x-show="error" x-text="error" style="display: none;"></p>
+                <template x-for="item in items" :key="item.id">
+                    <article class="fbh-item" :id="'feedback-item-' + item.id" :class="{ 'is-target': item.id === targetId }">
+                        <div class="fbh-item__head">
+                            <span class="fbh-item__type" x-text="item.type_label"></span>
+                            <span class="fbh-item__at" x-text="item.at"></span>
+                            <span class="fbh-new" x-show="hasNew(item)">NEW</span>
+                        </div>
+                        <p class="fbh-item__follow-of" x-show="item.reply_to_id">{% if lang == "ja" %}前のフィードバックの続き{% else %}Follow-up to earlier feedback{% endif %}</p>
+                        <div class="fbh-item__comment" x-text="item.comment"></div>
+                        <div class="fbh-item__images" x-show="item.images.length">
+                            <template x-for="(image, index) in item.images" :key="image.id">
+                                <button type="button" class="fbh-item__thumb" @click="openImage(image, item, index)">
+                                    <img :src="image.thumb" alt="" loading="lazy">
+                                </button>
+                            </template>
+                        </div>
+                        <p class="fbh-item__note" x-show="item.removed_images" x-text="removedText(item)"></p>
+                        <p class="fbh-item__note" x-show="item.env"><span>{% if lang == "ja" %}送信時の環境:{% else %}Sent from:{% endif %}</span> <span x-text="item.env"></span></p>
+                        <template x-for="reply in item.replies" :key="reply.id">
+                            <div class="fbh-reply">
+                                <div class="fbh-reply__head">
+                                    <img src="{{ url_for('static', path='/images/ui/logo.png') }}" alt="" class="fbh-reply__icon">
+                                    <b>{% if lang == "ja" %}Brawl Insights 運営{% else %}Brawl Insights Team{% endif %}</b>
+                                    <span class="fbh-item__at" x-text="reply.at"></span>
+                                    <span class="fbh-new" x-show="reply.new">NEW</span>
+                                </div>
+                                <div class="fbh-reply__body" x-html="reply.html"></div>
+                            </div>
+                        </template>
+                        <template x-if="item.answer">
+                            <div class="fbh-reply fbh-reply--answer">
+                                <div class="fbh-reply__head">
+                                    <b>{% if lang == "ja" %}お知らせに掲載された回答{% else %}Response posted in News{% endif %}</b>
+                                    <span class="fbh-new" x-show="item.answer.new">NEW</span>
+                                </div>
+                                <div class="fbh-reply__body" x-html="item.answer.html"></div>
+                                <a class="fbh-reply__link" :href="item.answer.url" x-show="item.answer.url">{% if lang == "ja" %}お知らせを見る{% else %}View in News{% endif %} →</a>
+                            </div>
+                        </template>
+                        <div class="fbh-item__actions">
+                            <button type="button" class="fbh-item__follow" @click="followUp(item)">{% if lang == "ja" %}このフィードバックについて追加で送る{% else %}Send a follow-up on this{% endif %}</button>
+                        </div>
+                    </article>
+                </template>
+                <div class="fbh-more" x-show="hasMore" style="display: none;">
+                    <button type="button" class="button button--secondary" @click="load()" :disabled="loading">{% if lang == "ja" %}もっと見る{% else %}Show More{% endif %}</button>
+                </div>
+            </div>
+        </section>
+        {% endif %}
         </div>
 
         <div class="account-subtab-panel" x-show="activeSubTab === 'settings'" x-cloak>
@@ -1390,6 +1460,7 @@
                     {#^ お知らせはプレゼント企画などの宣伝を含むので既定オフ（本人がオンにしたときだけ。App Store 4.5.4・AD25） #}
                     <p class="push-settings__group">{% if lang == "ja" %}お知らせ{% else %}News{% endif %}</p>
                     {{ push_row('push_announcement_enabled', 'アップデート・プレゼント企画などのお知らせ', 'Updates, Giveaways, and Other News') }}
+                    {{ push_row('push_feedback_enabled', 'フィードバックへの返信・回答', 'Replies and Responses to Your Feedback') }}
                     {# [この部分は公開用リポジトリでは非公開にされています] #}
                     </div>
                 </div>
@@ -1563,6 +1634,7 @@
 
 {% include "components/board_blocks_modal.html" %}
 
+<script src="{{ url_for('static', path='/js/image_viewer.js') }}?v={{ app_version }}"></script>
 <script>
 // AdMob リワードイベントは base.html の ensureRewardedAdEventBridge が
 // reward-claimed / reward-ad-closed 等へ橋渡しする（ネイティブ listener の重複登録を防ぐ）
@@ -1822,6 +1894,7 @@ function accountSettingsPage() {
             'support': 'support',
             'remove-ads-section': 'support',
             'feedback': 'support',
+            'feedback-history': 'support',
         },
         activeSubTab: (function() {
             const ids = ['settings', 'tokens', 'codes', 'support'];
@@ -1835,6 +1908,7 @@ function accountSettingsPage() {
                 'support': 'support',
                 'remove-ads-section': 'support',
                 'feedback': 'support',
+                'feedback-history': 'support',
             };
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -3758,6 +3832,7 @@ function feedbackHandler() {
             comment: ''
         },
         images: [], // { localId, preview, progress, uploading, id }
+        replyTo: null, // { id, comment }（「フィードバック履歴」の「このフィードバックについて追加で送る」）
         maxImages: {{ ((feedback_form or {}).max_images or 3) | tojson }},
         minChars: {{ ((feedback_form or {}).min_chars or 5) | tojson }},
         // iOS の古いアプリはファイルの選択の「写真を撮る」で落ちるので、選択のボタンを出さない（貼り付け・ドロップは使える）
@@ -3850,6 +3925,17 @@ function feedbackHandler() {
             if (item) URL.revokeObjectURL(item.preview);
         },
 
+        setReplyTo(detail) {
+            this.replyTo = detail;
+            this.open = true;
+            this.$nextTick(() => {
+                const box = document.getElementById('feedback');
+                if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const input = document.getElementById('feedbackComment');
+                if (input) input.focus({ preventScroll: true });
+            });
+        },
+
         confirmText() {
             const typeButton = this.$root.querySelector('.fb-type.is-active');
             const lines = [ja ? 'フィードバックを送信しますか？' : 'Send this feedback?', ''];
@@ -3879,7 +3965,11 @@ function feedbackHandler() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ ...this.feedback, media_ids: this.images.map((item) => item.id) })
+                    body: JSON.stringify({
+                        ...this.feedback,
+                        media_ids: this.images.map((item) => item.id),
+                        reply_to_id: this.replyTo ? this.replyTo.id : null,
+                    })
                 });
                 const data = await response.json().catch(() => ({}));
                 this.message = data.message || (ja ? `送信できませんでした（${response.status}）。` : `Could not send (${response.status}).`);
@@ -3891,6 +3981,8 @@ function feedbackHandler() {
                     this.images.forEach((item) => URL.revokeObjectURL(item.preview));
                     this.images = [];
                     this.imageError = '';
+                    this.replyTo = null;
+                    window.dispatchEvent(new CustomEvent('feedback-sent'));
                 } else {
                     this.messageClass = 'error';
                 }
@@ -3903,6 +3995,122 @@ function feedbackHandler() {
                 setTimeout(() => { this.message = ''; }, 5000); // 5秒後にメッセージを消す
             }
         }
+    };
+}
+
+// フィードバック履歴（開いたときに読み込む。見た返信・回答は既読になる）
+function feedbackHistory() {
+    const ja = '{{ lang }}' === 'ja';
+    return {
+        open: false,
+        loaded: false,
+        loading: false,
+        error: '',
+        items: [],
+        hasMore: false,
+        unread: {{ (feedback_history.unread if feedback_history is defined else 0) | tojson }},
+        targetId: null,
+
+        init() {
+            const url = new URL(window.location.href);
+            const target = Number(url.searchParams.get('feedback'));
+            const fromNotification = !!target || url.hash === '#feedback-history';
+            if (target) this.targetId = target;
+            if (fromNotification) {
+                // 通知から来た印は最初の1回だけ使う（URL に残すと、下のタブがこの URL を覚えて、次に開いたときもまた飛ぶため）
+                url.searchParams.delete('feedback');
+                if (url.hash === '#feedback-history') url.hash = '';
+                history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+            }
+            let saved = null;
+            try { saved = sessionStorage.getItem('bi_account_feedback_history_open'); } catch (_e) {}
+            // 既定は開く（閉じたことがあれば閉じたまま。通知から来たとき・新しい返信があるときは開く）
+            this.open = fromNotification || this.unread > 0 || saved !== 'false';
+            this.$watch('open', (value) => {
+                try { sessionStorage.setItem('bi_account_feedback_history_open', value); } catch (_e) {}
+                if (value) this.loadWhenVisible();
+            });
+            window.addEventListener('feedback-sent', () => {
+                if (this.loaded) this.reload();
+            });
+            // 通知から来たときは、その1件まで動かすのですぐ読み込む
+            if (fromNotification) this.load();
+            else if (this.open) this.loadWhenVisible();
+        },
+
+        // 読み込むのは欄が画面に出たときだけ（ほかのサブタブを見ているときは読み込まない・既読にもしない）
+        loadWhenVisible() {
+            if (this.loaded || this.loading || this._observer) return;
+            if (!('IntersectionObserver' in window)) {
+                this.load();
+                return;
+            }
+            this._observer = new IntersectionObserver((entries) => {
+                if (!entries.some((entry) => entry.isIntersecting)) return;
+                this._observer.disconnect();
+                this._observer = null;
+                if (this.open && !this.loaded && !this.loading) this.load();
+            }, { rootMargin: '200px 0px' });
+            this._observer.observe(this.$el);
+        },
+
+        toggle(force) {
+            this.open = force === undefined ? !this.open : force;
+        },
+
+        reload() {
+            this.items = [];
+            this.loaded = false;
+            this.hasMore = false;
+            this.load();
+        },
+
+        async load() {
+            this.loading = true;
+            this.error = '';
+            try {
+                const params = new URLSearchParams();
+                const last = this.items[this.items.length - 1];
+                if (last) params.set('before', last.id);
+                // URL は直書き（デプロイの間、古いプロセスが新しいテンプレートを使っても url_for で落ちないように）
+                const response = await fetch("/{{ lang }}/account/feedbacks?" + params.toString());
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || response.status);
+                this.items.push(...data.items);
+                this.hasMore = data.has_more;
+                this.loaded = true;
+                this.unread = 0;
+                if (this.targetId) {
+                    this.$nextTick(() => {
+                        const el = document.getElementById(`feedback-item-${this.targetId}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                }
+            } catch (error) {
+                this.error = ja ? '読み込めませんでした。時間をおいてもう一度試してください。' : 'Could not load. Please try again later.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        hasNew(item) {
+            return item.replies.some((reply) => reply.new) || (item.answer && item.answer.new);
+        },
+
+        removedText(item) {
+            return ja
+                ? `添付の画像（${item.removed_images}枚）は、保存期間を過ぎたため削除されました。`
+                : `The attached images (${item.removed_images}) were deleted after the retention period.`;
+        },
+
+        openImage(image, item, index) {
+            window.BrawlInsightsImageViewer.open(image.src, { name: `feedback-${item.id}-${index + 1}.webp`, save: false });
+        },
+
+        followUp(item) {
+            const comment = item.comment.length > 40 ? item.comment.slice(0, 40) + '…' : item.comment;
+            window.dispatchEvent(new CustomEvent('feedback-follow-up', { detail: { id: item.id, comment } }));
+        },
     };
 }
 

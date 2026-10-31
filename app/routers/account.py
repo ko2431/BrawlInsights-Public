@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Request, Depends, HTTPException, Query, status, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 import asyncpg
 from pathlib import Path
@@ -130,6 +130,8 @@ async def account_page(
         "push_settings": push_settings,
         "admin_push_level": admin_push_level,
         "feedback_form": feedback_service.form_context(request, lang, site_version=request.app.version),
+        **({"feedback_history": {"unread": await feedback_service.unread_count(db, current_user_obj.id)}}
+           if current_user_obj else {}),
         # [この部分は公開用リポジトリでは非公開にされています]
         "ticket_sell_options": get_ticket_sell_options(
             current_user_obj.ad_skip_tickets
@@ -1070,6 +1072,7 @@ class FeedbackRequest(BaseModel):
     type: str
     comment: str = Field("", max_length=feedback_service.COMMENT_MAX_CHARS * 2)
     media_ids: list[int] = Field(default_factory=list, max_length=10)
+    reply_to_id: int | None = None
 
 @router.post("/send-feedback", name="account_send_feedback")
 async def send_feedback_process(
@@ -1089,8 +1092,12 @@ async def send_feedback_process(
             comment=payload.comment,
             env=env,
             media_ids=payload.media_ids,
+            reply_to_id=payload.reply_to_id,
         )
-        message = "送信されました。ありがとうございます！" if lang == "ja" else "Thank you for your feedback!"
+        message = (
+            "送信されました。返信や回答があると、通知が届きます。" if lang == "ja"
+            else "Thank you for your feedback! You'll be notified when there's a reply or a response."
+        )
         return JSONResponse({"success": True, "message": message})
     except feedback_service.FeedbackError as e:
         # 種類・本文・画像の数、送信の間隔（3分）など
@@ -1104,6 +1111,24 @@ async def send_feedback_process(
         message = "予期せぬエラーのため、フィードバックを送信できませんでした。" if lang == "ja" else "An unexpected error occurred while sending feedback."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
+@router.get("/feedbacks", name="account_feedback_history")
+async def feedback_history(
+    request: Request,
+    before: int | None = Query(None, ge=1),
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """フィードバック履歴（新しい順に10件ずつ。返信と掲載された回答つき）。"""
+    lang = "en" if request.path_params.get("lang") == "en" else "ja"
+    try:
+        result = await feedback_service.list_for_user(db, current_user.id, lang, before_id=before)
+    except asyncpg.PostgresError as e:
+        logger.error(f"フィードバックの履歴の取得中にデータベースエラー (User ID: {current_user.id}): {e}")
+        message = "読み込めませんでした。" if lang == "ja" else "Could not load."
+        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return {"success": True, **result}
+
 
 # --- 保存枠拡張エンドポイント ---
 class ExpandSlotsRequest(BaseModel):
