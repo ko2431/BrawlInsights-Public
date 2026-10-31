@@ -1674,6 +1674,8 @@ class BoardNotification(Base):
     # フィードバックへの返信・回答の通知（feedback_reply・feedback_answer）の対象。大きいテーブルなので外部キー・索引は付けない
     # （フィードバックは消さない。消えていれば表示しない）
     feedback_id = Column(Integer, nullable=True)
+    # 掲示板企画の結果の通知（board_campaign_result）の企画。feedback_id と同じく外部キー・索引は付けない
+    board_campaign_id = Column(Integer, nullable=True)
 
     __table_args__ = (
         Index('idx_board_notifications_recipient_created_at', 'recipient_user_id', desc('created_at')),

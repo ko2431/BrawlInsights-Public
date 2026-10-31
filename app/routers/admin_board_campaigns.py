@@ -12,11 +12,12 @@ import asyncpg
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from app.core.admin_permissions import PERM_BOARD_CAMPAIGNS_EDIT
+from app.core.admin_permissions import PERM_ANNOUNCEMENTS_EDIT, PERM_BOARD_CAMPAIGNS_DRAW, PERM_BOARD_CAMPAIGNS_EDIT
 from app.core.logger import logger
 from app.core.templating import templates
 from app.db.db import get_shared_db
 from app.routers.admin import _notify_admin_action, enforce_admin_route_permission, format_admin_jst_datetime, get_current_active_user
+from app.services import board_campaign_prizes as prizes
 from app.services import board_campaign_service as bcs
 from app.services.user_service import User
 
@@ -26,8 +27,11 @@ router = APIRouter(
     dependencies=[Depends(enforce_admin_route_permission)],
 )
 
-STATE_LABELS = {"draft": "下書き", "scheduled": "予約", "live": "開催中", "counting": "集計中"}
-TABS = ("settings", "live", "ranking", "user", "exclude")
+STATE_LABELS = {
+    "draft": "下書き", "scheduled": "予約", "live": "開催中", "counting": "集計中", "confirmed": "確定済み",
+    "drawn": "抽選済み", "fixed": "当選者を確定", "announced": "発表済み", "closed": "終了",
+}
+TABS = ("settings", "live", "ranking", "user", "exclude", "draw", "prizes")
 
 
 def _error(e: bcs.CampaignError) -> JSONResponse:
@@ -116,6 +120,26 @@ async def admin_board_campaign(
             except Exception as e:
                 logger.warning(f"掲示板企画 #{c.id} の自演いいねの印の取得に失敗しました: {e}", exc_info=True)
 
+    # 確定と抽選・景品の状況（5b）
+    result = await prizes.result_data(db, c) if c.confirmed_at else None
+    review = await prizes.draw_review(db, c) if c.drawn_at else None
+    prize_status = await prizes.prize_status(db, c) if c.confirmed_at else None
+    after_end_warnings = 0
+    if state == "counting" and c.snapshot_at:
+        after_end_warnings = await db.fetchval(
+            """
+            SELECT count(*) FROM user_penalties
+            WHERE action_kind IN ('warning', 'penalty') AND target_id IS NOT NULL AND created_at >= $1
+            """,
+            c.ends_at,
+        )
+    draw_users = {}
+    for entry in c.draw_log or []:
+        draw_users[entry.get("user_id")] = None
+    if draw_users:
+        for r in await db.fetch("SELECT id, name FROM users WHERE id = ANY($1::int[])", [u for u in draw_users if u]):
+            draw_users[r["id"]] = r["name"]
+
     breakdown = None
     if user_id:
         breakdown = await bcs.user_breakdown(db, c, user_id, now)
@@ -127,7 +151,12 @@ async def admin_board_campaign(
         "request": request, "lang": lang, "current_page": "account",
         "c": c, "state": state, "state_label": STATE_LABELS[state], "tab": tab, "award_tab": award,
         "can_edit": current_user.has_perm(PERM_BOARD_CAMPAIGNS_EDIT),
-        "period_locked": state in ("live", "counting"),
+        "can_draw": current_user.has_perm(PERM_BOARD_CAMPAIGNS_DRAW),
+        "can_announce": current_user.has_perm(PERM_BOARD_CAMPAIGNS_DRAW) and current_user.has_perm(PERM_ANNOUNCEMENTS_EDIT),
+        "result": result, "review": review, "prize_status": prize_status, "after_end_warnings": after_end_warnings,
+        "draw_users": draw_users, "gift_status_labels": prizes.GIFT_STATUS_LABELS,
+        "prize_label": prizes.prize_label, "prize_value": prizes.prize_value,
+        "period_locked": state not in ("draft", "scheduled"),
         "period_text": _period_text(c),
         "remaining": bcs.fmt_remaining(c.ends_at - now, "ja") if state == "live" else "",
         "form": {
@@ -283,3 +312,112 @@ async def admin_board_campaign_exclusion_remove(
         {"campaign_id": c.id, "user_id": user_id}, request=request, target_type="user", target_id=user_id,
     )
     return {"success": True}
+
+
+#* /---*---*---*---*---*---*---*---*/
+#* 確定と抽選・当選発表・景品（5b。権限は確定・抽選。ギフトの状態は編集）
+#* /---*---*---*---*---*---*---*---*/
+async def _draw_action(request: Request, db: asyncpg.Connection, current_user: User, campaign_id: int, action, event_title: str,
+                       summary: str, payload: dict | None = None) -> dict | JSONResponse:
+    c = await _campaign_or_404(db, campaign_id)
+    try:
+        result = await action(c)
+    except bcs.CampaignError as e:
+        return _error(e)
+    await _notify_admin_action(
+        db, current_user, "board_campaign_draw", event_title,
+        f"管理者操作 / 掲示板企画 #{c.id}「{c.name_ja}」: {summary}",
+        {"campaign_id": c.id, **(payload or {})}, request=request, target_type="board_campaign", target_id=c.id,
+    )
+    return {"success": True, **(result if isinstance(result, dict) else {})}
+
+
+@router.post("/{campaign_id:int}/confirm", name="admin_board_campaign_confirm")
+async def admin_board_campaign_confirm(request: Request, campaign_id: int, db: asyncpg.Connection = Depends(get_shared_db),
+                                       current_user: User = Depends(get_current_active_user)):
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.confirm(db, c.id, current_user.id), "掲示板企画の集計を確定しました", "集計を確定")
+
+
+@router.post("/{campaign_id:int}/unconfirm", name="admin_board_campaign_unconfirm")
+async def admin_board_campaign_unconfirm(request: Request, campaign_id: int, db: asyncpg.Connection = Depends(get_shared_db),
+                                         current_user: User = Depends(get_current_active_user)):
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.unconfirm(db, c.id), "掲示板企画の集計の確定を取り消しました", "集計の確定を取り消し")
+
+
+@router.post("/{campaign_id:int}/draw", name="admin_board_campaign_draw")
+async def admin_board_campaign_draw(request: Request, campaign_id: int, db: asyncpg.Connection = Depends(get_shared_db),
+                                    current_user: User = Depends(get_current_active_user)):
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.draw(db, c.id, current_user.id), "掲示板企画の抽選をしました", "抽選")
+
+
+@router.post("/{campaign_id:int}/undraw", name="admin_board_campaign_undraw")
+async def admin_board_campaign_undraw(request: Request, campaign_id: int, db: asyncpg.Connection = Depends(get_shared_db),
+                                      current_user: User = Depends(get_current_active_user)):
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.undraw(db, c.id), "掲示板企画の抽選を取り消しました", "抽選を取り消し")
+
+
+@router.post("/{campaign_id:int}/redraw", name="admin_board_campaign_redraw")
+async def admin_board_campaign_redraw(request: Request, campaign_id: int, payload: dict = Body(...),
+                                      db: asyncpg.Connection = Depends(get_shared_db),
+                                      current_user: User = Depends(get_current_active_user)):
+    try:
+        user_id = int(payload.get("user_id"))
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "message": "ユーザー ID が正しくありません。"}, status_code=400)
+    note = str(payload.get("note") or "")
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.exclude_and_redraw(db, c.id, user_id, note, current_user.id),
+                              "掲示板企画の当選者を除外して引き直しました", f"当選者 {user_id} を除外して引き直し",
+                              {"user_id": user_id})
+
+
+@router.post("/{campaign_id:int}/fix", name="admin_board_campaign_fix")
+async def admin_board_campaign_fix(request: Request, campaign_id: int, db: asyncpg.Connection = Depends(get_shared_db),
+                                   current_user: User = Depends(get_current_active_user)):
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.fix_winners(db, c.id, current_user.id), "掲示板企画の当選者を確定しました", "当選者を確定")
+
+
+@router.post("/{campaign_id:int}/unfix", name="admin_board_campaign_unfix")
+async def admin_board_campaign_unfix(request: Request, campaign_id: int, db: asyncpg.Connection = Depends(get_shared_db),
+                                     current_user: User = Depends(get_current_active_user)):
+    return await _draw_action(request, db, current_user, campaign_id,
+                              lambda c: prizes.unfix_winners(db, c.id), "掲示板企画の当選者の確定を取り消しました", "当選者の確定を取り消し")
+
+
+@router.post("/{campaign_id:int}/announcement", name="admin_board_campaign_announcement")
+async def admin_board_campaign_announcement(request: Request, lang: str, campaign_id: int,
+                                            db: asyncpg.Connection = Depends(get_shared_db),
+                                            current_user: User = Depends(get_current_active_user)):
+    if not current_user.has_perm(PERM_ANNOUNCEMENTS_EDIT):
+        return JSONResponse({"success": False, "message": "当選発表のお知らせを作るには、アナウンス管理の編集の権限も要ります。"}, status_code=403)
+
+    async def make(c: bcs.Campaign) -> dict:
+        post_id = await prizes.create_announcement(db, c.id, current_user.id)
+        return {"post_id": post_id, "edit_url": str(request.url_for("admin_announcement_edit", lang=lang, post_id=post_id))}
+
+    return await _draw_action(request, db, current_user, campaign_id, make, "掲示板企画の当選発表の下書きを作りました", "当選発表の下書きを作成")
+
+
+@router.post("/{campaign_id:int}/gift-status", name="admin_board_campaign_gift_status")
+async def admin_board_campaign_gift_status(request: Request, campaign_id: int, payload: dict = Body(...),
+                                           db: asyncpg.Connection = Depends(get_shared_db),
+                                           current_user: User = Depends(get_current_active_user)):
+    c = await _campaign_or_404(db, campaign_id)
+    try:
+        prize_id = int(payload.get("prize_id"))
+        user_id = await prizes.set_gift_status(db, c, prize_id, str(payload.get("status") or ""), str(payload.get("note") or ""))
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "message": "景品の指定が正しくありません。"}, status_code=400)
+    except bcs.CampaignError as e:
+        return _error(e)
+    await _notify_admin_action(
+        db, current_user, "board_campaign_draw", "掲示板企画のギフトの連絡の状態を変えました",
+        f"管理者操作 / 掲示板企画 #{c.id} の景品 {prize_id}（ユーザー {user_id}）を「{prizes.GIFT_STATUS_LABELS[payload.get('status')][0]}」に",
+        {"campaign_id": c.id, "prize_id": prize_id, "user_id": user_id}, request=request, target_type="user", target_id=user_id,
+    )
+    return {"success": True, "message": "保存しました。"}

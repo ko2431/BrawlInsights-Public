@@ -2,17 +2,9 @@
    account.py の _board_campaign_context が渡す board_campaign（帯と同じ本人の数字）。結果の発表・受け取りは 5b #}
 {% from "components/help_tip.html" import help_tip %}
 {% set ja = lang == "ja" %}
-{% set bc = board_campaign %}
-{% set c = bc.campaign %}
-{% set info = bc.info %}
-{% set view = bc.view %}
-{% set mode = bc.mode %}
 {% set unit = "口" if ja else "" %}
-{% set max = info.max %}
-{% set entries = view.entries if view else 0 %}
-{% set detail_url = url_for('announcement_detail', lang=lang, post_id=c.start_announcement_id) if c.start_announcement_id else none %}
 
-{% macro head(badge, badge_tone, sub) %}
+{% macro head(info, detail_url, badge, badge_tone, sub) %}
 <div class="bca__head">
     <div class="bca__head-main">
         <span class="bca__title">{{ info.title }}</span>
@@ -30,16 +22,26 @@
         <span>{{ "掲示板企画" if ja else "Board Giveaway" }}</span>
         <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
     </h2>
-    <div x-show="open">
-    {% if mode == "upcoming" %}
+    <div x-show="open" class="bca-list">
+    {% for bc in board_campaign.boxes %}
+    {% set c = bc.campaign %}
+    {% set info = bc.info %}
+    {% set view = bc.view %}
+    {% set mode = bc.mode %}
+    {% set max = info.max %}
+    {% set entries = view.entries if view else 0 %}
+    {% set detail_url = url_for('announcement_detail', lang=lang, post_id=c.start_announcement_id) if c.start_announcement_id else none %}
+    {% if mode in ("results", "closed") %}
+    {% with box = bc, revealed_now = false, claim_message = "" %}{% include "components/board_campaign_result.html" %}{% endwith %}
+    {% elif mode == "upcoming" %}
     <div class="bca">
-        {{ head((info.start_text ~ "から") if ja else ("From " ~ info.start_text), "ended", info.period_text) }}
+        {{ head(info, detail_url, (info.start_text ~ "から") if ja else ("From " ~ info.start_text), "ended", info.period_text) }}
         <p class="bca__msg">{{ "まもなく始まります。投稿・チャット・いいねなどをすると、自動で応募されます。" if ja else "Starting soon. Posting, chatting, and liking will enter you automatically." }}</p>
     </div>
 
     {% elif view and view.invalid %}
     <div class="bca bca--muted">
-        {{ head(("開催中" if ja else "Live") if mode == "live" else ("集計中" if ja else "Counting"), "live" if mode == "live" else "ended", info.period_text) }}
+        {{ head(info, detail_url, ("開催中" if ja else "Live") if mode == "live" else ("集計中" if ja else "Counting"), "live" if mode == "live" else "ended", info.period_text) }}
         <p class="bca__msg">
             {%- if view.invalid == "same_tag" -%}
             {{ "同じプレイヤーを登録している別のアカウントで応募されています。この企画では、そのアカウントの応募だけが数えられます。" if ja else "Entries are being counted on another account that registers the same player. Only that account's entries count for this giveaway." }}
@@ -53,9 +55,9 @@
     {% set live = mode == "live" %}
     <div class="bca">
         {% if live %}
-        {{ head("開催中" if ja else "Live", "live", info.period_text ~ ("・" if ja else " · ") ~ info.remaining) }}
+        {{ head(info, detail_url, "開催中" if ja else "Live", "live", info.period_text ~ ("・" if ja else " · ") ~ info.remaining) }}
         {% else %}
-        {{ head("集計中" if ja else "Counting", "ended", info.period_text) }}
+        {{ head(info, detail_url, "集計中" if ja else "Counting", "ended", info.period_text) }}
         {% endif %}
 
         <div class="bca__entries">
@@ -142,5 +144,35 @@
         {% endif %}
     </div>
     {% endif %}
+    {% endfor %}
     </div>
 </section>
+<script>
+// 結果の箱（components/board_campaign_result.html）。「結果を確認する」「受け取る」は POST して、返ってきた箱で置き換える
+function bcaResult(revealUrl, claimUrl) {
+    return {
+        busy: false,
+        message: '',
+        async post(url) {
+            if (this.busy) return;
+            this.busy = true;
+            this.message = '';
+            try {
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json().catch(() => ({}));
+                if (data.html) {
+                    if (typeof data.tokens === 'number') window.dispatchEvent(new CustomEvent('bi-tokens-updated', { detail: data.tokens }));
+                    this.$root.outerHTML = data.html;
+                    return;
+                }
+                this.message = data.message || {{ ('うまくいきませんでした。もう一度お試しください。' if ja else 'Something went wrong. Please try again.') | tojson }};
+            } catch (e) {
+                this.message = {{ ('通信エラーが発生しました。' if ja else 'A network error occurred.') | tojson }};
+            }
+            this.busy = false;
+        },
+        reveal() { this.post(revealUrl); },
+        claim() { this.post(claimUrl); },
+    };
+}
+</script>

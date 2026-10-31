@@ -1,5 +1,6 @@
 import asyncpg
 import datetime
+import html
 from typing import Any
 
 from app.core.cache import delete_cache, get_cache, get_redis, is_transient_redis_error, log_transient_redis_warning, set_cache
@@ -30,6 +31,10 @@ NOTIFICATION_TYPE_ADMIN_WARNING = "admin_warning"
 NOTIFICATION_TYPE_FEEDBACK_REPLY = "feedback_reply"
 NOTIFICATION_TYPE_FEEDBACK_ANSWER = "feedback_answer"
 FEEDBACK_NOTIFICATION_TYPES = (NOTIFICATION_TYPE_FEEDBACK_REPLY, NOTIFICATION_TYPE_FEEDBACK_ANSWER)
+# 掲示板企画の結果の発表（応募した全員に共通の文。当選は書かない。board_campaign_prizes.publish_due_results）
+NOTIFICATION_TYPE_BOARD_CAMPAIGN_RESULT = "board_campaign_result"
+# 運営から本人に届く通知（「Brawl Insights 運営」として出し、通知の設定に関わらず表示する）
+STAFF_NOTIFICATION_TYPES = (*FEEDBACK_NOTIFICATION_TYPES, NOTIFICATION_TYPE_BOARD_CAMPAIGN_RESULT)
 
 AGGREGATED_NOTIFICATION_TYPES = {
     NOTIFICATION_TYPE_POST_LIKE,
@@ -61,6 +66,7 @@ VALID_NOTIFICATION_FILTERS = frozenset({
     "admin_warning",
     NOTIFICATION_TYPE_FEEDBACK_REPLY,
     NOTIFICATION_TYPE_FEEDBACK_ANSWER,
+    NOTIFICATION_TYPE_BOARD_CAMPAIGN_RESULT,
 })
 
 MESSAGE_NOTIFICATION_TYPE_PRIORITY = (
@@ -1114,8 +1120,8 @@ async def _build_notification_where(
     ]
     # スレッドごとに通知オンにしたものは、アカウント全体の通知設定に関わらず表示する
     enabled_types.append(NOTIFICATION_TYPE_SUBSCRIBED_THREAD_MESSAGE)
-    # 自分のフィードバックへの返信・回答も設定に関わらず表示する（actor は本人なので、ブロックの対象にもならない）
-    enabled_types.extend(FEEDBACK_NOTIFICATION_TYPES)
+    # 自分のフィードバックへの返信・回答、掲示板企画の結果も設定に関わらず表示する（actor は本人なので、ブロックの対象にもならない）
+    enabled_types.extend(STAFF_NOTIFICATION_TYPES)
     # 警告は通知設定オフでも一覧に出す。未読バッジは last_read_at ではなく
     # unacked_penalty_count で数える（一覧を開いただけでは消えない）。
     if unread_only:
@@ -1268,11 +1274,14 @@ async def _aggregate_notification_rows(
     post_ids: set[int] = set()
     message_ids: set[int] = set()
     feedback_ids: set[int] = set()
+    campaign_ids: set[int] = set()
     for key in ordered_keys:
         for row in grouped[key]:
-            if row["notification_type"] in FEEDBACK_NOTIFICATION_TYPES:
-                if row["feedback_id"]:
+            if row["notification_type"] in STAFF_NOTIFICATION_TYPES:
+                if row["notification_type"] in FEEDBACK_NOTIFICATION_TYPES and row["feedback_id"]:
                     feedback_ids.add(row["feedback_id"])
+                if row["notification_type"] == NOTIFICATION_TYPE_BOARD_CAMPAIGN_RESULT and row["board_campaign_id"]:
+                    campaign_ids.add(row["board_campaign_id"])
                 continue  # 送った管理者は出さない（「Brawl Insights 運営」として出す）
             actor_ids.add(row["actor_user_id"])
             if row["post_id"]:
@@ -1345,6 +1354,17 @@ async def _aggregate_notification_rows(
             raise DataBaseError(e) from e
         feedback_metas = {row["id"]: row for row in feedback_rows}
 
+    campaign_metas: dict[int, asyncpg.Record] = {}
+    if campaign_ids:
+        try:
+            campaign_rows = await db.fetch(
+                "SELECT id, name_ja, name_en, claim_deadline_at FROM board_campaigns WHERE id = ANY($1::int[])",
+                list(campaign_ids),
+            )
+        except asyncpg.PostgresError as e:
+            raise DataBaseError(e) from e
+        campaign_metas = {row["id"]: row for row in campaign_rows}
+
     gift_metas: dict[int, dict[str, Any]] = {}
     if message_ids:
         try:
@@ -1379,7 +1399,7 @@ async def _aggregate_notification_rows(
                 seen_actor_ids.append(row["actor_user_id"])
 
         actors = [actor_profiles[actor_id] for actor_id in seen_actor_ids if actor_id in actor_profiles]
-        if ntype in FEEDBACK_NOTIFICATION_TYPES:
+        if ntype in STAFF_NOTIFICATION_TYPES:
             actors = [{
                 "user_id": 0,
                 "user_name": "Brawl Insights 運営" if lang == "ja" else "Brawl Insights Team",
@@ -1528,6 +1548,25 @@ async def _aggregate_notification_rows(
             item["feedback_id"] = feedback["id"]
             item["target_text"] = feedback["comment"] or ""
             item["target_is_empty"] = not item["target_text"]
+        elif ntype == NOTIFICATION_TYPE_BOARD_CAMPAIGN_RESULT:
+            campaign = campaign_metas.get(latest_row["board_campaign_id"])
+            if campaign is None:
+                continue
+            name = campaign["name_ja"] if lang == "ja" else campaign["name_en"]
+            item["title_html"] = (
+                f"{html.escape(name)}の<b>結果が発表されました</b>。結果の確認と参加賞の受け取りができます" if lang == "ja"
+                else f"The <b>results</b> of the {html.escape(name)} <b>are out</b>. Check your results and claim your participation prize"
+            )
+            item["target_kind"] = "board_campaign"
+            deadline = campaign["claim_deadline_at"]
+            if deadline is not None:
+                from app.services.board_campaign_service import fmt_jst, fmt_utc_day, utc_day
+                item["target_text"] = (
+                    f"アカウントタブの「掲示板企画」から、{fmt_jst(deadline, relative=False)}まで" if lang == "ja"
+                    else f"Account tab → Board Giveaway, until {fmt_utc_day(utc_day(deadline))} (UTC)"
+                )
+            else:
+                item["target_text"] = "アカウントタブの「掲示板企画」" if lang == "ja" else "Account tab → Board Giveaway"
         elif ntype == NOTIFICATION_TYPE_ADMIN_WARNING:
             if lang == "ja":
                 item["title_html"] = "管理者から<b>警告</b>が届いています。内容を確認してください"

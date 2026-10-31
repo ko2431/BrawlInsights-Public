@@ -9,9 +9,16 @@
 {% set logged_in = request.state.current_user is not none %}
 {% set invalid = view.invalid if view else none %}
 {% set entries = view.entries if view else 0 %}
+{% set result = view.result if view and view.result else none %}
+{% set result_url = url_for('announcement_detail', lang=lang, post_id=campaign.result_announcement_id) if campaign.result_announcement_id else none %}
+{% set can_claim = result and result.has_entries and (result.claimable or not result.viewed) %}
 
 {# 見せ方（色・見出しの右・畳んだときの一行） #}
-{% if mode == "upcoming" %}
+{% if mode == "results" %}
+    {% set tone = "result" %}
+    {% set meta = "結果発表" if ja else "Results" %}
+    {% set summary = ("結果発表・参加賞あり" if ja else "Results · prize ready") if can_claim else ("結果発表" if ja else "Results") %}
+{% elif mode == "upcoming" %}
     {% set tone = "ended" %}
     {% set meta = (info.start_text ~ "から") if ja else ("from " ~ info.start_text ~ " (UTC)") %}
     {% set summary = meta %}
@@ -44,6 +51,15 @@
     {% endif %}
 {% endif %}
 
+{# 前の企画の結果の確認・受け取りが残っているときの1行（H・N） #}
+{% macro previous_line(p) %}
+<a href="{{ url_for('account_page', lang=lang) ~ '#board-campaign' }}" class="bcb__claim"><span>
+    {%- if lang == "ja" -%}{{ p.name }}の結果を確認して、参加賞を受け取れます・<b>{{ p.deadline }}</b>まで
+    {%- else -%}Check your {{ p.name }} results and claim your participation prize · until {{ p.deadline }}
+    {%- endif -%}
+</span><span class="bcb__claim-go">{{ "受け取る ＞" if lang == "ja" else "Claim >" }}</span></a>
+{% endmacro %}
+
 <div class="bcb bcb--{{ tone }}" x-data="boardCampaignBanner()" :class="{ 'bcb--collapsed': collapsed }">
     <button type="button" class="bcb__head" @click="toggle()" :aria-expanded="(!collapsed).toString()">
         <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="" class="bcb__icon">
@@ -53,8 +69,21 @@
         <span class="bcb__chev" aria-hidden="true"></span>
     </button>
     <div class="bcb__body" x-show="!collapsed" data-bcb-open>
-        {% if mode == "upcoming" %}
+        {% if mode == "results" %}
+            {# L・M。当選の有無はここでは出さない（参加賞は応募した全員にあるので、受け取りの行からも当選は分からない。BD14） #}
+            <p class="bcb__note">{{ ("結果が発表されました！当選者はお知らせで確認できます。" if result and result.has_entries else "結果が発表されました。当選者はお知らせで確認できます。") if ja else ("The results are out! Check the news to see the winners." if result and result.has_entries else "The results are out. Check the news to see the winners.") }}</p>
+            {% if can_claim %}
+            <a href="{{ account_url }}" class="bcb__claim"><span>
+                {%- if ja -%}結果を確認して、{% if result.participation_tokens %}参加賞（<b>{{ "{:,}".format(result.participation_tokens) }}</b>トークン）{% else %}景品{% endif %}を受け取れます・<b>{{ deadlines.claim_short }}</b>まで
+                {%- else -%}Check your results and claim your {% if result.participation_tokens %}participation prize (<b>{{ "{:,}".format(result.participation_tokens) }}</b> tokens){% else %}prizes{% endif %} · until {{ deadlines.claim_short }}
+                {%- endif -%}
+            </span><span class="bcb__claim-go">{{ "受け取る ＞" if ja else "Claim >" }}</span></a>
+            {% endif %}
+            {% if result_url %}<div class="bcb__actions"><a href="{{ result_url }}" class="bcb__btn bcb__btn--primary">{{ "結果を見る" if ja else "See results" }}</a></div>{% endif %}
+
+        {% elif mode == "upcoming" %}
             <p class="bcb__note">{{ "まもなく始まります。投稿・チャット・いいねなどで自動で応募されます。" if ja else "Starting soon. Posting, chatting, and liking will enter you automatically." }}</p>
+            {% if previous %}{{ previous_line(previous) }}{% endif %}
             {% if detail_url %}<div class="bcb__actions"><a href="{{ detail_url }}" class="bcb__btn">{{ "詳細を見る" if ja else "Details" }}</a></div>{% endif %}
 
         {% elif invalid %}
@@ -124,6 +153,7 @@
                 </p>
             {% endif %}
 
+            {% if previous %}{{ previous_line(previous) }}{% endif %}
             {% if view and view.staff %}<p class="bcb__note bcb__note--muted">{{ "運営のアカウントは対象外です（表示の確認のために数えています）。" if ja else "Staff accounts are not eligible (counted only to check the display)." }}</p>{% endif %}
 
             {% if mode == "live" and info.has_stats %}

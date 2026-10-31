@@ -1,0 +1,120 @@
+{# アカウントタブの「掲示板企画」の結果の箱（結果の発表の後。board_campaign_plan 10.2・7.4。モックの 6〜12）。
+   box は account.py の _board_campaign_box。「結果を確認する」「受け取る」は POST して、返ってきたこの箱で置き換える（bcaResult）。
+   当選の有無は「結果を確認する」を押すまで出さない（BD21） #}
+{% set ja = lang == "ja" %}
+{% set c = box.campaign %}
+{% set info = box.info %}
+{% set r = box.result %}
+{% set dl = box.deadlines %}
+{% set unit = "口" if ja else "" %}
+{% set result_url = url_for('announcement_detail', lang=lang, post_id=c.result_announcement_id) if c.result_announcement_id else none %}
+{% set entries_sub = ("あなたの応募 <b>" ~ r.entries ~ "</b><small>/" ~ info.max ~ unit ~ "</small>") if ja else ("Your entries: <b>" ~ r.entries ~ "</b><small>/" ~ info.max ~ "</small>") %}
+{% set closed = box.mode == "closed" %}
+
+<div class="bca {{ 'bca--muted' if closed and not r.viewed else 'bca--result' }}" id="bcr-{{ c.id }}"
+     x-data="bcaResult('{{ url_for('account_board_campaign_reveal', lang=lang, campaign_id=c.id) }}', '{{ url_for('account_board_campaign_claim', lang=lang, campaign_id=c.id) }}')">
+    <div class="bca__head">
+        <div class="bca__head-main">
+            <span class="bca__title">{{ info.title }}</span>
+            <span class="bca__badge bca__badge--{{ 'ended' if closed else 'result' }}">{{ ("終了" if ja else "Closed") if closed else ("結果発表" if ja else "Results") }}</span>
+        </div>
+        <div class="bca__head-sub">
+            <span>{% if r.has_entries %}{{ entries_sub | safe }}{% else %}{{ info.period_text }}{% endif %}</span>
+            {% if result_url %}<a href="{{ result_url }}" class="bca__link">{{ "結果を見る ＞" if ja else "Results >" }}</a>{% endif %}
+        </div>
+    </div>
+
+    {% if not r.has_entries %}
+    {% set view = box.view %}
+    {% if view and view.invalid %}
+    {# 無効（違反・禁止・抽選の確認で除外・同じタグ） #}
+    <p class="bca__msg">
+        {%- if view.invalid == "same_tag" -%}
+        {{ "同じプレイヤーを登録している別のアカウントで応募されていたため、このアカウントの応募は数えられませんでした。" if ja else "Entries were counted on another account that registers the same player, so this account's entries didn't count." }}
+        {%- else -%}
+        {{ "規約違反行為が確認されたため、この企画への応募は無効になりました。" if ja else "Your entries for this giveaway were voided because a terms of service violation was confirmed." }}
+        {%- endif -%}
+    </p>
+    {% elif view and view.staff %}
+    <p class="bca__msg">{{ "結果が発表されました。運営のアカウントは対象外です。" if ja else "The results are out. Staff accounts are not eligible." }}</p>
+    {% else %}
+    {# 12. 応募なし #}
+    <p class="bca__msg">{{ "結果が発表されました。この企画への応募はありませんでした。" if ja else "The results are out. You didn't enter this giveaway." }}</p>
+    {% endif %}
+
+    {% elif closed and not r.viewed %}
+    {# 11. 期限切れ（確認しなかった人。当選の有無は出さない） #}
+    <p class="bca__msg">{{ ("結果の確認・受け取りの期限（" ~ dl.claim_short ~ "）が過ぎたため、景品は受け取れなくなりました。当選者はお知らせで確認できます。") if ja else ("The deadline to check and claim (" ~ dl.claim_short ~ ") has passed, so prizes can no longer be claimed. The winners are listed in the news.") }}</p>
+
+    {% elif not r.viewed %}
+    {# 6. 結果発表後・まだ確認していない #}
+    <div class="bca__stack">
+        <p class="bca__msg">{{ "結果が発表されました！当選者はお知らせで確認できます。下のボタンから、あなたの結果を確認して景品を受け取れます。" if ja else "The results are out! Check the news for the winners, or check your own results below and claim your prizes." }}</p>
+        <div class="bca__actions">
+            <button type="button" class="bca__btn bca__btn--primary bca__btn--big" @click="reveal()" :disabled="busy">{{ "結果を確認する" if ja else "Check my results" }}</button>
+            {% if result_url %}<a href="{{ result_url }}" class="bca__btn">{{ "結果を見る（お知らせ）" if ja else "See results (news)" }}</a>{% endif %}
+        </div>
+        <p class="bca__deadline">{{ (("結果の確認・受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Check and claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
+    </div>
+
+    {% else %}
+    {# 7〜10. 確認後 #}
+    <div class="{{ 'bca__reveal' if revealed_now else 'bca__stack bca__stack--tight' }}">
+        {% if r.won %}
+        <p class="bca__congrats"><img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="" class="bca__congrats-icon">{{ "おめでとうございます！" if ja else "Congratulations!" }}</p>
+        {% elif not closed %}
+        <p class="bca__msg">{{ "今回は抽選・確定賞の景品には当選しませんでした。参加賞を受け取れます。次回もぜひご参加ください！" if ja else "You didn't win a drawing or guaranteed prize this time, but your participation prize is ready. We hope you'll join again!" }}</p>
+        {% endif %}
+        <ul class="bca__prizes">
+            {% for item in r['items'] %}
+            <li class="bca__prize bca__prize--{{ 'gift' if item.is_gift else ('join' if item.kind == 'participation' else 'app') }}">
+                <span class="bca__prize-label">{{ item.label }}{% if item.sub %}<small>{{ item.sub }}</small>{% endif %}</span>
+                <span class="bca__prize-value">{{ item.value }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% set app_count = r['items'] | rejectattr('is_gift') | list | length %}
+        {% if app_count > 1 %}
+        <p class="bca__total">{{ "合計" if ja else "Total" }} <b>{{ (r.total_tokens ~ ("トークン" if ja else " tokens")) if r.total_tokens else "" }}{% if r.total_tokens and r.total_elixirs %} + {% endif %}{{ (r.total_elixirs ~ ("自動追跡エリクサー" if ja else " elixir")) if r.total_elixirs else "" }}</b></p>
+        {% endif %}
+
+        {% for gift in r.gifts %}
+        <div class="bca__gift">
+            <p class="bca__gift-title">{% if ja %}<b>{{ gift.value }}</b> の受け取り{% else %}Claiming your <b>{{ gift.value }}</b>{% endif %}</p>
+            {% if gift.gift_status and gift.gift_status != "waiting" %}
+            <p class="bca__gift-status">{{ ((("連絡の状況: <b>" ~ gift.gift_status_label ~ "</b>") ~ ("。受け取り方をメールでご案内しています。" if gift.gift_status == "contacted" else "")) if ja else ("Status: <b>" ~ gift.gift_status_label ~ "</b>")) | safe }}</p>
+            {% elif r.gift_expired %}
+            <p class="bca__gift-status">{{ "連絡の期限が過ぎました。" if ja else "The contact deadline has passed." }}</p>
+            {% else %}
+            <p>{{ ((("<b>" ~ dl.gift ~ "</b>までに、下のメールアドレスへご連絡ください。本人確認の後、受け取り方をご案内します。")) if ja else ("Please email us by <b>" ~ dl.gift ~ "</b>. After verifying your identity, we'll explain how to receive your prize.")) | safe }}</p>
+            <div class="bca__mail"><code>contact.brawlinsights@gmail.com</code></div>
+            <p class="bca__gift-sub">{{ "メールには、以下の内容を含めてください。" if ja else "Please include the following in your email." }}</p>
+            <pre class="bca__mail-body">{% if ja %}ユーザーID: {{ request.state.current_user.id }}
+ユーザー名: {{ request.state.current_user.name }}
+メインアカウントのプレイヤー名: {{ r.player_name }}{% else %}User ID: {{ request.state.current_user.id }}
+Username: {{ request.state.current_user.name }}
+Main account player name: {{ r.player_name }}{% endif %}</pre>
+            {% if ja %}<p class="bca__hint">※当選者の希望により、ギフトカードへの変更も可能です。期限内にご連絡がない場合、当選は無効となります。</p>{% else %}<p class="bca__hint">*If you do not contact us by the deadline, your win will be voided.</p>{% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if claim_message %}<p class="bca__claimed">✓ {{ claim_message }}</p>
+        {% elif r.claimable %}
+        <div class="bca__claim">
+            <button type="button" class="bca__btn bca__btn--primary" @click="claim()" :disabled="busy">
+                {%- if app_count > 1 -%}{{ "まとめて受け取る" if ja else "Claim all" }}
+                {%- elif r.gifts and app_count == 1 -%}{{ "参加賞を受け取る" if ja else "Claim participation prize" }}
+                {%- else -%}{{ "受け取る" if ja else "Claim" }}{%- endif -%}
+            </button>
+            <p class="bca__deadline">{{ (("受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
+        </div>
+        {% elif r.claimed_at %}
+        <p class="bca__claimed">✓ {{ ("受け取りました（" ~ r.claimed_text ~ "）") if ja else ("Claimed (" ~ r.claimed_text ~ ")") }}</p>
+        {% elif r.expired and app_count %}
+        <p class="bca__msg">{{ ("受け取りの期限（" ~ dl.claim_short ~ "）が過ぎたため、受け取れなくなりました。") if ja else ("The claim deadline (" ~ dl.claim_short ~ ") has passed.") }}</p>
+        {% endif %}
+        <p class="bca__error" x-show="message" x-text="message" x-cloak></p>
+    </div>
+    {% endif %}
+</div>

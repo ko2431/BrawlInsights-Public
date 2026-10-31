@@ -2164,3 +2164,7 @@ mark.general-board-search-hit {
 .bcb__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--color-777); }
 .bcb__foot b { color: var(--color-444); }
 .bcb__more { flex: none; font-weight: bold; color: var(--color-444); }
+.bcb__claim { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, .75); font-size: 12px; line-height: 1.4; color: var(--color-333); }
+.dark .bcb__claim { background: rgba(255, 255, 255, .07); }
+.bcb__claim-go { margin-left: auto; flex: none; font-weight: bold; color: #d35400; }
+.dark .bcb__claim-go { color: #ffab66; }

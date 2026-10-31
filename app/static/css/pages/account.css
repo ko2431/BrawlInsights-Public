@@ -1570,3 +1570,44 @@ body.modal-open {
 .bca__caution { font-size: 11px; line-height: 1.45; color: var(--c-red); }
 .bca__msg { font-size: 13px; line-height: 1.5; color: var(--color-444); }
 .bca__warn { font-size: 12.5px; line-height: 1.45; color: var(--c-red); }
+/* 掲示板企画の結果の箱（components/board_campaign_result.html） */
+.bca-list { display: flex; flex-direction: column; gap: 8px; }
+.bca-list > .bca + .bca { margin-top: 0; }
+.bca__actions { display: flex; gap: 6px; }
+.bca__btn { flex: 1; display: flex; align-items: center; justify-content: center; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--color-ddd); background: var(--bg-main); font: inherit; font-size: 13px; font-weight: bold; text-align: center; color: var(--color-333); cursor: pointer; transition: transform .12s ease, opacity .12s ease; }
+.bca__btn:active { transform: scale(.98); }
+.bca__btn:disabled { opacity: .6; cursor: progress; }
+.bca__btn--primary { border-color: transparent; background: #333; color: #fff; }
+.dark .bca__btn--primary { background: #eee; color: #111; }
+.bca__btn--big { padding: 4px 8px; font-size: 14px; background: linear-gradient(90deg, #9b4dca, #e0559b); }
+.dark .bca__btn--big { background: linear-gradient(90deg, #9b4dca, #e0559b); color: #fff; }
+.bca__deadline { font-size: 11.5px; color: var(--color-777); }
+.bca__stack { display: flex; flex-direction: column; gap: 10px; }
+.bca__stack--tight { gap: 8px; }
+.bca__reveal { display: flex; flex-direction: column; gap: 8px; animation: bca-pop .35s ease-out; }
+@keyframes bca-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+.bca__congrats { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: bold; color: #7b2fa8; }
+.dark .bca__congrats { color: #d6a8ff; }
+.bca__congrats-icon { width: 22px; height: 22px; object-fit: contain; }
+.bca__prizes { display: flex; flex-direction: column; gap: 4px; }
+.bca__prize { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--bg-main); border: 1px solid #f0e6f7; font-size: 13px; }
+.dark .bca__prize { border-color: #33283f; }
+.bca__prize-label { flex: none; display: flex; flex-direction: column; font-weight: bold; color: var(--color-333); }
+.bca__prize-label small { font-size: 10.5px; font-weight: normal; color: var(--color-888); }
+.bca__prize-value { text-align: right; font-weight: bold; color: var(--color-222); }
+.bca__prize--gift { border-color: #f5c84c; background: #fff8e1; }
+.dark .bca__prize--gift { border-color: #6b5520; background: #2e2715; }
+.bca__prize--join .bca__prize-label { font-weight: normal; color: var(--color-555); }
+.bca__total { text-align: right; font-size: 12.5px; color: var(--color-666); }
+.bca__total b { color: var(--color-222); }
+.bca__claim { display: flex; flex-direction: column; gap: 4px; }
+.bca__claim .bca__btn--primary { padding: 4px 8px; font-size: 14px; }
+.bca__claimed { font-size: 13px; font-weight: bold; color: #2f9a1c; }
+.bca__error { font-size: 12.5px; color: var(--c-red); }
+.bca__gift { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px; border-radius: 10px; border: 1px solid #f5c84c; background: #fffbea; font-size: 12.5px; line-height: 1.5; color: var(--color-444); }
+.dark .bca__gift { border-color: #6b5520; background: #241f12; }
+.bca__gift-title { font-size: 13px; color: var(--color-222); }
+.bca__gift-sub { font-size: 12px; color: var(--color-666); }
+.bca__gift-status { color: var(--color-333); }
+.bca__mail code { display: block; padding: 4px 8px; border-radius: 6px; background: var(--bg-main); font-size: 13px; font-weight: bold; user-select: all; }
+.bca__mail-body { margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--bg-main); font: inherit; font-size: 12px; white-space: pre-wrap; user-select: all; }
