@@ -1,0 +1,139 @@
+{# 掲示板の上部の帯（掲示板企画）。/boards/campaign-banner がページの後から返す（board_campaign_plan 10.1）。
+   畳んだ状態はすべての掲示板で共通にして端末に記憶する（js/pages/board_campaign_banner.js の bi_board_campaign_collapsed）。
+   data-bcb-open は開いているときだけ、data-bcb-closed は畳んでいるときだけ出すもの（読み込みのときに畳んだ状態に合わせる） #}
+{% set ja = lang == "ja" %}
+{% set unit = "口" if ja else "" %}
+{% set max = info.max %}
+{% set detail_url = url_for('announcement_detail', lang=lang, post_id=campaign.start_announcement_id) if campaign.start_announcement_id else none %}
+{% set account_url = url_for('account_page', lang=lang) ~ '#board-campaign' %}
+{% set logged_in = request.state.current_user is not none %}
+{% set invalid = view.invalid if view else none %}
+{% set entries = view.entries if view else 0 %}
+
+{# 見せ方（色・見出しの右・畳んだときの一行） #}
+{% if mode == "upcoming" %}
+    {% set tone = "ended" %}
+    {% set meta = (info.start_text ~ "から") if ja else ("from " ~ info.start_text ~ " (UTC)") %}
+    {% set summary = meta %}
+{% elif invalid %}
+    {% set tone = "muted" %}
+    {% set meta = none %}
+    {% set summary = ("別のアカウントで応募中" if ja else "Entered on another account") if invalid == "same_tag" else ("応募は無効です" if ja else "Entries voided") %}
+{% elif mode == "counting" %}
+    {% set tone = "ended" %}
+    {% set meta = "終了・集計中" if ja else "Ended · counting" %}
+    {% if entries %}
+        {% set summary = "<b>" ~ entries ~ "</b><small>/" ~ max ~ unit ~ "</small>" ~ ("・集計中" if ja else " · counting") %}
+    {% else %}
+        {% set summary = "集計中" if ja else "Counting" %}
+    {% endif %}
+{% elif not logged_in %}
+    {% set tone = "live" %}
+    {% set meta = info.remaining %}
+    {% set summary = "ログインで参加" if ja else "Log in to join" %}
+{% else %}
+    {% set tone = "last" if info.last_day else "live" %}
+    {% set meta = info.remaining %}
+    {% set summary = "<b>" ~ entries ~ "</b><small>/" ~ max ~ unit ~ "</small>" %}
+    {% if entries >= max %}
+        {% set summary = summary ~ ("・最大" if ja else " · max") %}
+    {% elif info.last_day %}
+        {% set summary = summary ~ ("・" if ja else " · ") ~ info.remaining %}
+    {% else %}
+        {% set summary = summary ~ ("・今日 " if ja else " · today ") ~ today_done ~ "<small>/" ~ today_total ~ "</small>" %}
+    {% endif %}
+{% endif %}
+
+<div class="bcb bcb--{{ tone }}" x-data="boardCampaignBanner()" :class="{ 'bcb--collapsed': collapsed }">
+    <button type="button" class="bcb__head" @click="toggle()" :aria-expanded="(!collapsed).toString()">
+        <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="" class="bcb__icon">
+        <span class="bcb__title">{{ info.title }}</span>
+        <span class="bcb__summary" x-show="collapsed" x-cloak data-bcb-closed>{{ summary | safe }}</span>
+        {% if meta %}<span class="bcb__meta" x-show="!collapsed" data-bcb-open>{{ meta }}</span>{% endif %}
+        <span class="bcb__chev" aria-hidden="true"></span>
+    </button>
+    <div class="bcb__body" x-show="!collapsed" data-bcb-open>
+        {% if mode == "upcoming" %}
+            <p class="bcb__note">{{ "まもなく始まります。投稿・チャット・いいねなどで自動で応募されます。" if ja else "Starting soon. Posting, chatting, and liking will enter you automatically." }}</p>
+            {% if detail_url %}<div class="bcb__actions"><a href="{{ detail_url }}" class="bcb__btn">{{ "詳細を見る" if ja else "Details" }}</a></div>{% endif %}
+
+        {% elif invalid %}
+            <p class="bcb__note">
+                {%- if invalid == "same_tag" -%}
+                {{ "同じプレイヤーを登録している別のアカウントで応募されています。この企画では、そのアカウントの応募だけが数えられます。" if ja else "Entries are being counted on another account that registers the same player. Only that account's entries count for this giveaway." }}
+                {%- else -%}
+                {{ "規約違反行為が確認されたため、この企画への応募は無効になっています。" if ja else "Your entries for this giveaway have been voided because a terms of service violation was confirmed." }}
+                {%- endif -%}
+            </p>
+
+        {% elif not logged_in and mode == "live" %}
+            <p class="bcb__note">
+                {%- if ja -%}
+                投稿・チャット・いいねなどをすると、{{ info.top_prize }}などが当たる企画に自動で応募されます（1日最大{{ info.daily_max }}口）。参加にはログインが必要です。
+                {%- else -%}
+                Posting, chatting, and liking on the boards automatically enter you into a giveaway for {{ info.top_prize }} and more (up to {{ info.daily_max }} entries a day). Log in to join.
+                {%- endif -%}
+            </p>
+            <div class="bcb__actions">
+                <a href="{{ url_for('login_page', lang=lang) }}" class="bcb__btn bcb__btn--primary">{{ "ログイン" if ja else "Log in" }}</a>
+                {% if detail_url %}<a href="{{ detail_url }}" class="bcb__btn">{{ "詳細を見る" if ja else "Details" }}</a>{% endif %}
+            </div>
+
+        {% else %}
+            {% if logged_in and (mode == "live" or entries) %}
+            <div class="bcb__count">
+                <span>{{ "あなたの応募" if ja else "Your entries" }}</span>
+                <b>{{ entries }}</b><span class="bcb__max">/{{ max }}{{ unit }}</span>
+                {% if mode == "counting" %}<span class="bcb__pending">{{ "集計中" if ja else "Counting" }}</span>
+                {% else %}<a href="{{ account_url }}" class="bcb__detail">{{ "内訳 ＞" if ja else "Breakdown >" }}</a>{% endif %}
+            </div>
+            <div class="bcb__bar{% if entries >= max %} bcb__bar--max{% endif %}"><span style="width: {{ ((entries / max * 100) if max else 0) | round(1) }}%"></span></div>
+            {% endif %}
+
+            {% if mode == "live" %}
+                {% if entries < max %}
+                <div class="bcb__today">
+                    <span class="bcb__today-label">{{ "今日" if ja else "Today" }} {{ today_done }}<small>/{{ today_total }}</small></span>
+                    <div class="bcb-chips">
+                        {% for chip in chips %}
+                        <button type="button" class="bcb-chip bcb-chip--{{ chip.cls }}" @click='alert({{ chip.alert | tojson }})'>
+                            <span>{{ chip.label }}</span>
+                            <span class="bcb-chip__slots">{% for s in chip.states %}<i class="bcb-slot bcb-slot--{{ s }}"></i>{% endfor %}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if warned_text %}<p class="bcb__note bcb__note--warn">{{ warned_text }}</p>{% endif %}
+                {% if entries >= max %}
+                <p class="bcb__note bcb__note--good">{{ ("最大の" ~ max ~ "口に達しました！結果の発表をお楽しみに。") if ja else ("You've reached the maximum of " ~ max ~ " entries! Stay tuned for the results.") }}</p>
+                {% elif info.last_day %}
+                <p class="bcb__note bcb__note--warn">{{ ("まもなく終了します（" ~ info.end_text ~ "まで）。") if ja else ("Ending soon (" ~ info.end_text ~ ").") }}</p>
+                {% elif today_total and today_done >= today_total %}
+                <p class="bcb__note bcb__note--good">{{ (info.next_open ~ "から追加で応募できます！") if ja else ("More entries open at " ~ info.next_open ~ "!") }}</p>
+                {% elif not entries %}
+                <p class="bcb__note">{{ ("投稿・チャット・いいねなどで、1日最大" ~ info.daily_max ~ "口まで応募されます。") if ja else ("Post, chat, and like to earn up to " ~ info.daily_max ~ " entries a day.") }}</p>
+                {% endif %}
+            {% else %}
+                <p class="bcb__note">
+                    {%- if entries -%}
+                    {{ "企画は終了しました。結果の発表まで少しお待ちください。発表されたら通知でお知らせします。" if ja else "The giveaway has ended. Results will be announced soon, and you'll get a notification when they're out." }}
+                    {%- else -%}
+                    {{ "企画は終了しました。結果は後日、お知らせで発表されます。" if ja else "The giveaway has ended. The results will be announced in the news." }}
+                    {%- endif -%}
+                </p>
+            {% endif %}
+
+            {% if view and view.staff %}<p class="bcb__note bcb__note--muted">{{ "運営のアカウントは対象外です（表示の確認のために数えています）。" if ja else "Staff accounts are not eligible (counted only to check the display)." }}</p>{% endif %}
+
+            {% if mode == "live" and info.has_stats %}
+            <div class="bcb__foot">
+                <span>{% if ja %}現在<b>{{ "{:,}".format(info.users) }}</b>人が<b>{{ "{:,}".format(info.entries) }}</b>口応募中{% else %}<b>{{ "{:,}".format(info.entries) }}</b> entries from <b>{{ "{:,}".format(info.users) }}</b> users so far{% endif %}</span>
+                {% if detail_url %}<a href="{{ detail_url }}" class="bcb__more">{{ "詳細を見る ＞" if ja else "Details >" }}</a>{% endif %}
+            </div>
+            {% elif detail_url %}
+            <div class="bcb__foot"><span></span><a href="{{ detail_url }}" class="bcb__more">{{ "詳細を見る ＞" if ja else "Details >" }}</a></div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>

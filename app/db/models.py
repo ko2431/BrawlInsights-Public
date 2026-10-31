@@ -1488,8 +1488,12 @@ class Reaction(Base):
     # リレーションシップ
     message = relationship("Message", back_populates="reactions")
     
-    # 複合ユニーク制約: 1ユーザーは1メッセージに同じ絵文字で1回しかリアクションできない
-    __table_args__ = (UniqueConstraint('message_id', 'user_id', 'emoji', name='_message_user_emoji_uc'),)
+    __table_args__ = (
+        # 複合ユニーク制約: 1ユーザーは1メッセージに同じ絵文字で1回しかリアクションできない
+        UniqueConstraint('message_id', 'user_id', 'emoji', name='_message_user_emoji_uc'),
+        # 掲示板企画で、日付の範囲のリアクションを引く（した・された。board_campaign_service）
+        Index('idx_reactions_created_at', 'created_at'),
+    )
 
 
 class Report(Base):

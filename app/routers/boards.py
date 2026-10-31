@@ -15,6 +15,7 @@ from app.core import cache as cache_module
 from app.core.realtime import hub as realtime_hub
 from app.services.brawl_service import Player, get_player, get_player_from_db, get_player_name, get_brawler
 from app.services.user_service import User, get_user, get_blocked_ids, create_user_block, delete_user_block, try_progress_tutorial_board
+from app.services.board_campaign_service import touch_user as touch_board_campaign_user
 from app.services.board_service import get_post, get_posts, get_trending_general_posts, get_messages, get_reactions, check_post_permitted, check_invitation_link, create_post, get_last_post, create_report, create_message, get_message, add_reaction, Reaction, get_player_icon_from_db, get_general_post_vote_summary, toggle_general_post_up_vote, attach_reply_to_previews, TEAM_POST_CLOSE_COOLDOWN_SECONDS, get_theme_board_posts, is_theme_post_type, get_or_create_theme_map_post, get_theme_brawler_board_colors, resolve_theme_map_display, invalidate_theme_board_posts_cache, get_theme_brawler_index_json, get_or_create_theme_brawler_post, THEME_CATEGORY_MAP, resolve_board_mentions, get_cached_board_mention_candidates, GENERAL_TOURNAMENT_CATEGORY, Post
 from app.services.tournament_service import board_link_for_post, board_link_targets
 from app.services.board_repost_service import PostRepostError, get_general_post_repost_states, repost_general_post
@@ -1914,7 +1915,10 @@ async def notifications_fragment(
     except Exception as render_err:
         logger.error(f"Template rendering error: {render_err}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error rendering page") from render_err
- 
+
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
 
 #* /---*---*---*---*---*---*---*---*/
 #* 投稿作成関連のエンドポイント
@@ -2032,6 +2036,7 @@ async def create_new_post(
             other_conditions=post_data.other_conditions,
             is_later_recruitment=post_data.is_later_recruitment,
         )
+        await touch_board_campaign_user(user.id if user else None)
         return {"success": True, "post_id": post_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -2066,6 +2071,7 @@ async def delete_post(
         
     try:
         await post.delete(db)
+        await touch_board_campaign_user(post.host_id)
         return {"success": True, "message": "Post deleted successfully"}
     except DataBaseError as e:
         logger.error(f"投稿(ID:{post_id})の削除中にDBエラー: {e}", exc_info=True)
@@ -2225,6 +2231,7 @@ async def toggle_post_good(
             actor_user_id=user.id,
             is_liked=bool(result["is_up_voted_by_current_user"]),
         )
+        await touch_board_campaign_user(user.id)
         return {
             "success": True,
             "up_vote_count": result["up_vote_count"],
@@ -2422,7 +2429,8 @@ async def create_chat_message(
                 reply_to_message_id=message_data.reply_to_message_id,
                 mention_user_ids=[mention["id"] for mention in mentions],
             )
-        
+            await touch_board_campaign_user(user.id)
+
         return {"success": True, "message_id": message_id}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -2636,6 +2644,7 @@ async def create_chat_token_gift(
                 f"(Your tokens: {before_text} → {after_text})"
             )
         )
+        await touch_board_campaign_user(user.id)
         return {
             "success": True,
             "message": success_message,
@@ -2704,7 +2713,8 @@ async def delete_message(
     try:
         thread_id = message.thread_id # 削除前にスレッドIDを保持
         await message.delete(db)
-        
+        await touch_board_campaign_user(message.user_id)
+
         # メッセージが削除されたことをブロードキャスト
         await manager.broadcast(
             thread_id,
@@ -2822,6 +2832,7 @@ async def add_message_reaction(
                 reaction_id=reaction_id,
                 is_added=True,
             )
+        await touch_board_campaign_user(user.id)
 
         return {"success": True, "reaction_id": reaction_id, "reaction": reaction_dict}
     except ValueError as e:
@@ -2841,6 +2852,7 @@ async def _delete_reaction_and_broadcast(db: asyncpg.Connection, reaction: React
     """リアクションを削除して配信する。同じ人がほかの絵文字も付けている間は、相手への通知を残す。"""
     await keep_reaction_notification_on_remove(db, reaction_id=reaction.id, message_id=reaction.message_id, actor_user_id=reaction.user_id)
     await reaction.delete(db)
+    await touch_board_campaign_user(reaction.user_id)
     thread_row = await db.fetchrow("SELECT thread_id FROM messages WHERE id = $1", reaction.message_id)
     if thread_row:
         await manager.broadcast(

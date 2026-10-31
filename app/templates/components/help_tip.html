@@ -1,0 +1,9 @@
+{#^ 用語の説明（「?」をホバー・タップすると吹き出しが出る。js/help_tip.js を読み込んだ画面で使う）。
+   label の中に置いてもラジオが切り替わらないようにする。expr を渡すと、入力内容に合わせて説明を変える（Alpine の式）。
+   色は共通では灰色、大会開催ツールだけ緑（tournaments.css。board_campaign_plan BD28） #}
+{% macro help_tip(text, expr=none) %}
+<span class="help-tip" x-data="helpTip()" @mouseenter="enter()" @mouseleave="leave()" @click.outside="hide()" @scroll.window="hide()" @keydown.escape.window="hide()">
+    <button type="button" class="help-tip__btn" x-ref="btn" @click.prevent.stop="toggle()" :aria-expanded="open" aria-label="{{ '説明' if lang == 'ja' else 'Help' }}">?</button>
+    <span class="help-tip__bubble" x-ref="bubble" x-show="open" x-cloak :class="{ 'is-hiding': hiding }" :style="style" role="tooltip"{% if expr %} x-text="{{ expr }}"{% endif %}>{{ text or '' }}</span>
+</span>
+{% endmacro %}

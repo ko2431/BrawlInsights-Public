@@ -1,0 +1,146 @@
+{# アカウントタブの「掲示板企画」（「コード入力とプレゼント企画」のサブタブの最後。board_campaign_plan 10.2）。
+   account.py の _board_campaign_context が渡す board_campaign（帯と同じ本人の数字）。結果の発表・受け取りは 5b #}
+{% from "components/help_tip.html" import help_tip %}
+{% set ja = lang == "ja" %}
+{% set bc = board_campaign %}
+{% set c = bc.campaign %}
+{% set info = bc.info %}
+{% set view = bc.view %}
+{% set mode = bc.mode %}
+{% set unit = "口" if ja else "" %}
+{% set max = info.max %}
+{% set entries = view.entries if view else 0 %}
+{% set detail_url = url_for('announcement_detail', lang=lang, post_id=c.start_announcement_id) if c.start_announcement_id else none %}
+
+{% macro head(badge, badge_tone, sub) %}
+<div class="bca__head">
+    <div class="bca__head-main">
+        <span class="bca__title">{{ info.title }}</span>
+        <span class="bca__badge bca__badge--{{ badge_tone }}">{{ badge }}</span>
+    </div>
+    <div class="bca__head-sub">
+        <span>{{ sub | safe }}</span>
+        {% if detail_url %}<a href="{{ detail_url }}" class="bca__link">{{ "詳細を見る ＞" if ja else "Details >" }}</a>{% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<section class="account-section bca-section" id="board-campaign" x-data="{ open: true }">
+    <h2 class="section-title" @click="open = !open" style="cursor: pointer;">
+        <span>{{ "掲示板企画" if ja else "Board Giveaway" }}</span>
+        <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
+    </h2>
+    <div x-show="open">
+    {% if mode == "upcoming" %}
+    <div class="bca">
+        {{ head((info.start_text ~ "から") if ja else ("From " ~ info.start_text), "ended", info.period_text) }}
+        <p class="bca__msg">{{ "まもなく始まります。投稿・チャット・いいねなどをすると、自動で応募されます。" if ja else "Starting soon. Posting, chatting, and liking will enter you automatically." }}</p>
+    </div>
+
+    {% elif view and view.invalid %}
+    <div class="bca bca--muted">
+        {{ head(("開催中" if ja else "Live") if mode == "live" else ("集計中" if ja else "Counting"), "live" if mode == "live" else "ended", info.period_text) }}
+        <p class="bca__msg">
+            {%- if view.invalid == "same_tag" -%}
+            {{ "同じプレイヤーを登録している別のアカウントで応募されています。この企画では、そのアカウントの応募だけが数えられます。" if ja else "Entries are being counted on another account that registers the same player. Only that account's entries count for this giveaway." }}
+            {%- else -%}
+            {{ "規約違反行為が確認されたため、この企画への応募は無効になっています。" if ja else "Your entries for this giveaway have been voided because a terms of service violation was confirmed." }}
+            {%- endif -%}
+        </p>
+    </div>
+
+    {% else %}
+    {% set live = mode == "live" %}
+    <div class="bca">
+        {% if live %}
+        {{ head("開催中" if ja else "Live", "live", info.period_text ~ ("・" if ja else " · ") ~ info.remaining) }}
+        {% else %}
+        {{ head("集計中" if ja else "Counting", "ended", info.period_text) }}
+        {% endif %}
+
+        <div class="bca__entries">
+            <div class="bca__entries-row">
+                <span>{{ "あなたの応募" if ja else "Your entries" }}</span>
+                <b>{{ entries }}</b><small>/{{ max }}{{ unit }}</small>
+                {% if not live %}<span class="bca__pill">{{ "集計中" if ja else "Counting" }}</span>{% endif %}
+                {% if live and entries < max %}<span class="bca__today">{{ "今日" if ja else "Today" }} {{ bc.today_done }}<small>/{{ bc.today_total }}</small></span>{% endif %}
+            </div>
+            <div class="bca__bar{% if entries >= max %} bca__bar--max{% endif %}"><span style="width: {{ ((entries / max * 100) if max else 0) | round(1) }}%"></span></div>
+            {% if live %}<p class="bca__hint">{{ "日付は毎日 9:00 に切り替わります。" if ja else "The date resets daily at 00:00 UTC." }}</p>{% endif %}
+        </div>
+        {% if live and bc.warned_text %}<p class="bca__warn">{{ bc.warned_text }}</p>{% endif %}
+        {% if not live %}
+        <p class="bca__msg">
+            {%- if entries -%}
+            {{ "企画は終了しました。結果の発表まで少しお待ちください。発表されたら通知でお知らせします。" if ja else "The giveaway has ended. Results will be announced soon, and you'll get a notification when they're out." }}
+            {%- else -%}
+            {{ "企画は終了しました。結果は後日、お知らせで発表されます。" if ja else "The giveaway has ended. The results will be announced in the news." }}
+            {%- endif -%}
+        </p>
+        {% endif %}
+
+        {# 方法ごとの口数（見出しで畳める） #}
+        <div class="bca__table" x-data="{ open: true }">
+            <button type="button" class="bca__table-title" @click="open = !open">
+                <span>{{ "応募方法ごとの口数" if ja else "Entries by method" }}</span>
+                <span class="bca__cols{% if not live %} bca__cols--1{% endif %}">{% if live %}<span>{{ "今日" if ja else "Today" }}</span>{% endif %}<span>{{ "口数" if ja else "Entries" }}</span></span>
+                <span class="bca__chev" :class="{ 'bca__chev--open': open }"></span>
+            </button>
+            <div x-show="open">
+                {% for g in bc.methods %}
+                <p class="bca__group">{{ g.label }}</p>
+                {% for row in g.rows %}
+                <div class="bca__row{% if not live %} bca__row--1{% endif %}">
+                    <span class="bca__row-name">{{ row.name }}</span>
+                    {% if live %}<span class="bca__row-today bca__row-today--{{ row.today }}">{% if row.today == "d" %}✓{% elif row.today == "x" %}{{ "無効" if ja else "Void" }}{% elif row.today == "c" %}{{ "上限" if ja else "Max" }}{% else %}・{% endif %}</span>{% endif %}
+                    <span class="bca__row-count{% if row.count >= row.cap %} bca__row-count--max{% endif %}"><b>{{ row.count }}</b>/{{ row.cap }}</span>
+                </div>
+                {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# 確定賞。開催中は順位と1位の数（投稿数・発言数は数を出さない）、集計中は自分の数だけ（BD25） #}
+        {% if bc.awards %}
+        <div class="bca__table" x-data="{ open: true }">
+            <div class="bca__table-title" role="button" tabindex="0" @click="open = !open" @keydown.enter.prevent="open = !open">
+                <span>{% if live %}{{ "確定賞の途中経過" if ja else "Guaranteed prizes so far" }}{{ help_tip("10分前の集計です。確定賞に関する詳細は、企画詳細のお知らせからご確認ください。" if ja else "As of 10 minutes ago. For details on the guaranteed prizes, see the campaign announcement.") }}{% else %}{{ "確定賞（終了時点）" if ja else "Guaranteed prizes (at the end)" }}{% endif %}</span>
+                {% if live %}<span class="bca__cols bca__cols--3"><span>{{ "あなた" if ja else "You" }}</span><span>{{ "順位" if ja else "Rank" }}</span><span>{{ "1位" if ja else "Top" }}</span></span>
+                {% else %}<span class="bca__cols bca__cols--score"><span>{{ "あなたのスコア" if ja else "Your score" }}</span></span>{% endif %}
+                <span class="bca__chev" :class="{ 'bca__chev--open': open }"></span>
+            </div>
+            <div x-show="open">
+                {% for a in bc.awards %}
+                <div class="bca__row {{ 'bca__row--3' if live else 'bca__row--score bca__row--num' }}">
+                    <span class="bca__row-name">{{ a.name }}{% if live and a.key == "post_count" %}{{ help_tip("投稿数トップ賞は、4種類の掲示板（チーム・フレンド・クラブ・なんでも）すべてに投稿すると対象になります。" if ja else "To qualify for the Posts prize, post at least once on each of the 4 boards (team, friend, club, general).") }}{% endif %}</span>
+                    {% if live and a.hidden %}<span class="bca__hidden">{{ "非公開" if ja else "Hidden" }}</span>{% else %}<span>{{ a.value }}</span>{% endif %}
+                    {% if live %}
+                    <span class="bca__rank{% if a.top_rank %} bca__rank--top{% endif %}">{{ a.rank }}</span>
+                    {% if a.hidden %}<span class="bca__hidden">{{ "非公開" if ja else "Hidden" }}</span>{% else %}<span>{{ a.top }}</span>{% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+                <p class="bca__hint">
+                    {%- if live -%}
+                    {{ "同じ数で並んだ場合は景品を山分けします。投稿数・発言数の詳細な数は企画終了時に公開されます。" if ja else "Ties split the prize. Exact post and message counts will be shown when the campaign ends." }}
+                    {%- else -%}
+                    {{ "規約違反の投稿やユーザーを除外した後に確定し、結果はお知らせで発表されます。同じ数で並んだ場合は景品を山分けします。" if ja else "These are finalized after posts and users that violate the terms are excluded, and the results are announced in the news. Ties split the prize." }}
+                    {%- endif -%}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if view and view.staff %}<p class="bca__hint">{{ "運営のアカウントは対象外です（表示の確認のために数えています）。" if ja else "Staff accounts are not eligible (counted only to check the display)." }}</p>{% endif %}
+        {% if live %}
+        {% if info.has_stats %}
+        <div class="bca__foot">
+            <span>{% if ja %}現在<b>{{ "{:,}".format(info.users) }}</b>人が<b>{{ "{:,}".format(info.entries) }}</b>口応募中{% else %}<b>{{ "{:,}".format(info.entries) }}</b> entries from <b>{{ "{:,}".format(info.users) }}</b> users so far{% endif %}</span>
+        </div>
+        {% endif %}
+        <p class="bca__caution">{{ "※応募目的の無意味な投稿・発言を行った場合、すべての応募が無効とみなされます。多くのユーザーにとって快適な掲示板実現のため、絶対におやめください。" if ja else "*If you make meaningless posts or messages solely to enter, all of your entries will be voided. Please never do this, so the boards stay comfortable for everyone." }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    </div>
+</section>

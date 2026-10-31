@@ -931,9 +931,9 @@
             </h2>
             <p class="account-description" x-show="open" x-transition>
                 {% if lang == "ja" %}
-                    各種<b>ギフトコード</b>等はこちらにご入力ください。{% if not giveaway_info and not minigame_info %}<br>現在、<b>プレゼント企画</b>は開催されておりません。次回の開催までお待ちください。{% endif %}
+                    各種<b>ギフトコード</b>等はこちらにご入力ください。{% if not giveaway_info and not minigame_info and not board_campaign %}<br>現在、<b>プレゼント企画</b>は開催されておりません。次回の開催までお待ちください。{% endif %}
                 {% else %}
-                    Enter your <b>gift codes</b> here.{% if not giveaway_info and not minigame_info %}<br>There are currently no <b>giveaways</b> running. Please wait until the next one.{% endif %}
+                    Enter your <b>gift codes</b> here.{% if not giveaway_info and not minigame_info and not board_campaign %}<br>There are currently no <b>giveaways</b> running. Please wait until the next one.{% endif %}
                 {% endif %}
             </p>
             <div class="account-info-box giftcode-section-box" x-show="open" x-transition>
@@ -1018,6 +1018,7 @@
             </div>
             {# [この部分は公開用リポジトリでは非公開にされています] #}
         </section>
+        {# [この部分は公開用リポジトリでは非公開にされています] #}
         </div>
 
         <div class="account-subtab-panel" x-show="activeSubTab === 'support'" x-cloak>
@@ -1635,6 +1636,7 @@
 {% include "components/board_blocks_modal.html" %}
 
 <script src="{{ url_for('static', path='/js/image_viewer.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', path='/js/help_tip.js') }}?v={{ app_version }}"></script>
 <script>
 // AdMob リワードイベントは base.html の ensureRewardedAdEventBridge が
 // reward-claimed / reward-ad-closed 等へ橋渡しする（ネイティブ listener の重複登録を防ぐ）
@@ -1891,6 +1893,7 @@ function accountSettingsPage() {
             'tickets': 'tokens',
             'elixir': 'tokens',
             'giftcode': 'codes',
+            'board-campaign': 'codes',
             'support': 'support',
             'remove-ads-section': 'support',
             'feedback': 'support',
@@ -1905,6 +1908,7 @@ function accountSettingsPage() {
                 'tickets': 'tokens',
                 'elixir': 'tokens',
                 'giftcode': 'codes',
+                'board-campaign': 'codes',
                 'support': 'support',
                 'remove-ads-section': 'support',
                 'feedback': 'support',

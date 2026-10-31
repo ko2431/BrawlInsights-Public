@@ -1445,3 +1445,64 @@
 .dark .bi-switch.is-locked[aria-checked="true"] {
     background: #34592e;
 }
+
+/* 用語の説明（「?」と吹き出し。components/help_tip.html・js/help_tip.js）。共通は灰色、大会開催ツールだけ緑（tournaments.css） */
+.help-tip {
+    display: inline-flex;
+    align-items: center;
+    font-weight: normal;
+}
+.help-tip [x-cloak] {
+    display: none !important;
+}
+.help-tip__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--bg-f0f0f0);
+    color: var(--color-777);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+.help-tip__btn[aria-expanded="true"],
+.help-tip__btn:hover {
+    background: #e3e3e3;
+    color: var(--color-333);
+}
+.dark .help-tip__btn[aria-expanded="true"],
+.dark .help-tip__btn:hover {
+    background: #3a3a3a;
+}
+.help-tip__bubble {
+    position: fixed;
+    z-index: 1100;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #333;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    white-space: normal;
+    text-align: left;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+.dark .help-tip__bubble {
+    background: #eee;
+    color: #111;
+}
+.help-tip__bubble.is-hiding {
+    animation: helpTipOut 0.2s ease-out forwards;
+}
+@keyframes helpTipOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.975); }
+}

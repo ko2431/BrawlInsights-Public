@@ -54,6 +54,9 @@ async def get_current_active_user(request: Request) -> User:
 # [この部分は公開用リポジトリでは非公開にされています]
 
 # --- アカウント設定ページ表示 ---
+# [この部分は公開用リポジトリでは非公開にされています]
+
+
 @router.get("", response_class=HTMLResponse, name="account_page")
 async def account_page(
     request: Request,
