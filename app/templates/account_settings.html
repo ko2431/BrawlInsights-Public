@@ -13,6 +13,7 @@
 {% import "components/account_device_options.html" as device_options with context %}
 <div class="account-page__container" 
      x-data="accountSettingsPage()"
+     x-on:bi-tokens-updated.window="currentTokenBalance = $event.detail.tokens; if (typeof $event.detail.elixirs === 'number') currentElixirBalance = $event.detail.elixirs"
      x-on:reward-claimed.window="handleRewardClaim()"
      x-on:reward-ad-closed.window="handleAdClosed()"
     x-on:reward-ad-failed.window="handleAdFailed($event)"
@@ -300,7 +301,7 @@
                 </div>
 
                 {#^ --- メイン・サブアカウント --- #}
-                <div class="info-item player-accounts" x-data="playerAccountsManager()">
+                <div class="info-item player-accounts" x-data="playerAccountsManager()" x-on:bi-tokens-updated.window="tokenBalance = $event.detail.tokens">
                     <div class="player-accounts__header">
                         <span class="info-item__label">{% if lang == "ja" %}プレイヤーアカウント:{% else %}Player Accounts:{% endif %}</span>
                         <div class="player-accounts__header-actions">
@@ -428,7 +429,7 @@
                 <div class="account-info-box token-section-box">
                     <div class="info-item">
                         <span class="info-item__label">{% if lang == "ja" %}現在所持:{% else %}Your Tokens:{% endif %}</span>
-                        <span class="info-item__value">{{ "{:,}".format(current_user.tokens) }}{% if current_user.token_limit is not none %} / {{ current_user.token_limit }}{% endif %}</span>
+                        <span class="info-item__value"><span x-text="currentTokenBalance.toLocaleString('en-US')">{{ "{:,}".format(current_user.tokens) }}</span>{% if current_user.token_limit is not none %} / {{ current_user.token_limit }}{% endif %}</span>
                     </div>
                 </div>
                 
@@ -823,7 +824,7 @@
                 <div class="account-info-box">
                     <div class="info-item">
                         <span class="info-item__label">{% if lang == "ja" %}現在所持:{% else %}Your Elixir:{% endif %}</span>
-                        <span class="info-item__value">🧪 {{ "{:,}".format(current_user.auto_track_elixirs or 0) }}</span>
+                        <span class="info-item__value">🧪 <span x-text="currentElixirBalance.toLocaleString('en-US')">{{ "{:,}".format(current_user.auto_track_elixirs or 0) }}</span></span>
                     </div>
                 </div>
 

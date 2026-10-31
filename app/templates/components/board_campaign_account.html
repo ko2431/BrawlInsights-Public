@@ -161,7 +161,8 @@ function bcaResult(revealUrl, claimUrl) {
                 const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
                 const data = await res.json().catch(() => ({}));
                 if (data.html) {
-                    if (typeof data.tokens === 'number') window.dispatchEvent(new CustomEvent('bi-tokens-updated', { detail: data.tokens }));
+                    // 受け取った後の残高を、アカウントの画面のほかの表示にも伝える（account_settings.html が受け取る）
+                    if (typeof data.tokens === 'number') window.dispatchEvent(new CustomEvent('bi-tokens-updated', { detail: { tokens: data.tokens, elixirs: data.elixirs } }));
                     this.$root.outerHTML = data.html;
                     return;
                 }

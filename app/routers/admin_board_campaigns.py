@@ -305,7 +305,10 @@ async def admin_board_campaign_exclusion_remove(
         user_id = int(payload.get("user_id"))
     except (TypeError, ValueError):
         return JSONResponse({"success": False, "message": "ユーザー ID が正しくありません。"}, status_code=400)
-    await bcs.remove_exclusion(db, c, user_id)
+    try:
+        await bcs.remove_exclusion(db, c, user_id)
+    except bcs.CampaignError as e:
+        return _error(e)
     await _notify_admin_action(
         db, current_user, "board_campaign_exclusion", "掲示板企画の無効のリストから外しました",
         f"管理者操作 / 掲示板企画 #{c.id} の無効のリストからユーザー {user_id} を外す",

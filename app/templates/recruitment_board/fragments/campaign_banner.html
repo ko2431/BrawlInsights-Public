@@ -54,10 +54,16 @@
 {# 前の企画の結果の確認・受け取りが残っているときの1行（H・N） #}
 {% macro previous_line(p) %}
 <a href="{{ url_for('account_page', lang=lang) ~ '#board-campaign' }}" class="bcb__claim"><span>
+    {%- if p.prize -%}
     {%- if lang == "ja" -%}{{ p.name }}の結果を確認して、参加賞を受け取れます・<b>{{ p.deadline }}</b>まで
     {%- else -%}Check your {{ p.name }} results and claim your participation prize · until {{ p.deadline }}
     {%- endif -%}
-</span><span class="bcb__claim-go">{{ "受け取る ＞" if lang == "ja" else "Claim >" }}</span></a>
+    {%- else -%}
+    {%- if lang == "ja" -%}{{ p.name }}の結果を確認できます・<b>{{ p.deadline }}</b>まで
+    {%- else -%}Check your {{ p.name }} results · until {{ p.deadline }}
+    {%- endif -%}
+    {%- endif -%}
+</span><span class="bcb__claim-go">{{ ("受け取る ＞" if lang == "ja" else "Claim >") if p.prize else ("確認する ＞" if lang == "ja" else "Check >") }}</span></a>
 {% endmacro %}
 
 <div class="bcb bcb--{{ tone }}" x-data="boardCampaignBanner()" :class="{ 'bcb--collapsed': collapsed }">
@@ -74,10 +80,16 @@
             <p class="bcb__note">{{ ("結果が発表されました！当選者はお知らせで確認できます。" if result and result.has_entries else "結果が発表されました。当選者はお知らせで確認できます。") if ja else ("The results are out! Check the news to see the winners." if result and result.has_entries else "The results are out. Check the news to see the winners.") }}</p>
             {% if can_claim %}
             <a href="{{ account_url }}" class="bcb__claim"><span>
-                {%- if ja -%}結果を確認して、{% if result.participation_tokens %}参加賞（<b>{{ "{:,}".format(result.participation_tokens) }}</b>トークン）{% else %}景品{% endif %}を受け取れます・<b>{{ deadlines.claim_short }}</b>まで
-                {%- else -%}Check your results and claim your {% if result.participation_tokens %}participation prize (<b>{{ "{:,}".format(result.participation_tokens) }}</b> tokens){% else %}prizes{% endif %} · until {{ deadlines.claim_short }}
+                {%- if result.participation_tokens -%}
+                {%- if ja -%}結果を確認して、参加賞（<b>{{ "{:,}".format(result.participation_tokens) }}</b>トークン）を受け取れます・<b>{{ deadlines.claim_short }}</b>まで
+                {%- else -%}Check your results and claim your participation prize (<b>{{ "{:,}".format(result.participation_tokens) }}</b> tokens) · until {{ deadlines.claim_short }}
                 {%- endif -%}
-            </span><span class="bcb__claim-go">{{ "受け取る ＞" if ja else "Claim >" }}</span></a>
+                {%- else -%}
+                {%- if ja -%}あなたの結果を確認できます・<b>{{ deadlines.claim_short }}</b>まで
+                {%- else -%}Check your results · until {{ deadlines.claim_short }}
+                {%- endif -%}
+                {%- endif -%}
+            </span><span class="bcb__claim-go">{{ ("受け取る ＞" if ja else "Claim >") if result.participation_tokens else ("確認する ＞" if ja else "Check >") }}</span></a>
             {% endif %}
             {% if result_url %}<div class="bcb__actions"><a href="{{ result_url }}" class="bcb__btn bcb__btn--primary">{{ "結果を見る" if ja else "See results" }}</a></div>{% endif %}
 

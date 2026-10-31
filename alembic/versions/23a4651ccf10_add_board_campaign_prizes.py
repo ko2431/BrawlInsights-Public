@@ -24,18 +24,18 @@ MARKER = '<p>［ここに結果が入ります］</p>'
 TEMPLATE_TITLE_JA = '<c5>【お知らせ】</c5>［企画の名前］の当選者発表です！'
 TEMPLATE_TITLE_EN = '<c5>【Notice】</c5>［企画の名前］ Winners Announced!'
 TEMPLATE_BODY_JA = (
-    '<p>［企画の名前］の当選者発表です！たくさんのご応募、ありがとうございました。</p>'
+    '<p>［企画の名前］の当選者発表です！たくさんのご応募をいただき、ありがとうございました。</p>'
     '<p></p>'
     + MARKER +
     '<p>※ユーザー名は一部を伏字にしています。</p>'
-    '<p>次回の掲示板企画もお楽しみに！</p>'
+    '<p>次回の企画もぜひご参加ください！</p>'
 )
 TEMPLATE_BODY_EN = (
-    '<p>Here are the winners of the ［企画の名前］! Thank you to everyone who entered.</p>'
+    '<p>Here are the winners of the ［企画の名前］! Thank you so much for all of your entries.</p>'
     '<p></p>'
     + MARKER +
     '<p>*Usernames are partially hidden.</p>'
-    '<p>Stay tuned for the next Board Giveaway!</p>'
+    '<p>We hope you\'ll join the next giveaway too!</p>'
 )
 
 # revision identifiers, used by Alembic.

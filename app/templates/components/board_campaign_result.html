@@ -62,9 +62,12 @@
     <div class="{{ 'bca__reveal' if revealed_now else 'bca__stack bca__stack--tight' }}">
         {% if r.won %}
         <p class="bca__congrats"><img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="" class="bca__congrats-icon">{{ "おめでとうございます！" if ja else "Congratulations!" }}</p>
-        {% elif not closed %}
+        {% elif not closed and r.participation_tokens %}
         <p class="bca__msg">{{ "今回は抽選・確定賞の景品には当選しませんでした。参加賞を受け取れます。次回もぜひご参加ください！" if ja else "You didn't win a drawing or guaranteed prize this time, but your participation prize is ready. We hope you'll join again!" }}</p>
+        {% elif not r.has_prizes %}
+        <p class="bca__msg">{{ "今回は当選しませんでした。次回もぜひご参加ください！" if ja else "You didn't win this time. We hope you'll join again!" }}</p>
         {% endif %}
+        {% if r.has_prizes %}
         <ul class="bca__prizes">
             {% for item in r['items'] %}
             <li class="bca__prize bca__prize--{{ 'gift' if item.is_gift else ('join' if item.kind == 'participation' else 'app') }}">
@@ -73,6 +76,7 @@
             </li>
             {% endfor %}
         </ul>
+        {% endif %}
         {% set app_count = r['items'] | rejectattr('is_gift') | list | length %}
         {% if app_count > 1 %}
         <p class="bca__total">{{ "合計" if ja else "Total" }} <b>{{ (r.total_tokens ~ ("トークン" if ja else " tokens")) if r.total_tokens else "" }}{% if r.total_tokens and r.total_elixirs %} + {% endif %}{{ (r.total_elixirs ~ ("自動追跡エリクサー" if ja else " elixir")) if r.total_elixirs else "" }}</b></p>
@@ -114,7 +118,8 @@ Main account player name: {{ r.player_name }}{% endif %}</pre>
         {% elif r.expired and app_count %}
         <p class="bca__msg">{{ ("受け取りの期限（" ~ dl.claim_short ~ "）が過ぎたため、受け取れなくなりました。") if ja else ("The claim deadline (" ~ dl.claim_short ~ ") has passed.") }}</p>
         {% endif %}
-        <p class="bca__error" x-show="message" x-text="message" x-cloak></p>
     </div>
     {% endif %}
+    {# 「結果を確認する」「受け取る」の失敗の理由（どの状態でも出す） #}
+    <p class="bca__error" x-show="message" x-text="message" x-cloak></p>
 </div>
