@@ -6,6 +6,10 @@
 
 置き場所は media/{kind}/{key の先頭2文字}/{key}{サイズ違いの接尾辞}。ファイルは一度書いたら変えない
 （差し替えは別の key にする）ので、Nginx・Cloudflare で長くキャッシュしてよい。
+
+公開しない種類（PRIVATE_KINDS。フィードバックの添付）は media_private/ に同じ形で置く。Nginx は直接配らない。
+URL は /{lang}/media/private/{key}（小さいサイズは …/s）で、アプリ（routers/media.py）が権限を確かめてから返す。
+拡張子を付けないのは、Cloudflare が拡張子で画像をキャッシュしないようにするため（Cache-Control も private, no-store）。
 """
 from __future__ import annotations
 
@@ -13,10 +17,13 @@ import contextlib
 import os
 import re
 import tempfile
+from pathlib import Path
 
 from app.core.config import settings
 
 PUBLIC_PREFIX = "/media/"
+PRIVATE_KINDS = frozenset({"feedback"})
+ACCEL_PREFIX = "/_media_private/"  # Nginx の internal の location（本番。config.MEDIA_ACCEL_REDIRECT）
 # サイズ違い: "" は大きいサイズ（本文に出す）、"s" は一覧用の小さいサイズ、"og" は SNS の共有の画像（JPEG）
 VARIANT_SUFFIXES = {"": ".webp", "s": "_s.webp", "og": "_og.jpg"}
 _PUBLIC_URL_RE = re.compile(r"^/media/([a-z]+)/([a-z0-9]{2})/([a-z0-9]{16,64})\.webp$")
@@ -27,12 +34,29 @@ def is_enabled() -> bool:
     return settings.MEDIA_STORAGE_ENABLED
 
 
+def is_private(kind: str) -> bool:
+    return kind in PRIVATE_KINDS
+
+
 def relative_path(kind: str, key: str, variant: str = "") -> str:
     return f"{kind}/{key[:2]}/{key}{VARIANT_SUFFIXES[variant]}"
 
 
+def file_path(kind: str, key: str, variant: str = "") -> Path:
+    base = settings.MEDIA_PRIVATE_DIR if is_private(kind) else settings.MEDIA_DIR
+    return base / relative_path(kind, key, variant)
+
+
 def public_url(kind: str, key: str, variant: str = "") -> str:
     return PUBLIC_PREFIX + relative_path(kind, key, variant)
+
+
+def private_url(lang: str, key: str, variant: str = "") -> str:
+    return f"/{'en' if lang == 'en' else 'ja'}/media/private/{key}" + (f"/{variant}" if variant else "")
+
+
+def accel_path(kind: str, key: str, variant: str = "") -> str:
+    return ACCEL_PREFIX + relative_path(kind, key, variant)
 
 
 def variant_url(src: str | None, variant: str, *, kind: str | None = None) -> str | None:
@@ -48,7 +72,7 @@ def save_files(kind: str, key: str, files: dict[str, bytes]) -> None:
     written = []
     try:
         for variant, data in files.items():
-            path = settings.MEDIA_DIR / relative_path(kind, key, variant)
+            path = file_path(kind, key, variant)
             path.parent.mkdir(parents=True, exist_ok=True)
             fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
             try:
@@ -71,4 +95,4 @@ def save_files(kind: str, key: str, files: dict[str, bytes]) -> None:
 def delete_files(kind: str, key: str) -> None:
     for variant in VARIANT_SUFFIXES:
         with contextlib.suppress(FileNotFoundError):
-            (settings.MEDIA_DIR / relative_path(kind, key, variant)).unlink()
+            file_path(kind, key, variant).unlink()

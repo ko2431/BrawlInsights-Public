@@ -142,7 +142,7 @@ class User(Base):
     messages = relationship("Message", back_populates="user")
     reactions = relationship("Reaction", back_populates="user")
     reports = relationship("Report", back_populates="user")
-    feedbacks = relationship("Feedback", back_populates="user")
+    feedbacks = relationship("Feedback", back_populates="user", foreign_keys="[Feedback.user_id]")
 
 
 class PurchaseEvent(Base):
@@ -1088,6 +1088,8 @@ class Media(Base):
     ファイルは media_storage.py が保存する（今は親サーバーのディスクの media/{kind}/{key[:2]}/{key}.webp。
     サイズ違いは {key}_s.webp・{key}_og.jpg）。元のファイルは保存しない。
     status: active（使える）・pending / rejected（承認制のもの。後で）・removed（一覧から外した。ファイルは残す）。
+    非公開の種類（フィードバック）は media_private/ に置き、見るたびにアプリが権限を確かめる。ref_type・ref_id が NULL の
+    ものは添付される前（1日で行ごと消す）。removed は保持の期間を過ぎてファイルを消したもの。
     """
     __tablename__ = 'media'
 
@@ -1102,7 +1104,7 @@ class Media(Base):
     bytes = Column(Integer, nullable=False)  # 大きいサイズのファイルの大きさ
     sha256 = Column(Text, nullable=False)  # 上げられたファイルのハッシュ（同じ画像をもう一度上げたときに使い回す）
     variants = Column(JSONB, nullable=False, server_default='{}')  # サイズ違い {"s": [幅, 高さ], "og": [幅, 高さ]}
-    ref_type = Column(Text, nullable=True)  # 使っている所（チャットのメッセージなど。後で）
+    ref_type = Column(Text, nullable=True)  # 使っている所（feedback など）
     ref_id = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     removed_at = Column(DateTime(timezone=True), nullable=True)
@@ -1170,6 +1172,8 @@ class PrestigeBorder(Base):
 class Feedback(Base):
     """
     ユーザーからのフィードバックを格納するテーブル。
+    送信時の環境（platform・ui_lang・client_env）は 2026-10-31 から記録する（それより前は NULL。
+    検討メモ notes_private/feedback_plan_2026-10-31.md の 3章）。添付の画像は media（kind = feedback、ref_type = feedback）。
     """
     __tablename__ = 'feedbacks'
 
@@ -1179,9 +1183,15 @@ class Feedback(Base):
     feedback_type = Column(Text, nullable=False)
     comment = Column(Text, nullable=False, server_default='')
     is_checked = Column(Boolean, nullable=False, server_default='False')
+    platform = Column(Text, nullable=True)  # web・ios・android・app（request.state.platform）
+    ui_lang = Column(Text, nullable=True)  # 送信した画面の言語（ja・en）
+    # アプリの版・OS・ブラウザ・端末名・サイトの版・UA（feedback_service.client_env）
+    client_env = Column(JSONB, nullable=True)
+    checked_at = Column(DateTime(timezone=True), nullable=True)  # 添付の画像の保持の起点
+    checked_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
 
     # リレーションシップ
-    user = relationship("User", back_populates="feedbacks")
+    user = relationship("User", back_populates="feedbacks", foreign_keys=[user_id])
 
 
 class Region(Base):

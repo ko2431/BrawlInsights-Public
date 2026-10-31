@@ -1086,23 +1086,52 @@
                     <br><a href="{{ url_for('app_faq', lang=lang) }}" style="font-weight: bold; text-decoration: underline;">App FAQ</a> is also available.
                 {% endif %}
             </p>
-            <div class="account-info-box feedback-section-box" style="padding-bottom: 15px;" x-show="open" x-transition>
+            {% set fb = feedback_form or {} %}
+            <div class="account-info-box feedback-section-box fb-form" x-show="open" x-transition>
                 <form @submit.prevent="submitFeedback()">
-                    <div class="form-group">
-                        <label for="feedbackType" class="form-label">{% if lang == 'ja' %}フィードバックの種類{% else %}Feedback Type{% endif %}</label>
-                        <select id="feedbackType" x-model="feedback.type" class="form-input" style="padding-left: 6px; margin: 4px 0 8px;">
-                            <option value="">{% if lang == 'ja' %}選択してください{% else %}Select a type{% endif %}</option>
-                            <option value="inquiry">{% if lang == 'ja' %}お問い合わせ{% else %}Inquiry{% endif %}</option>
-                            <option value="suggestion">{% if lang == 'ja' %}ご意見・ご要望{% else %}Suggestion/Request{% endif %}</option>
-                            <option value="bug_report">{% if lang == 'ja' %}不具合の報告{% else %}Bug Report{% endif %}</option>
-                            <option value="message">{% if lang == 'ja' %}メッセージ{% else %}Message{% endif %}</option>
-                        </select>
+                    <div class="fb-form__label" id="feedbackTypeLabel">{% if lang == 'ja' %}種類{% else %}Type{% endif %}</div>
+                    <div class="fb-types" role="radiogroup" aria-labelledby="feedbackTypeLabel">
+                        {% for value, label_ja, label_en in [("inquiry", "お問い合わせ", "Inquiry"), ("suggestion", "ご意見・ご要望", "Suggestion/Request"), ("bug_report", "不具合の報告", "Bug Report"), ("message", "メッセージ", "Message")] %}
+                        <button type="button" class="fb-type" role="radio" :aria-checked="feedback.type === '{{ value }}'" :class="{ 'is-active': feedback.type === '{{ value }}' }" @click="feedback.type = '{{ value }}'">{% if lang == 'ja' %}{{ label_ja }}{% else %}{{ label_en }}{% endif %}</button>
+                        {% endfor %}
                     </div>
-                    <div class="form-group">
-                        <label for="feedbackComment" class="form-label">{% if lang == 'ja' %}内容{% else %}Comment{% endif %}</label>
-                        <textarea id="feedbackComment" x-model="feedback.comment" class="form-input" rows="5" placeholder="{% if lang == 'ja' %}ここに内容を入力してください{% else %}Enter your comment here{% endif %}" style="margin: 4px 0 12px; max-width: 100%; min-width: 100%; min-height: 170px;"></textarea>
+                    <label for="feedbackComment" class="fb-form__label">{% if lang == 'ja' %}内容{% else %}Comment{% endif %}</label>
+                    <div class="fb-compose" :class="{ 'is-dragover': dragOver }"
+                         @dragenter.prevent="onDragOver($event)" @dragover.prevent="onDragOver($event)" @dragleave="dragOver = false" @drop.prevent="onDrop($event)">
+                        <textarea id="feedbackComment" x-model="feedback.comment" class="form-input fb-compose__input" rows="5"
+                                  maxlength="{{ fb.max_chars or 5000 }}" @paste="onPaste($event)"
+                                  placeholder="{% if lang == 'ja' %}ここに内容を入力してください{% else %}Enter your comment here{% endif %}"></textarea>
                     </div>
-                    <div class="form-actions" style="justify-content: flex-end;">
+                    <div class="fb-attach" x-show="images.length || canPickFiles">
+                        <template x-for="(item, index) in images" :key="item.localId">
+                            <div class="fb-attach__item" :class="{ 'is-uploading': item.uploading }">
+                                <img :src="item.preview" alt="" @error="$event.target.style.visibility = 'hidden'">
+                                <span class="fb-attach__meter" x-show="item.uploading"><span class="fb-attach__bar" :style="`width: ${item.progress}%`"></span></span>
+                                <button type="button" class="fb-attach__remove" @click="removeImage(index)" aria-label="{% if lang == 'ja' %}画像を外す{% else %}Remove image{% endif %}">×</button>
+                            </div>
+                        </template>
+                        <button type="button" class="fb-attach__add" x-show="canPickFiles && images.length < maxImages" @click="$refs.feedbackFile.click()">
+                            <span class="fb-attach__plus" aria-hidden="true">＋</span>{% if lang == 'ja' %}画像を添付{% else %}Attach Image{% endif %}
+                        </button>
+                        <input type="file" accept="image/*" multiple hidden x-ref="feedbackFile" @change="onPick($event)">
+                    </div>
+                    <p class="fb-note" x-show="imageError" x-text="imageError" style="display: none;" data-tone="error"></p>
+                    <p class="fb-note" x-show="!imageError">
+                        <template x-if="canPickFiles">
+                            <span>{% if lang == 'ja' %}画像は{{ fb.max_images or 3 }}枚まで。内容の欄に貼り付け・ドロップしても添付できます。{% else %}Up to {{ fb.max_images or 3 }} images. You can also paste or drop them into the comment box.{% endif %}</span>
+                        </template>
+                        <template x-if="!canPickFiles">
+                            <span>{% if lang == 'ja' %}画像の添付は、Web版から行えます。{% else %}Images can be attached from the web version.{% endif %}</span>
+                        </template>
+                    </p>
+                    <p class="fb-note" data-tone="warn" x-show="images.length" style="display: none;">{% if lang == 'ja' %}画像に、他の人の名前など個人の情報が写っていないか確かめてください。{% else %}Please make sure the images don't show other people's personal information, such as their names.{% endif %}</p>
+                    {% if fb.env_label %}
+                    <p class="fb-env">
+                        <span class="fb-env__label">{% if lang == 'ja' %}一緒に送信される情報{% else %}Also sent{% endif %}</span>
+                        <span class="fb-env__value">{{ fb.env_label }}</span>
+                    </p>
+                    {% endif %}
+                    <div class="form-actions fb-form__actions">
                         <button type="submit" class="button button--primary" :disabled="!isFormValid">
                             <span x-show="!isLoading">{% if lang == 'ja' %}送信{% else %}Send{% endif %}</span>
                             <span x-show="isLoading">{% if lang == 'ja' %}送信中...{% else %}Sending...{% endif %}</span>
@@ -3664,22 +3693,165 @@ function giftCodeHandler() {
 }
 
 function feedbackHandler() {
+    // 画像はサーバー（media_service、kind=feedback）で 10MB まで・JPEG・PNG・WebP・GIF。それ以外はブラウザで縮めてから送る
+    const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+    const UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const CLIENT_MAX_SIDE = 2560;
+    const ja = '{{ lang }}' === 'ja';
+    const isImageFile = (file) => (file.type || '').startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i.test(file.name || '');
+    let nextId = 1;
+
+    async function prepareUploadFile(file) {
+        const typeOk = UPLOAD_TYPES.includes(file.type) || (!file.type && /\.(jpe?g|png|webp|gif)$/i.test(file.name || ''));
+        if (typeOk && file.size <= UPLOAD_MAX_BYTES) return file;
+        const url = URL.createObjectURL(file);
+        try {
+            const img = new Image();
+            img.src = url;
+            await img.decode();
+            const scale = Math.min(1, CLIENT_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+            if (!blob) throw new Error('toBlob');
+            return new File([blob], (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+        } catch {
+            throw new Error(ja ? 'この画像は読み込めませんでした。JPEG・PNG・WebP・GIF の画像を選んでください。' : 'Could not read this image. Please choose a JPEG, PNG, WebP or GIF image.');
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
+
+    function sendUpload(file, onProgress) {
+        // 進み具合を出すため fetch ではなく XHR で送る
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', "{{ url_for('media_upload', lang=lang) }}?kind=feedback");
+            xhr.responseType = 'json';
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) onProgress(event.loaded / event.total);
+            };
+            xhr.onload = () => {
+                const data = xhr.response || {};
+                if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+                    resolve(data);
+                    return;
+                }
+                const fallback = xhr.status === 413
+                    ? (ja ? '画像は 10MB までです。' : 'Images must be 10 MB or smaller.')
+                    : (ja ? `画像を添付できませんでした（${xhr.status}）。` : `Could not attach the image (${xhr.status}).`);
+                reject(new Error(data.message || fallback));
+            };
+            xhr.onerror = () => reject(new Error(ja ? '通信に失敗しました。もう一度試してください。' : 'A network error occurred. Please try again.'));
+            const form = new FormData();
+            form.append('file', file, file.name || 'image.png');
+            xhr.send(form);
+        });
+    }
+
     return {
         feedback: {
             type: '',
             comment: ''
         },
+        images: [], // { localId, preview, progress, uploading, id }
+        maxImages: {{ ((feedback_form or {}).max_images or 3) | tojson }},
+        // iOS の古いアプリはファイルの選択の「写真を撮る」で落ちるので、選択のボタンを出さない（貼り付け・ドロップは使える）
+        canPickFiles: {{ ((feedback_form.can_pick_files) if (feedback_form is defined and feedback_form) else (platform == 'web')) | tojson }},
+        dragOver: false,
+        imageError: '',
         message: '',
         messageClass: '',
         isLoading: false,
         lang: '{{ lang }}',
 
+        get isUploading() {
+            return this.images.some((item) => item.uploading);
+        },
+
         get isFormValid() {
-            return this.feedback.type && this.feedback.comment.trim() !== '';
+            return this.feedback.type && this.feedback.comment.trim() !== '' && !this.isUploading;
+        },
+
+        onDragOver(event) {
+            if (Array.from(event.dataTransfer?.types || []).includes('Files')) this.dragOver = true;
+        },
+
+        onDrop(event) {
+            this.dragOver = false;
+            this.addFiles(Array.from(event.dataTransfer?.files || []));
+        },
+
+        onPaste(event) {
+            const data = event.clipboardData;
+            if (!data) return;
+            const files = Array.from(data.files || []).filter(isImageFile);
+            // 文字も一緒にある（ページの一部をコピーしたなど）ときは、文字の貼り付けを優先する
+            if (!files.length || (data.getData('text/plain') || '').trim()) return;
+            event.preventDefault();
+            this.addFiles(files);
+        },
+
+        onPick(event) {
+            this.addFiles(Array.from(event.target.files || []));
+            event.target.value = '';
+        },
+
+        addFiles(files) {
+            this.imageError = '';
+            const images = files.filter(isImageFile);
+            if (!images.length) {
+                if (files.length) this.imageError = ja ? '画像のファイルを選んでください。' : 'Please choose an image file.';
+                return;
+            }
+            const room = this.maxImages - this.images.length;
+            if (images.length > room) {
+                this.imageError = ja ? `画像は${this.maxImages}枚までです。` : `You can attach up to ${this.maxImages} images.`;
+            }
+            images.slice(0, Math.max(0, room)).forEach((file) => this.uploadImage(file));
+        },
+
+        async uploadImage(file) {
+            const item = { localId: nextId++, preview: URL.createObjectURL(file), progress: 0, uploading: true, id: null };
+            this.images.push(item);
+            const live = () => this.images.find((image) => image.localId === item.localId);
+            try {
+                const prepared = await prepareUploadFile(file);
+                const data = await sendUpload(prepared, (ratio) => {
+                    const target = live();
+                    if (target) target.progress = Math.round(Math.min(1, ratio) * 100);
+                });
+                const target = live();
+                if (!target) return; // 上げている間に外された
+                target.id = data.id;
+                target.uploading = false;
+            } catch (error) {
+                this.imageError = error.message;
+                const index = this.images.findIndex((image) => image.localId === item.localId);
+                if (index >= 0) this.removeImage(index);
+            }
+        },
+
+        removeImage(index) {
+            const [item] = this.images.splice(index, 1);
+            if (item) URL.revokeObjectURL(item.preview);
+        },
+
+        confirmText() {
+            const typeButton = this.$root.querySelector('.fb-type.is-active');
+            const lines = [ja ? 'フィードバックを送信しますか？' : 'Send this feedback?', ''];
+            if (typeButton) lines.push((ja ? '種類: ' : 'Type: ') + typeButton.textContent.trim());
+            if (this.images.length) lines.push(ja ? `画像: ${this.images.length}枚` : `Images: ${this.images.length}`);
+            return lines.join('\n').trim();
         },
 
         async submitFeedback() {
             if (!this.isFormValid || this.isLoading) {
+                return;
+            }
+            if (!window.confirm(this.confirmText())) {
                 return;
             }
             this.isLoading = true;
@@ -3692,15 +3864,18 @@ function feedbackHandler() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(this.feedback)
+                    body: JSON.stringify({ ...this.feedback, media_ids: this.images.map((item) => item.id) })
                 });
-                const data = await response.json();
-                this.message = data.message;
+                const data = await response.json().catch(() => ({}));
+                this.message = data.message || (ja ? `送信できませんでした（${response.status}）。` : `Could not send (${response.status}).`);
                 if (response.ok && data.success) {
                     this.messageClass = 'success';
                     // 成功したらフォームをリセット
                     this.feedback.type = '';
                     this.feedback.comment = '';
+                    this.images.forEach((item) => URL.revokeObjectURL(item.preview));
+                    this.images = [];
+                    this.imageError = '';
                 } else {
                     this.messageClass = 'error';
                 }

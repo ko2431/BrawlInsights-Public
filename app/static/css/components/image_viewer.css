@@ -88,3 +88,6 @@
     opacity: .5;
     cursor: progress;
 }
+.bi-viewer__button[hidden] {
+    display: none;
+}

@@ -2,15 +2,20 @@
 
 POST /{lang}/media/upload?kind=… は、本番では Nginx が親サーバーのアプリだけに送る（ファイルは親のディスクに置く）。
 種類ごとの決まり（上げられる人・回数の上限など）は media_service.KINDS。上げた画像は /media/… で Nginx が配る。
+公開しない画像（フィードバックの添付）は GET /{lang}/media/private/{key}（小さいサイズは …/s）で、権限を確かめてから返す。
+本番では X-Accel-Redirect で Nginx の internal の location（/_media_private/）に渡し、親のディスクから返してもらう。
 """
+import re
+
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.datastructures import UploadFile
 import asyncpg
 
+from app.core.config import settings
 from app.core.logger import logger
 from app.db.db import get_shared_db
-from app.services import media_service
+from app.services import media_service, media_storage
 from app.services.media_service import MediaError
 
 router = APIRouter(
@@ -20,6 +25,9 @@ router = APIRouter(
 
 # multipart の区切りなどの分の余裕
 MAX_REQUEST_BYTES = media_service.MAX_UPLOAD_BYTES + 64 * 1024
+_KEY_RE = re.compile(r"^[a-z0-9]{16,64}$")
+# ブラウザ・Cloudflare に残さない（見る人の権限で返すため）
+PRIVATE_HEADERS = {"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"}
 
 
 def _error(lang: str, e: MediaError) -> JSONResponse:
@@ -61,7 +69,7 @@ async def media_upload(
         if not isinstance(file, UploadFile):
             raise MediaError("no_file", "画像を選んでください。", "Please choose an image.")
         data = await file.read(media_service.MAX_UPLOAD_BYTES + 1)
-        item = await media_service.upload(db, kind=kind, data=data, filename=file.filename, user_id=user.id)
+        item = await media_service.upload(db, kind=kind, data=data, filename=file.filename, user_id=user.id, lang=lang)
     except MediaError as e:
         return _error(lang, e)
     except Exception as e:
@@ -72,3 +80,35 @@ async def media_upload(
     finally:
         await form.close()
     return {"success": True, **item}
+
+
+@router.get("/private/{key}", name="media_private")
+@router.get("/private/{key}/{variant}", name="media_private_variant")
+async def media_private(
+    request: Request,
+    key: str,
+    variant: str = "",
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    # 見られない画像は、あるかどうかも分からないよう、どれも 404 にする
+    not_found = Response(status_code=404, headers=PRIVATE_HEADERS)
+    if variant not in ("", "s") or not _KEY_RE.match(key):
+        return not_found
+    user = getattr(request.state, "current_user", None)
+    if not user:
+        return not_found
+    row = await media_service.get_private(db, key)
+    if row is None or not media_service.can_view_private(user, row):
+        return not_found
+    if variant and variant not in (row["variants"] or {}):
+        variant = ""
+    if settings.MEDIA_ACCEL_REDIRECT:
+        return Response(headers={
+            **PRIVATE_HEADERS,
+            "Content-Type": "image/webp",
+            "X-Accel-Redirect": media_storage.accel_path(row["kind"], row["key"], variant),
+        })
+    path = media_storage.file_path(row["kind"], row["key"], variant)
+    if not path.is_file():
+        return not_found
+    return FileResponse(path, media_type="image/webp", headers=PRIVATE_HEADERS)

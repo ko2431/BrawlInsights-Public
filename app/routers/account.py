@@ -11,7 +11,7 @@ from app.core.templating import templates, censor_filter
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError, PlayerNotFoundError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db, get_player_summaries_from_db
-from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, create_feedback, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_user_block_list, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
+from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_user_block_list, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services import main_account_reward_service
 from app.services import player_verification_service
@@ -19,6 +19,7 @@ from app.services.user_service import _current_token_claim_date, _normalize_dail
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
 from app.services import push_rules, push_service
+from app.services import feedback_service
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.utils.utils import format_tag, confirm_tag, get_remote_ip, get_icon_path
 from app.db.db import get_shared_db
@@ -128,6 +129,7 @@ async def account_page(
         "notification_token_gift_enabled": notification_token_gift_enabled,
         "push_settings": push_settings,
         "admin_push_level": admin_push_level,
+        "feedback_form": feedback_service.form_context(request, lang, site_version=request.app.version),
         # [この部分は公開用リポジトリでは非公開にされています]
         "ticket_sell_options": get_ticket_sell_options(
             current_user_obj.ad_skip_tickets
@@ -1066,7 +1068,8 @@ async def use_giveaway_max_entries_process(
     
 class FeedbackRequest(BaseModel):
     type: str
-    comment: str
+    comment: str = Field("", max_length=feedback_service.COMMENT_MAX_CHARS * 2)
+    media_ids: list[int] = Field(default_factory=list, max_length=10)
 
 @router.post("/send-feedback", name="account_send_feedback")
 async def send_feedback_process(
@@ -1076,27 +1079,23 @@ async def send_feedback_process(
     current_user: User = Depends(get_current_active_user)
 ):
     lang = request.path_params.get("lang", "ja")
-    
-    # バリデーション
-    if not payload.type or not payload.comment.strip():
-        return JSONResponse(
-            {"success": False, "message": "フィードバックの種類を選択し、内容を入力してください。" if lang == "ja" else "Please select a feedback type and enter a comment."},
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
 
     try:
-        await create_feedback(
-            db=db,
+        env = feedback_service.client_env(request, lang, site_version=request.app.version)
+        await feedback_service.create_feedback(
+            db,
             user_id=current_user.id,
             feedback_type=payload.type,
-            comment=payload.comment
+            comment=payload.comment,
+            env=env,
+            media_ids=payload.media_ids,
         )
-        message = "送信が完了しました。" if lang == "ja" else "Thank you for your feedback!"
+        message = "送信されました。ありがとうございます！" if lang == "ja" else "Thank you for your feedback!"
         return JSONResponse({"success": True, "message": message})
-    except ValueError as e:
-        # ユーザーが存在しない、投稿禁止、クールダウン中など
-        return JSONResponse({"success": False, "message": str(e)}, status_code=status.HTTP_400_BAD_REQUEST)
-    except DataBaseError as e:
+    except feedback_service.FeedbackError as e:
+        # 種類・本文・画像の数、送信の間隔（3分）など
+        return JSONResponse({"success": False, "message": e.message(lang)}, status_code=status.HTTP_400_BAD_REQUEST)
+    except asyncpg.PostgresError as e:
         logger.error(f"フィードバック送信中にデータベースエラー (User ID: {current_user.id}): {e}")
         message = "データベースエラーのため、フィードバックを送信できませんでした。" if lang == "ja" else "Could not send feedback due to a database error."
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -88,6 +88,17 @@ class Settings:
         if os.getenv("MEDIA_STORAGE")
         else not os.getenv("SERVER_NAME", "Main").lower().startswith("child")
     )
+    # 公開しない画像（フィードバックの添付）。Nginx は直接配らず、アプリが権限を確かめてから返す。
+    # MEDIA_ACCEL_REDIRECT がオンなら X-Accel-Redirect で Nginx の internal の location（/_media_private/）に渡す
+    # （子のアプリが受けても、親の Nginx が親のディスクから返せる）。未設定なら SERVER_NAME のある本番だけオン
+    MEDIA_PRIVATE_DIR: Path = Path(
+        os.getenv("MEDIA_PRIVATE_DIR") or Path(__file__).resolve().parent.parent.parent / "media_private"
+    )
+    MEDIA_ACCEL_REDIRECT: bool = (
+        str(os.getenv("MEDIA_ACCEL_REDIRECT")).strip().lower() in ("1", "true", "yes", "on")
+        if os.getenv("MEDIA_ACCEL_REDIRECT")
+        else bool(os.getenv("SERVER_NAME"))
+    )
 
     def __init__(self):
         if self._cluster_nodes_raw:

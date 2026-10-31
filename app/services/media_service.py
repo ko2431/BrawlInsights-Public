@@ -4,7 +4,8 @@
 形式の確認 → 画素数の上限（解凍爆弾の対策）→ EXIF の向きを反映 → sRGB にそろえる → 縮小 → WebP（位置情報などのメタデータは入れない）。
 変換は CPU を使うので、スレッドで行い、プロセスごとの同時数を絞る。ファイルの置き場所は media_storage.py。
 
-種類（kind）ごとの決まり（上げられる人・大きさ・サイズ違い・回数の上限）は KINDS。今はお知らせ（announcement）だけ。
+種類（kind）ごとの決まり（上げられる人・大きさ・サイズ違い・回数の上限）は KINDS。お知らせ（announcement）と
+フィードバックの添付（feedback。公開しない。検討メモ notes_private/feedback_plan_2026-10-31.md の 5章）。
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ from typing import Any
 import asyncpg
 from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
-from app.core.admin_permissions import PERM_ANNOUNCEMENTS_EDIT
+from app.core.admin_permissions import PERM_ANNOUNCEMENTS_EDIT, PERM_FEEDBACKS_VIEW
 from app.core.cache import get_redis
 from app.core.logger import logger
 from app.services import media_storage
@@ -47,17 +48,23 @@ _SRGB = ImageCms.createProfile("sRGB")
 
 @dataclass(frozen=True)
 class KindRule:
-    perm: str  # 上げられる人（権限のキー）
+    perm: str | None  # 上げられる人（権限のキー。None はログインしている人なら誰でも）
     max_side: int  # 大きいサイズの長い辺
     variants: tuple[str, ...]  # 作るサイズ違い（media_storage.VARIANT_SUFFIXES のキー）
     per_minute: int
     per_day: int
+    # 同じファイルをもう一度上げたときに使い回すか（本人だけが使う種類では、他の人の画像を返さないよう使い回さない）
+    dedupe: bool = True
 
 
 KINDS: dict[str, KindRule] = {
     # お知らせ: 管理者・編集の権限のある副管理者。審査なし（6.7）
     "announcement": KindRule(perm=PERM_ANNOUNCEMENTS_EDIT, max_side=2048, variants=("s", "og"), per_minute=30, per_day=300),
+    # フィードバックの添付: ログインしている人。公開しない（media_storage.PRIVATE_KINDS）。
+    # スマホのスクリーンショット（長い辺 2,556 など）の文字が読めるよう、大きいサイズは縮めすぎない
+    "feedback": KindRule(perm=None, max_side=2560, variants=("s",), per_minute=10, per_day=10, dedupe=False),
 }
+UNATTACHED_TTL = datetime.timedelta(days=1)  # 上げたまま添付されなかった画像を消すまで
 
 
 class MediaError(Exception):
@@ -175,7 +182,7 @@ def get_rule(kind: str) -> KindRule:
 
 
 def check_permission(user: Any, rule: KindRule) -> None:
-    if not user or not user.has_perm(rule.perm):
+    if not user or (rule.perm is not None and not user.has_perm(rule.perm)):
         raise MediaError("perm", "画像を上げる権限がありません。", "You don't have permission to upload images.", status=403)
 
 
@@ -194,13 +201,15 @@ def _clean_name(name: str | None) -> str:
     return "".join(ch for ch in name if ch.isprintable()).strip()[:MAX_NAME_LENGTH]
 
 
-def to_item(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
+def to_item(row: asyncpg.Record | dict[str, Any], *, lang: str = "ja") -> dict[str, Any]:
     kind, key = row["kind"], row["key"]
     variants = row["variants"] or {}
+    url = (lambda variant="": media_storage.private_url(lang, key, variant)) if media_storage.is_private(kind) else (
+        lambda variant="": media_storage.public_url(kind, key, variant))
     return {
         "id": row["id"],
-        "src": media_storage.public_url(kind, key),
-        "thumb": media_storage.public_url(kind, key, "s") if "s" in variants else media_storage.public_url(kind, key),
+        "src": url(),
+        "thumb": url("s") if "s" in variants else url(),
         "width": row["width"],
         "height": row["height"],
         "name": row["name"],
@@ -210,8 +219,9 @@ def to_item(row: asyncpg.Record | dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def upload(db: asyncpg.Connection, *, kind: str, data: bytes, filename: str | None, user_id: int) -> dict[str, Any]:
-    """画像を作り直して保存し、media に入れる。同じファイルを前に上げていれば、それを返す。"""
+async def upload(db: asyncpg.Connection, *, kind: str, data: bytes, filename: str | None, user_id: int,
+                 lang: str = "ja") -> dict[str, Any]:
+    """画像を作り直して保存し、media に入れる。同じファイルを前に上げていれば、それを返す（rule.dedupe のとき）。"""
     rule = get_rule(kind)
     if not media_storage.is_enabled():
         logger.warning(f"画像のアップロードを、保存しないサーバーで受けました（kind={kind}）。Nginx の設定を確認してください")
@@ -222,17 +232,19 @@ async def upload(db: asyncpg.Connection, *, kind: str, data: bytes, filename: st
     if len(data) > MAX_UPLOAD_BYTES:
         raise MediaError("too_large", "画像は 10MB までです。", "Images must be 10 MB or smaller.", status=413)
     sha256 = hashlib.sha256(data).hexdigest()
-    existing = await db.fetchrow(
-        "SELECT * FROM media WHERE kind = $1 AND sha256 = $2 AND status IN ('active', 'removed') ORDER BY id DESC LIMIT 1",
-        kind, sha256,
-    )
+    existing = None
+    if rule.dedupe:
+        existing = await db.fetchrow(
+            "SELECT * FROM media WHERE kind = $1 AND sha256 = $2 AND status IN ('active', 'removed') ORDER BY id DESC LIMIT 1",
+            kind, sha256,
+        )
     if existing is not None:
         if existing["status"] == "removed":
             existing = await db.fetchrow(
                 "UPDATE media SET status = 'active', removed_at = NULL, removed_by = NULL WHERE id = $1 RETURNING *",
                 existing["id"],
             )
-        return {**to_item(existing), "reused": True}
+        return {**to_item(existing, lang=lang), "reused": True}
 
     async with _process_semaphore:
         processed = await asyncio.to_thread(process_image, data, max_side=rule.max_side, variants=rule.variants)
@@ -255,7 +267,7 @@ async def upload(db: asyncpg.Connection, *, kind: str, data: bytes, filename: st
         f"画像をアップロードしました（kind={kind}, ID: {row['id']}, ユーザー ID: {user_id}, "
         f"{processed.width}x{processed.height}, {len(data):,} → {len(processed.files['']):,} バイト）"
     )
-    return {**to_item(row), "reused": False}
+    return {**to_item(row, lang=lang), "reused": False}
 
 
 # --- 一覧・一覧から外す ----------------------------------------------------------------------
@@ -288,3 +300,74 @@ async def remove(db: asyncpg.Connection, kind: str, media_id: int, *, user_id: i
         media_id, kind, user_id,
     )
     return result.endswith(" 1")
+
+
+# --- 公開しない画像（フィードバックの添付） ----------------------------------------------------
+def can_view_private(user: Any, row: asyncpg.Record | dict[str, Any]) -> bool:
+    """本人（上げた人）と、その種類を見る権限のある管理者だけ。"""
+    if not user:
+        return False
+    if row["owner_user_id"] is not None and row["owner_user_id"] == user.id:
+        return True
+    if row["kind"] == "feedback":
+        return row["ref_type"] == "feedback" and user.has_perm(PERM_FEEDBACKS_VIEW)
+    return False
+
+
+async def get_private(db: asyncpg.Connection, key: str) -> asyncpg.Record | None:
+    row = await db.fetchrow(
+        "SELECT id, key, kind, status, owner_user_id, variants, ref_type, ref_id FROM media WHERE key = $1", key,
+    )
+    if row is None or row["status"] != "active" or not media_storage.is_private(row["kind"]):
+        return None
+    return row
+
+
+async def attach(db: asyncpg.Connection, kind: str, media_ids: list[int], *, owner_user_id: int,
+                 ref_type: str, ref_id: str) -> list[int]:
+    """本人が上げて、まだどこにも付けていない画像を付ける。付けられた id を返す（呼ぶ側で数を確かめる）。"""
+    if not media_ids:
+        return []
+    rows = await db.fetch(
+        """
+        UPDATE media SET ref_type = $4, ref_id = $5
+        WHERE id = ANY($1::int[]) AND kind = $2 AND owner_user_id = $3 AND status = 'active' AND ref_type IS NULL
+        RETURNING id
+        """,
+        media_ids, kind, owner_user_id, ref_type, ref_id,
+    )
+    return [row["id"] for row in rows]
+
+
+async def _delete_rows_files(rows: list[asyncpg.Record]) -> None:
+    for row in rows:
+        await asyncio.to_thread(media_storage.delete_files, row["kind"], row["key"])
+
+
+async def cleanup_unattached(db: asyncpg.Connection, kind: str, *, limit: int = 500) -> int:
+    """上げたまま添付されなかった画像を、ファイルと行ごと消す（親で動く worker から。ファイルは親のディスクにある）。"""
+    rows = await db.fetch(
+        """
+        SELECT id, kind, key FROM media
+        WHERE kind = $1 AND ref_type IS NULL AND created_at < now() - $2::interval
+        ORDER BY id LIMIT $3
+        """,
+        kind, UNATTACHED_TTL, limit,
+    )
+    if not rows:
+        return 0
+    await _delete_rows_files(rows)
+    await db.execute("DELETE FROM media WHERE id = ANY($1::int[])", [row["id"] for row in rows])
+    return len(rows)
+
+
+async def expire_files(db: asyncpg.Connection, rows: list[asyncpg.Record]) -> int:
+    """保持の期間を過ぎた画像のファイルを消し、行は removed にして残す（何枚あったかは分かるように）。"""
+    if not rows:
+        return 0
+    await _delete_rows_files(rows)
+    await db.execute(
+        "UPDATE media SET status = 'removed', removed_at = now() WHERE id = ANY($1::int[]) AND status = 'active'",
+        [row["id"] for row in rows],
+    )
+    return len(rows)

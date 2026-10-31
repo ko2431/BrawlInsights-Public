@@ -1,6 +1,6 @@
 // /app/static/js/image_viewer.js
 // 画像の拡大表示（共通の部品。検討メモ notes_private/push_image_plan_2026-10-27.md の 6.4）。
-// 使い方: BrawlInsightsImageViewer.open(src, { alt, name })
+// 使い方: BrawlInsightsImageViewer.open(src, { alt, name, save })（save: false で保存のボタンを出さない）
 // 全画面で出し、ダブルクリック・ダブルタップ・ピンチ・ホイールで拡大、拡大中はドラッグで動かす。
 // 下へのスワイプ・Esc・背景のタップ・戻る操作（modal_back.js）で閉じる。
 (function () {
@@ -239,6 +239,7 @@
         // 次の描画で active を付けて、フェードで出す（modal_back.js が履歴を1つ積む）
         requestAnimationFrame(() => root.classList.add('active'));
         saveButton.disabled = false;
+        saveButton.hidden = options.save === false;
         // 閉じるボタンではなく全体にフォーカスする（開いた直後にボタンの枠が出ないように。Esc はどこでも効く）
         root.focus({ preventScroll: true });
     }
