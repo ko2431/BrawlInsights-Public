@@ -35,7 +35,7 @@ from app.services.announcement_html import html_to_text, render_html, sanitize_b
 from app.services.user_service import User
 
 # 自動生成の枠の役目（settings.role）。「テンプレートから始める」に出さず、削除できない
-_AUTO_TEMPLATE_ROLES = (feedback_service.FEEDBACK_TEMPLATE_ROLE, "board_campaign_result")
+_AUTO_TEMPLATE_ROLES = (feedback_service.FEEDBACK_TEMPLATE_ROLE, "board_campaign_result", "board_campaign_start")
 
 router = APIRouter(
     prefix="/{lang}/admin/announcements",
@@ -698,7 +698,7 @@ async def admin_announcement_template_delete(
     if row is not None and (row["settings"] or {}).get("role") in _AUTO_TEMPLATE_ROLES:
         return JSONResponse({
             "success": False,
-            "message": "このテンプレートはお知らせの自動生成（フィードバックへの回答・掲示板企画の当選発表）に使っているため、削除できません。",
+            "message": "このテンプレートはお知らせの自動生成（フィードバックへの回答・掲示板企画の開始のお知らせ・当選発表）に使っているため、削除できません。",
         }, status_code=400)
     if row is None or not await svc.delete_template(db, template_id):
         return JSONResponse({"success": False, "message": "テンプレートが見つかりません。"}, status_code=404)

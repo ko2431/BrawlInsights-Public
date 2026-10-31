@@ -30,7 +30,7 @@
     {% set mode = bc.mode %}
     {% set max = info.max %}
     {% set entries = view.entries if view else 0 %}
-    {% set detail_url = url_for('announcement_detail', lang=lang, post_id=c.start_announcement_id) if c.start_announcement_id else none %}
+    {% set detail_url = url_for('announcement_detail', lang=lang, post_id=c.start_announcement_id) if c.start_announcement_id and c.start_announcement_public else none %}
     {% if mode in ("results", "closed") %}
     {% with box = bc, revealed_now = false, claim_message = "" %}{% include "components/board_campaign_result.html" %}{% endwith %}
     {% elif mode == "upcoming" %}

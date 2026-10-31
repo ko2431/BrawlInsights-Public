@@ -4,7 +4,7 @@
 {% set ja = lang == "ja" %}
 {% set unit = "口" if ja else "" %}
 {% set max = info.max %}
-{% set detail_url = url_for('announcement_detail', lang=lang, post_id=campaign.start_announcement_id) if campaign.start_announcement_id else none %}
+{% set detail_url = url_for('announcement_detail', lang=lang, post_id=campaign.start_announcement_id) if campaign.start_announcement_id and campaign.start_announcement_public else none %}
 {% set account_url = url_for('account_page', lang=lang) ~ '#board-campaign' %}
 {% set logged_in = request.state.current_user is not none %}
 {% set invalid = view.invalid if view else none %}

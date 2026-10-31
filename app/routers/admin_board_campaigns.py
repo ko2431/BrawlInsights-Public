@@ -19,6 +19,7 @@ from app.db.db import get_shared_db
 from app.routers.admin import _notify_admin_action, enforce_admin_route_permission, format_admin_jst_datetime, get_current_active_user
 from app.services import board_campaign_prizes as prizes
 from app.services import board_campaign_service as bcs
+from app.services import board_campaign_start as bc_start
 from app.services.user_service import User
 
 router = APIRouter(
@@ -153,6 +154,7 @@ async def admin_board_campaign(
         "can_edit": current_user.has_perm(PERM_BOARD_CAMPAIGNS_EDIT),
         "can_draw": current_user.has_perm(PERM_BOARD_CAMPAIGNS_DRAW),
         "can_announce": current_user.has_perm(PERM_BOARD_CAMPAIGNS_DRAW) and current_user.has_perm(PERM_ANNOUNCEMENTS_EDIT),
+        "can_start_announce": current_user.has_perm(PERM_BOARD_CAMPAIGNS_EDIT) and current_user.has_perm(PERM_ANNOUNCEMENTS_EDIT),
         "result": result, "review": review, "prize_status": prize_status, "after_end_warnings": after_end_warnings,
         "draw_users": draw_users, "gift_status_labels": prizes.GIFT_STATUS_LABELS,
         "prize_label": prizes.prize_label, "prize_value": prizes.prize_value,
@@ -174,13 +176,15 @@ async def admin_board_campaign(
         "locked_through": c.locked_through,
         "rankings": rankings, "flags": flags,
         "exclusions": await bcs.list_exclusions(db, c),
+        "post_exclusions": await bcs.list_post_exclusions(db, c) if "single_like" in rankings else [],
         "auto_invalid": await bcs.list_auto_invalid(db, c),
         "exclusion_reasons": bcs.EXCLUSION_REASONS,
         "breakdown": breakdown, "breakdown_user_id": user_id,
         "start_announcement": await db.fetchrow(
-            "SELECT id, title_ja FROM announcement_posts WHERE id = $1", c.start_announcement_id
+            "SELECT id, title_ja, status, published_at, deleted_at FROM announcement_posts WHERE id = $1", c.start_announcement_id
         ) if c.start_announcement_id else None,
-        "format_admin_jst_datetime": format_admin_jst_datetime,
+        "start_template_ok": await bc_start.get_template(db) is not None,
+        "format_admin_jst_datetime": format_admin_jst_datetime, "now": now,
     })
 
 
@@ -315,6 +319,91 @@ async def admin_board_campaign_exclusion_remove(
         {"campaign_id": c.id, "user_id": user_id}, request=request, target_type="user", target_id=user_id,
     )
     return {"success": True}
+
+
+async def _recount_after_change(db: asyncpg.Connection, c: bcs.Campaign) -> str:
+    """いいね単一トップ賞から外す投稿を変えたら、順位にすぐ出るように数え直す（ほかで数え直し中なら次の集計で）。"""
+    if c.state() not in ("live", "counting"):
+        return ""
+    try:
+        if await bcs.recount_due_campaigns(db, campaign_id=c.id):
+            return "数え直して、順位に反映しました。"
+    except Exception as e:
+        logger.error(f"掲示板企画 #{c.id} の数え直しに失敗しました: {e}", exc_info=True)
+    return "順位には次の集計（10分以内）で反映されます。"
+
+
+@router.post("/{campaign_id:int}/post-exclusions", name="admin_board_campaign_post_exclusion_add")
+async def admin_board_campaign_post_exclusion_add(
+    request: Request,
+    campaign_id: int,
+    payload: dict = Body(...),
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    c = await _campaign_or_404(db, campaign_id)
+    try:
+        post_id = int(payload.get("post_id"))
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "message": "投稿の ID を数で入れてください。"}, status_code=400)
+    try:
+        await bcs.add_post_exclusion(db, c, post_id, str(payload.get("note") or ""), current_user.id)
+    except bcs.CampaignError as e:
+        return _error(e)
+    await _notify_admin_action(
+        db, current_user, "board_campaign_exclusion", "掲示板企画のいいね単一トップ賞から投稿を外しました",
+        f"管理者操作 / 掲示板企画 #{c.id} のいいね単一トップ賞から投稿 #{post_id} を外す（応募は有効のまま）",
+        {"campaign_id": c.id, "post_id": post_id}, request=request, target_type="post", target_id=post_id,
+    )
+    return {"success": True, "message": "いいね単一トップ賞から外しました。" + await _recount_after_change(db, c)}
+
+
+@router.post("/{campaign_id:int}/post-exclusions/remove", name="admin_board_campaign_post_exclusion_remove")
+async def admin_board_campaign_post_exclusion_remove(
+    request: Request,
+    campaign_id: int,
+    payload: dict = Body(...),
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    c = await _campaign_or_404(db, campaign_id)
+    try:
+        post_id = int(payload.get("post_id"))
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "message": "投稿の ID が正しくありません。"}, status_code=400)
+    try:
+        await bcs.remove_post_exclusion(db, c, post_id)
+    except bcs.CampaignError as e:
+        return _error(e)
+    await _notify_admin_action(
+        db, current_user, "board_campaign_exclusion", "掲示板企画のいいね単一トップ賞に投稿を戻しました",
+        f"管理者操作 / 掲示板企画 #{c.id} のいいね単一トップ賞に投稿 #{post_id} を戻す",
+        {"campaign_id": c.id, "post_id": post_id}, request=request, target_type="post", target_id=post_id,
+    )
+    return {"success": True, "message": "いいね単一トップ賞に戻しました。" + await _recount_after_change(db, c)}
+
+
+@router.post("/{campaign_id:int}/start-announcement", name="admin_board_campaign_start_announcement")
+async def admin_board_campaign_start_announcement(
+    request: Request,
+    lang: str,
+    campaign_id: int,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    if not current_user.has_perm(PERM_ANNOUNCEMENTS_EDIT):
+        return JSONResponse({"success": False, "message": "開始のお知らせを作るには、アナウンス管理の編集の権限も要ります。"}, status_code=403)
+    c = await _campaign_or_404(db, campaign_id)
+    try:
+        post_id = await bc_start.create_announcement(db, c.id, current_user.id)
+    except bcs.CampaignError as e:
+        return _error(e)
+    await _notify_admin_action(
+        db, current_user, "board_campaign_updated", "掲示板企画の開始のお知らせの下書きを作りました",
+        f"管理者操作 / 掲示板企画 #{c.id}「{c.name_ja}」の開始のお知らせ #{post_id} の下書きを作成",
+        {"campaign_id": c.id, "post_id": post_id}, request=request, target_type="board_campaign", target_id=c.id,
+    )
+    return {"success": True, "post_id": post_id, "edit_url": str(request.url_for("admin_announcement_edit", lang=lang, post_id=post_id))}
 
 
 #* /---*---*---*---*---*---*---*---*/
