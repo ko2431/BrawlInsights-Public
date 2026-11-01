@@ -60,7 +60,7 @@ ADMIN_PUSH_LEVELS = (0, 20, 30)
 # 遅れると不戦敗・失格・自動確定につながる大会の通知（iOS の Time Sensitive。PD12・3.6）
 TIME_SENSITIVE_KINDS = frozenset({
     "match_ready", "room_ready", "checkin_open", "result_reported", "proposal", "result_confirming",
-    "match_review", "qualifier_tie",
+    "match_review", "qualifier_tie", "agree_request",
 })
 # 時間がたつと意味のない大会の通知は、届かないまま15分たったら捨てる（端末がオフラインのときなど）
 SHORT_TTL_KINDS = frozenset({"match_ready", "room_ready", "result_reported", "proposal", "result_confirming"})
