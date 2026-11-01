@@ -81,14 +81,16 @@
         </p>
         {% endif %}
 
-        {# 方法ごとの口数（見出しで畳める） #}
-        <div class="bca__table" x-data="{ open: true }">
-            <button type="button" class="bca__table-title" @click="open = !open">
+        {# 開閉は項目ごとに端末へ保存し、企画が変わっても引き継ぐ。未設定なら閉じる #}
+        <div class="bca__table"
+             x-data="{ open: (() => { try { return localStorage.getItem('bi_account_board_campaign_methods_open') === 'true'; } catch (e) { return false; } })() }"
+             x-init="$watch('open', val => { try { localStorage.setItem('bi_account_board_campaign_methods_open', val); } catch (e) {} })">
+            <button type="button" class="bca__table-title" @click="open = !open" :aria-expanded="open">
                 <span>{{ "応募方法ごとの口数" if ja else "Entries by method" }}</span>
                 <span class="bca__cols{% if not live %} bca__cols--1{% endif %}">{% if live %}<span>{{ "今日" if ja else "Today" }}</span>{% endif %}<span>{{ "口数" if ja else "Entries" }}</span></span>
                 <span class="bca__chev" :class="{ 'bca__chev--open': open }"></span>
             </button>
-            <div x-show="open">
+            <div x-show="open" x-cloak>
                 {% for g in bc.methods %}
                 <p class="bca__group">{{ g.label }}</p>
                 {% for row in g.rows %}
@@ -104,14 +106,16 @@
 
         {# 確定賞。開催中は順位と1位の数（投稿数・発言数は数を出さない）、集計中は自分の数だけ（BD25） #}
         {% if bc.awards %}
-        <div class="bca__table" x-data="{ open: true }">
-            <div class="bca__table-title" role="button" tabindex="0" @click="open = !open" @keydown.enter.prevent="open = !open">
+        <div class="bca__table"
+             x-data="{ open: (() => { try { return localStorage.getItem('bi_account_board_campaign_awards_open') === 'true'; } catch (e) { return false; } })() }"
+             x-init="$watch('open', val => { try { localStorage.setItem('bi_account_board_campaign_awards_open', val); } catch (e) {} })">
+            <div class="bca__table-title" role="button" tabindex="0" @click="open = !open" @keydown.enter.prevent="open = !open" :aria-expanded="open">
                 <span>{% if live %}{{ "確定賞の途中経過" if ja else "Guaranteed prizes so far" }}{{ help_tip("10分前の集計です。確定賞に関する詳細は、企画詳細のお知らせからご確認ください。" if ja else "As of 10 minutes ago. For details on the guaranteed prizes, see the campaign announcement.") }}{% else %}{{ "確定賞（終了時点）" if ja else "Guaranteed prizes (at the end)" }}{% endif %}</span>
                 {% if live %}<span class="bca__cols bca__cols--3"><span>{{ "あなた" if ja else "You" }}</span><span>{{ "順位" if ja else "Rank" }}</span><span>{{ "1位" if ja else "Top" }}</span></span>
                 {% else %}<span class="bca__cols bca__cols--score"><span>{{ "あなたのスコア" if ja else "Your score" }}</span></span>{% endif %}
                 <span class="bca__chev" :class="{ 'bca__chev--open': open }"></span>
             </div>
-            <div x-show="open">
+            <div x-show="open" x-cloak>
                 {% for a in bc.awards %}
                 <div class="bca__row {{ 'bca__row--3' if live else 'bca__row--score bca__row--num' }}">
                     <span class="bca__row-name">{{ a.name }}{% if live and a.key == "post_count" %}{{ help_tip("投稿数トップ賞は、4種類の掲示板（チーム・フレンド・クラブ・なんでも）すべてに投稿すると対象になります。" if ja else "To qualify for the Posts prize, post at least once on each of the 4 boards (team, friend, club, general).") }}{% endif %}</span>
