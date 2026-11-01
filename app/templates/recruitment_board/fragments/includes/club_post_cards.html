@@ -37,7 +37,12 @@
                     {# ホスト情報と条件 #}
                     <div class="post-card__info-and-conditions" style="min-width: 210px;">
                         <div class="post-card__host-info">
-                            <p class="post-card__host-info-title">{% if lang == "ja" %}クラブ情報{% else %}Club Info{% endif %}</p>
+                            <div class="post-card__box-header">
+                                <p class="post-card__host-info-title">{% if lang == "ja" %}クラブ情報{% else %}Club Info{% endif %}</p>
+                                {% if post.data.hostclub %}
+                                <a href="{{ url_for('get_club_profile', lang=lang, tag=post.data.hostclub.tag[1:]) }}" class="post-card__detail-link">{% if lang == "ja" %}詳細{% else %}Details{% endif %}<svg class="post-card__detail-link-chevron" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                                {% endif %}
+                            </div>
                             {% if post.data.hostclub %}
                             <div class="post-card__host-info-scroll-area">
                             <div class="post-card__host-info-stats">
@@ -78,15 +83,19 @@
                                 </div>
                             </div>
                             </div>
-                            <a href="{{ url_for('get_club_profile', lang=lang, tag=post.data.hostclub.tag[1:]) }}">
-                                <div class="button button--primary post-card__host-info-button" style="border-color: #111;">
-                                    {% if lang == "ja" %}詳細なクラブ情報を確認{% else %}Check Detailed Information{% endif %}
-                                </div>
-                            </a>
                             {% endif %}
                         </div>
                         <div class="post-card__conditions-box" style="min-width: 130px;">
-                            <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
+                            <div class="post-card__box-header">
+                                <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
+                                {% if post.data.required_highest_trophies or post.data.required_ranked_highest_rank or post.data.required_ranked_current_rank or post.data.required_solo_pl_rank or post.data.required_prestige %}
+                                {% if post.data.conditions_application_type == "and" %}
+                                <span class="post-card__match-badge post-card__match-badge--all">{% if lang == "ja" %}<b>すべて</b>満たす{% else %}<b>All</b>{% endif %}</span>
+                                {% else %}
+                                <span class="post-card__match-badge post-card__match-badge--any">{% if lang == "ja" %}<b>いずれか</b>満たす{% else %}<b>Any</b>{% endif %}</span>
+                                {% endif %}
+                                {% endif %}
+                            </div>
                             {% if not post.data.required_highest_trophies and not post.data.required_ranked_highest_rank and not post.data.required_ranked_current_rank and not post.data.required_solo_pl_rank and not post.data.required_prestige %}
                             <div class="post-card__conditions-list-wrapper">
                                 <p class="post-card__no-conditions-text">({% if lang == "ja" %}条件はありません{% else %}No Conditions{% endif %})</p>
@@ -129,15 +138,6 @@
                                         </div>
                                     {% endif %}
                                 </div>
-                                {% if post.data.conditions_application_type == "and" %}
-                                    <div class="button button--red post-card__host-info-button">
-                                        {% if lang == "ja" %}<b>すべて</b>満たす{% else %}<b>All</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
-                                    </div>
-                                {% else %}
-                                    <div class="button button--blue post-card__host-info-button">
-                                        {% if lang == "ja" %}<b>いずれか</b>を満たす{% else %}<b>Any</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
-                                    </div>
-                                {% endif %}
                             {% endif %}
                         </div>
                     </div>

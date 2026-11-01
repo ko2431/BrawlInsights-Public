@@ -17,7 +17,7 @@
                  {% if is_map_board %}data-map-id="{{ post.map_id }}"{% else %}data-brawler-id="{{ post.brawler_id }}"{% endif %}
                  data-name-en="{{ search_name_en }}"
                  data-names-ja='{{ search_names_ja | tojson }}'>
-                <div class="card post-card post-card--theme post-card--tinted" style="--board-c1: {{ post.board_c1 }}; --board-c2: {{ post.board_c2 }};">
+                <div class="card post-card post-card--theme post-card--tinted" style="--board-c1: {{ post.board_c1 }}; --board-c2: {{ post.board_c2 }}; --board-d1: {{ board_dark_color(post.board_c1) }}; --board-d2: {{ board_dark_color(post.board_c2) }};">
                     <div class="post-card__header">
                         {% if is_map_board %}
                         {% set mode_icons = post.mode_icons or ['/images/ui/mystery.png'] %}

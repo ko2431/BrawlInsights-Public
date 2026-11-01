@@ -66,15 +66,11 @@
 }
 .chat-header--tinted {
     --board-grad-angle: 90deg;
-    --board-tint-bg: var(--bg-fefefe);
     background: linear-gradient(var(--board-grad-angle), var(--board-c1), var(--board-c2));
 }
+/* ダークモードの色は app/services/board_colors.py でライトモードの色ごとに決める */
 .dark .chat-header--tinted {
-    background: linear-gradient(
-        var(--board-grad-angle),
-        color-mix(in srgb, var(--board-c1) 90%, var(--board-tint-bg)),
-        color-mix(in srgb, var(--board-c2) 90%, var(--board-tint-bg))
-    );
+    background: linear-gradient(var(--board-grad-angle), var(--board-d1, #4d4d4d), var(--board-d2, #454545));
 }
 .chat-header--app {
     padding: 6px 15px;
@@ -115,6 +111,9 @@
 .chat-header--tinted .chat-header__host-name {
     color: #000;
 }
+.dark .chat-header--tinted .chat-header__host-name {
+    color: #f2f2f2;
+}
 .chat-header--brand-dark .chat-header__host-name {
     color: #fff;
 }
@@ -131,6 +130,9 @@
 }
 .chat-header--tinted .chat-header__comment {
     color: #555;
+}
+.dark .chat-header--tinted .chat-header__comment {
+    color: rgba(255, 255, 255, 0.65);
 }
 .chat-header--brand-dark .chat-header__comment {
     color: rgba(255, 255, 255, 0.7);

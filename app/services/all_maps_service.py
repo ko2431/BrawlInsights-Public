@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from app.services import map_mode_catalog
+from app.services.board_colors import board_dark_color
 from app.services.map_mode_catalog import (
     MapInfo,
     ModeInfo,
@@ -214,6 +215,8 @@ def _build_board_memo() -> None:
             "icons": mode["icons"],
             "c1": c1,
             "c2": c2,
+            "d1": board_dark_color(c1),
+            "d2": board_dark_color(c2),
         }
     _board_maps_by_id = maps_by_id
     _board_index_json = json.dumps({"modes": index_modes, "maps": index_maps}, ensure_ascii=False, separators=(",", ":"))

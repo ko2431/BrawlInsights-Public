@@ -15,6 +15,7 @@ from .context_processors import (
 from app.utils.utils import format_display_datetime, format_last_played_time
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import mode_icon_candidates
+from app.services.board_colors import board_dark_color
 import re
 from markupsafe import Markup
 
@@ -70,6 +71,7 @@ def version_at_least(current: str | None, minimum: str) -> bool:
 templates.env.globals['format_display_datetime'] = format_display_datetime
 templates.env.globals['format_last_played_time'] = format_last_played_time
 templates.env.globals['mode_icon_candidates'] = mode_icon_candidates
+templates.env.globals['board_dark_color'] = board_dark_color
 templates.env.globals['version_at_least'] = version_at_least
 # [この部分は公開用リポジトリでは非公開にされています]
 

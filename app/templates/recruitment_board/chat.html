@@ -144,7 +144,7 @@
     {# Web版: PC幅で掲載枠があるときは、ヘッダーと掲載枠を .chat-top 内で重ねてヘッダー中央に置く #}
     {% if platform == 'web' %}<div class="chat-top">{% endif %}
     {# ヘッダー部分 (スレッド情報) #}
-    <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}{% if color1 is defined %} chat-header--tinted{% endif %}{% if dark %} chat-header--brand-dark{% endif %}"{% if color1 is defined %} style="--board-c1: {{ color1 }}; --board-c2: {{ color2 }};"{% endif %}>
+    <header class="chat-header {% if platform != 'web' %}chat-header--app{% endif %}{% if color1 is defined %} chat-header--tinted{% endif %}{% if dark %} chat-header--brand-dark{% endif %}"{% if color1 is defined %} style="--board-c1: {{ color1 }}; --board-c2: {{ color2 }}; --board-d1: {{ board_dark_color(color1) }}; --board-d2: {{ board_dark_color(color2) }};"{% endif %}>
         <div class="chat-header__content">
             {% if is_theme_post and theme_map %}
             {# テーマ掲示板（マップ）チャット用ヘッダー #}

@@ -94,8 +94,8 @@
 
     /**
      * テーマ掲示板の検索索引（全マップ・全キャラ）を取得する。最初の検索時に1回だけ読み込み、以降は使い回す。
-     * 形: { modes: { id: {ja, en, icons, c1, c2} }, maps: [[id, ja, en, modeId, off], ...],
-     *       brawlers: [[id, en, [ja名...], c1, c2], ...] }
+     * 形: { modes: { id: {ja, en, icons, c1, c2, d1, d2} }, maps: [[id, ja, en, modeId, off], ...],
+     *       brawlers: [[id, en, [ja名...], c1, c2, d1, d2], ...] }（d1, d2 はダークモードの色）
      */
     function loadThemeIndex() {
         if (!themeIndexPromise) {
@@ -118,12 +118,14 @@
                             modeKey: normalizeText(`${mode.ja || ''}\n${mode.en || ''}`),
                         };
                     });
-                    const brawlers = (data.brawlers || []).map(([id, en, namesJa, c1, c2]) => ({
+                    const brawlers = (data.brawlers || []).map(([id, en, namesJa, c1, c2, d1, d2]) => ({
                         id,
                         en: en || '',
                         ja: (namesJa && namesJa[0]) || en || '',
                         c1,
                         c2,
+                        d1,
+                        d2,
                         nameKey: normalizeText([en || '', ...(namesJa || [])].join('\n')),
                     }));
                     return { maps, brawlers };
@@ -169,7 +171,7 @@
     }
 
     /** 索引からヒットした掲示板の簡易カード（アイコン・名前・「掲示板へ」ボタンのみ） */
-    function buildIndexCard({ name, subtitle, icons, iconClass, c1, c2, href }) {
+    function buildIndexCard({ name, subtitle, icons, iconClass, c1, c2, d1, d2, href }) {
         const wrapper = document.createElement('div');
         wrapper.className = 'post-card-wrapper theme-board-index-card';
 
@@ -177,6 +179,8 @@
         card.className = 'card post-card post-card--theme post-card--tinted';
         card.style.setProperty('--board-c1', c1 || '#e8e8e8');
         card.style.setProperty('--board-c2', c2 || '#dcdcdc');
+        card.style.setProperty('--board-d1', d1 || '#4d4d4d');
+        card.style.setProperty('--board-d2', d2 || '#454545');
 
         const header = document.createElement('div');
         header.className = 'post-card__header';
@@ -224,6 +228,8 @@
             iconClass: 'post-card__player-icon--mode',
             c1: map.mode.c1,
             c2: map.mode.c2,
+            d1: map.mode.d1,
+            d2: map.mode.d2,
             href: `${indexSearchConfig.mapBoardBaseUrl}${map.id}`,
         });
     }
@@ -236,6 +242,8 @@
             iconClass: 'post-card__player-icon--brawler',
             c1: brawler.c1,
             c2: brawler.c2,
+            d1: brawler.d1,
+            d2: brawler.d2,
             href: `${indexSearchConfig.brawlerBoardBaseUrl}${brawler.id}`,
         });
     }

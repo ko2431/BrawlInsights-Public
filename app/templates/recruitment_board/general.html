@@ -204,43 +204,43 @@
             <div class="post-modal-section">
                 <p class="post-modal-section-title">1. {% if lang == "ja" %}カテゴリー{% else %}Category{% endif %}</p>
                 <div class="general-board-category-grid{% if current_user.has_perm('board.post_brawl_info') %} general-board-category-grid--admin{% endif %}">
-                    <div class="general-board-category-item" data-category="chat" style="--board-c1: #d4e6ff; --board-c2: #d4f0ff;">
+                    <div class="general-board-category-item" data-category="chat" style="--board-c1: #d4e6ff; --board-c2: #d4f0ff; --board-d1: {{ board_dark_color('#d4e6ff') }}; --board-d2: {{ board_dark_color('#d4f0ff') }};">
                         <img src="{{ url_for('static', path='/images/ui/family_friendly.png') }}" alt="雑談" class="general-icon--chat">
                         <span>{% if lang == "ja" %}雑談{% else %}Chat{% endif %}</span>
                     </div>
-                    <div class="general-board-category-item" data-category="question" style="--board-c1: #fff6d4; --board-c2: #ffeed4;">
+                    <div class="general-board-category-item" data-category="question" style="--board-c1: #fff6d4; --board-c2: #ffeed4; --board-d1: {{ board_dark_color('#fff6d4') }}; --board-d2: {{ board_dark_color('#ffeed4') }};">
                         <img src="{{ url_for('static', path='/images/ui/mystery.png') }}" alt="質問" class="general-icon--question">
                         <span>{% if lang == "ja" %}質問{% else %}Question{% endif %}</span>
                     </div>
-                    <div class="general-board-category-item" data-category="tournament" style="--board-c1: #d8f7cb; --board-c2: #c5f2b1;">
+                    <div class="general-board-category-item" data-category="tournament" style="--board-c1: #d8f7cb; --board-c2: #c5f2b1; --board-d1: {{ board_dark_color('#d8f7cb') }}; --board-d2: {{ board_dark_color('#c5f2b1') }};">
                         <img src="{{ url_for('static', path='/images/mode_icons/challenge.png') }}" alt="{% if lang == 'ja' %}大会{% else %}Tournament{% endif %}" class="general-icon--tournament">
                         <span>{% if lang == "ja" %}大会{% else %}Tournament{% endif %}</span>
                     </div>
-                    <div class="general-board-category-item" data-category="offtopic" style="--board-c1: #e8d4ff; --board-c2: #f0d4ff;">
+                    <div class="general-board-category-item" data-category="offtopic" style="--board-c1: #e8d4ff; --board-c2: #f0d4ff; --board-d1: {{ board_dark_color('#e8d4ff') }}; --board-d2: {{ board_dark_color('#f0d4ff') }};">
                         <img src="{{ url_for('static', path='/images/ui/gameroom.png') }}" alt="{% if lang == 'ja' %}オフトピック{% else %}Off Topic{% endif %}" class="general-icon--offtopic">
                         <span>{% if lang == "ja" %}オフトピック{% else %}Off Topic{% endif %}</span>
                     </div>
                     {% if current_user.has_perm('board.post_brawl_info') %}
-                    <div class="general-board-category-item" data-category="brawl_info" style="--board-c1: #ffe2c4; --board-c2: #ffd3a6;">
+                    <div class="general-board-category-item" data-category="brawl_info" style="--board-c1: #ffe2c4; --board-c2: #ffd3a6; --board-d1: {{ board_dark_color('#ffe2c4') }}; --board-d2: {{ board_dark_color('#ffd3a6') }};">
                         <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="ブロスタ情報" class="general-icon--brawl-info">
                         <span>{% if lang == "ja" %}情報{% else %}Info{% endif %}</span>
                     </div>
                     {% endif %}
                 </div>
                 <div class="general-board-category-grid">
-                    <div class="general-board-category-item general-board-category-item--dark" data-category="x" style="--board-c1: #3a3a3a; --board-c2: #4a4a4a;">
+                    <div class="general-board-category-item general-board-category-item--dark" data-category="x" style="--board-c1: #3a3a3a; --board-c2: #4a4a4a; --board-d1: {{ board_dark_color('#3a3a3a') }}; --board-d2: {{ board_dark_color('#4a4a4a') }};">
                         <img src="{{ url_for('static', path='/images/ui/x.png') }}" alt="X" class="general-icon--x" style="filter: invert(1);">
                         <span>X</span>
                     </div>
-                    <div class="general-board-category-item general-board-category-item--dark" data-category="discord" style="--board-c1: #4752c4; --board-c2: #5865f2;">
+                    <div class="general-board-category-item general-board-category-item--dark" data-category="discord" style="--board-c1: #4752c4; --board-c2: #5865f2; --board-d1: {{ board_dark_color('#4752c4') }}; --board-d2: {{ board_dark_color('#5865f2') }};">
                         <img src="{{ url_for('static', path='/images/ui/discord.svg') }}" alt="Discord" class="general-icon--discord" style="filter: brightness(0) invert(1);">
                         <span>Discord</span>
                     </div>
-                    <div class="general-board-category-item" data-category="youtube" style="--board-c1: #ffd4d4; --board-c2: #ffd4de;">
+                    <div class="general-board-category-item" data-category="youtube" style="--board-c1: #ffd4d4; --board-c2: #ffd4de; --board-d1: {{ board_dark_color('#ffd4d4') }}; --board-d2: {{ board_dark_color('#ffd4de') }};">
                         <img src="{{ url_for('static', path='/images/ui/youtube.png') }}" alt="YouTube" class="general-icon--youtube">
                         <span>YouTube</span>
                     </div>
-                    <div class="general-board-category-item" data-category="tiktok" style="--board-c1: #ffd4ef; --board-c2: #ffd4e6;">
+                    <div class="general-board-category-item" data-category="tiktok" style="--board-c1: #ffd4ef; --board-c2: #ffd4e6; --board-d1: {{ board_dark_color('#ffd4ef') }}; --board-d2: {{ board_dark_color('#ffd4e6') }};">
                         <img src="{{ url_for('static', path='/images/ui/tiktok_white.png') }}" alt="TikTok" class="general-icon--tiktok">
                         <span>TikTok</span>
                     </div>

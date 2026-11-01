@@ -704,7 +704,6 @@ body.modal-open {
     overflow-x: hidden;
 }
 .post-card--tinted {
-    --board-tint-bg: #242424;
     --board-grad-angle: 90deg;
     background: linear-gradient(var(--board-grad-angle), var(--board-c1), var(--board-c2));
 }
@@ -714,12 +713,15 @@ body.modal-open {
 .post-card--theme.post-card--tinted {
     --board-grad-angle: 135deg;
 }
+/* ダークモードの色は app/services/board_colors.py でライトモードの色ごとに決める */
 .dark .post-card--tinted {
-    background: linear-gradient(
-        var(--board-grad-angle),
-        color-mix(in srgb, var(--board-c1) 90%, var(--board-tint-bg)),
-        color-mix(in srgb, var(--board-c2) 90%, var(--board-tint-bg))
-    );
+    background: linear-gradient(var(--board-grad-angle), var(--board-d1, #4d4d4d), var(--board-d2, #454545));
+}
+.dark .post-card--tinted .post-card__host-info,
+.dark .post-card--tinted .post-card__conditions-box,
+.dark .post-card--tinted .post-card__comment-container {
+    border-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(20, 20, 20, 0.5);
 }
 .post-card__header {
     display: flex;
@@ -751,6 +753,11 @@ body.modal-open {
 .post-card--general .post-card__title,
 .post-card--theme .post-card__title {
     color: #000;
+}
+.dark .team-board .post-card__title,
+.dark .post-card--general .post-card__title,
+.dark .post-card--theme .post-card__title {
+    color: #f2f2f2;
 }
 .post-card--brand-dark .post-card__title {
     color: #fff;
@@ -811,7 +818,10 @@ body.modal-open {
     flex-shrink: 0;           /* 「n分前」テキストがプレイヤー名に押されて縮まないようにする */
 }
 .dark .post-card__ago-text {
-    color: #444;
+    color: #999;
+}
+.dark .post-card--tinted .post-card__ago-text {
+    color: rgba(255, 255, 255, 0.6);
 }
 /* なんでも掲示板: リポストした投稿は「n分前」の左にアイコン */
 .post-card__ago-text--reposted {
@@ -857,6 +867,21 @@ body.modal-open {
 }
 .post-card__repost-button.is-unavailable:hover {
     background-color: rgba(255, 255, 255, 0.35);
+}
+.dark .post-card__repost-button {
+    color: #ddd;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+.dark .post-card__repost-button:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.32);
+}
+.dark .post-card__repost-button.is-unavailable,
+.dark .post-card__repost-button.is-unavailable:hover {
+    color: rgba(255, 255, 255, 0.4);
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.14);
 }
 .post-card--brand-dark .post-card__repost-button {
     color: #fff;
@@ -943,31 +968,92 @@ body.modal-open {
 .post-card__host-info-stat-icon-ranked {
     height: 16px;
 }
-.post-card__host-info-button {
-    width: 100%;
-    font-size: 13px;
-    padding: 0 6px;
-    border-radius: 5px;
+/* 見出しの行 (左に見出し、右に詳細リンクや条件の満たし方) */
+.post-card__box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    min-width: 0;
 }
-.dark .post-card__host-info-button {
-    background-color: #181818;
-    border-color: #1c1c1c;
-    color: #fff;
+.post-card__box-header .post-card__host-info-title,
+.post-card__box-header .post-card__conditions-box-title {
+    min-width: 0;
+    flex-shrink: 1;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-
-.button--red,
-.dark .post-card__host-info-button.button--red {
-    border: 1px solid red;
-    background-color: #ffe9e9;
-    cursor: default;
-    color: #000;
+.post-card__detail-link,
+.post-card__match-badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    height: 15px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    line-height: 1;
+    white-space: nowrap;
 }
-.button--blue,
-.dark .post-card__host-info-button.button--blue {
-    border: 1px solid blue;
-    background-color: #e1edff;
-    cursor: default;
-    color: #000;
+.post-card__detail-link {
+    gap: 2px;
+    padding: 0 4px 0 6px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: var(--color-555);
+    font-weight: bold;
+    text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.post-card__detail-link:hover {
+    border-color: #999;
+    background-color: #f4f4f4;
+    color: #222;
+}
+.post-card__detail-link:active {
+    transform: scale(0.94);
+}
+.post-card__detail-link-chevron {
+    width: 5px;
+    height: 8px;
+    transition: transform 0.15s ease;
+}
+.post-card__detail-link:hover .post-card__detail-link-chevron {
+    transform: translateX(1px);
+}
+.dark .post-card__detail-link {
+    border-color: #444;
+    background-color: #2a2a2a;
+}
+.dark .post-card__detail-link:hover {
+    border-color: #666;
+    background-color: #333;
+    color: #eee;
+}
+.post-card__match-badge {
+    padding: 0 5px;
+    border: 1px solid;
+}
+.post-card__match-badge--all {
+    border-color: #ff6b6b;
+    background-color: #ffecec;
+    color: #b00000;
+}
+.post-card__match-badge--any {
+    border-color: #6b83ff;
+    background-color: #e8efff;
+    color: #0028b8;
+}
+.dark .post-card__match-badge--all {
+    border-color: #a84848;
+    background-color: rgba(255, 90, 90, 0.14);
+    color: #ffa3a3;
+}
+.dark .post-card__match-badge--any {
+    border-color: #4c63b8;
+    background-color: rgba(100, 140, 255, 0.16);
+    color: #aec2ff;
 }
 
 .post-card__comment-text,
@@ -1149,6 +1235,81 @@ body.modal-open {
 .post-card__good-button-icon {
     height: 14px;
 }
+/* ダークモード: 淡い色のボタンは、暗い地に透ける色＋明るい文字にする */
+.dark .post-card__chat-button {
+    color: #cdeeff;
+    background-color: rgba(64, 190, 252, 0.15);
+    border-color: #3484ab;
+}
+.dark .post-card__chat-button:hover {
+    background-color: rgba(64, 190, 252, 0.24);
+    border-color: #45a3d1;
+}
+.dark .post-card__good-button,
+.dark .post-card__reopen-button {
+    color: #d3f3bd;
+    background: rgba(125, 215, 80, 0.15);
+    border-color: #4f8f3a;
+}
+.dark .post-card__good-button:hover,
+.dark .post-card__reopen-button:hover {
+    background: rgba(125, 215, 80, 0.24);
+    border-color: #63ab4a;
+}
+.dark .post-card__good-button.active {
+    color: #fff;
+    background: linear-gradient(135deg, #2e9c40, #1f7f2e);
+    border-color: #3fb152;
+}
+.dark .post-card__good-button.active:hover {
+    background: linear-gradient(135deg, #34ad48, #238c33);
+}
+.dark .post-card__block-button,
+.dark .post-card__unblock-button,
+.dark .post-card__delete-button,
+.dark .post-card__close-button {
+    color: #ffc4c4;
+    background-color: rgba(255, 82, 82, 0.14);
+    border-color: #a84646;
+}
+.dark .post-card__block-button:hover,
+.dark .post-card__unblock-button:hover,
+.dark .post-card__delete-button:hover,
+.dark .post-card__close-button:hover {
+    background-color: rgba(255, 82, 82, 0.23);
+    border-color: #c75656;
+}
+.dark .post-card__report-button {
+    color: #ffc6e5;
+    background-color: rgba(255, 91, 184, 0.14);
+    border-color: #a5487d;
+}
+.dark .post-card__report-button:hover {
+    background-color: rgba(255, 91, 184, 0.23);
+    border-color: #c25a95;
+}
+.dark .post-card__link-button {
+    color: #1a1a1a;
+    background-color: #ececec;
+    border-color: #ececec;
+}
+.dark .post-card__link-button:hover {
+    color: #111;
+    background-color: #fff;
+    border-color: #fff;
+}
+.dark .post-card__link-button.disabled,
+.dark .post-card__link-button.disabled:hover,
+.dark .post-card__chat-button.disabled,
+.dark .post-card__chat-button.disabled:hover,
+.dark .post-card__good-button.disabled,
+.dark .post-card__good-button.disabled:hover,
+.dark .post-card__close-button.disabled,
+.dark .post-card__close-button.disabled:hover {
+    color: rgba(255, 255, 255, 0.42);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.1);
+}
 
 /* 通報モーダル --- */
 .report-modal-overlay {
@@ -1316,7 +1477,7 @@ body.modal-open {
 /* コンパクト表示関連のスタイル */
 .posts__container.view-compact .post-card__host-info,
 .posts__container.view-compact .post-card__conditions-box {
-    height: 91px;
+    height: 75px;
     display: flex;
     flex-direction: column;
 }
@@ -1357,6 +1518,7 @@ body.modal-open {
     background-color: rgba(0,0,0,0.2);
     border-radius: 2px;
 }
+.posts__container.view-compact .post-card__box-header,
 .posts__container.view-compact .post-card__host-info-title,
 .posts__container.view-compact .post-card__conditions-box-title {
     line-height: 1.25;
@@ -1364,9 +1526,10 @@ body.modal-open {
     margin-top: 1px;
     margin-bottom: 2px;
 }
-.posts__container.view-compact .post-card__host-info-button {
-    flex-shrink: 0;
-    margin-top: 2px;
+.posts__container.view-compact .post-card__box-header .post-card__host-info-title,
+.posts__container.view-compact .post-card__box-header .post-card__conditions-box-title {
+    flex-shrink: 1;
+    margin: 0;
 }
 .posts__container.view-compact .post-card__conditions-list-wrapper {
     margin-bottom: 2px;
@@ -1425,7 +1588,6 @@ body.modal-open {
     grid-template-columns: repeat(5, 1fr);
 }
 .general-board-category-item {
-    --board-tint-bg: #242424;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1440,11 +1602,7 @@ body.modal-open {
     background: linear-gradient(135deg, var(--board-c1), var(--board-c2));
 }
 .dark .general-board-category-item {
-    background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--board-c1) 90%, var(--board-tint-bg)),
-        color-mix(in srgb, var(--board-c2) 90%, var(--board-tint-bg))
-    );
+    background: linear-gradient(135deg, var(--board-d1, #4d4d4d), var(--board-d2, #454545));
 }
 .general-board-category-item img {
     width: auto;
@@ -1458,17 +1616,21 @@ body.modal-open {
 .general-board-category-item--dark span {
     color: #fff;
 }
-.dark .general-board-category-item--dark span {
-    color: #fff;
+.dark .general-board-category-item span {
+    color: #eee;
 }
 .general-board-category-item .general-icon--tiktok {
     filter: brightness(0);
+}
+.dark .general-board-category-item .general-icon--tiktok {
+    filter: brightness(0) invert(1);
 }
 /* ホバー: グラデーション背景を保ったまま、薄いオーバーレイで色味を少し変える */
 .general-board-category-item:not(.selected):hover {
     box-shadow: inset 0 0 0 100px rgba(0, 0, 0, 0.04);
 }
-.general-board-category-item--dark:not(.selected):hover {
+.general-board-category-item--dark:not(.selected):hover,
+.dark .general-board-category-item:not(.selected):hover {
     box-shadow: inset 0 0 0 100px rgba(255, 255, 255, 0.08);
 }
 .general-board-category-item.selected {
@@ -1850,7 +2012,7 @@ body.modal-open {
     color: #555;
 }
 .dark .theme-board-index-card__mode {
-    color: #444;
+    color: rgba(255, 255, 255, 0.6);
 }
 /* display: grid が hidden 属性より優先されないようにする */
 .posts__container[hidden] {

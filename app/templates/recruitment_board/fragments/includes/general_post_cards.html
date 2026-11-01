@@ -42,7 +42,7 @@
         {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
                 (author_anonymous_id and author_anonymous_id in blocked_ids.anonymous_ids)) %}
             <div class="post-card-wrapper">
-                <div class="card post-card post-card--general post-card--tinted{% if cat_info.dark %} post-card--brand-dark{% endif %}" style="--board-c1: {{ cat_info.color1 }}; --board-c2: {{ cat_info.color2 }};">
+                <div class="card post-card post-card--general post-card--tinted{% if cat_info.dark %} post-card--brand-dark{% endif %}" style="--board-c1: {{ cat_info.color1 }}; --board-c2: {{ cat_info.color2 }}; --board-d1: {{ board_dark_color(cat_info.color1) }}; --board-d2: {{ board_dark_color(cat_info.color2) }};">
                     {# ヘッダー: カテゴリーアイコン + カテゴリー名 + 経過時間 #}
                     <div class="post-card__header">
                         <img src="{{ url_for('static', path='/images/' + cat_info.icon) }}" alt="{{ cat }}" class="post-card__player-icon category-icon--{{ cat }}">
@@ -89,7 +89,14 @@
                         {# 条件ボックス (条件がある場合のみ) #}
                         {% if post.data.required_highest_trophies or post.data.required_ranked_highest_rank or post.data.required_ranked_current_rank or post.data.required_solo_pl_rank or post.data.required_prestige %}
                         <div class="post-card__conditions-box" style="min-width: 130px;">
-                            <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
+                            <div class="post-card__box-header">
+                                <p class="post-card__conditions-box-title">{% if lang == "ja" %}条件{% else %}Conditions{% endif %}</p>
+                                {% if post.data.conditions_application_type == "and" %}
+                                <span class="post-card__match-badge post-card__match-badge--all">{% if lang == "ja" %}<b>すべて</b>満たす{% else %}<b>All</b>{% endif %}</span>
+                                {% else %}
+                                <span class="post-card__match-badge post-card__match-badge--any">{% if lang == "ja" %}<b>いずれか</b>満たす{% else %}<b>Any</b>{% endif %}</span>
+                                {% endif %}
+                            </div>
                             <div class="post-card__conditions-list-wrapper">
                                 {% if post.data.required_highest_trophies %}
                                 <div class="post-card__host-info-stat">
@@ -127,15 +134,6 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            {% if post.data.conditions_application_type == "and" %}
-                                <div class="button button--red post-card__host-info-button">
-                                    {% if lang == "ja" %}<b>すべて</b>満たす{% else %}<b>All</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
-                                </div>
-                            {% else %}
-                                <div class="button button--blue post-card__host-info-button">
-                                    {% if lang == "ja" %}<b>いずれか</b>を満たす{% else %}<b>Any</b><span style="margin-left: 0.27em;">Match</span>{% endif %}
-                                </div>
-                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

@@ -20,6 +20,7 @@ from app.services.mention_rules import has_mention_mark, name_in_text_sql, pick_
 from app.core.board_trending import GENERAL_BOARD_TRENDING
 from app.core.text_search import GeneralBoardSearch, LIKE_ESCAPE_SQL, escape_like_literal, search_normalize_sql
 from app.services.all_maps_service import resolve_board_map
+from app.services.board_colors import board_dark_color
 from app.services.map_mode_catalog import DEFAULT_BOARD_COLORS, ensure_catalog, get_mode_board_colors
 # [この部分は公開用リポジトリでは非公開にされています]
 
@@ -1000,8 +1001,8 @@ async def get_or_create_theme_map_post(db: asyncpg.Connection, map_id: int) -> "
 
 async def get_theme_brawler_index_json(db: asyncpg.Connection) -> str:
     """テーマ掲示板の検索索引（全キャラ）のJSON文字列。Redisに1時間キャッシュする。
-    形: [[id, en, [ja名...], color1, color2], ...]"""
-    cache_key = "theme_board_brawler_index"
+    形: [[id, en, [ja名...], color1, color2, ダークモードのcolor1, ダークモードのcolor2], ...]"""
+    cache_key = "theme_board_brawler_index:v2"
     cached = await get_cache(cache_key)
     if isinstance(cached, str):
         return cached
@@ -1020,7 +1021,7 @@ async def get_theme_brawler_index_json(db: asyncpg.Connection) -> str:
         if not isinstance(names_ja, list):
             names_ja = []
         color1, color2 = get_theme_brawler_board_colors(row["rarity"])
-        items.append([row["id"], row["en"] or "", names_ja, color1, color2])
+        items.append([row["id"], row["en"] or "", names_ja, color1, color2, board_dark_color(color1), board_dark_color(color2)])
     index_json = json.dumps(items, ensure_ascii=False, separators=(",", ":"))
     await set_cache(cache_key, index_json, ttl=60 * 60)
     return index_json
