@@ -14,6 +14,10 @@ def test_pick_mentions():
     assert ids("テスト さん") == []
     many = [{"id": i, "name": f"u{i}"} for i in range(10)]
     assert len(pick_mentions(" ".join(f"@u{i}" for i in range(10)), many, None)) == 5
+    # 同じ名前の人が複数いれば全員（大会のチャットのプレイヤー名）。長い名前が優先なのは同じ
+    same = [{"id": 5, "name": "Taro"}, {"id": 6, "name": "taro"}, {"id": 7, "name": "Taro2"}, {"id": 8, "name": "Taro"}]
+    assert [m["id"] for m in pick_mentions("@Taro よろしく", same, 8)] == [5, 6]
+    assert [m["id"] for m in pick_mentions("@Taro2", same, None)] == [7]
 
 
 def test_has_mention_mark():

@@ -16,7 +16,7 @@ from sqlalchemy import (
     CheckConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, INET
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, INET
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 

@@ -35,14 +35,16 @@ def _mark_positions(lowered: str):
 def pick_mentions(body: str, candidates: list[dict], self_id: int | None = None) -> list[dict]:
     """本文の「@名前」（全角の「＠」も。英字の大文字・小文字は区別しない）から、メンションした人を本文の順に選ぶ。
     同じ位置で複数の名前に当たるとき（「@テスト2」に「テスト」と「テスト2」）はいちばん長い名前。
+    同じ名前の人が複数いれば全員（大会のチャットはプレイヤー名なので重なることがある。掲示板のユーザー名は重ならない）。
     直前が英数字の「@」（メールアドレスなど）は数えない。自分は除き、最大5人。"""
     lowered = body.lower()
     names = sorted(((c["name"].lower(), c) for c in candidates if c.get("name")), key=lambda x: -len(x[0]))
     picked: list[dict] = []
     for i in _mark_positions(lowered):
-        hit = next((c for name, c in names if lowered.startswith(name, i + 1)), None)
-        if hit and hit["id"] != self_id and all(p["id"] != hit["id"] for p in picked):
-            picked.append({"id": hit["id"], "name": hit["name"]})
+        hit = next((name for name, _ in names if lowered.startswith(name, i + 1)), None)
+        for name, c in names:
+            if name == hit and c["id"] != self_id and all(p["id"] != c["id"] for p in picked):
+                picked.append({"id": c["id"], "name": c["name"]})
     return picked[:MENTION_MAX]
 
 
