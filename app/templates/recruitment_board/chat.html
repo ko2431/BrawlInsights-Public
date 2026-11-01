@@ -2924,9 +2924,16 @@
             }
 
             // --- その他のイベントリスナー ---
+            let isSendingMessage = false;
+
+            function updateSendButtonState() {
+                if (!textarea || !sendButton) return;
+                sendButton.disabled = isSendingMessage || textarea.value.trim() === '';
+            }
+
             if (textarea) {
                 textarea.addEventListener('input', () => {
-                    sendButton.disabled = textarea.value.trim() === '';
+                    updateSendButtonState();
                     textarea.style.height = 'auto';
                     textarea.style.height = (textarea.scrollHeight) + 'px';
                     updateMention();
@@ -3016,18 +3023,14 @@
                     event.preventDefault(); // フォームのデフォルト送信をキャンセル
                     
                     const messageText = textarea.value.trim();
-                    if (messageText === '' || sendButton.disabled) {
+                    if (messageText === '' || isSendingMessage) {
                         return;
                     }
 
-                    // 1. 送信ボタンを1秒間無効化
-                    sendButton.disabled = true;
-                    setTimeout(() => {
-                        // textareaが空でなければ有効に戻す
-                        if (textarea.value.trim() !== '') {
-                            sendButton.disabled = false;
-                        }
-                    }, 1000);
+                    // 応答待ちの間は無効にし、速く完了した場合も1秒間は連打を防ぐ
+                    isSendingMessage = true;
+                    updateSendButtonState();
+                    const sendCooldown = new Promise(resolve => setTimeout(resolve, 1000));
 
                     try {
                         const payload = { message: messageText };
@@ -3059,7 +3062,10 @@
                         console.error('Failed to send message:', error);
                         // 2. 送信失敗時にアラートを表示
                         alert(lang === 'ja' ? 'エラーが発生しました。メッセージの送信に失敗しました。' : 'An error has occurred. Failed to send message.');
-                        // エラーが起きてもボタンは1秒後に有効になる
+                    } finally {
+                        await sendCooldown;
+                        isSendingMessage = false;
+                        updateSendButtonState();
                     }
                 });
             }
