@@ -137,7 +137,7 @@
         </div>
         {% endif %}
 
-        {% if view and view.staff %}<p class="bca__hint">{{ "運営のアカウントは対象外です（表示の確認のために数えています）。" if ja else "Staff accounts are not eligible (counted only to check the display)." }}</p>{% endif %}
+        {% if view and view.staff %}<p class="bca__hint">{{ "運営のアカウントは対象外ですが、表示の確認のためにカウントされます。" if ja else "Staff accounts are not eligible, but counted to check the display." }}</p>{% endif %}
         {% if live %}
         {% if info.has_stats %}
         <div class="bca__foot">

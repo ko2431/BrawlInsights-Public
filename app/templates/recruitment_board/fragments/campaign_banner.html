@@ -166,7 +166,7 @@
             {% endif %}
 
             {% if previous %}{{ previous_line(previous) }}{% endif %}
-            {% if view and view.staff %}<p class="bcb__note bcb__note--muted">{{ "運営のアカウントは対象外です（表示の確認のために数えています）。" if ja else "Staff accounts are not eligible (counted only to check the display)." }}</p>{% endif %}
+            {% if view and view.staff %}<p class="bcb__note bcb__note--muted">{{ "運営のアカウントは対象外ですが、表示の確認のためにカウントされます。" if ja else "Staff accounts are not eligible, but counted to check the display." }}</p>{% endif %}
 
             {% if mode == "live" and info.has_stats %}
             <div class="bcb__foot">
