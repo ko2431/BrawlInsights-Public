@@ -470,7 +470,7 @@ async def get_player_profile_fragment(
         elif sort == 'brawler_id':
             player.brawlers.sort(key=lambda b: b.id)
         elif sort == 'mastery':
-            player.brawlers.sort(key=lambda b: (-b.mastery, -b.highest_trophies))
+            player.brawlers.sort(key=lambda b: (-(b.mastery or 0), -b.highest_trophies))
         elif sort == 'name':
             player.brawlers.sort(key=lambda b: b.name_ja if lang == "ja" else b.name_en)
         elif sort == 'rarity_asc':

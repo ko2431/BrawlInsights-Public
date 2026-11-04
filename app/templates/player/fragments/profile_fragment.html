@@ -2014,25 +2014,26 @@
                                         <span class="brawler-card__accessory-prefix">{% if lang == 'ja' %}現在{% else %}Now{% endif %}</span><span class="brawler-card__accessory-value">{{ brawler.current_win_streak or 0 }}</span>
                                     </span>
                                 {% else %}
-                                    {# マスタリー #}
+                                    {# マスタリー (ランクが取れていない場合は0として扱う) #}
+                                    {% set mastery_rank = brawler.mastery_rank or 0 %}
                                     {% set mastery_icon = 'mastery/0.png' %}
-                                    {% if brawler.mastery_rank >= 7 %}
+                                    {% if mastery_rank >= 7 %}
                                         {% set mastery_icon = 'ui/mastery_gold.png' %}
                                         {% set mastery_color = '#AB9100' %}
-                                    {% elif brawler.mastery_rank >= 4 %}
+                                    {% elif mastery_rank >= 4 %}
                                         {% set mastery_icon = 'ui/mastery_silver.png' %}
                                         {% set mastery_color = '#829299' %}
-                                    {% elif brawler.mastery_rank >= 1 %}
+                                    {% elif mastery_rank >= 1 %}
                                         {% set mastery_icon = 'ui/mastery_bronze.png' %}
                                         {% set mastery_color = '#9E3F08' %}
                                     {% endif %}
                                     <img src="{{ url_for('static', path='/images/' + mastery_icon) }}" alt="マスタリーランク" class="brawler-card__accessory-icon" style="margin-right: 1.5px; margin-left: 2px">
                                     <span class="brawler-card__accessory-text">
-                                        {% if brawler.mastery_rank in [1,4,7] %}
+                                        {% if mastery_rank in [1,4,7] %}
                                             <span class="brawler-card__accessory-value" style="color: {{mastery_color}}; font-weight: bold;">I</span>
-                                        {% elif brawler.mastery_rank in [2,5,8] %}
+                                        {% elif mastery_rank in [2,5,8] %}
                                             <span class="brawler-card__accessory-value" style="color: {{mastery_color}}; font-weight: bold;">Ⅱ</span>
-                                        {% elif brawler.mastery_rank in [3,6,9] %}
+                                        {% elif mastery_rank in [3,6,9] %}
                                             <span class="brawler-card__accessory-value" style="color: {{mastery_color}}; font-weight: bold;">Ⅲ</span>
                                         {% endif %}
                                         <span style="width: 4px;"></span>
