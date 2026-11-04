@@ -1,5 +1,6 @@
 import datetime
 import asyncio
+import functools
 import json
 import random
 import time
@@ -9,6 +10,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 import asyncpg
 import brawlstats
+import orjson
 from cachetools import TTLCache
 import itertools
 import re
@@ -96,6 +98,8 @@ frame_cache = TTLCache(maxsize=1, ttl=10*60)
 player_icon_cache = TTLCache(maxsize=1, ttl=10*60)
 spray_cache = TTLCache(maxsize=1, ttl=10*60)
 buffy_cache = TTLCache(maxsize=1, ttl=10*60)
+
+JST = datetime.timezone(datetime.timedelta(hours=9))
 
 
 # バトル履歴の保存上限数 (期間による上限方式に変更したため、この値は現在使われていないが残している)
@@ -1567,13 +1571,40 @@ async def search_clubs(query: str, db: asyncpg.Connection, page: int = 1, per_pa
 #* /---*---*---*---*---*---*---*---*/
 #* バトル関連
 #* /---*---*---*---*---*---*---*---*/
+# search_battles で取得する列。バトルの JSONB の列(キャラID・タグ・名前の配列)は文字列で受け取り、
+# 標準の json より速い orjson で読む(全件を読み込むため、デコードの時間が大きい)
+_BATTLE_JSONB_COLUMNS = ("brawlers", "teammate_tags", "opponent_tags", "teammate_names", "opponent_names", "teammate_brawlers", "opponent_brawlers")
+_BATTLE_SEARCH_COLUMNS = ", ".join([
+    "tag", "datetime", "event_id", "event_mode", "event_map", "battle_mode", "mode_id", "battle_type", "result", "rank",
+    "is_starplayer", "brawler", "power", "trophies", "trophy_change", "team_size", "num_of_teams", "ranked_score_after",
+    *(f"{column}::text AS {column}" for column in _BATTLE_JSONB_COLUMNS),
+])
+
+
+def _load_battle_jsonb(value: Any) -> Any:
+    """バトルの JSONB の列を読む。search_battles 以外の経路では、接続のコーデックでデコード済みの値が来る。"""
+    return orjson.loads(value) if isinstance(value, str) else value
+
+
+def _same_members(a: list | None, b: list | None) -> bool:
+    """順序を問わずに同じ構成か。Counter 同士で比べるのと同じ結果で、並べ替えて比べるほうが速い。"""
+    a = a or ()
+    b = b or ()
+    if len(a) != len(b):
+        return False
+    try:
+        return sorted(a) == sorted(b)
+    except TypeError:
+        # 並べ替えられない値(None と数値など)が混ざる場合
+        return Counter(a) == Counter(b)
+
+
 class Battle:
     """バトル。初期化時にDBのRowを渡す。
     """
     def __init__(self, dbrow: asyncpg.Record) -> None:
         self.tag: str = dbrow["tag"]
         self.datetime: datetime.datetime = dbrow["datetime"]
-        self.datetime_jst: datetime.datetime = self.datetime.astimezone(datetime.timezone(datetime.timedelta(hours=9)))
         self.event_id: int | None = dbrow["event_id"] # おそらく必ず存在する。コンペの時は0
         self.event_mode: str | None = dbrow["event_mode"] # Ver11.0より保存を開始。
         self.event_mode_ja: str | None = None
@@ -1597,20 +1628,25 @@ class Battle:
         self.power: int | None = dbrow["power"]
         self.trophies: int | None = dbrow["trophies"]
         self.trophy_change: int | None = dbrow["trophy_change"]
-        self.brawlers: list[tuple[int | None]] | None = dbrow["brawlers"]
+        self.brawlers: list[tuple[int | None]] | None = _load_battle_jsonb(dbrow["brawlers"])
         self.team_size: int = dbrow["team_size"]
         self.num_of_teams: int = dbrow["num_of_teams"]
-        self.teammate_tags: list[str] = dbrow["teammate_tags"]
-        self.opponent_tags: list[str] = dbrow["opponent_tags"]
-        self.teammate_names: list[str] = dbrow["teammate_names"]
-        self.opponent_names: list[str] = dbrow["opponent_names"]
-        self.teammate_brawlers: list[int] = dbrow["teammate_brawlers"]
-        self.opponent_brawlers: list[int] = dbrow["opponent_brawlers"]
+        self.teammate_tags: list[str] = _load_battle_jsonb(dbrow["teammate_tags"])
+        self.opponent_tags: list[str] = _load_battle_jsonb(dbrow["opponent_tags"])
+        self.teammate_names: list[str] = _load_battle_jsonb(dbrow["teammate_names"])
+        self.opponent_names: list[str] = _load_battle_jsonb(dbrow["opponent_names"])
+        self.teammate_brawlers: list[int] = _load_battle_jsonb(dbrow["teammate_brawlers"])
+        self.opponent_brawlers: list[int] = _load_battle_jsonb(dbrow["opponent_brawlers"])
         self.ranked_score_after: int | None = dbrow["ranked_score_after"] # 試合終了後のガチバトルスコア。このデータは一部のバトルのみにある。
         self.set_w: int | None = None # バトルセット時、セットの勝利数。
         self.set_d: int | None = None # バトルセット時、セットの引き分け数。
         self.set_l: int | None = None # バトルセット時、セットの敗北数。
-    
+
+    # 日本時間の日時。表示するバトルでしか使わないため、全件の読み込み時には計算しない
+    @functools.cached_property
+    def datetime_jst(self) -> datetime.datetime:
+        return self.datetime.astimezone(JST)
+
     # [この部分は公開用リポジトリでは非公開にされています]
 
 
