@@ -11,7 +11,7 @@ from app.core.templating import templates, censor_filter
 from app.core.cache import set_cache, delete_cache, get_cache
 from app.exceptions.custom_exceptions import DataBaseError, BrawlStarsAPIError, PlayerNotFoundError
 from app.services.brawl_service import get_player_name, get_player, check_verify, get_hide_history_settings, get_player_from_db, get_player_summaries_from_db
-from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, get_active_giveaway_code, get_giveaway_user_entry_count, get_giveaway_total_stats, has_user_used_gift_code, reset_user_blocks_by_blocker, get_user_block_list, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
+from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND_COST, User, get_user, is_user_name_used, verify_password, get_all_secret_questions, get_gift_code, has_user_used_gift_code, reset_user_blocks_by_blocker, get_user_block_list, get_ticket_sell_options, get_elixir_sell_options, TICKET_SELL_TOKEN_RATE, ELIXIR_SELL_DIVISOR, TUTORIAL_MISSIONS, TUTORIAL_MISSION_KEYS, TUTORIAL_MISSION_REWARD, tutorial_mission_token_total, try_claim_tutorial_mission, APP_LOGIN_MISSION_REWARD
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services import main_account_reward_service
 from app.services import player_verification_service
@@ -115,7 +115,6 @@ async def account_page(
         "current_user_main_account_hide_club_history": current_user_main_account_hide_club_history,
         "basic_mission": basic_mission,
         "advance_mission": advance_mission,
-        "giveaway_info": giveaway_info,
         # [この部分は公開用リポジトリでは非公開にされています]
         "is_prohibit_giveaway": bool(getattr(current_user_obj, "is_prohibit_giveaway", False)) if current_user_obj else False,
         "is_survey_cleared": is_survey_cleared,
@@ -909,17 +908,6 @@ class GiftCodeRequest(BaseModel):
     gift_code: str
 
 
-class GiveawayBulkApplyError(Exception):
-    def __init__(self, msg_ja: str, msg_en: str):
-        self.msg_ja = msg_ja
-        self.msg_en = msg_en
-        super().__init__(msg_ja)
-
-
-class GiveawayBulkEntryRequest(BaseModel):
-    gift_code: str
-    entry_count: int = Field(ge=2, le=200)
-
 @router.post("/use-gift-code", name="account_use_gift_code")
 async def use_gift_code_process(
     request: Request,
@@ -937,12 +925,7 @@ async def use_gift_code_process(
         success, msg_ja, msg_en = await gift_code_obj.use(db=db, user_id=current_user.id)
 
         if success:
-            # giveawayコードの場合、ユーザーの応募回数キャッシュをクリア
-            if gift_code_obj.reward.get("giveaway"):
-                await delete_cache(f"giveaway:entries:{code_to_use}:{current_user.id}")
-                # [この部分は公開用リポジトリでは非公開にされています]
-            else:
-                # [この部分は公開用リポジトリでは非公開にされています]
+            # [この部分は公開用リポジトリでは非公開にされています]
             message = msg_ja if lang == "ja" and msg_ja else msg_en
             return JSONResponse({"success": True, "message": message})
         else:
@@ -964,113 +947,6 @@ async def use_gift_code_process(
         return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@router.post("/use-giveaway-max-entries", name="account_use_giveaway_max_entries")
-async def use_giveaway_max_entries_process(
-    request: Request,
-    payload: GiveawayBulkEntryRequest,
-    db: asyncpg.Connection = Depends(get_shared_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    code_to_use = payload.gift_code.strip().upper()
-    lang = request.path_params.get("lang", "ja")
-
-    try:
-        async with db.transaction():
-            # 同時実行時の競合を避けるために対象行をロックする
-            await db.fetchrow("SELECT id FROM users WHERE id = $1 FOR UPDATE", current_user.id)
-            await db.fetchrow("SELECT code FROM gift_codes WHERE UPPER(code) = UPPER($1) FOR UPDATE", code_to_use)
-
-            gift_code_obj = await get_gift_code(db, code_to_use)
-
-            if not gift_code_obj.reward.get("giveaway"):
-                raise GiveawayBulkApplyError(
-                    "このコードはプレゼント企画応募コードではありません。",
-                    "This code is not a giveaway entry code.",
-                )
-
-            spend_tokens_raw = gift_code_obj.reward.get("spend_tokens", 0)
-            try:
-                spend_tokens = int(spend_tokens_raw)
-            except (TypeError, ValueError) as e:
-                logger.error(f"プレゼント企画コードの spend_tokens が不正です (Code: {code_to_use}, Value: {spend_tokens_raw}): {e}")
-                raise GiveawayBulkApplyError(
-                    "このコードの設定が不正なため応募できません。",
-                    "This code cannot be used due to invalid configuration.",
-                )
-
-            if spend_tokens <= 0:
-                raise GiveawayBulkApplyError(
-                    "このコードの設定が不正なため応募できません。",
-                    "This code cannot be used due to invalid configuration.",
-                )
-
-            user_tokens_before = await db.fetchval("SELECT tokens FROM users WHERE id = $1", current_user.id)
-            current_entry_count = gift_code_obj.usage_log.count(current_user.id)
-
-            remaining_entries = payload.entry_count
-            if gift_code_obj.usage_limit_per_user:
-                remaining_entries = max(gift_code_obj.usage_limit_per_user - current_entry_count, 0)
-
-            max_by_tokens = user_tokens_before // spend_tokens
-            max_entries_now = min(remaining_entries, max_by_tokens)
-
-            if payload.entry_count > max_entries_now:
-                raise GiveawayBulkApplyError(
-                    "トークン不足または応募可能回数不足のため、まとめて応募を完了できませんでした。",
-                    "Could not complete bulk entry due to insufficient tokens or remaining entry capacity.",
-                )
-
-            start_entry = current_entry_count + 1
-
-            for _ in range(payload.entry_count):
-                success, msg_ja, msg_en = await gift_code_obj.use(db=db, user_id=current_user.id)
-                if not success:
-                    raise GiveawayBulkApplyError(
-                        msg_ja or "応募処理に失敗しました。",
-                        msg_en or "Failed to submit giveaway entry.",
-                    )
-
-            user_tokens_after = await db.fetchval("SELECT tokens FROM users WHERE id = $1", current_user.id)
-            end_entry = start_entry + payload.entry_count - 1
-            consumed_tokens = user_tokens_before - user_tokens_after
-
-        await delete_cache(f"giveaway:entries:{code_to_use}:{current_user.id}")
-        # [この部分は公開用リポジトリでは非公開にされています]
-
-        if lang == "ja":
-            message = (
-                f"プレゼント企画への<b>{start_entry}〜{end_entry}口目</b>の応募が完了しました。"
-                f"最大で{gift_code_obj.usage_limit_per_user}口まで応募できます！"
-                f"<br>トークンを{consumed_tokens}個消費しました ({user_tokens_before} → {user_tokens_after})"
-            )
-        else:
-            message = (
-                f"Your <b>entries #{start_entry} to #{end_entry}</b> for the giveaway have been submitted. "
-                f"You can submit up to {gift_code_obj.usage_limit_per_user} entries!"
-                f"<br>Consumed {consumed_tokens} Token(s) ({user_tokens_before} → {user_tokens_after})"
-            )
-
-        return JSONResponse({
-            "success": True,
-            "message": message,
-            "applied_entries": payload.entry_count,
-        })
-
-    except GiveawayBulkApplyError as e:
-        message = e.msg_ja if lang == "ja" else e.msg_en
-        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_400_BAD_REQUEST)
-    except ValueError:
-        message = "このギフトコードは存在しません。" if lang == "ja" else "This gift code does not exist."
-        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_404_NOT_FOUND)
-    except DataBaseError as e:
-        logger.error(f"プレゼント企画の複数口応募中にデータベースエラー (User ID: {current_user.id}, Code: {code_to_use}): {e}")
-        message = "データベースエラーが発生しました。" if lang == "ja" else "A database error occurred."
-        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    except Exception as e:
-        logger.error(f"プレゼント企画の複数口応募中に予期せぬエラー (User ID: {current_user.id}, Code: {code_to_use}): {e}", exc_info=True)
-        message = "予期せぬエラーが発生しました。" if lang == "ja" else "An unexpected error occurred."
-        return JSONResponse({"success": False, "message": message}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 class FeedbackRequest(BaseModel):
     type: str
     comment: str = Field("", max_length=feedback_service.COMMENT_MAX_CHARS * 2)

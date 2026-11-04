@@ -22,6 +22,7 @@
         { key: 'xl', label: '特大' },
     ];
     const SITE_PAGES = [
+        { path: '/account#giveaway', ja: 'プレゼント企画', en: 'Giveaways' },
         { path: '/account#giftcode', ja: 'コード入力', en: 'Enter a code' },
         { path: '/account', ja: 'アカウントタブ', en: 'Account' },
         { path: '/help/version_history', ja: 'バージョン履歴', en: 'Version history' },

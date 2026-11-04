@@ -1,0 +1,117 @@
+{# アカウントタブの「プレゼント企画」の事前応募型の結果の箱（当選発表の公開から受け取りの期限まで、応募した人だけ。GD18）。
+   box は giveaway_prizes.result_box。「結果を確認する」「受け取る」は gvaResult（account_settings.html）が POST して、
+   返ってきたこの箱で置き換える。当選の有無は「結果を確認する」を押すまで出さない（掲示板企画と同じ） #}
+{% set ja = lang == "ja" %}
+{% set c = box.campaign %}
+{% set dl = box.deadlines %}
+{% set result_url = url_for('announcement_detail', lang=lang, post_id=c.result_announcement_id) if c.result_announcement_id else none %}
+
+<div class="bca bca--result" id="gvr-{{ c.id }}"
+     x-data="gvaResult('{{ url_for('account_giveaway_reveal', lang=lang, campaign_id=c.id) }}', '{{ url_for('account_giveaway_claim', lang=lang, campaign_id=c.id) }}')">
+    <div class="bca__head">
+        <div class="bca__head-main">
+            <span class="bca__title">{{ box.title }}</span>
+            <span class="bca__badge bca__badge--result">{{ "結果発表" if ja else "Results" }}</span>
+        </div>
+        <div class="bca__head-sub">
+            <span>{{ (("あなたの応募 <b>" ~ box.entries ~ "</b><small>/" ~ box.max ~ "口</small>") if ja else ("Your entries: <b>" ~ box.entries ~ "</b><small>/" ~ box.max ~ "</small>")) | safe }}</span>
+            {% if result_url %}<a href="{{ result_url }}" class="bca__link">{{ "当選発表を見る ＞" if ja else "Results >" }}</a>{% endif %}
+        </div>
+    </div>
+
+    {% if box.invalid %}
+    <p class="bca__msg">
+        {%- if box.invalid == "staff" -%}
+        {{ "結果が発表されました。運営のアカウントは対象外です。" if ja else "The results are out. Staff accounts are not eligible." }}
+        {%- else -%}
+        {{ "規約違反行為が確認されたため、この企画への応募は無効になりました。" if ja else "Your entries for this giveaway were voided because a terms of service violation was confirmed." }}
+        {%- endif -%}
+    </p>
+
+    {% elif not box.viewed %}
+    <div class="bca__stack bca__stack--tight">
+        <p class="bca__msg">{{ "結果が発表されました。結果の確認と参加賞の受け取りができます。" if ja and box.has_prizes else ("結果が発表されました。あなたの結果を確認できます。" if ja else "The results are out! Check your results and claim your prizes below.") }}</p>
+        <button type="button" class="bca__btn bca__btn--primary bca__btn--big" @click="reveal()" :disabled="busy">{{ "結果を確認する" if ja else "Check my results" }}</button>
+        <div class="bca__deadlines">
+            <p class="bca__deadline">{{ (("結果の確認・受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Check and claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
+            {% if dl.has_gifts %}
+            {# ギフトの連絡の期限は受け取りより短いので、結果を確認する前に全員共通で出す（当選は分からない） #}
+            <p class="bca__deadline">
+                {%- if dl.gift_passed -%}
+                {{ (("※ギフト景品に当選した場合の連絡の期限（" ~ dl.gift_short ~ "）は過ぎています。") if ja else ("*The contact deadline for gift prizes (" ~ dl.gift_short ~ ") has passed.")) }}
+                {%- else -%}
+                {{ (("※ギフト景品に当選した場合の連絡の期限は <b>" ~ dl.gift_short ~ "</b>（発表から" ~ dl.gift_hours ~ "時間）です。") if ja else ("*If you won a gift prize, please contact us by <b>" ~ dl.gift_short ~ "</b> (" ~ dl.gift_hours ~ " hours after the announcement).")) | safe }}
+                {%- endif -%}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <div class="{{ 'bca__reveal' if box.revealed_now else 'bca__stack bca__stack--tight' }}">
+        {% if box.won %}
+        {% set top = box['items'] | selectattr('kind', 'equalto', 'lottery') | first %}
+        <p class="bca__congrats"><img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="" class="bca__congrats-icon">{{ (top.label | replace("【", "") | replace("】", "") ~ "に当選しました！") if ja else ("You won the " ~ (top.label | replace("【", "") | replace("】", "")) ~ "!") }}</p>
+        {% elif box.has_prizes %}
+        <p class="bca__msg">{{ "今回は当選しませんでした。参加賞を受け取れます。次回もぜひご参加ください！" if ja else "You didn't win a prize this time, but your participation prize is ready. We hope you'll join again!" }}</p>
+        {% else %}
+        <p class="bca__msg">{{ "今回は当選しませんでした。次回もぜひご参加ください！" if ja else "You didn't win this time. We hope you'll join again!" }}</p>
+        {% endif %}
+        {% if box.has_prizes %}
+        <ul class="bca__prizes">
+            {% for item in box['items'] %}
+            <li class="bca__prize bca__prize--{{ 'gift' if item.is_gift else ('join' if item.kind == 'participation' else 'app') }}">
+                <span class="bca__prize-label">{{ item.label }}{% if item.sub %}<small>{{ item.sub }}</small>{% endif %}</span>
+                <span class="bca__prize-value">{{ item.value }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if box.app_count > 1 %}
+        {% set totals = [] %}
+        {% if box.total_tokens %}{% set _ = totals.append(("{:,}".format(box.total_tokens)) ~ ("トークン" if ja else " tokens")) %}{% endif %}
+        {% if box.total_tickets %}{% set _ = totals.append((("広告スキップチケット" ~ box.total_tickets ~ "枚") if ja else (box.total_tickets ~ " ad skip tickets"))) %}{% endif %}
+        {% if box.total_elixirs %}{% set _ = totals.append(("{:,}".format(box.total_elixirs)) ~ ("自動追跡エリクサー" if ja else " elixir")) %}{% endif %}
+        <p class="bca__total">{{ "合計" if ja else "Total" }} <b>{{ totals | join("＋" if ja else " + ") }}</b></p>
+        {% endif %}
+
+        {% for gift in box.gifts %}
+        <div class="bca__gift">
+            <p class="bca__gift-title">{% if ja %}<b>{{ gift.value }}</b> の受け取り{% else %}Claiming your <b>{{ gift.value }}</b>{% endif %}</p>
+            {% if gift.gift_status and gift.gift_status != "waiting" %}
+            <p class="bca__gift-status">{{ ((("連絡の状況: <b>" ~ gift.gift_status_label ~ "</b>") ~ ("。受け取り方をメールでご案内しています。" if gift.gift_status == "contacted" else "")) if ja else ("Status: <b>" ~ gift.gift_status_label ~ "</b>")) | safe }}</p>
+            {% elif box.gift_expired %}
+            <p class="bca__gift-status">{{ "連絡の期限が過ぎました。" if ja else "The contact deadline has passed." }}</p>
+            {% else %}
+            <p>{{ (("<b>" ~ dl.gift ~ "</b>までに、下のメールアドレスへご連絡ください。本人確認の後、受け取り方をご案内します。") if ja else ("Please email us by <b>" ~ dl.gift ~ "</b>. After verifying your identity, we'll explain how to receive your prize.")) | safe }}</p>
+            <div class="bca__mail"><code>contact.brawlinsights@gmail.com</code></div>
+            <p class="bca__gift-sub">{{ "メールには、以下の内容を含めてください。" if ja else "Please include the following in your email." }}</p>
+            <pre class="bca__mail-body">{% if ja %}ユーザーID: {{ request.state.current_user.id }}
+ユーザー名: {{ request.state.current_user.name }}
+メインアカウントのプレイヤー名: {{ box.player_name }}{% else %}User ID: {{ request.state.current_user.id }}
+Username: {{ request.state.current_user.name }}
+Main account player name: {{ box.player_name }}{% endif %}</pre>
+            <p class="bca__hint">{{ "※期限内にご連絡がない場合、当選は無効となります。" if ja else "*If you do not contact us by the deadline, your win will be voided." }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if box.claim_message %}<p class="bca__claimed">✓ {{ box.claim_message }}</p>
+        {% elif box.claimable %}
+        <div class="bca__claim">
+            <button type="button" class="bca__btn bca__btn--primary" @click="claim()" :disabled="busy">
+                {%- if box.app_count > 1 -%}{{ "まとめて受け取る" if ja else "Claim all" }}
+                {%- elif not box.won or box.gifts -%}{{ "参加賞を受け取る" if ja else "Claim participation prize" }}
+                {%- else -%}{{ "受け取る" if ja else "Claim" }}{%- endif -%}
+            </button>
+            <p class="bca__deadline">{{ (("受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
+        </div>
+        {% elif box.claimed_at %}
+        <p class="bca__claimed">✓ {{ ("受け取りました（" ~ box.claimed_text ~ "）") if ja else ("Claimed (" ~ box.claimed_text ~ ")") }}</p>
+        {% elif box.expired and box.app_count %}
+        <p class="bca__msg">{{ ("受け取りの期限（" ~ dl.claim_short ~ "）が過ぎたため、受け取れなくなりました。") if ja else ("The claim deadline (" ~ dl.claim_short ~ ") has passed.") }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    <p class="bca__error" x-show="message" x-text="message" x-cloak></p>
+</div>

@@ -1,0 +1,260 @@
+{# アカウントタブの「プレゼント企画」のミニゲーム型の箱（account_settings.html から移した。中身は minigameHandler。
+   事前応募型の刷新ではミニゲームは変えない。giveaway_campaign_plan GD1） #}
+<div class="account-info-box minigame-box"
+     x-data='minigameHandler({{ minigame_info | tojson }}, {{ platform | tojson }}, {{ (current_user.is_delete_ads if current_user else false) | tojson }}, {{ (current_user.is_admin if current_user else false) | tojson }}, {{ lang | tojson }}, {{ is_prohibit_giveaway|tojson }})'>
+    <div class="info-item minigame-box__inner" style="flex-direction: column; align-items: flex-start; padding: 0;">
+        <span class="info-item__label giveaway-title minigame-title" style="color: var(--color-222); padding-top: 4px;">
+            {% if lang == "ja" %}
+                <span style="display: block; line-height: 1.3;"><span x-text="info.campaign.name_ja"></span>開催中！<br></span>
+                <span style="display: block; line-height: 1.3;">参加履歴・企画詳細は下部をチェック！規約が適用されます。</span>
+            {% else %}
+                <span style="display: block; line-height: 1.3;"><span x-text="info.campaign.name_en"></span> is now open!<br></span>
+                <span style="display: block; line-height: 1.3;">Check the history and details below. Terms and conditions apply.</span>
+            {% endif %}
+        </span>
+
+        <span class="info-item__label giveaway-entry-count" style="padding: 4px 0;">
+            {% if lang == "ja" %}
+                現在<b x-text="info.user_play_count"></b>回参加済み<template x-if="countdown"><span x-text="'・' + countdown"></span></template>
+            {% else %}
+                <b x-text="info.user_play_count"></b> entries so far<template x-if="countdown"><span x-text="' · ' + countdown"></span></template>
+            {% endif %}
+            {% if current_user %} {# 管理者のみだったが、全ユーザー表示に変更 #}
+                <br><span>{% if lang == "ja" %}現在の参加状況：{% else %}Current status: {% endif %}<b x-text="(info.stats ? info.stats.users : 0).toLocaleString()"></b>{% if lang == "ja" %}人／{% else %} users / {% endif %}<b x-text="(info.stats ? info.stats.plays : 0).toLocaleString()"></b>{% if lang == "ja" %}口{% else %} plays{% endif %}</span>
+            {% endif %}
+        </span>
+
+        <div class="info-item bonus-token-info-item minigame-entry-buttons" style="padding-bottom: 8px; border: none;">
+            <div style="display: flex;">
+                <button type="button" class="info-item__value bonus-token-button bonus-mission-button giveaway-button minigame-entry-button"
+                    :class="{ disabled: isProhibitGiveaway || !canStartAd }"
+                    @click="startAdPlay()">
+                    <span x-text="adButtonMainText"></span>
+                    <span class="minigame-entry-button__sub" x-text="adButtonSubText"></span>
+                </button>
+            </div>
+            <div style="display: flex;">
+                <button type="button" class="info-item__value bonus-token-button bonus-mission-button giveaway-button" style="margin-top: 8px;"
+                    :class="{ disabled: isProhibitGiveaway || !canStartToken }" @click="startPlay('token')">
+                    <span>{% if lang == "ja" %}<span x-text="info.price_token_tokens"></span>トークンで1回参加{% else %}Enter once for <span x-text="info.price_token_tokens"></span> tokens{% endif %}</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="minigame-play-field">
+            <div class="minigame-howto-box">
+                <p class="minigame-howto-lead" x-html="info.howto.lead"></p>
+                <ul class="minigame-prize-legend" :class="{ 'minigame-prize-legend--bingo': isBingoLegend }">
+                    <template x-for="legend in info.howto.legend" :key="legend.rank">
+                        <li :class="{ 'is-won': wonRank === legend.rank, 'minigame-prize-legend__bingo-row': !!legend.condition_text }">
+                            <template x-if="legend.condition_text">
+                                <span class="minigame-bingo-row-inner">
+                                    <span class="minigame-bingo-condition" x-text="legend.condition_text"></span>
+                                    <b class="minigame-bingo-rank" x-text="legend.rank_label"></b>
+                                    <span class="minigame-bingo-prize">
+                                        <template x-if="legend.icon_url"><img class="minigame-prize-icon" :src="legend.icon_url" alt=""></template>
+                                        <span x-text="legend.label"></span>
+                                    </span>
+                                </span>
+                            </template>
+                            <template x-if="!legend.condition_text">
+                                <span class="minigame-combo" :class="{ 'minigame-combo--wide': legend.slot_count >= 3 }" aria-hidden="true">
+                                    <template x-for="(face, index) in legend.faces" :key="'face-' + index"><span class="minigame-combo__slot"><img :src="face" alt=""></span></template>
+                                    <template x-for="index in legend.mysteries" :key="'mystery-' + index"><span class="minigame-combo__slot"><img src="{{ url_for('static', path='/images/ui/mystery.png') }}" alt="?"></span></template>
+                                    <template x-for="index in legend.empties" :key="'empty-' + index"><span class="minigame-slot-empty">⬚</span></template>
+                                </span>
+                            </template>
+                            <template x-if="!legend.condition_text">
+                                <span class="minigame-prize-text">
+                                    <b x-text="legend.rank_label"></b>
+                                    <template x-if="legend.icon_url"><img class="minigame-prize-icon" :src="legend.icon_url" alt=""></template>
+                                    <span x-text="' ' + legend.label"></span>
+                                </span>
+                            </template>
+                        </li>
+                    </template>
+                </ul>
+                <p class="minigame-howto-note" x-show="info.howto.note" x-html="info.howto.note"></p>
+                <p class="minigame-howto-main-account" x-show="info.howto.main_account_note" x-html="info.howto.main_account_note"></p>
+            </div>
+
+            <div class="minigame-action-hint" x-show="actionHint" x-text="actionHint"></div>
+            <div class="minigame-card-area" x-show="!isScratchGame && !isBingoGame" aria-label="{% if lang == 'ja' %}ミニゲームカード{% else %}Minigame cards{% endif %}">
+                <template x-for="(card, index) in cards" :key="index">
+                    <button type="button" class="minigame-card" :class="{ 'minigame-card--back': !card.flipped, 'minigame-card--gold': card.gold, 'is-flipped': card.flipped }" @click="flipCard(index)">
+                        <span class="minigame-card__inner">
+                            <span class="minigame-card__back"><img class="minigame-card__symbol" :src="card.back" alt=""></span>
+                            <span class="minigame-card__front"><img class="minigame-card__art" :src="card.face" alt=""></span>
+                        </span>
+                    </button>
+                </template>
+            </div>
+            <div class="minigame-card-area minigame-card-area--bingo" x-show="isBingoGame" aria-label="{% if lang == 'ja' %}ビンゴカード{% else %}Bingo card{% endif %}">
+                <div class="minigame-bingo-board" :class="{ 'minigame-bingo-board--gold': bingoBoardGold }">
+                    <template x-for="(card, index) in cards" :key="'bingo-' + index">
+                        <button type="button"
+                            class="minigame-bingo-cell"
+                            :class="{
+                                'minigame-card--gold': card.gold,
+                                'is-flipped': card.flipped,
+                                'is-bingo-line': isBingoCellHighlighted(index)
+                            }"
+                            @click="flipBingoCell(index)">
+                            <span class="minigame-card__inner">
+                                <span class="minigame-card__back"><img class="minigame-card__symbol" :src="card.back" alt=""></span>
+                                <span class="minigame-card__front"><img class="minigame-card__art" :src="card.face" alt=""></span>
+                            </span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            <div class="minigame-card-area minigame-card-area--scratch" x-show="isScratchGame" aria-label="{% if lang == 'ja' %}スクラッチカード{% else %}Scratch card{% endif %}">
+                <div class="minigame-scratch-board" :class="{ 'minigame-scratch-board--gold': scratchBoardGold }">
+                    <template x-for="(cell, index) in scratchCells" :key="index">
+                        <button type="button"
+                            class="minigame-scratch-cell"
+                            :class="{
+                                'is-peeling': cell.peeling,
+                                'is-revealed': cell.revealed,
+                                'is-disabled': state === 'revealing' && !canScratchCell(cell)
+                            }"
+                            @click="scratchCell(index, $event)">
+                            <span class="minigame-scratch-cell__face">
+                                <img :src="cell.face" alt="" x-show="cell.face">
+                            </span>
+                            <span class="minigame-scratch-cell__foil" aria-hidden="true">
+                                <span class="minigame-scratch-cell__foil-sheen"></span>
+                            </span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <div class="minigame-gift-notice" x-show="(info.pending_gifts && info.pending_gifts.length) || (info.pending_special_rewards && info.pending_special_rewards.length)">
+            {% if lang == "ja" %}
+                <p class="minigame-gift-notice__line" x-show="info.pending_gifts && info.pending_gifts.length">最近当選された<b x-text="info.pending_gifts.map(gift => gift.name).join(' / ')"></b>の受け取りには受け取り手続きが必要です。この下の<b>企画詳細</b>→<b>当選後の手続き</b>をお早めにご確認ください。</p>
+                <p class="minigame-gift-notice__line" x-show="info.pending_special_rewards && info.pending_special_rewards.length">最近当選された<b x-text="info.pending_special_rewards.map(reward => reward.name).join(' / ')"></b>が進呈されました。この下の<b>参加履歴</b>よりお早めにお受け取りください。</p>
+            {% else %}
+                <p class="minigame-gift-notice__line" x-show="info.pending_gifts && info.pending_gifts.length">A claim procedure is required for your recent prize: <b x-text="info.pending_gifts.map(gift => gift.name).join(' / ')"></b>. Please check <b>Event Details</b> → <b>After Winning</b> below as soon as possible.</p>
+                <p class="minigame-gift-notice__line" x-show="info.pending_special_rewards && info.pending_special_rewards.length"><b x-text="info.pending_special_rewards.map(reward => reward.name).join(' / ')"></b> was granted. Please claim it from <b>Play History</b> below as soon as possible.</p>
+            {% endif %}
+        </div>
+
+        {# ⑤ 参加履歴 / 企画詳細 #}
+        <div class="minigame-panel-toggles">
+            <button type="button" class="button button--primary minigame-panel-toggle"
+                    :class="{ 'is-open': panel === 'history' }"
+                    @click="togglePanel('history')">
+                <span>{% if lang == "ja" %}参加履歴{% else %}Play History{% endif %}</span>
+                <span x-text="panel === 'history' ? '△' : '▽'"></span>
+            </button>
+            <button type="button" class="button button--primary minigame-panel-toggle"
+                    :class="{ 'is-open': panel === 'details' }"
+                    @click="togglePanel('details')">
+                <span>{% if lang == "ja" %}企画詳細{% else %}Event Details{% endif %}</span>
+                <span x-text="panel === 'details' ? '△' : '▽'"></span>
+            </button>
+        </div>
+
+        {# ⑥ 参加履歴 #}
+        <div class="minigame-history-wrap" x-show="panel === 'history'" x-cloak x-transition>
+            <div class="minigame-special-claims" x-show="info.claimable_special_rewards && info.claimable_special_rewards.length">
+                <template x-for="reward in info.claimable_special_rewards" :key="reward.play_id">
+                    <button type="button" class="minigame-special-claim" @click="claimSpecialReward(reward)" :disabled="reward.claiming === true">
+                        <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="">
+                        {% if lang == "ja" %}
+                        <span x-show="!reward.claimed"><b x-text="reward.name"></b>を受け取る</span>
+                        <span x-show="reward.claimed" x-cloak><b x-text="reward.name"></b>を再度開く</span>
+                        {% else %}
+                        <span x-show="!reward.claimed">Claim <b x-text="reward.name"></b></span>
+                        <span x-show="reward.claimed" x-cloak>Reopen <b x-text="reward.name"></b></span>
+                        {% endif %}
+                    </button>
+                </template>
+            </div>
+            <div class="minigame-panel">
+            <ul class="minigame-history-list" x-show="info.history.length">
+                <template x-for="(play, index) in info.history" :key="play.id">
+                    <li :class="{ 'is-last': index === info.history.length - 1 }">
+                        <span x-text="formatHistoryDate(play.completed_at || play.created_at)"></span>
+                        <span x-text="campaignName(play)"></span>
+                        <b x-text="rankLabel(play.result_rank) + ' (' + play.prize_label + ')'"></b>
+                        <span class="minigame-status-badge"
+                            :class="historyBadgeClass(play)"
+                            x-text="historyBadgeText(play)"></span>
+                    </li>
+                </template>
+            </ul>
+            <p class="minigame-history-empty" x-show="!info.history.length">{% if lang == "ja" %}参加履歴はまだありません。{% else %}No play history yet.{% endif %}</p>
+            </div>
+        </div>
+
+        {# ⑦ 企画詳細 #}
+        <div class="minigame-panel minigame-details" x-show="panel === 'details'" x-cloak x-transition>
+            {% if lang == "ja" %}
+                <p class="minigame-details__heading">■ キャンペーン名称</p>
+                <p x-text="info.campaign.name_ja"></p>
+
+                <p class="minigame-details__heading">■ 主催者</p>
+                <p>Brawl Insights</p>
+
+                <p class="minigame-details__heading">■ キャンペーン期間</p>
+                <p x-text="formatPeriod()"></p>
+
+                <p class="minigame-details__heading">■ 景品</p>
+                <template x-for="legend in info.howto.legend" :key="'detail-' + legend.rank">
+                    <div>
+                        <p style="margin: 0;"><b><span x-text="'【' + legend.rank_label + '】'"></span><template x-if="legend.icon_url"><img class="minigame-prize-icon" :src="legend.icon_url" alt=""></template><span x-text="legend.label"></span></b></p>
+                        <p class="minigame-prize-detail" x-show="legend.detail_html" x-html="legend.detail_html"></p>
+                    </div>
+                </template>
+
+                <p class="minigame-details__heading">■ 参加資格</p>
+                <p>Brawl Insightsのアカウントをお持ちで、日本国内に居住する方。日本国外に居住する方でもプレゼント企画への参加およびアプリ内アイテムの受け取りは可能ですが、一部のギフト景品は日本国内に居住する方でなければ受け渡しできない場合があります。</p>
+
+                <p class="minigame-details__heading">■ 参加方法</p>
+                <p>1. アカウントタブ→「プレゼント企画とコード入力」→「プレゼント企画」へ移動します。<br>2. 参加ボタンを押します。<br>3. ボタン押下後、所定のトークンが消費され、参加が開始されます。<br>4. 参加の完了後、本企画で定められている景品の等級のうち、いずれかが当選します。</p>
+
+                <p class="minigame-details__heading">■ 当選後の手続き</p>
+                <p>「ハズレ」以外が当選した場合は、景品を受け取ることができます。景品の内容により、受け取り方法が異なります。<br>1. トークン、広告スキップチケットまたは自動追跡エリクサーが当選した場合、すぐにアカウントに進呈されます。広告削除を購入済みの場合、広告スキップチケットはトークンに変換されます。<br>2. プレイヤー自動追跡またはバトル履歴保存期間延長が当選した場合、紐づけられているメインアカウントに対してすぐに報酬が進呈されます。バトル履歴保存期間が上限値に達している場合は、代替としてトークンが進呈されます。<br>3. 特別報酬リンクが当選した場合、景品はアプリ内ですぐに進呈されます。参加履歴より、72時間以内にお受け取りください。<br>※期限内にお受け取りいただけない場合、当選は無効となりますのでご注意ください。<br>4. その他の景品が当選した場合、景品は自動では進呈されません。参加後72時間以内に、contact.brawlinsights@gmail.com へメールでご連絡ください。ご連絡の際は、当選したことを示す「参加履歴」のスクリーンショットをお送りください。本人であることを確認後、景品の受け渡しについてご案内いたします。<br>※期限内にご連絡いただけない場合、当選は無効となりますのでご注意ください。</p>
+
+                <p class="minigame-details__heading">■ 注意事項</p>
+                <p>・本キャンペーンはBrawl Insightsが主催するものです。Apple Inc.、Google LLC.、Supercellは、本キャンペーンのスポンサーではなく、本キャンペーンとは一切関係ありません。<br>・不正行為が確認された場合、当選資格は無効となり、すでに付与した景品についても無効となることがあります。<br>・特別報酬リンクの景品は厳密に管理しておりますが、万一期限切れ等で提供できなかった場合は、アプリ内のトークンで補填させていただきます。<br>・当選の権利を第三者に譲渡・換金することはできません。<br>・本キャンペーンは、予告なく内容の変更や中止をさせていただく場合があります。<br>・当選連絡のために取得した情報は、景品の送付目的以外では使用いたしません。</p>
+                <p x-show="info.campaign.terms_extra_ja" x-html="formatTerms(info.campaign.terms_extra_ja)"></p>
+            {% else %}
+                <p class="minigame-details__heading">■ Campaign Name</p>
+                <p x-text="info.campaign.name_en"></p>
+
+                <p class="minigame-details__heading">■ Organizer</p>
+                <p>Brawl Insights</p>
+
+                <p class="minigame-details__heading">■ Campaign Period</p>
+                <p x-text="formatPeriod()"></p>
+
+                <p class="minigame-details__heading">■ Prizes</p>
+                <template x-for="legend in info.howto.legend" :key="'detail-en-' + legend.rank">
+                    <div>
+                        <p style="margin: 0;"><b><span x-text="'【' + legend.rank_label + '】'"></span><template x-if="legend.icon_url"><img class="minigame-prize-icon" :src="legend.icon_url" alt=""></template><span x-text="legend.label"></span></b></p>
+                        <p class="minigame-prize-detail" x-show="legend.detail_html" x-html="legend.detail_html"></p>
+                    </div>
+                </template>
+
+                <p class="minigame-details__heading">■ Eligibility</p>
+                <p>You must have a Brawl Insights account. Players outside Japan can still enter and receive in-app rewards, but some gift prizes may only be deliverable to residents of Japan.</p>
+
+                <p class="minigame-details__heading">■ How to Enter</p>
+                <p>1. Go to the Account tab → “Giveaways & Codes” → “Giveaways”.<br>2. Press an enter button.<br>3. After pressing, the required tokens are spent and the entry starts.<br>4. After completing the entry, you win one of the prizes defined for this event.</p>
+
+                <p class="minigame-details__heading">■ After Winning</p>
+                <p>If you win anything other than “No prize”, you can receive the reward. The claim method depends on the prize.<br>1. Tokens, ad skip tickets, or auto-tracking elixirs are granted to your account immediately. If you have already purchased ad removal, ad skip tickets will be converted to tokens.<br>2. Auto-tracking or battle log retention extensions are granted immediately to your linked main account. If the battle log retention extension reaches the maximum value, a token is granted as a substitute.<br>3. If you win a special reward link, the prize is granted in the app immediately. Please claim it from Play History within 72 hours.<br>※If you do not claim it within the deadline, the win will be voided.<br>4. Other prizes are not granted automatically. Within 72 hours after entry, email contact.brawlinsights@gmail.com. Please include a screenshot of your Play History showing the win. After identity confirmation, we will guide you through delivery.<br>※If you do not contact us within the deadline, the win may be voided.</p>
+
+                <p class="minigame-details__heading">■ Notes</p>
+                <p>・This campaign is organized by Brawl Insights. Apple Inc., Google LLC., and Supercell are not sponsors and are not affiliated with this campaign.<br>・If misconduct is confirmed, eligibility may be voided, and already granted prizes may also be voided.<br>・Special reward link prizes are strictly managed, but if we cannot provide one due to expiration or similar issues, we will compensate you with in-app tokens.<br>・Winning rights cannot be transferred or cashed out to third parties.<br>・This campaign may be changed or canceled without prior notice.<br>・Information obtained for prize contact will not be used for purposes other than prize delivery.</p>
+                <p x-show="info.campaign.terms_extra_en" x-html="formatTerms(info.campaign.terms_extra_en)"></p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="form-field-status server-response minigame-result-message" x-show="resultMessage" :class="resultMessageClass" x-html="resultMessage" style="margin-top: 10px; margin-bottom: 5px;" x-cloak>
+    </div>
+</div>

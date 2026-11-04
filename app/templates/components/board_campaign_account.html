@@ -1,4 +1,4 @@
-{# アカウントタブの「掲示板企画」（「コード入力とプレゼント企画」のサブタブの最後。board_campaign_plan 10.2）。
+{# アカウントタブの「掲示板企画」（「プレゼント企画とコード入力」のサブタブの真ん中。board_campaign_plan 10.2）。
    account.py の _board_campaign_context が渡す board_campaign（帯と同じ本人の数字）。結果の発表・受け取りは 5b #}
 {% from "components/help_tip.html" import help_tip %}
 {% set ja = lang == "ja" %}
@@ -67,8 +67,9 @@
                 {% if not live %}<span class="bca__pill">{{ "集計中" if ja else "Counting" }}</span>{% endif %}
                 {% if live and entries < max %}<span class="bca__today">{{ "今日" if ja else "Today" }} {{ bc.today_done }}<small>/{{ bc.today_total }}</small></span>{% endif %}
             </div>
-            <div class="bca__bar{% if entries >= max %} bca__bar--max{% endif %}"><span style="width: {{ ((entries / max * 100) if max else 0) | round(1) }}%"></span></div>
-            {% if live %}<p class="bca__hint">{{ "日付は毎日 9:00 に切り替わります。" if ja else "The date resets daily at 00:00 UTC." }}</p>{% endif %}
+            {% set unreachable = bc.reach is not none and max and bc.reach < max %}
+            <div class="bca__bar{% if entries >= max %} bca__bar--max{% endif %}"><span style="width: {{ ((entries / max * 100) if max else 0) | round(1) }}%"></span>{% if unreachable %}<i class="gva__lost" style="left: {{ (bc.reach / max * 100) | round(1) }}%"></i>{% endif %}</div>
+            {% if live %}<p class="bca__hint">{% if unreachable %}{{ ("残りの日数で、最大" ~ bc.reach ~ "口まで応募できます。") if ja else ("With the days left, you can reach up to " ~ bc.reach ~ " entries. ") }}{% endif %}{{ "日付は毎日 9:00 に切り替わります。" if ja else "The date resets daily at 00:00 UTC." }}</p>{% endif %}
         </div>
         {% if live and bc.warned_text %}<p class="bca__warn">{{ bc.warned_text }}</p>{% endif %}
         {% if not live %}

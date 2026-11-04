@@ -1,0 +1,127 @@
+{# アカウントタブの「プレゼント企画」の事前応募型の箱（開催中・予告。giveaway_campaign_plan 4.2・4.3、モック 15.1）。
+   box は giveaway_service.build_entry_box。応募は gvaEntry（account_settings.html）が POST して、返ってきたこの箱で置き換える #}
+{% set ja = lang == "ja" %}
+{% set c = box.campaign %}
+{% set live = box.mode == "live" %}
+{% macro detail_toggle() %}<button type="button" class="gva__detail-toggle" @click="detail = !detail" :aria-expanded="detail">{{ "景品・応募規約" if ja else "Prizes & Terms" }}<span class="bca__chev" :class="{ 'bca__chev--open': detail }"></span></button>{% endmacro %}
+
+{% if live %}
+<div class="bca gva{% if box.prohibited or box.invalid %} bca--muted{% endif %}" id="gva-{{ c.id }}"
+     x-data='gvaEntry({{ {"url": (url_for("account_giveaway_enter", lang=lang, campaign_id=c.id) | string), "entry_tokens": box.entry_tokens, "tokens": box.tokens} | tojson }})'>
+{% else %}
+<div class="bca gva" id="gva-{{ c.id }}" x-data="{ detail: false }">
+{% endif %}
+    <div class="bca__head">
+        <div class="bca__head-main">
+            <span class="bca__title">{{ box.title }}</span>
+            <span class="bca__badge bca__badge--{{ 'live' if live else 'ended' }}">{{ box.badge }}</span>
+        </div>
+        <div class="bca__head-sub">
+            <span>{{ box.period_text }}{% if live and not box.closed %}{{ "・" if ja else " · " }}<span class="gva__left">{{ box.left }}</span>{% endif %}</span>
+            {{ detail_toggle() }}
+        </div>
+    </div>
+
+    {% if not live %}
+    <p class="bca__msg">{{ box.lead }}</p>
+
+    {% elif box.prohibited %}
+    <p class="bca__msg">{{ "規約違反行為が確認されたため、現在プレゼント企画への参加が制限されています。" if ja else "Participation in giveaways is currently restricted because a terms of service violation was confirmed." }}</p>
+
+    {% elif box.invalid %}
+    <p class="bca__msg">{{ "このアカウントでは応募できません。" if ja else "This account can't enter." }}</p>
+
+    {% else %}
+    <div class="bca__entries">
+        <div class="bca__entries-row">
+            <span>{{ "あなたの応募" if ja else "Your entries" }}</span>
+            <b>{{ box.entries }}</b><small>/{{ box.max }}{{ "口" if ja else "" }}</small>
+            {% if box.daily_limit and box.entries < box.max %}<span class="bca__today">{{ "今日" if ja else "Today" }} {{ box.today }}<small>/{{ box.daily_limit }}</small></span>{% endif %}
+        </div>
+        <div class="gva__gauge">
+            <div class="gva__bar{% if box.entries >= box.max %} gva__bar--max{% endif %}">
+                <span class="gva__fill" style="width: {{ box.pct }}%"></span>
+                {% if box.lost_pct is not none %}<span class="gva__lost" style="left: {{ box.lost_pct }}%"></span>{% endif %}
+                {% for m in box.marks if not m.end %}<i class="gva__tick" style="left: {{ m.pct }}%"></i>{% endfor %}
+            </div>
+            {% if box.marks %}
+            <div class="gva__marks">
+                {% for m in box.marks %}
+                <span class="gva__mark{% if m.end %} gva__mark--end{% endif %}{% if m.state %} gva__mark--{{ m.state }}{% endif %}"{% if not m.end %} style="left: {{ m.pct }}%"{% endif %}>{% if m.state == "done" %}✓ {% endif %}{{ m.label | safe }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if box.reach is not none and box.entries < box.max %}
+            <span class="gva__reach">{{ ("残りの日数で、最大" ~ box.reach ~ "口まで応募できます。") if ja else ("With the days left, you can reach up to " ~ box.reach ~ " entries.") }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if box.participation_on %}
+    <div class="gva__join">
+        <span>{% if ja %}参加賞 <b>{{ "{:,}".format(box.participation) }}</b>トークン{{ box.reached_label }}{% else %}Participation prize: <b>{{ "{:,}".format(box.participation) }}</b> tokens{{ box.reached_label }}{% endif %}</span>
+        {% if box.next_text %}<span class="gva__join-next">{{ box.next_text }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if box.closed %}
+    <div class="gva__done">{{ "この企画の応募は終了しました。" if ja else "Entries for this giveaway have closed." }}</div>
+    {% elif box.maxed %}
+    <div class="gva__done"><img src="{{ url_for('static', path='/images/ui/checkmark.png') }}" alt="">{{ "上限まで応募済み" if ja else "All entries submitted" }}</div>
+    {% elif box.all_done %}
+    <div class="gva__done"><img src="{{ url_for('static', path='/images/ui/checkmark.png') }}" alt="">{{ "応募できる分はすべて応募済み" if ja else "All available entries submitted" }}</div>
+    {% elif box.today_done %}
+    <div class="gva__done gva__done--sub">{{ "今日の分は応募済みです" if ja else "You've used today's entries" }}<small>{{ (box.next_open ~ "から追加で応募できます") if ja else ("More entries open at " ~ box.next_open) }}</small></div>
+    {% else %}
+    <div class="gva__actions">
+        {% set one_disabled = box.short_tokens > 0 %}
+        <button type="button" class="gva__btn{% if box.bulk >= 2 %} gva__btn--sub{% endif %}" @click="enter(1)" :disabled="busy"{% if one_disabled %} disabled{% endif %}>
+            {{ "1口応募" if ja else "Enter once" }}<small>{{ box.entry_tokens }}{{ "トークン" if ja else " tokens" }}</small>
+        </button>
+        {% if box.bulk >= 2 %}
+        <button type="button" class="gva__btn" @click="enter({{ box.bulk }})" :disabled="busy">
+            {{ (box.bulk ~ "口まとめて応募") if ja else ("Enter " ~ box.bulk ~ " times") }}<small>{{ "{:,}".format(box.bulk * box.entry_tokens) }}{{ "トークン" if ja else " tokens" }}</small>
+        </button>
+        {% endif %}
+    </div>
+    {% if box.short_tokens %}
+    <p class="gva__note">{{ ("トークンが足りません（所持 " ~ "{:,}".format(box.tokens) ~ "トークン）。トークンの入手方法は「トークンとチケット」をご確認ください。") if ja else ("Not enough tokens (you have " ~ "{:,}".format(box.tokens) ~ "). See “Tokens” for ways to earn them.") }}</p>
+    {% endif %}
+    {# [この部分は公開用リポジトリでは非公開にされています] #}
+    {% endif %}
+    {% if box.shared %}
+    <p class="gva__note">{{ "同じプレイヤーを登録している別のアカウントで応募した分も、上限に数えています。" if ja else "Entries from other accounts that register the same player also count toward the limits." }}</p>
+    {% endif %}
+    {% if box.message %}<p class="bca__claimed">✓ {{ box.message | safe }}</p>{% endif %}
+    <p class="bca__error" x-show="message" x-text="message" x-cloak></p>
+    <div class="bca__foot">
+        <span>{% if ja %}現在<b>{{ "{:,}".format(box.stats.users) }}</b>人が<b>{{ "{:,}".format(box.stats.entries) }}</b>口応募中{% else %}<b>{{ "{:,}".format(box.stats.users) }}</b> players have entered <b>{{ "{:,}".format(box.stats.entries) }}</b> times{% endif %}</span>
+    </div>
+    {% endif %}
+
+    <div class="gva__detail" x-show="detail" x-cloak x-transition>
+        <div>
+            <h4>■ {{ "景品" if ja else "Prizes" }}</h4>
+            <div class="gva__tiers">
+                {% for t in box.prizes %}
+                <span class="gva__tier-rank">{{ t.label }}</span>
+                <span{% if t.is_gift %} class="gva__tier-gift"{% endif %}>{{ t.name }}{% if t.note %}<small class="gva__tier-note">{{ t.note }}</small>{% endif %}</span>
+                <span class="gva__tier-count">{{ t.count }}{{ "名" if ja else "" }}</span>
+                {% endfor %}
+                {% if box.participation_text %}
+                <span class="gva__tier-rank">{{ "参加賞" if ja else "Participation" }}</span>
+                <span>{{ box.participation_text }}</span>
+                <span class="gva__tier-count">{{ "全員" if ja else "All" }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <h4>■ {{ "応募方法" if ja else "How to Enter" }}</h4>
+            {{ box.howto }}
+        </div>
+        <div>
+            <h4>■ {{ "応募規約" if ja else "Terms and Conditions" }}</h4>
+            <div class="gva__terms">{{ box.terms_html | safe }}</div>
+        </div>
+        {% if box.detail_url_id %}<a href="{{ url_for('announcement_detail', lang=lang, post_id=box.detail_url_id) }}" class="bca__link gva__detail-link">{{ "お知らせで見る ＞" if ja else "View in the news >" }}</a>{% endif %}
+    </div>
+</div>

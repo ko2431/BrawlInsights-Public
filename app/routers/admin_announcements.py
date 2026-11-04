@@ -35,7 +35,9 @@ from app.services.announcement_html import html_to_text, render_html, sanitize_b
 from app.services.user_service import User
 
 # 自動生成の枠の役目（settings.role）。「テンプレートから始める」に出さず、削除できない
-_AUTO_TEMPLATE_ROLES = (feedback_service.FEEDBACK_TEMPLATE_ROLE, "board_campaign_result", "board_campaign_start")
+_AUTO_TEMPLATE_ROLES = (
+    feedback_service.FEEDBACK_TEMPLATE_ROLE, "board_campaign_result", "board_campaign_start", "giveaway_start", "giveaway_result",
+)
 
 router = APIRouter(
     prefix="/{lang}/admin/announcements",

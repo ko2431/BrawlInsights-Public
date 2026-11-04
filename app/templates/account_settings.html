@@ -99,8 +99,8 @@
                     </li>
                     <li class="sub-tab-nav__item">
                         <a href="#" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'codes' }" @click.prevent="setAccountSubTab('codes')">
-                            <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="{% if lang == 'ja' %}コード入力とプレゼント企画{% else %}Codes{% endif %}" class="sub-tab-nav__icon">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}コード入力と<wbr>プレゼント企画{% else %}Codes{% endif %}</span>
+                            <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="{% if lang == 'ja' %}プレゼント企画とコード入力{% else %}Giveaways & Codes{% endif %}" class="sub-tab-nav__icon">
+                            <span class="sub-tab-nav__text">{% if lang == "ja" %}プレゼント企画と<wbr>コード入力{% else %}Giveaways &amp; <wbr>Codes{% endif %}</span>
                         </a>
                     </li>
                     <li class="sub-tab-nav__item">
@@ -924,18 +924,16 @@
         </div>
 
         <div class="account-subtab-panel" x-show="activeSubTab === 'codes'" x-cloak>
-        {#^ --- ギフトコード入力セクション --- #}
+        {# [この部分は公開用リポジトリでは非公開にされています] #}
+
+        {#^ --- コード入力セクション --- #}
         <section class="account-section" x-data="() => ({ ...giftCodeHandler(), open: sessionStorage.getItem('bi_account_giftcode_open') !== 'false' })" id="giftcode" x-init="$watch('open', val => sessionStorage.setItem('bi_account_giftcode_open', val))">
             <h2 class="section-title" @click="open = !open" style="cursor: pointer;">
-                <span>{% if lang == "ja" %}コード入力・プレゼント企画{% else %}Use Code / Giveaway{% endif %}</span>
+                <span>{% if lang == "ja" %}コード入力{% else %}Use Code{% endif %}</span>
                 <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
             </h2>
             <p class="account-description" x-show="open" x-transition>
-                {% if lang == "ja" %}
-                    各種<b>ギフトコード</b>等はこちらにご入力ください。{% if not giveaway_info and not minigame_info and not board_campaign %}<br>現在、<b>プレゼント企画</b>は開催されておりません。次回の開催までお待ちください。{% endif %}
-                {% else %}
-                    Enter your <b>gift codes</b> here.{% if not giveaway_info and not minigame_info and not board_campaign %}<br>There are currently no <b>giveaways</b> running. Please wait until the next one.{% endif %}
-                {% endif %}
+                {% if lang == "ja" %}各種<b>ギフトコード</b>等はこちらにご入力ください。{% else %}Enter your <b>gift codes</b> here.{% endif %}
             </p>
             <div class="account-info-box giftcode-section-box" x-show="open" x-transition>
                 <form @submit.prevent="submitGiftCode()" class="info-item" style="padding: 6px 0;">
@@ -946,80 +944,10 @@
                     </button>
                 </form>
             </div>
-            {# プレゼント企画の情報ボックス #}
-            {% if giveaway_info %}
-            <div class="account-info-box giveaway-box" style="margin-top: 10px;" x-show="open" x-transition
-                 x-data='giveawayEntryHandler({{ giveaway_info|tojson }}, {{ platform|tojson }}, {{ (current_user.is_delete_ads if current_user else false)|tojson }}, {{ is_test_ip|tojson }}, {{ (current_user.is_admin if current_user else false)|tojson }}, {{ is_prohibit_giveaway|tojson }})'>
-                <div class="info-item" style="flex-direction: column; align-items: flex-start; padding: 0;">
-                    <span class="info-item__label giveaway-title" style="color: var(--color-222); padding-top: 4px;">
-                        {% if lang == "ja" %}
-                            第{{ giveaway_info.code }}回プレゼント企画開催中！
-                            <br>景品・規約など詳細は<a href="/{{ lang }}/help/announcements/legacy/G{{ giveaway_info.code }}" style="font-weight: bold; text-decoration: underline;">こちら</a>。
-                        {% else %}
-                            Giveaway #{{ giveaway_info.code }} is now open!
-                            <br>Check <a href="/{{ lang }}/help/announcements/legacy/G{{ giveaway_info.code }}" style="font-weight: bold; text-decoration: underline;">Announcements</a> for prize details and terms. Terms and conditions apply.
-                        {% endif %}
-                    </span>
-                    <span class="info-item__label giveaway-entry-count" style="padding: 4px 0;">
-                        {% if lang == "ja" %}
-                            現在<b>{{ giveaway_info.entry_count }}</b>／{{ giveaway_info.usage_limit_per_user }}回応募済み<template x-if="remainingText"><span x-text="'・' + remainingText"></span></template>
-                        {% else %}
-                            <b>{{ giveaway_info.entry_count }}</b> / {{ giveaway_info.usage_limit_per_user }} entries submitted<template x-if="remainingText"><span x-text="'・' + remainingText"></span></template>
-                        {% endif %}
-                        {% if current_user and current_user.is_admin %}
-                            <br>現在の応募状況：<b>{{ "{:,}".format(giveaway_info.get("total_users", 0)) }}</b>人／<b>{{ "{:,}".format(giveaway_info.get("total_entries", 0)) }}</b>口
-                        {% endif %}
-                    </span>
-                    <div class="info-item bonus-token-info-item" style="width: 100%; padding-bottom: 8px;">
-                        <template x-if="isMaxedOut">
-                            <div class="info-item__value bonus-token-button bonus-mission-button giveaway-button cleared">
-                                <img src="{{ url_for('static', path='/images/ui/checkmark.png') }}" class="cleared-icon" alt="Cleared">
-                                <span>{% if lang == "ja" %}上限まで応募済み{% else %}All entries submitted{% endif %}</span>
-                            </div>
-                        </template>
-                        <template x-if="!isMaxedOut">
-                            <div>
-                                <div style="display: flex;">
-                                    <div class="info-item__value bonus-token-button bonus-mission-button giveaway-button"
-                                        :class="{ 'disabled': isProhibitGiveaway || !canApply || isSubmitting }"
-                                        @click="submitEntry()">
-                                        <span>
-                                            {% if lang == "ja" %}
-                                                {{ giveaway_info.spend_tokens }}トークン消費して1口応募
-                                            {% else %}
-                                                Spend {{ giveaway_info.spend_tokens }} tokens for 1 entry
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div x-show="canApplyMultiple" x-transition>
-                                    <div class="info-item__value bonus-token-button bonus-mission-button giveaway-button"
-                                         style="margin-top: 8px;"
-                                         :class="{ 'disabled': isProhibitGiveaway || isSubmitting }"
-                                         @click="submitMaxEntries()">
-                                        <span x-text="maxEntryButtonText"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                    {# [この部分は公開用リポジトリでは非公開にされています] #}
-                    <p x-show="typeof showAdIntroNotice === 'undefined' || !showAdIntroNotice" class="info-block__text block" style="margin-top: 5px; color: var(--c-red)">
-                        {% if lang == "ja" %}
-                            掲示板で、<b>トークン稼ぎのための無意味な投稿・発言</b>、<b>即消し行為</b>や<b>スパム行為</b>が確認された場合、該当期間のプレゼント企画の応募が<b>無効</b>となったり、悪質な場合はアプリの<b>利用制限</b>の対象となる可能性があります。多くのユーザーに快適な掲示板をご利用いただくためにも、そのような行為は絶対にやめていただくようお願いいたします。<br><span style="color: var(--color-444)">※このメッセージは全てのユーザーに表示されています。</span>
-                        {% else %}
-                            If <b>meaningless posts / messages</b>, <b>immediate deletion</b>, or <b>spam</b> are confirmed on the bulletin board to earn tokens, your entries for the current period may be <b>invalidated</b>, or in malicious cases, you may be subject to <b>restrictions on the use of the app</b>. To ensure that many users can enjoy the bulletin board comfortably, please refrain from such behavior.<br><span style="color: var(--color-444)">※This message is displayed to all users.</span>
-                        {% endif %}
-                    </p>
-                </div>
-            </div>
-            {% endif %}
             <div x-show="message" class="form-field-status server-response" :class="messageClass" x-html="message" style="margin-top: 10px;">
                 {# ギフトコード適用後の結果メッセージをここに表示 #}
             </div>
-            {# [この部分は公開用リポジトリでは非公開にされています] #}
         </section>
-        {# [この部分は公開用リポジトリでは非公開にされています] #}
         </div>
 
         <div class="account-subtab-panel" x-show="activeSubTab === 'support'" x-cloak>
@@ -1894,6 +1822,7 @@ function accountSettingsPage() {
             'tickets': 'tokens',
             'elixir': 'tokens',
             'giftcode': 'codes',
+            'giveaway': 'codes',
             'board-campaign': 'codes',
             'support': 'support',
             'remove-ads-section': 'support',
@@ -1909,6 +1838,7 @@ function accountSettingsPage() {
                 'tickets': 'tokens',
                 'elixir': 'tokens',
                 'giftcode': 'codes',
+                'giveaway': 'codes',
                 'board-campaign': 'codes',
                 'support': 'support',
                 'remove-ads-section': 'support',
@@ -3514,196 +3444,6 @@ function accountSettingsPage() {
                 }
             } catch (error) {
                 this.deleteStatus.server = '<span class="text-red-500">❌ {% if lang=="ja" %}通信エラー{% else %}Connection error{% endif %}</span>';
-            }
-        }
-    };
-}
-
-function giveawayEntryHandler(info, platform, isDeleteAds, isTestIp, isAdmin, isProhibitGiveaway) {
-    return {
-        info: info,
-        platform: platform || 'web',
-        isDeleteAds: !!isDeleteAds,
-        isTestIp: !!isTestIp,
-        isAdmin: !!isAdmin,
-        isProhibitGiveaway: !!isProhibitGiveaway,
-        isSubmitting: false,
-        lang: '{{ lang }}',
-        remainingTimeMs: 0,
-        remainingText: '',
-        timerInterval: null,
-
-        init() {
-            if (this.info.deadline) {
-                this.updateRemainingTime();
-                this.timerInterval = setInterval(() => {
-                    this.updateRemainingTime();
-                }, 1000);
-            }
-        },
-
-        updateRemainingTime() {
-            const now = new Date();
-            let deadlineDateStr = this.info.deadline;
-            if (deadlineDateStr && !deadlineDateStr.endsWith('Z') && !deadlineDateStr.includes('+')) {
-                deadlineDateStr += 'Z';
-            }
-            const deadline = new Date(deadlineDateStr);
-            this.remainingTimeMs = deadline - now;
-
-            if (this.remainingTimeMs <= 0) {
-                this.remainingText = '';
-                if (this.timerInterval) clearInterval(this.timerInterval);
-                return;
-            }
-
-            const days = Math.floor(this.remainingTimeMs / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((this.remainingTimeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((this.remainingTimeMs % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((this.remainingTimeMs % (1000 * 60)) / 1000);
-
-            if (this.lang === 'ja') {
-                if (days >= 1) {
-                    this.remainingText = `あと${days}日${hours}時間${minutes}分`;
-                } else if (hours >= 1) {
-                    this.remainingText = `あと${hours}時間${minutes}分`;
-                } else if (minutes >= 1) {
-                    this.remainingText = `あと${minutes}分${seconds}秒`;
-                } else {
-                    this.remainingText = `あと${seconds}秒`;
-                }
-            } else {
-                if (days >= 1) {
-                    this.remainingText = `Remaining: ${days}d ${hours}h ${minutes}m`;
-                } else if (hours >= 1) {
-                    this.remainingText = `Remaining: ${hours}h ${minutes}m`;
-                } else if (minutes >= 1) {
-                    this.remainingText = `Remaining: ${minutes}m ${seconds}s`;
-                } else {
-                    this.remainingText = `Remaining: ${seconds}s`;
-                }
-            }
-        },
-
-        get isMaxedOut() {
-            return this.info.entry_count >= this.info.usage_limit_per_user;
-        },
-        get canApply() {
-            return !this.isProhibitGiveaway && this.info.user_tokens >= this.info.spend_tokens;
-        },
-        get remainingEntries() {
-            return Math.max(this.info.usage_limit_per_user - this.info.entry_count, 0);
-        },
-        get maxApplicableEntries() {
-            if (!this.info.spend_tokens || this.info.spend_tokens <= 0) {
-                return 0;
-            }
-            const maxByTokens = Math.floor(this.info.user_tokens / this.info.spend_tokens);
-            return Math.min(this.remainingEntries, maxByTokens);
-        },
-        get canApplyMultiple() {
-            return this.maxApplicableEntries >= 2;
-        },
-        get maxEntryButtonText() {
-            const entryCount = this.maxApplicableEntries;
-            const spendTokens = entryCount * this.info.spend_tokens;
-            if (this.lang === 'ja') {
-                return `${spendTokens}トークン消費して${entryCount}口まとめて応募`;
-            }
-            return `Spend ${spendTokens} tokens for max ${entryCount} entries`;
-        },
-
-        showResponseMessage(data) {
-            const section = this.$el.closest('section');
-            if (!section) return;
-            const messageEl = section.querySelector('.server-response');
-            if (!messageEl) return;
-            messageEl.innerHTML = data.message || '';
-            messageEl.className = 'form-field-status server-response ' + (data.success ? 'success' : 'error');
-            messageEl.style.display = '';
-        },
-
-        scheduleReload() {
-            setTimeout(() => { window.location.reload(); }, 1500);
-        },
-
-        async handleEntryResponse(data) {
-            this.showResponseMessage(data);
-            this.scheduleReload();
-        },
-
-        async submitEntry() {
-            if (this.isProhibitGiveaway) {
-                alert(this.lang === 'ja'
-                    ? '規約違反行為が確認されたため、現在プレゼント企画への参加が制限されています。'
-                    : 'Participation in giveaways is currently restricted because a terms of service violation was confirmed.');
-                return;
-            }
-            if (this.isSubmitting || this.isMaxedOut) return;
-            if (!this.canApply) {
-                if (this.lang === 'ja') {
-                    alert('トークンが足りないため、応募できません。\nトークンの入手方法はこのページ上部の「トークン」をご確認ください。');
-                } else {
-                    alert('Not enough tokens to enter.\nSee the "Tokens" section at the top of this page for how to earn tokens.');
-                }
-                return;
-            }
-            const spendTokens = this.info.spend_tokens;
-            const currentTokens = this.info.user_tokens;
-            const nextTokens = currentTokens - spendTokens;
-            const confirmMessage = this.lang === 'ja'
-                ? `${spendTokens}トークン消費して、プレゼント企画に1口応募しますか？\n(トークン数: ${currentTokens} → ${nextTokens})`
-                : `Spend ${spendTokens} tokens to enter the giveaway once?\n(Tokens: ${currentTokens} → ${nextTokens})`;
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-            this.isSubmitting = true;
-            try {
-                const response = await fetch("{{ url_for('account_use_gift_code', lang=lang) }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ gift_code: this.info.code })
-                });
-                const data = await response.json();
-                await this.handleEntryResponse(data);
-            } catch (error) {
-                console.error('Giveaway entry error:', error);
-                this.scheduleReload();
-            }
-        },
-
-        async submitMaxEntries() {
-            if (this.isProhibitGiveaway) {
-                alert(this.lang === 'ja'
-                    ? '規約違反行為が確認されたため、現在プレゼント企画への参加が制限されています。'
-                    : 'Participation in giveaways is currently restricted because a terms of service violation was confirmed.');
-                return;
-            }
-            if (this.isSubmitting || this.isMaxedOut || !this.canApplyMultiple) return;
-
-            const maxEntries = this.maxApplicableEntries;
-            const spendTokens = maxEntries * this.info.spend_tokens;
-            const currentTokens = this.info.user_tokens;
-            const nextTokens = currentTokens - spendTokens;
-            const confirmMessage = this.lang === 'ja'
-                ? `${spendTokens}トークン消費して、プレゼント企画に${maxEntries}口まとめて応募しますか？\n(トークン数: ${currentTokens} → ${nextTokens})`
-                : `Spend ${spendTokens} tokens to enter the giveaway with ${maxEntries} entries at once?\n(Tokens: ${currentTokens} → ${nextTokens})`;
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-
-            this.isSubmitting = true;
-            try {
-                const response = await fetch("{{ url_for('account_use_giveaway_max_entries', lang=lang) }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ gift_code: this.info.code, entry_count: maxEntries })
-                });
-                const data = await response.json();
-                await this.handleEntryResponse(data);
-            } catch (error) {
-                console.error('Giveaway bulk entry error:', error);
-                this.scheduleReload();
             }
         }
     };
