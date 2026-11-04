@@ -9,6 +9,12 @@
     max-width: 1194px;
     margin: 20px auto 45px auto; /* 上下マージン、左右中央揃え */
 }
+/* シェルでヘッダーごと包むため、フラグメントやエラー表示の入れ子のコンテナは外側に合わせる */
+.club-page__container .club-page__container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
 
 .back-button__container {
     margin: 15px auto;
@@ -50,6 +56,13 @@
     font-weight: 400;
     color: #6c757d;
     margin: 0;
+}
+
+/* DBにまだないクラブは、フラグメントが届くまで読み込み中の表示にする (.shell-placeholder は components.css) */
+.shell-placeholder--club-badge {
+    display: block;
+    width: 80px;
+    border-radius: 14px;
 }
 
 /* --- クラブブックマークボタン (クラブページ専用) --- */
@@ -276,6 +289,7 @@
     .club-page__container { margin-top: 15px; }
     .club-header { margin-bottom: 20px; }
     .club-header__badge { height: 60px; }
+    .shell-placeholder--club-badge { width: 60px; }
     .club-header__identity { margin-left: 15px; }
     .club-header__name { font-size: 36px; }
     .club-header__tag { font-size: 20px; }

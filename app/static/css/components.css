@@ -1506,3 +1506,26 @@
     from { opacity: 1; transform: scale(1); }
     to { opacity: 0; transform: scale(0.975); }
 }
+
+/* --- シェルページのヘッダーの読み込み中表示 (プレイヤー・クラブ) --- */
+/* DBにまだない場合は、フラグメントが届くまで名前やアイコンの位置にこれを出す */
+.shell-placeholder {
+    display: inline-block;
+    vertical-align: middle;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--color-eee) 25%, var(--color-ddd) 37%, var(--color-eee) 63%);
+    background-size: 400% 100%;
+    animation: shellPlaceholderShimmer 1.4s ease infinite;
+}
+.shell-placeholder--name {
+    width: 6em;
+    max-width: 100%;
+    height: 0.8em;
+}
+@keyframes shellPlaceholderShimmer {
+    from { background-position: 100% 50%; }
+    to { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .shell-placeholder { animation: none; }
+}

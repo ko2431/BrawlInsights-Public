@@ -1,0 +1,38 @@
+{# /app/templates/player/includes/player_identity.html #}
+{# プレイヤーページのヘッダー(アイコン・名前・タグ・クラブ)。シェルではDBの値で、フラグメントでは最新の値で描き、読み込み後に差し替える。 #}
+{# header は {"name", "icon_path", "club_tag", "club_name"}。None のときはタグだけ出し、ほかは読み込み中の表示にする。 #}
+{% macro player_identity(tag, header) %}
+{% if header %}
+<header class="profile-header" data-shell-identity data-shell-name-raw="{{ header.name }}">
+    <div class="profile-header__main-info"> {# アイコンと名前/タグ #}
+        <img src="{{ header.icon_path }}" alt="{{ header.name }} アイコン" class="profile-header__icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+        <div class="profile-header__identity"> {# 名前とタグ #}
+            <h1 class="profile-header__name" data-shell-name>{{ header.name }}</h1>
+            <p class="profile-header__tag" data-shell-tag>{{ tag }}</p>
+        </div>
+    </div>
+    <div class="profile-header__club-info"> {# クラブ情報 #}
+        <img src="{{ url_for('static', path='/images/ui/club.webp' if header.club_tag and header.club_name else '/images/club_badges/0.png') }}" alt="クラブ" class="profile-header__club-icon">
+        {% if header.club_tag and header.club_name %}
+            {# クラブ名もカラータグを含む可能性があるため safe #}
+            <a href="{{ url_for('get_club_profile', lang=lang, tag=header.club_tag[1:]) }}" class="profile-header__club-link">{{ header.club_name|safe }}</a>
+        {% else %}
+            <span class="profile-header__no-club">{% if lang == "ja" %}クラブなし{% else %}No Club{% endif %}</span>
+        {% endif %}
+    </div>
+</header>
+{% else %}
+<header class="profile-header profile-header--pending" data-shell-identity data-shell-pending aria-busy="true">
+    <div class="profile-header__main-info">
+        <span class="profile-header__icon shell-placeholder shell-placeholder--player-icon"></span>
+        <div class="profile-header__identity">
+            <p class="profile-header__name"><span class="shell-placeholder shell-placeholder--name"></span></p>
+            <p class="profile-header__tag" data-shell-tag>{{ tag }}</p>
+        </div>
+    </div>
+    <div class="profile-header__club-info">
+        <span class="shell-placeholder shell-placeholder--club"></span>
+    </div>
+</header>
+{% endif %}
+{% endmacro %}

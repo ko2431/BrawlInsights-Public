@@ -99,6 +99,19 @@
     color: #6c757d; /* タグと同じ色など */
 }
 
+/* DBにまだないプレイヤーは、フラグメントが届くまで読み込み中の表示にする (.shell-placeholder は components.css) */
+.shell-placeholder--player-icon {
+    display: block;
+    width: 80px;
+    border-radius: 12px;
+}
+.shell-placeholder--club {
+    /* クラブ名の行(30px)と同じ高さにして、読み込み後にタブがずれないようにする */
+    width: 160px;
+    height: 30px;
+    margin: 7.5px 0;
+}
+
 /* --- 統計情報コンテナ --- */
 .stats-container {
     /* 基本データ、育成状況などの統計ブロックをまとめるコンテナ */
@@ -1267,6 +1280,8 @@
     .profile-header__club-icon { height: 24px; margin-right: 5px; }
     .profile-header__club-link, .profile-header__no-club { font-size: 24px; }
     .profile-header__club-link:hover { text-decoration-thickness: 1.5px; }
+    .shell-placeholder--player-icon { width: 60px; }
+    .shell-placeholder--club { width: 120px; height: 24px; margin: 6px 0; }
 
     .stats-block { margin-bottom: 22px; }
     .stats-container { margin-bottom: 22px; }

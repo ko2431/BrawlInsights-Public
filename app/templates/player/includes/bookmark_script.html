@@ -1,0 +1,109 @@
+{# /app/templates/player/includes/bookmark_script.html #}
+{# プレイヤーページのブックマークボタン(Alpine)。シェルのヘッダーで使うため、Alpine の初期化より前に読み込む。 #}
+<script>
+function bookmarkButtonHandler(viewedPlayerTag, viewedPlayerName) {
+    return {
+        isLoggedIn: {{ current_user is not none | lower }},
+        currentUserMainTag: "{{ current_user.main_account if current_user else '' }}",
+        currentUserSubTags: {{ (current_user.sub_accounts if current_user else []) | tojson }},
+        currentUserBookmarks: {{ current_user.saved_accounts | tojson | safe if current_user else [] }},
+        currentUserBookmarkLimit: {{ current_user.saved_accounts_limit if current_user else 0 }},
+        viewedPlayerTag: viewedPlayerTag,
+        viewedPlayerName: viewedPlayerName, // JSコンファームメッセージで使用
+        isMainAccount: false,
+        isSubAccount: false,
+        isBookmarked: false,
+        message: '',
+        lastActionSuccess: false,
+
+        initButtonState() {
+            if (!this.isLoggedIn) return;
+            this.isMainAccount = (this.viewedPlayerTag === this.currentUserMainTag);
+            this.isSubAccount = !this.isMainAccount && this.currentUserSubTags.includes(this.viewedPlayerTag);
+            this.isBookmarked = this.currentUserBookmarks.includes(this.viewedPlayerTag);
+        },
+
+        showMainAccountAlert() {
+            alert("{% if lang == 'ja' %}このアカウントはメインアカウントとして設定されています。変更はアカウントタブで行ってください。{% else %}This is your main account. Changes can be made in the Account Settings.{% endif %}");
+        },
+
+        showSubAccountAlert() {
+            alert("{% if lang == 'ja' %}このアカウントはサブアカウントとして登録されています。登録解除や並び替えはアカウントタブで行ってください。{% else %}This is one of your sub accounts. You can unregister or reorder it in the Account tab.{% endif %}");
+        },
+
+        async confirmAddBookmark() {
+            const confirmMsg = `{% if lang == "ja" %}「${this.viewedPlayerName}」をブックマークしますか？{% else %}Bookmark "${this.viewedPlayerName}"?{% endif %}`;
+            let performAdd = false;
+            let overwriteLast = false;
+
+            if (this.currentUserBookmarks.length < this.currentUserBookmarkLimit) {
+                if (confirm(confirmMsg)) {
+                    performAdd = true;
+                }
+            } else { // 枠空きなし
+                // TODO: 将来的な広告視聴ロジックはここ
+                const overwriteMsg = `{% if lang == "ja" %}ブックマーク枠が足りません。一番最後の枠に上書きして追加しますか？{% else %}Bookmark limit reached. Overwrite the last bookmark?{% endif %}`;
+                if (confirm(overwriteMsg)) {
+                    performAdd = true;
+                    overwriteLast = true;
+                }
+            }
+
+            if (performAdd) {
+                this.message = '{% if lang=="ja" %}処理中...{% else %}Processing...{% endif %}';
+                try {
+                    const response = await fetch("{{ url_for('account_add_bookmark', lang=lang) }}", {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ player_tag: this.viewedPlayerTag, overwrite: overwriteLast })
+                    });
+                    const data = await response.json();
+                    this.message = data.message;
+                    this.lastActionSuccess = data.success;
+                    if (data.success) {
+                        this.isBookmarked = true;
+                        // currentUserBookmarks を更新 (より正確にはサーバーから最新リストを取得するのが望ましいが、簡易的に)
+                        if (!this.currentUserBookmarks.includes(this.viewedPlayerTag)) {
+                        if (overwriteLast && this.currentUserBookmarks.length >= this.currentUserBookmarkLimit && this.currentUserBookmarks.length > 0) {
+                                this.currentUserBookmarks.pop();
+                            }
+                        this.currentUserBookmarks.push(this.viewedPlayerTag); // 実際には順序も考慮すべき
+                        }
+                    }
+                } catch (error) {
+                    this.message = '{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}';
+                    this.lastActionSuccess = false;
+                }
+            }
+        },
+
+        async confirmRemoveBookmark() {
+            const confirmMsg = `{% if lang == "ja" %}「${this.viewedPlayerName}」をブックマークから削除しますか？{% else %}Remove "${this.viewedPlayerName}" from bookmarks?{% endif %}`;
+            if (confirm(confirmMsg)) {
+                this.message = '{% if lang=="ja" %}処理中...{% else %}Processing...{% endif %}';
+                try {
+                    const response = await fetch("{{ url_for('account_remove_bookmark', lang=lang) }}", {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ player_tag: this.viewedPlayerTag })
+                    });
+                    const data = await response.json();
+                    this.message = data.message;
+                    this.lastActionSuccess = data.success;
+                    if (data.success) {
+                        this.isBookmarked = false;
+                        // currentUserBookmarks を更新
+                        const index = this.currentUserBookmarks.indexOf(this.viewedPlayerTag);
+                        if (index > -1) {
+                            this.currentUserBookmarks.splice(index, 1);
+                        }
+                    }
+                } catch (error) {
+                    this.message = '{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}';
+                    this.lastActionSuccess = false;
+                }
+            }
+        }
+    };
+}
+</script>

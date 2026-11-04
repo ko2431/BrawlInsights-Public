@@ -14,8 +14,8 @@ from app.exceptions.custom_exceptions import BrawlStarsAPIError
 from app.core.logger import logger
 from app.core.config import settings
 from app.core.logging_config import add_log_info
-from app.db.db import get_shared_db
-from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler
+from app.db.db import get_shared_db, run_quick_db_lookup
+from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
 from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
@@ -97,6 +97,38 @@ def _battles_filter_query(
     if before:
         parts.append(f"before={before}")
     return "&".join(parts)
+
+
+def _valid_filter_date(value: str | None) -> str | None:
+    """YYYY-MM-DD として読めない日付は、フラグメントと同じく絞り込みに使わない。"""
+    if not value:
+        return None
+    try:
+        datetime.datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return None
+    return value
+
+
+# シェルのヘッダー用のDB参照は、混雑時は待たずに省略する（フラグメントの読み込み後に埋まる）
+SHELL_HEADER_DB_TIMEOUT_SECONDS = 0.5
+
+
+async def _load_player_shell_header(tag: str) -> dict[str, Any] | None:
+    """シェルのヘッダーに出す名前・アイコン・クラブ。DBにないか、DBの空きを待てない場合はNone。"""
+    header = await run_quick_db_lookup(
+        lambda db: get_player_header_from_db(tag, db),
+        timeout=SHELL_HEADER_DB_TIMEOUT_SECONDS,
+        label=f"{tag}のシェルのヘッダー情報",
+    )
+    if not header:
+        return None
+    return {
+        "name": header["name"],
+        "icon_path": "/" + get_icon_path(header["icon_id"]),
+        "club_tag": header["club_tag"],
+        "club_name": header["club_name"],
+    }
 
 
 def _brawler_ja_name(ja_value: object, fallback: str) -> str:
@@ -236,13 +268,15 @@ async def get_player_profile(
     if not confirm_tag(tag):
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
-    # シェルHTMLを即時返却（プレイヤーデータ取得なし）
+    # シェルHTMLを返す（プレイヤーデータはフラグメントで取得し、ヘッダーだけDBから先に出す）
     context = {
         "request": request,
         "lang": lang,
         "tag": tag,
         "sort": sort or 'trophies',
         "current_page": "home",
+        "player_header": await _load_player_shell_header(tag),
+        "player_nav_active": "profile",
     }
     return templates.TemplateResponse("player/profile.html", context)
 
@@ -286,11 +320,26 @@ async def get_player_battles(
     normalized_tab = _normalize_battles_tab(tab)
     selected_event_id = _positive_id(event_id if event_id is not None else map_id)
 
-    # シェルHTMLを即時返却（プレイヤーデータ取得なし）
+    # サブタブはシェルに置くため、タブをまたいで引き継ぐ絞り込みもここで組み立てる
+    filter_unknown_mode = mode_id == 0
+    shared_filter_query = _battles_filter_query(
+        tab="all",
+        brawler_id=brawler_id,
+        mode_id=None if filter_unknown_mode else mode_id,
+        unknown_mode=filter_unknown_mode,
+        event_id=selected_event_id,
+        after=_valid_filter_date(after_date_str),
+        before=_valid_filter_date(before_date_str),
+    )
+
+    # シェルHTMLを返す（プレイヤーデータはフラグメントで取得し、ヘッダーだけDBから先に出す）
     context = {
         "request": request,
         "lang": lang,
         "tag": formatted_tag,
+        "player_header": await _load_player_shell_header(formatted_tag),
+        "player_nav_active": "battles",
+        "shared_filter_query": shared_filter_query,
         "current_tab": normalized_tab,
         "before_date_filter": before_date_str,
         "after_date_filter": after_date_str,
@@ -322,13 +371,15 @@ async def get_player_stats(
     if not confirm_tag(tag):
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
-    # シェルHTMLを即時返却（プレイヤーデータ取得なし）
+    # シェルHTMLを返す（プレイヤーデータはフラグメントで取得し、ヘッダーだけDBから先に出す）
     context = {
         "request": request,
         "lang": lang,
         "tag": tag,
         "current_period": period or "30d",
         "current_page": "home",
+        "player_header": await _load_player_shell_header(tag),
+        "player_nav_active": "stats",
     }
     return templates.TemplateResponse("player/stats.html", context)
 

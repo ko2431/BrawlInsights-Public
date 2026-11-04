@@ -6,8 +6,8 @@ import math # ページ数計算 (ceil) のため
 
 from app.core.logger import logger
 from app.core.logging_config import add_log_info
-from app.db.db import get_shared_db # DB接続
-from app.services.brawl_service import get_club, search_clubs # クラブデータ取得関数
+from app.db.db import get_shared_db, run_quick_db_lookup # DB接続
+from app.services.brawl_service import get_club, get_club_header_from_db, search_clubs # クラブデータ取得関数
 from app.services.user_service import User
 from app.utils.utils import format_tag, confirm_tag, get_icon_path # タグ整形・確認関数
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError # カスタム例外
@@ -23,6 +23,9 @@ api_router = APIRouter(
     prefix="/api/{lang}/club",
     tags=["Club Fragments"]
 )
+
+# シェルのヘッダー用のDB参照は、混雑時は待たずに省略する（フラグメントの読み込み後に埋まる）
+SHELL_HEADER_DB_TIMEOUT_SECONDS = 0.5
 
 # --- クラブプロフィールページのエンドポイント ---
 @router.get("/profile/{tag}", name="get_club_profile")
@@ -45,12 +48,19 @@ async def get_club_profile(
     if not confirm_tag(tag):
         raise HTTPException(status_code=400, detail="Invalid club tag format.") # 400 Bad Request
 
-    # シェルHTMLを即時返却（クラブデータ取得なし）
+    # シェルHTMLを返す（クラブデータはフラグメントで取得し、ヘッダーだけDBから先に出す）
+    # DBにないか、混雑でDBの空きを待てない場合はNoneとし、フラグメントの読み込み後に埋める
+    club_header = await run_quick_db_lookup(
+        lambda db: get_club_header_from_db(tag, db),
+        timeout=SHELL_HEADER_DB_TIMEOUT_SECONDS,
+        label=f"{tag}のシェルのヘッダー情報",
+    )
     context = {
         "request": request,
         "lang": lang,
         "tag": tag,
-        "current_page": "home" # または "clubs" など、タブバーのハイライトに合わせて設定
+        "current_page": "home", # または "clubs" など、タブバーのハイライトに合わせて設定
+        "club_header": club_header,
     }
 
     return templates.TemplateResponse("club/profile.html", context)

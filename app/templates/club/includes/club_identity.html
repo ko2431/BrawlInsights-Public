@@ -1,0 +1,29 @@
+{# /app/templates/club/includes/club_identity.html #}
+{# クラブページのヘッダー(バッジ・名前・タグ)。シェルではDBの値で、フラグメントでは最新の値で描き、読み込み後に差し替える。 #}
+{# header は {"name", "badge_id"}。None のときはタグだけ出し、ほかは読み込み中の表示にする。 #}
+{% macro club_identity(tag, header) %}
+{% if header %}
+<header class="club-header" data-shell-identity data-shell-name-raw="{{ header.name }}">
+    <div class="club-header__badge-container">
+        <img src="{{ url_for('static', path='/images/club_badges/' + header.badge_id|string + '.png') }}"
+             alt="{{ header.name }} バッジ"
+             class="club-header__badge"
+             onerror="this.style.display='none'">
+    </div>
+    <div class="club-header__identity">
+        <h1 class="club-header__name" data-shell-name>{{ header.name|safe }}</h1>
+        <p class="club-header__tag" data-shell-tag>{{ tag }}</p>
+    </div>
+</header>
+{% else %}
+<header class="club-header club-header--pending" data-shell-identity data-shell-pending aria-busy="true">
+    <div class="club-header__badge-container">
+        <span class="club-header__badge shell-placeholder shell-placeholder--club-badge"></span>
+    </div>
+    <div class="club-header__identity">
+        <p class="club-header__name"><span class="shell-placeholder shell-placeholder--name"></span></p>
+        <p class="club-header__tag" data-shell-tag>{{ tag }}</p>
+    </div>
+</header>
+{% endif %}
+{% endmacro %}

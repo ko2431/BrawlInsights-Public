@@ -1,0 +1,77 @@
+{# /app/templates/player/includes/shell_header.html #}
+{# プレイヤーページ(プロフィール・バトル履歴・推移グラフ)のシェルに置くヘッダーとタブ。フラグメントの読み込み中も表示したままにする。 #}
+{# 呼び出し元で tag, player_header(Noneは未取得), player_nav_active(profile/battles/stats) を設定する。 #}
+{% from "player/includes/player_identity.html" import player_identity with context %}
+{% set player_nav_routes = {"profile": "get_player_profile", "battles": "get_player_battles", "stats": "get_player_stats"} %}
+{% set bookmark_name = player_header.name if player_header else "" %}
+
+{% macro bookmark_ui(variant) %}
+<div x-data="bookmarkButtonHandler('{{ tag }}', '{{ bookmark_name | replace("'", "\\'") }}')" x-init="initButtonState()" class="bookmark-ui--{{ variant }}" data-shell-bookmark>
+    {# ボタンの表示は x-show や :class で動的に変更 #}
+    {# 未ログイン時 #}
+    <template x-if="!isLoggedIn">
+        <a href="/{{ lang }}/login?next={{ url_for(player_nav_routes[player_nav_active], lang=lang, tag=tag[1:]) | urlencode }}" class="button button--secondary button--bookmark button--bookmark--{{ variant }}">
+            {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
+        </a>
+    </template>
+    {# ログイン済み #}
+    {# メインアカウント閲覧中 #}
+    <template x-if="isLoggedIn && isMainAccount">
+        <button type="button" class="button button--success-alt button--bookmark button--bookmark--{{ variant }}" @click="showMainAccountAlert()">
+            {% if lang == "ja" %}メインアカウント{% else %}Main Account{% endif %}
+        </button>
+    </template>
+    {# サブアカウント閲覧中 (ここからは登録解除できない) #}
+    <template x-if="isLoggedIn && isSubAccount">
+        <button type="button" class="button button--sub-account-alt button--bookmark button--bookmark--{{ variant }}" @click="showSubAccountAlert()">
+            {% if lang == "ja" %}サブアカウント{% else %}Sub Account{% endif %}
+        </button>
+    </template>
+    {# ブックマーク済み #}
+    <template x-if="isLoggedIn && !isMainAccount && !isSubAccount && isBookmarked">
+        <button type="button" class="button button--success is-active button--bookmark button--bookmark--{{ variant }}" @click="confirmRemoveBookmark()">
+            {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
+        </button>
+    </template>
+    {# 未ブックマーク #}
+    <template x-if="isLoggedIn && !isMainAccount && !isSubAccount && !isBookmarked">
+        <button type="button" class="button button--secondary button--bookmark button--bookmark--{{ variant }}" @click="confirmAddBookmark()">
+            {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
+        </button>
+    </template>
+</div>
+{% endmacro %}
+
+{# 戻るボタン #}
+{% if platform != "web" %}
+<div class="back-button__container"
+     x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+     x-show="showManualBackButton"
+     style="display: none;" {# FOUC(ちらつき)防止 #}>
+    <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+</div>
+{% endif %}
+
+{# --- プレイヤーヘッダー (フラグメントの読み込み後に最新の値へ差し替える) --- #}
+<div data-shell-slot-target="player-identity">
+    {{ player_identity(tag, player_header) }}
+</div>
+
+{# --- ブックマークUI --- #}
+{{ bookmark_ui("mobile") }}
+
+{# --- ページ内ナビゲーションタブ --- #}
+<nav class="tab-nav player-tab-nav"> {# components.css のタブスタイル #}
+    <ul class="tab-nav__list">
+        <li class="tab-nav__item">
+            <a href="{% if player_nav_active == 'profile' %}#{% else %}{{ url_for('get_player_profile', lang=lang, tag=tag[1:]) }}{% endif %}" class="tab-nav__link{% if player_nav_active == 'profile' %} tab-nav__link--active{% endif %}">{% if lang == "ja" %}プロフィール{% else %}Profile{% endif %}</a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if player_nav_active == 'battles' %}#{% else %}{{ url_for('get_player_battles', lang=lang, tag=tag[1:]) }}{% endif %}" class="tab-nav__link{% if player_nav_active == 'battles' %} tab-nav__link--active{% endif %}">{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}</a>
+        </li>
+        <li class="tab-nav__item">
+            <a href="{% if player_nav_active == 'stats' %}#{% else %}{{ url_for('get_player_stats', lang=lang, tag=tag[1:]) }}{% endif %}" class="tab-nav__link{% if player_nav_active == 'stats' %} tab-nav__link--active{% endif %}">{% if lang == "ja" %}推移グラフ{% else %}Trends{% endif %}</a>
+        </li>
+    </ul>
+    {{ bookmark_ui("pc") }}
+</nav>

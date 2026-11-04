@@ -1,0 +1,84 @@
+{# /app/templates/club/includes/bookmark_script.html #}
+{# クラブページのブックマークボタン(Alpine)。シェルのヘッダーで使うため、Alpine の初期化より前に読み込む。 #}
+<script>
+function clubBookmarkButtonHandler(viewedClubTag, viewedClubName) {
+    return {
+        isLoggedIn: {{ current_user is not none | lower }},
+        currentUserClubBookmarks: {{ current_user.saved_clubs | tojson | safe if current_user else [] }},
+        currentUserBookmarkLimit: {{ current_user.saved_clubs_limit if current_user else 0 }},
+        viewedClubTag: viewedClubTag,
+        viewedClubName: viewedClubName,
+        isBookmarked: false,
+
+        initButtonState() {
+            if (!this.isLoggedIn) return;
+            this.isBookmarked = this.currentUserClubBookmarks.includes(this.viewedClubTag);
+        },
+
+        async confirmAddBookmark() {
+            const confirmMsg = `{% if lang == "ja" %}「${this.viewedClubName}」をブックマークしますか？{% else %}Bookmark "${this.viewedClubName}"?{% endif %}`;
+            let performAdd = false;
+            let overwriteLast = false;
+
+            if (this.currentUserClubBookmarks.length < this.currentUserBookmarkLimit) {
+                if (confirm(confirmMsg)) {
+                    performAdd = true;
+                }
+            } else {
+                const overwriteMsg = `{% if lang == "ja" %}ブックマーク枠が足りません。一番最後の枠に上書きして追加しますか？{% else %}Bookmark limit reached. Overwrite the last bookmark?{% endif %}`;
+                if (confirm(overwriteMsg)) {
+                    performAdd = true;
+                    overwriteLast = true;
+                }
+            }
+
+            if (!performAdd) return;
+
+            try {
+                const response = await fetch("{{ url_for('account_add_club_bookmark', lang=lang) }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ club_tag: this.viewedClubTag, overwrite: overwriteLast })
+                });
+                const data = await response.json();
+                alert(data.message);
+                if (data.success) {
+                    this.isBookmarked = true;
+                    if (!this.currentUserClubBookmarks.includes(this.viewedClubTag)) {
+                        if (overwriteLast && this.currentUserClubBookmarks.length >= this.currentUserBookmarkLimit && this.currentUserClubBookmarks.length > 0) {
+                            this.currentUserClubBookmarks.pop();
+                        }
+                        this.currentUserClubBookmarks.push(this.viewedClubTag);
+                    }
+                }
+            } catch (error) {
+                alert('{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}');
+            }
+        },
+
+        async confirmRemoveBookmark() {
+            const confirmMsg = `{% if lang == "ja" %}「${this.viewedClubName}」をブックマークから削除しますか？{% else %}Remove "${this.viewedClubName}" from bookmarks?{% endif %}`;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const response = await fetch("{{ url_for('account_remove_club_bookmark', lang=lang) }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ club_tag: this.viewedClubTag })
+                });
+                const data = await response.json();
+                alert(data.message);
+                if (data.success) {
+                    this.isBookmarked = false;
+                    const index = this.currentUserClubBookmarks.indexOf(this.viewedClubTag);
+                    if (index > -1) {
+                        this.currentUserClubBookmarks.splice(index, 1);
+                    }
+                }
+            } catch (error) {
+                alert('{% if lang=="ja" %}エラーが発生しました。{% else %}An error occurred.{% endif %}');
+            }
+        }
+    };
+}
+</script>

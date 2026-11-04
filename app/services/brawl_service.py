@@ -2290,6 +2290,51 @@ async def get_club_badge_id_from_db(tag: str, db: asyncpg.Connection) -> int | N
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 
+async def get_player_header_from_db(tag: str, db: asyncpg.Connection) -> dict[str, Any] | None:
+    """データベースから、プレイヤーページのヘッダーに出す名前・アイコン・クラブを1回のクエリで取得する。APIへのアクセスは行わない。
+
+    Args:
+        tag (str): プレイヤータグ
+        db (asyncpg.Connection): データベース接続
+
+    Returns:
+        dict[str, Any] | None: {"name", "icon_id", "club_tag", "club_name"}。DBにない場合はNone。club_nameはクラブがDBにない場合はNone。
+    """
+    try:
+        row = await db.fetchrow(
+            """
+            SELECT p.name, p.icon_id, p.club_tag, c.name AS club_name
+            FROM players p LEFT JOIN clubs c ON c.tag = p.club_tag
+            WHERE p.tag = $1
+            """,
+            tag,
+        )
+    except asyncpg.PostgresError as e:
+        logger.warning(f"プレイヤーページのヘッダー情報の取得中にエラーが発生しました: {e}")
+        return None
+    if not row or not row["name"]:
+        return None
+    return dict(row)
+
+async def get_club_header_from_db(tag: str, db: asyncpg.Connection) -> dict[str, Any] | None:
+    """データベースから、クラブページのヘッダーに出す名前・バッジを取得する。APIへのアクセスは行わない。
+
+    Args:
+        tag (str): クラブタグ
+        db (asyncpg.Connection): データベース接続
+
+    Returns:
+        dict[str, Any] | None: {"name", "badge_id"}。DBにない場合はNone。
+    """
+    try:
+        row = await db.fetchrow("SELECT name, badge_id FROM clubs WHERE tag = $1", tag)
+    except asyncpg.PostgresError as e:
+        logger.warning(f"クラブページのヘッダー情報の取得中にエラーが発生しました: {e}")
+        return None
+    if not row or not row["name"]:
+        return None
+    return dict(row)
+
 async def get_player_for_tracking_extension(tag: str, db: asyncpg.Connection) -> Player | None:
     """トークンによる自動追跡延長に必要な最小限のプレイヤー情報をDBから取得する。
 

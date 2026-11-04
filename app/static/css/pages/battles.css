@@ -61,6 +61,18 @@
 .dark .battle-log-filters__container {
     border-color: #111;
 }
+/* フィルターはフラグメントから差し込む。サブタブの切り替え中は薄くして、操作できないようにする */
+.battle-log-filters__slot {
+    transition: opacity 0.15s ease;
+}
+.battle-log-filters__slot.is-switching {
+    opacity: 0.45;
+    pointer-events: none;
+}
+/* フィルターが入るまでは、サブタブの下の余白を詰める */
+.battle-log-filters__container:has(> .battle-log-filters__slot:empty) .sub-tab-nav {
+    margin-bottom: 0;
+}
 
 /* --- サブタブナビゲーション (バトル履歴ページ内) --- */
 .sub-tab-nav {

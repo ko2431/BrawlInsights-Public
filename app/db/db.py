@@ -258,6 +258,35 @@ async def get_db_connection_for_bg_task() -> AsyncGenerator[asyncpg.Connection, 
             await pool.release(conn)
 
 
+async def run_quick_db_lookup[T](
+    load: Callable[[asyncpg.Connection], Awaitable[T]],
+    *,
+    timeout: float,
+    label: str,
+) -> T | None:
+    """省略してもよい軽い参照を、プールの空きを timeout 秒だけ待って実行する。
+
+    混雑で空きを待てない場合やDBのエラー時は None を返す。PostgreSQL の再起動待ちの再試行もしない。
+    """
+    try:
+        pool = _require_pool()
+        try:
+            conn = await pool.acquire(timeout=timeout)
+        except TimeoutError as e:
+            raise PoolAcquireTimeoutError(f"DBコネクションプールの空き待ちが {timeout}秒を超えました") from e
+        try:
+            return await load(conn)
+        finally:
+            await pool.release(conn)
+    except Exception as e:
+        message = f"{label}を省略しました: {e}"
+        if is_transient_pg_error(e):
+            log_transient_pg_warning(message)
+        else:
+            logger.warning(message)
+        return None
+
+
 async def load_serialized_within_request_timeout[T](lock: asyncio.Lock, load: Callable[[], Awaitable[T]]) -> T:
     """キャッシュ再生成などを lock で1件ずつ実行する。ロック待ちを含めて DB_POOL_ACQUIRE_TIMEOUT を超えたら打ち切る。
 

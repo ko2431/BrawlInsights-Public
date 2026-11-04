@@ -1,7 +1,7 @@
 {# /app/templates/club/profile.html - シェルページ #}
 {% extends "base.html" %}
 
-{% block title %}{{ tag }} {% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %} - Brawl Insights{% endblock %}
+{% block title %}{% if club_header %}{{ club_header.name|striptags }} ({{ tag }}){% else %}{{ tag }}{% endif %} {% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのクラブ情報です。{% else %}{{ tag }} Brawl Stars club information.{% endif %}{% endblock %}
 
 {% block head_extra %}
@@ -9,27 +9,72 @@
 {% endblock %}
 
 {% block content %}
+{% from "club/includes/club_identity.html" import club_identity with context %}
 <div class="club-shell__container"
-     x-data="clubFragmentLoader('{{ url_for('get_club_profile_fragment', lang=lang, tag=tag[1:]) }}', '{% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %}')"
-     x-init="load()">
+     x-data="shellFragmentLoader({
+        url: '{{ url_for('get_club_profile_fragment', lang=lang, tag=tag[1:]) }}',
+        pageLabel: '{% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %}',
+        kind: 'club'
+     })"
+     x-init="start()">
 
-    <template x-if="isLoading">
-        <div class="club-shell__loading">
-            <div class="club-shell__spinner"></div>
-            <p class="club-shell__loading-text">{% if lang == "ja" %}クラブデータを読み込み中...{% else %}Loading club data...{% endif %}</p>
+    <div class="club-page__container">
+        {# --- ヘッダーとブックマーク (読み込み中も表示したまま) --- #}
+        <div x-show="!headHidden">
+            {% if platform != "web" %}
+            <div class="back-button__container"
+                 x-data="{ showManualBackButton: localStorage.getItem('brawlInsightsShowNavBar') !== 'true' }"
+                 x-show="showManualBackButton"
+                 style="display: none;">
+                <div class="back-button">＜ {% if lang == "ja" %}戻る{% else %}Back{% endif %}</div>
+            </div>
+            {% endif %}
+
+            {# フラグメントの読み込み後に最新の値へ差し替える #}
+            <div data-shell-slot-target="club-identity">
+                {{ club_identity(tag, club_header) }}
+            </div>
+
+            {% set bookmark_name = club_header.name if club_header else "" %}
+            <div x-data="clubBookmarkButtonHandler('{{ tag }}', '{{ bookmark_name | replace("'", "\\'") }}')" x-init="initButtonState()" class="club-bookmark-ui" data-shell-bookmark>
+                <template x-if="!isLoggedIn">
+                    <a href="/{{ lang }}/login?next={{ url_for('get_club_profile', lang=lang, tag=tag[1:]) | urlencode }}" class="button button--secondary club-button--bookmark">
+                        {% if lang == "ja" %}ログインしてブックマーク{% else %}Login to Bookmark{% endif %}
+                    </a>
+                </template>
+                <template x-if="isLoggedIn && isBookmarked">
+                    <button type="button" class="button button--success is-active club-button--bookmark" @click="confirmRemoveBookmark()">
+                        {% if lang == "ja" %}ブックマーク済み{% else %}Bookmarked{% endif %}
+                    </button>
+                </template>
+                <template x-if="isLoggedIn && !isBookmarked">
+                    <button type="button" class="button button--secondary club-button--bookmark" @click="confirmAddBookmark()">
+                        {% if lang == "ja" %}ブックマークする{% else %}Bookmark{% endif %}
+                    </button>
+                </template>
+            </div>
         </div>
-    </template>
 
-    <template x-if="hasError">
-        <div class="club-shell__error">
-            <p>{% if lang == "ja" %}データの読み込みに失敗しました。{% else %}Failed to load data.{% endif %}</p>
-            <button class="button button--secondary" @click="load()">
-                {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
-            </button>
+        <div x-ref="body">
+            <template x-if="isLoading">
+                <div class="club-shell__loading">
+                    <div class="club-shell__spinner"></div>
+                    <p class="club-shell__loading-text">{% if lang == "ja" %}クラブデータを読み込み中...{% else %}Loading club data...{% endif %}</p>
+                </div>
+            </template>
+
+            <template x-if="hasError">
+                <div class="club-shell__error">
+                    <p>{% if lang == "ja" %}データの読み込みに失敗しました。{% else %}Failed to load data.{% endif %}</p>
+                    <button class="button button--secondary" @click="load()">
+                        {% if lang == "ja" %}再試行{% else %}Retry{% endif %}
+                    </button>
+                </div>
+            </template>
+
+            <div x-show="!isLoading && !hasError" x-ref="content"></div>
         </div>
-    </template>
-
-    <div x-show="!isLoading && !hasError" x-ref="content"></div>
+    </div>
 
     {# バナー広告 #}
     <div style="margin: 0 5%">
@@ -39,57 +84,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-function clubFragmentLoader(url, pageLabel) {
-    return {
-        isLoading: true,
-        hasError: false,
-        updatePageTitle(container) {
-            const nameEl = container.querySelector('.club-header__name');
-            const tagEl = container.querySelector('.club-header__tag');
-            if (!nameEl || !tagEl) return;
-
-            const clubName = nameEl.textContent.trim();
-            const clubTag = tagEl.textContent.trim();
-            if (!clubName || !clubTag) return;
-            document.title = `${clubName} (${clubTag}) ${pageLabel} - Brawl Insights`;
-        },
-        async load() {
-            this.isLoading = true;
-            this.hasError = false;
-            try {
-                if (window.__biApplyIntegrityBlock && await window.__biApplyIntegrityBlock(this.$refs.content, 'club')) {
-                    return;
-                }
-                const res = await fetch(url, { credentials: 'same-origin' });
-                const html = await res.text();
-                if (!html || !html.trim()) throw new Error('Empty response');
-                const container = this.$refs.content;
-                container.innerHTML = html;
-
-                container.querySelectorAll('script').forEach(oldScript => {
-                    const newScript = document.createElement('script');
-                    [...oldScript.attributes].forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                    if (!oldScript.src) {
-                        newScript.textContent = oldScript.textContent;
-                        oldScript.parentNode.replaceChild(newScript, oldScript);
-                    } else {
-                        oldScript.remove();
-                    }
-                });
-                this.updatePageTitle(container);
-
-                if (!res.ok && !container.querySelector('.club-error-msg')) {
-                    throw new Error('HTTP ' + res.status);
-                }
-            } catch (e) {
-                console.error('Fragment load error:', e);
-                this.hasError = true;
-            } finally {
-                this.isLoading = false;
-            }
-        }
-    };
-}
-</script>
+{% include "club/includes/bookmark_script.html" %}
+<script src="{{ url_for('static', path='/js/shell_fragment_loader.js') }}?v={{ app_version }}"></script>
 {% endblock %}
