@@ -50,6 +50,14 @@ class ReachTest(unittest.TestCase):
         # 初日はまだ届く
         self.assertEqual(gs.reachable_total(c, 0, 0, datetime(2026, 11, 6, 1, 0, tzinfo=timezone.utc)), 100)
 
+    def test_next_texts_from_long_to_short(self):
+        c = _campaign()
+        user = type("U", (), {"tokens": 1000, "is_prohibit_giveaway": False, "is_invalid": False})()
+        now = datetime(2026, 11, 7, 3, 0, tzinfo=timezone.utc)
+        counts = {"total": 37, "today": 3, "limit_total": 37, "limit_today": 3, "shared": False}
+        box = gs.build_entry_box(c, "live", "ja", now, user=user, counts=counts, stats={"users": 1, "entries": 37})
+        self.assertEqual(box["next_texts"], ["あと13口で参加賞ボーナス +20トークン", "あと13口でボーナス +20トークン", "あと13口でボーナス +20"])
+
     def test_reachable_without_daily_limit(self):
         c = _campaign(settings={"daily_limit": 0, "total_limit": 20})
         self.assertEqual(gs.reachable_total(c, 3, 3, datetime(2026, 11, 19, 23, 0, tzinfo=timezone.utc)), 20)
@@ -62,7 +70,8 @@ class ReachTest(unittest.TestCase):
         box = gs.build_entry_box(c, "live", "ja", now, user=user, counts=counts, stats={"users": 1, "entries": 61})
         self.assertEqual(box["reach"], 85)
         self.assertEqual([m["state"] for m in box["marks"]], ["done", "lost"])
-        self.assertEqual(box["next_text"], "")  # 100口には届かないので出さない
+        self.assertEqual(box["next_texts"], [])  # 100口には届かないので出さない
+        self.assertEqual(box["marks"][0]["label_long"], "50口 ボーナス<b>+20トークン</b>")
         self.assertEqual(box["participation"], 81)
         self.assertEqual(box["bulk"], 8)
 

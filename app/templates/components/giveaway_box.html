@@ -45,9 +45,10 @@
                 {% for m in box.marks if not m.end %}<i class="gva__tick" style="left: {{ m.pct }}%"></i>{% endfor %}
             </div>
             {% if box.marks %}
-            <div class="gva__marks">
+            {# 詳しい書き方（data-v="0"）が重なる・はみ出すなら短い書き方（data-v="1"）に（gvaFit） #}
+            <div class="gva__marks" data-gva-fit="marks">
                 {% for m in box.marks %}
-                <span class="gva__mark{% if m.end %} gva__mark--end{% endif %}{% if m.state %} gva__mark--{{ m.state }}{% endif %}"{% if not m.end %} style="left: {{ m.pct }}%"{% endif %}>{% if m.state == "done" %}✓ {% endif %}{{ m.label | safe }}</span>
+                <span class="gva__mark{% if m.end %} gva__mark--end{% endif %}{% if m.state %} gva__mark--{{ m.state }}{% endif %}"{% if not m.end %} style="left: {{ m.pct }}%"{% endif %}>{% if m.state == "done" %}✓ {% endif %}<span data-v="0" hidden>{{ m.label_long | safe }}</span><span data-v="1">{{ m.label | safe }}</span></span>
                 {% endfor %}
             </div>
             {% endif %}
@@ -57,9 +58,10 @@
         </div>
     </div>
     {% if box.participation_on %}
-    <div class="gva__join">
+    {# 「あと◯口で…」は1行に収まる中で一番詳しいもの（gvaFit。最初は一番短いもの） #}
+    <div class="gva__join" data-gva-fit="row">
         <span>{% if ja %}参加賞 <b>{{ "{:,}".format(box.participation) }}</b>トークン{{ box.reached_label }}{% else %}Participation prize: <b>{{ "{:,}".format(box.participation) }}</b> tokens{{ box.reached_label }}{% endif %}</span>
-        {% if box.next_text %}<span class="gva__join-next">{{ box.next_text }}</span>{% endif %}
+        {% if box.next_texts %}<span class="gva__join-next">{% for t in box.next_texts %}<span data-v="{{ loop.index0 }}"{% if not loop.last %} hidden{% endif %}>{{ t }}</span>{% endfor %}</span>{% endif %}
     </div>
     {% endif %}
 
