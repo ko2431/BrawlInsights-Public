@@ -68,6 +68,13 @@ async def admin_giveaways(
             """,
             [c.id for c in campaigns],
         )}
+    # 開始のお知らせを公開・予約したのに、企画が下書きのまま（アカウントタブに出ない）のものに注意を出す
+    announced = set()
+    ann_ids = [c.start_announcement_id for c in campaigns if c.start_announcement_id]
+    if ann_ids:
+        announced = {r["id"] for r in await db.fetch(
+            "SELECT id FROM announcement_posts WHERE id = ANY($1::int[]) AND status = 'published' AND deleted_at IS NULL", ann_ids,
+        )}
     items = []
     for c in campaigns:
         state = c.state(now)
@@ -76,6 +83,7 @@ async def admin_giveaways(
             "left": gs.fmt_left(c.ends_at - now, "ja") if state == "live" else "",
             "users": counts[c.id]["users"] if c.id in counts else 0,
             "entries": counts[c.id]["entries"] if c.id in counts else 0,
+            "unpublished_warning": not c.is_published and c.ends_at > now and c.start_announcement_id in announced,
         })
     return templates.TemplateResponse("admin/giveaways.html", {
         "request": request, "lang": lang, "current_page": "account", "items": items,
