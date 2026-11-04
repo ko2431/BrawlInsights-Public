@@ -1511,7 +1511,7 @@ body.modal-open {
 
 .bca__head { display: flex; flex-direction: column; gap: 2px; }
 .bca__head-main { display: flex; align-items: center; gap: 8px; }
-.bca__title { font-size: 16px; font-weight: bold; }
+.bca__title { font-size: 16px; line-height: 1.3; font-weight: bold; }
 .bca__badge { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: bold; white-space: nowrap; }
 .bca__badge--live { background: #d6f3cb; color: #1d6a10; }
 .dark .bca__badge--live { background: #1f3a1a; color: #8fe27c; }
@@ -1568,7 +1568,7 @@ body.modal-open {
 .bca__foot { font-size: 12px; color: var(--color-777); }
 .bca__foot b { color: var(--color-444); }
 .bca__caution { font-size: 11px; line-height: 1.45; color: var(--c-red); }
-.bca__msg { font-size: 13px; line-height: 1.5; color: var(--color-444); }
+.bca__msg { font-size: 13px; line-height: 1.35; color: var(--color-444); }
 .bca__warn { font-size: 12.5px; line-height: 1.45; color: var(--c-red); }
 /* 掲示板企画の結果の箱（components/board_campaign_result.html） */
 .bca-list { display: flex; flex-direction: column; gap: 8px; }
