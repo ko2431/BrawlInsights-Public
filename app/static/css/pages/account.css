@@ -1519,7 +1519,7 @@ body.modal-open {
 .dark .bca__badge--ended { background: #1c2533; color: #9db8e6; }
 .bca__badge--result { background: #f0dcff; color: #7b2fa8; }
 .dark .bca__badge--result { background: #33224a; color: #d6a8ff; }
-.bca__head-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--color-777); }
+.bca__head-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; line-height: 1.35; color: var(--color-777); }
 .bca__head-sub small { font-size: 10.5px; color: var(--color-888); }
 .bca__link { flex: none; font-weight: bold; color: var(--color-444); }
 
