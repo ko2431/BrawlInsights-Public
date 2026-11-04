@@ -1,5 +1,9 @@
 {# /app/templates/player/battles.html - シェルページ #}
 {% extends "base.html" %}
+{% set battles_fragment_base = url_for('get_player_battles_fragment', lang=lang, tag=tag[1:]) | string %}
+{% set shell_fragment_url -%}
+{{ battles_fragment_base }}?tab={{ current_tab }}{% if before_date_filter %}&before={{ before_date_filter | urlencode }}{% endif %}{% if after_date_filter %}&after={{ after_date_filter | urlencode }}{% endif %}{% if selected_brawler_id %}&brawler_id={{ selected_brawler_id }}{% endif %}{% if selected_mode_id is not none %}&mode_id={{ selected_mode_id }}{% endif %}{% if selected_event_id %}&event_id={{ selected_event_id }}{% endif %}&page={{ current_page_num }}
+{%- endset %}
 
 {% block title %}{% if player_header %}{{ player_header.name }} ({{ tag }}){% else %}{{ tag }}{% endif %} {% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのバトル履歴です。{% else %}{{ tag }} Brawl Stars battle log.{% endif %}{% endblock %}
@@ -13,10 +17,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="{{ url_for('static', path='/js/select_optgroup_filter.js') }}?v={{ app_version }}"></script>
+    {% include "components/shell_prefetch.html" %}
 {% endblock %}
 
 {% block content %}
-{% set battles_fragment_base = url_for('get_player_battles_fragment', lang=lang, tag=tag[1:]) %}
 {% set battle_sub_tabs = [
     ("all", "/images/ui/battlelog.png", "すべて", "All"),
     ("trophy", "/images/ui/trophy.png", "トロフィー", "Trophy"),
@@ -25,7 +29,7 @@
 ] %}
 <div class="player-page__container"
      x-data="shellFragmentLoader({
-        url: '{{ battles_fragment_base }}?tab={{ current_tab }}{% if before_date_filter %}&before={{ before_date_filter | urlencode }}{% endif %}{% if after_date_filter %}&after={{ after_date_filter | urlencode }}{% endif %}{% if selected_brawler_id %}&brawler_id={{ selected_brawler_id }}{% endif %}{% if selected_mode_id is not none %}&mode_id={{ selected_mode_id }}{% endif %}{% if selected_event_id %}&event_id={{ selected_event_id }}{% endif %}&page={{ current_page_num }}',
+        url: '{{ shell_fragment_url }}',
         pageLabel: '{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}',
         kind: 'player',
         reloadAnchorKey: 'bi_battles_reload_anchor',

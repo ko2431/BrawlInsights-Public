@@ -1,18 +1,20 @@
 {# /app/templates/club/profile.html - シェルページ #}
 {% extends "base.html" %}
+{% set shell_fragment_url = url_for('get_club_profile_fragment', lang=lang, tag=tag[1:]) | string %}
 
 {% block title %}{% if club_header %}{{ club_header.name|striptags }} ({{ tag }}){% else %}{{ tag }}{% endif %} {% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのクラブ情報です。{% else %}{{ tag }} Brawl Stars club information.{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/club.css') }}?v={{ app_version }}">
+    {% include "components/shell_prefetch.html" %}
 {% endblock %}
 
 {% block content %}
 {% from "club/includes/club_identity.html" import club_identity with context %}
 <div class="club-shell__container"
      x-data="shellFragmentLoader({
-        url: '{{ url_for('get_club_profile_fragment', lang=lang, tag=tag[1:]) }}',
+        url: '{{ shell_fragment_url }}',
         pageLabel: '{% if lang == "ja" %}クラブ情報{% else %}Club Information{% endif %}',
         kind: 'club'
      })"

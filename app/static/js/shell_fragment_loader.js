@@ -37,6 +37,16 @@
         });
     }
 
+    // シェルの <head> で始めたフラグメントの取得(components/shell_prefetch.html)を、URLが同じ場合に1回だけ受け取る
+    function takeShellPrefetch(url) {
+        const prefetch = window.__biShellPrefetch;
+        if (!prefetch || prefetch.url !== url) return null;
+        window.__biShellPrefetch = null;
+        return prefetch;
+    }
+
+    // [この部分は公開用リポジトリでは非公開にされています]
+
     function consumeSessionValue(key) {
         if (!key) return null;
         try {
@@ -125,10 +135,17 @@
 
             async load(fragmentUrl = this.currentUrl, { switching = false } = {}) {
                 if (abortController) abortController.abort();
-                abortController = new AbortController();
-                const signal = abortController.signal;
+                const controller = new AbortController();
+                abortController = controller;
                 const currentLoadId = ++loadId;
                 this.currentUrl = fragmentUrl;
+                const fetchFragment = async () => {
+                    const res = await fetch(fragmentUrl, { credentials: 'same-origin', signal: controller.signal });
+                    return { res, html: await res.text() };
+                };
+                // 先に始めた取得があれば使う。表示は、これまでどおり計測スクリプトの確認のあと
+                const prefetch = takeShellPrefetch(fragmentUrl);
+                if (prefetch) controller.signal.addEventListener('abort', () => prefetch.controller.abort());
 
                 // 切り替え中に高さが縮んで、スクロール位置が飛ばないようにする
                 const body = this.$refs.body;
@@ -140,10 +157,11 @@
 
                 try {
                     if (window.__biApplyIntegrityBlock && await window.__biApplyIntegrityBlock(this.$refs.content, kind)) {
+                        controller.abort();
                         return;
                     }
-                    const res = await fetch(fragmentUrl, { credentials: 'same-origin', signal });
-                    const html = await res.text();
+                    let { res, html } = await (prefetch ? prefetch.promise : fetchFragment());
+                    // [この部分は公開用リポジトリでは非公開にされています]
                     if (currentLoadId !== loadId) return;
                     if (!html || !html.trim()) throw new Error('Empty response');
 

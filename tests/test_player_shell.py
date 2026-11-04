@@ -114,3 +114,38 @@ async def test_shell_header_lookup_is_skipped_without_db(client: AsyncClient):
     response = await client.get("/ja/player/stats/PCJJPRP")
     assert response.status_code == 200
     assert "data-shell-pending" in response.text
+
+
+def _prefetch_url(html):
+    m = re.search(r'window\.__biShellPrefetch = \(function \(url\) \{.*?\}\)\("([^"]*)"\);', html, re.S)
+    return m.group(1).replace("\\u0026", "&") if m else None
+
+
+def _loader_url(html):
+    return re.search(r"x-data=\"shellFragmentLoader\(\{\s*url: '([^']*)'", html).group(1).replace("&amp;", "&")
+
+
+@pytest.mark.asyncio
+async def test_shell_prefetch_only_when_fragment_is_accepted(client: AsyncClient, known_player, monkeypatch):
+    from app.core import page_integrity
+    monkeypatch.setattr(page_integrity.settings, "ADBLOCK_GATE_ENABLED", True)
+    url = "/ja/player/battles/PCJJPRP?tab=trophy&brawler_id=16000000"
+
+    # 確認を通ったCookieがない場合は、確認のあとに取得する(先読みしない)
+    client.cookies.clear()
+    response = await client.get(url)
+    assert _prefetch_url(response.text) is None
+
+    # Cookieが有効なら、<head> で取得を始める。URLは読み込み処理と同じ
+    client.cookies.set(page_integrity.COOKIE_NAME, page_integrity.issue_integrity_token())
+    try:
+        response = await client.get(url)
+    finally:
+        client.cookies.clear()
+    assert _prefetch_url(response.text) == _loader_url(response.text)
+    assert _prefetch_url(response.text).endswith("/api/ja/player/PCJJPRP/battles?tab=trophy&brawler_id=16000000&page=1")
+
+    # 確認の対象外(ゲート無効)なら、Cookieがなくても先読みする
+    monkeypatch.setattr(page_integrity.settings, "ADBLOCK_GATE_ENABLED", False)
+    response = await client.get("/ja/player/profile/PCJJPRP")
+    assert _prefetch_url(response.text) == _loader_url(response.text)
