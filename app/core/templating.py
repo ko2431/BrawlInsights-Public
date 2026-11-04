@@ -16,8 +16,13 @@ from app.utils.utils import format_display_datetime, format_last_played_time
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import mode_icon_candidates
 from app.services.board_colors import board_dark_color
+import functools
 import re
+from typing import Any, Callable
+from jinja2 import pass_context
 from markupsafe import Markup
+from starlette.datastructures import URL, URLPath
+from starlette.requests import Request
 
 # context_processors をリストで渡す
 templates = Jinja2Templates(
@@ -67,7 +72,44 @@ def version_at_least(current: str | None, minimum: str) -> bool:
     return current_padded >= minimum_padded
 
 
+# Starlette の url_for は呼ぶたびに全ルートを先頭から照合する（static は400番目付近）。
+# キャラや戦績の一覧では1回の描画で千回以上呼ばれ、それだけで1〜2秒かかるため、照合の結果を使い回す。
+# ルート表は起動後に変わらないため、出力は変わらない。
+URL_PATH_CACHE_SIZE = 20000
+_url_path_resolvers: dict[int, tuple[Any, Callable[[str, tuple], URLPath]]] = {}
+
+
+def _get_url_path_resolver(provider: Any) -> Callable[[str, tuple], URLPath]:
+    """ルーター(またはアプリ)ごとに、ルート名とパラメータからURLパスを引く関数(キャッシュ付き)を返す。"""
+    entry = _url_path_resolvers.get(id(provider))
+    if entry is None or entry[0] is not provider:
+        @functools.lru_cache(maxsize=URL_PATH_CACHE_SIZE)
+        def resolve(name: str, items: tuple) -> URLPath:
+            return provider.url_path_for(name, **dict(items))
+        entry = (provider, resolve)
+        _url_path_resolvers[id(provider)] = entry
+    return entry[1]
+
+
+@pass_context
+def cached_url_for(context: dict[str, Any], name: str, /, **path_params: Any) -> URL:
+    """Starlette の url_for と同じ結果を返す。見つからない場合の例外も同じ(例外はキャッシュしない)。"""
+    request: Request = context["request"]
+    provider = request.scope.get("router") or request.scope.get("app")
+    if provider is None:
+        return request.url_for(name, **path_params)
+    items = tuple(sorted(path_params.items()))
+    try:
+        hash(items)
+    except TypeError:
+        # ハッシュできない値は、キャッシュせずにそのまま引く
+        return request.url_for(name, **path_params)
+    url_path = _get_url_path_resolver(provider)(name, items)
+    return url_path.make_absolute_url(base_url=request.base_url)
+
+
 # カスタムグローバル関数を登録
+templates.env.globals['url_for'] = cached_url_for
 templates.env.globals['format_display_datetime'] = format_display_datetime
 templates.env.globals['format_last_played_time'] = format_last_played_time
 templates.env.globals['mode_icon_candidates'] = mode_icon_candidates
