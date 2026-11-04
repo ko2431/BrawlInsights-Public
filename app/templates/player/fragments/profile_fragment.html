@@ -1957,6 +1957,7 @@
                         <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + brawler.id|string + '.png') }}"
                              alt="{{ brawler.name_ja or brawler.name_en }} アイコン"
                              class="brawler-card__portrait"
+                             loading="lazy"
                              onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
 
                         {# 2. 名前とアクセサリー #}
@@ -1965,7 +1966,7 @@
                             <div class="brawler-card__accessories">
                                 {# パワーレベル (連勝数ソート時は非表示) #}
                                 {% if current_sort not in ['win_streak_max', 'win_streak_current'] %}
-                                <img src="{{ url_for('static', path='/images/ui/power_point.png') }}" alt="パワー" class="brawler-card__accessory-icon">
+                                <img src="{{ url_for('static', path='/images/ui/power_point.png') }}" alt="パワー" class="brawler-card__accessory-icon" loading="lazy">
                                 <span class="brawler-card__accessory-text">
                                     <span class="brawler-card__accessory-value">{{ brawler.power }}</span>
                                 </span>
@@ -1974,14 +1975,14 @@
                                     {# ハイパーチャージ #}
                                     {% if brawler.hyper_charge_ids %}
                                     {% set hc_icon = 'accessories/hyper_buffie.png' if brawler.buffie_hyper_charge else 'ui/hypercharge.webp' if brawler.power >= 11 else 'accessories/hypercharge_gray.png' %}
-                                    <img src="{{ url_for('static', path='/images/' + hc_icon) }}" alt="ハイパーチャージ" class="brawler-card__accessory-icon brawler-card__accessory-icon--hypercharge">
+                                    <img src="{{ url_for('static', path='/images/' + hc_icon) }}" alt="ハイパーチャージ" class="brawler-card__accessory-icon brawler-card__accessory-icon--hypercharge" loading="lazy">
                                     {% else %}
                                     {% endif %}
                                     {# ガジェット #}
                                     {% set gadget_icon = 'gadget_locked.png' %}
                                     {% if brawler.power >= 7 %}{% set gadget_icon = 'gadget_empty.png' %}{% endif %}
                                     {% if brawler.gadget and brawler.gadget > 0 %}{% set gadget_icon = 'gadget_buffie.png' if brawler.buffie_gadget else 'gadget.png' %}{% endif %}
-                                    <img src="{{ url_for('static', path='/images/accessories/' + gadget_icon) }}" alt="ガジェット" class="brawler-card__accessory-icon">
+                                    <img src="{{ url_for('static', path='/images/accessories/' + gadget_icon) }}" alt="ガジェット" class="brawler-card__accessory-icon" loading="lazy">
                                     <span class="brawler-card__accessory-text">
                                         {# <span class="brawler-card__accessory-prefix">x</span> #}
                                         <span class="brawler-card__accessory-value">{{ brawler.gadget }}</span>
@@ -1990,7 +1991,7 @@
                                     {% set sp_icon = 'starpower_locked.png' %}
                                     {% if brawler.power >= 9 %}{% set sp_icon = 'starpower_empty.png' %}{% endif %}
                                     {% if brawler.star_power and brawler.star_power > 0 %}{% set sp_icon = 'star_buffie.png' if brawler.buffie_star_power else 'starpower.png' %}{% endif %}
-                                    <img src="{{ url_for('static', path='/images/accessories/' + sp_icon) }}" alt="スターパワー" class="brawler-card__accessory-icon">
+                                    <img src="{{ url_for('static', path='/images/accessories/' + sp_icon) }}" alt="スターパワー" class="brawler-card__accessory-icon" loading="lazy">
                                     <span class="brawler-card__accessory-text">
                                         {# <span class="brawler-card__accessory-prefix">x</span> #}
                                         <span class="brawler-card__accessory-value">{{ brawler.star_power }}</span>
@@ -1999,17 +2000,17 @@
                                     {% set gear_icon = 'gear_locked.png' %}
                                     {% if brawler.power >= 8 %}{% set gear_icon = 'gear_empty.png' %}{% endif %}
                                     {% if brawler.gear and brawler.gear > 0 %}{% set gear_icon = 'gear.png' %}{% endif %}
-                                    <img src="{{ url_for('static', path='/images/accessories/' + gear_icon) }}" alt="ギア" class="brawler-card__accessory-icon">
+                                    <img src="{{ url_for('static', path='/images/accessories/' + gear_icon) }}" alt="ギア" class="brawler-card__accessory-icon" loading="lazy">
                                     <span class="brawler-card__accessory-text">
                                         {# <span class="brawler-card__accessory-prefix">x</span> #}
                                         <span class="brawler-card__accessory-value">{{ brawler.gear }}</span>
                                 {% elif current_sort in ['win_streak_max', 'win_streak_current'] %}
                                     {# 連勝数表示 #}
-                                    <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="最大連勝数" class="brawler-card__accessory-icon brawler-card__accessory-icon--win-streak">
+                                    <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="最大連勝数" class="brawler-card__accessory-icon brawler-card__accessory-icon--win-streak" loading="lazy">
                                     <span class="brawler-card__accessory-text">
                                         <span class="brawler-card__accessory-prefix">{% if lang == 'ja' %}最大{% else %}Max{% endif %}</span><span class="brawler-card__accessory-value">{{ brawler.max_win_streak or 0 }}</span>
                                     </span>
-                                    <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="現在連勝数" class="brawler-card__accessory-icon brawler-card__accessory-icon--win-streak">
+                                    <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="現在連勝数" class="brawler-card__accessory-icon brawler-card__accessory-icon--win-streak" loading="lazy">
                                     <span class="brawler-card__accessory-text">
                                         <span class="brawler-card__accessory-prefix">{% if lang == 'ja' %}現在{% else %}Now{% endif %}</span><span class="brawler-card__accessory-value">{{ brawler.current_win_streak or 0 }}</span>
                                     </span>
@@ -2027,7 +2028,7 @@
                                         {% set mastery_icon = 'ui/mastery_bronze.png' %}
                                         {% set mastery_color = '#9E3F08' %}
                                     {% endif %}
-                                    <img src="{{ url_for('static', path='/images/' + mastery_icon) }}" alt="マスタリーランク" class="brawler-card__accessory-icon" style="margin-right: 1.5px; margin-left: 2px">
+                                    <img src="{{ url_for('static', path='/images/' + mastery_icon) }}" alt="マスタリーランク" class="brawler-card__accessory-icon" loading="lazy" style="margin-right: 1.5px; margin-left: 2px">
                                     <span class="brawler-card__accessory-text">
                                         {% if mastery_rank in [1,4,7] %}
                                             <span class="brawler-card__accessory-value" style="color: {{mastery_color}}; font-weight: bold;">I</span>
@@ -2048,7 +2049,7 @@
 
                         {# 4. ランクアイコン #}
                         <div style="position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-                            <img src="{{ url_for('static', path='/images/rank/' + brawler.acc_rank|string + '.png') }}" alt="ランク {{ brawler.acc_rank }}" class="brawler-card__tier brawler-card__tier--{{ brawler.acc_rank }}">
+                            <img src="{{ url_for('static', path='/images/rank/' + brawler.acc_rank|string + '.png') }}" alt="ランク {{ brawler.acc_rank }}" class="brawler-card__tier brawler-card__tier--{{ brawler.acc_rank }}" loading="lazy">
                             {% if brawler.prestige_level %}
                             <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: bold; text-shadow: 0 0 3px #000, 0 0 2px #000; pointer-events: none; margin-top: -5px;">{{ brawler.prestige_level }}</span>
                             {% endif %}
@@ -2057,11 +2058,11 @@
                         {# 5. トロフィー情報 #}
                         <div class="brawler-card__trophies">
                             <div class="brawler-card__trophy-row">
-                                <img src="{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}" alt="最多トロフィー" class="brawler-card__trophy-icon">
+                                <img src="{{ url_for('static', path='/images/ui/leaderboard_bottom.png') }}" alt="最多トロフィー" class="brawler-card__trophy-icon" loading="lazy">
                                 <span class="brawler-card__trophy-text">{{ brawler.highest_trophies }}</span>
                             </div>
                             <div class="brawler-card__trophy-row">
-                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="現在トロフィー" class="brawler-card__trophy-icon">
+                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="現在トロフィー" class="brawler-card__trophy-icon" loading="lazy">
                                 <span class="brawler-card__trophy-text">{{ brawler.trophies }}</span>
                             </div>
                         </div>
@@ -2077,11 +2078,11 @@
                         {# 上段: リンクボタン 2つ #}
                         <div class="brawler-extra__buttons">
                             <a href="{{ url_for('brawler_guide', lang=lang, brawler_id=brawler.id) }}?tab=home&from=profile&player={{ player.tag[1:] }}" class="brawler-extra__btn">
-                                <img src="{{ url_for('static', path='/images/ui/brawlers.png') }}" alt="" class="brawler-extra__btn-icon">
+                                <img src="{{ url_for('static', path='/images/ui/brawlers.png') }}" alt="" class="brawler-extra__btn-icon" loading="lazy">
                                 <span>{% if lang == "ja" %}キャラクター図鑑{% else %}Brawler Guide{% endif %}</span>
                             </a>
                             <a href="{{ battle_log_brawler_url }}" class="brawler-extra__btn">
-                                <img src="{{ url_for('static', path='/images/ui/battlelog.png') }}" alt="" class="brawler-extra__btn-icon">
+                                <img src="{{ url_for('static', path='/images/ui/battlelog.png') }}" alt="" class="brawler-extra__btn-icon" loading="lazy">
                                 <span>{% if lang == "ja" %}バトル履歴{% else %}Battle Log{% endif %}</span>
                             </a>
                         </div>
@@ -2118,6 +2119,7 @@
                                     <img src="{{ skin_img }}"
                                          alt="{% if lang == 'ja' %}スキン{% else %}Skin{% endif %}"
                                          class="brawler-skin__image {% if not skin or not brawler.skin_id %}brawler-skin__image--fallback{% endif %}"
+                                         loading="lazy"
                                          onerror="this.onerror=null; this.src='{{ default_skin_img }}'; this.classList.add('brawler-skin__image--fallback');">
                                 </div>
 
@@ -2147,9 +2149,9 @@
                                         {% else %}
                                             {% set rarity_icon = 'skin_true_gold.png' %}
                                         {% endif %}
-                                        <img src="{{ url_for('static', path='/images/ui/' + rarity_icon) }}" alt="" class="brawler-skin__rarity-icon">
+                                        <img src="{{ url_for('static', path='/images/ui/' + rarity_icon) }}" alt="" class="brawler-skin__rarity-icon" loading="lazy">
                                     {% else %}
-                                        <img src="{{ url_for('static', path='/images/ui/skin_other.png') }}" alt="" class="brawler-skin__rarity-icon">
+                                        <img src="{{ url_for('static', path='/images/ui/skin_other.png') }}" alt="" class="brawler-skin__rarity-icon" loading="lazy">
                                     {% endif %}
 
                                     {# スキン名 #}
@@ -2183,6 +2185,7 @@
                                     <div class="acc-box__row">
                                         <img src="{{ url_for('static', path='/images/' + (('hypercharge_buffies/' if brawler.buffie_hyper_charge else 'hypercharge/') + hc.id|string + '.png' if owned else 'ui/locked.png')) }}"
                                              alt="" class="acc-box__icon {% if not owned %}acc-box__icon--locked{% endif %}"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/ui/hypercharge.webp') }}';">
                                         <span class="acc-box__name{% if not owned %} acc-box__name--locked{% endif %}">{{ hc.ja if hc.ja and lang == 'ja' else hc.en }}</span>
                                     </div>
@@ -2200,10 +2203,11 @@
                                         {% if owned %}
                                         <img src="{{ url_for('static', path='/images/' + (('gadget_buffies/' if brawler.buffie_gadget else 'gadgets/') + gd.id|string + '.png')) }}"
                                              alt="" class="acc-box__icon"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/' + ('gadget_buffie.png' if brawler.buffie_gadget else 'gadget.png')) }}';">
                                         {% else %}
                                         <img src="{{ url_for('static', path='/images/ui/locked.png') }}"
-                                             alt="" class="acc-box__icon acc-box__icon--locked">
+                                             alt="" class="acc-box__icon acc-box__icon--locked" loading="lazy">
                                         {% endif %}
                                         <span class="acc-box__name{% if not owned %} acc-box__name--locked{% endif %}">{{ gd.ja if gd.ja and lang == 'ja' else gd.en }}</span>
                                     </div>
@@ -2221,10 +2225,11 @@
                                         {% if owned %}
                                         <img src="{{ url_for('static', path='/images/' + (('starpower_buffies/' if brawler.buffie_star_power else 'starpowers/') + sp.id|string + '.png')) }}"
                                              alt="" class="acc-box__icon"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/' + ('star_buffie.png' if brawler.buffie_star_power else 'starpower.png')) }}';">
                                         {% else %}
                                         <img src="{{ url_for('static', path='/images/ui/locked.png') }}"
-                                             alt="" class="acc-box__icon acc-box__icon--locked">
+                                             alt="" class="acc-box__icon acc-box__icon--locked" loading="lazy">
                                         {% endif %}
                                         <span class="acc-box__name{% if not owned %} acc-box__name--locked{% endif %}">{{ sp.ja if sp.ja and lang == 'ja' else sp.en }}</span>
                                     </div>
@@ -2243,6 +2248,7 @@
                                         {% set gr = all_gr[i] %}{% set owned = gr.id in eq_gear_ids %}
                                         <img src="{% if owned %}https://cdn.brawlify.com/gears/regular/{{ gr.id }}.png{% else %}{{ url_for('static', path='/images/accessories/gear_empty.png') }}{% endif %}"
                                              alt="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}" class="acc-box__gear-icon"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/gear.png') }}';"
                                              title="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}">
                                         {% endif %}{% endfor %}
@@ -2250,6 +2256,7 @@
                                         {% set gr = all_gr[6] %}{% set owned = gr.id in eq_gear_ids %}
                                         <img src="{% if owned %}https://cdn.brawlify.com/gears/regular/{{ gr.id }}.png{% else %}{{ url_for('static', path='/images/accessories/gear_empty.png') }}{% endif %}"
                                              alt="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}" class="acc-box__gear-icon"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/gear.png') }}';"
                                              title="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}">
                                         {% endif %}
@@ -2260,6 +2267,7 @@
                                         {% set gr = all_gr[i] %}{% set owned = gr.id in eq_gear_ids %}
                                         <img src="{% if owned %}https://cdn.brawlify.com/gears/regular/{{ gr.id }}.png{% else %}{{ url_for('static', path='/images/accessories/gear_empty.png') }}{% endif %}"
                                              alt="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}" class="acc-box__gear-icon"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/gear.png') }}';"
                                              title="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}">
                                         {% endif %}{% endfor %}
@@ -2267,6 +2275,7 @@
                                         {% set gr = all_gr[7] %}{% set owned = gr.id in eq_gear_ids %}
                                         <img src="{% if owned %}https://cdn.brawlify.com/gears/regular/{{ gr.id }}.png{% else %}{{ url_for('static', path='/images/accessories/gear_empty.png') }}{% endif %}"
                                              alt="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}" class="acc-box__gear-icon"
+                                             loading="lazy"
                                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/accessories/gear.png') }}';"
                                              title="{{ gr.ja if gr.ja and lang == 'ja' else gr.en }}">
                                         {% endif %}

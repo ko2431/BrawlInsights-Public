@@ -137,33 +137,93 @@ class _ExecuteDB:
 
 @pytest.mark.asyncio
 async def test_auto_activation_for_page_view_keeps_cache(monkeypatch):
-    cache = {"player:" + TAG: {"tag": TAG, "level": 20, "auto_track_expiration": None, "remaining_time": None, "name": "a"}}
-    deleted, kept = [], []
+    deleted, updates = [], []
+    result = {"value": True}
 
-    async def fake_get_cache(key):
-        return cache.get(key)
-
-    async def fake_set_cache_keep_ttl(key, value):
-        kept.append(key)
-        cache[key] = value
+    async def fake_update(key, fields):
+        updates.append((key, fields))
+        return result["value"]
 
     async def fake_delete_cache(key):
         deleted.append(key)
-    monkeypatch.setattr(brawl_service, "get_cache", fake_get_cache)
-    monkeypatch.setattr(brawl_service, "set_cache_keep_ttl", fake_set_cache_keep_ttl)
+    monkeypatch.setattr(brawl_service, "update_cache_fields_keep_ttl", fake_update)
     monkeypatch.setattr(brawl_service, "delete_cache", fake_delete_cache)
 
     player = brawl_service.Player(TAG, _ExecuteDB())
     await player.activate_automatic_acquisition(activate_time=datetime.timedelta(hours=24), keep_cache=True)
-    assert deleted == [] and kept == ["player:" + TAG]
-    cached = cache["player:" + TAG]
-    assert cached["level"] == 30 and cached["name"] == "a"
-    assert cached["auto_track_expiration"] == brawl_service.format_utc_datetime(player.auto_track_expiration)
-    assert 23 * 3600 < cached["remaining_time"] <= 24 * 3600
+    # キャッシュは消さず、自動追跡の3項目だけを書き換える(ほかの項目はキャッシュにある最新の値のまま)
+    assert deleted == []
+    (key, fields), = updates
+    assert key == "player:" + TAG
+    assert set(fields) == {"level", "auto_track_expiration", "remaining_time"}
+    assert fields["level"] == 30
+    assert fields["auto_track_expiration"] == brawl_service.format_utc_datetime(player.auto_track_expiration)
+    assert 23 * 3600 < fields["remaining_time"] <= 24 * 3600
+
+    # 競合が続いて書き換えられなかった場合は、これまでどおりキャッシュを消す
+    result["value"] = False
+    await player.activate_automatic_acquisition(activate_time=datetime.timedelta(hours=24), keep_cache=True)
+    assert deleted == ["player:" + TAG]
 
     # 延長などほかの経路は、これまでどおりキャッシュを消す
+    deleted.clear()
     await player.activate_automatic_acquisition(activate_time=datetime.timedelta(hours=1))
     assert deleted == ["player:" + TAG, "player_fresh:" + TAG]
+
+
+@pytest.mark.asyncio
+async def test_cancelled_meow_request_is_not_cached_as_failure(monkeypatch):
+    from app.services import meowapi
+    cached = []
+
+    async def fake_get_cache(key):
+        return None
+
+    async def fake_set_cache(key, value, ttl=3600):
+        cached.append(key)
+
+    async def slow_get(endpoint, params=None):
+        await asyncio.sleep(5)
+    monkeypatch.setattr(meowapi, "get_cache", fake_get_cache)
+    monkeypatch.setattr(meowapi, "set_cache", fake_set_cache)
+    monkeypatch.setattr(meowapi._api_client, "get", slow_get)
+    for call in (meowapi.get_player(TAG), meowapi.get_club(TAG)):
+        task = asyncio.create_task(call)
+        await asyncio.sleep(0.05)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert cached == []
+
+
+@pytest.mark.asyncio
+async def test_cancelled_bsinfo_request_releases_its_lock(monkeypatch):
+    from app.services import bsinfoapi
+    store = {}
+
+    async def fake_get_cache(key):
+        return store.get(key)
+
+    async def fake_set_cache(key, value, ttl=3600):
+        store[key] = value
+
+    async def fake_delete_cache(key):
+        store.pop(key, None)
+
+    async def slow_get(endpoint, params=None, timeout=None):
+        await asyncio.sleep(5)
+    monkeypatch.setattr(bsinfoapi, "get_cache", fake_get_cache)
+    monkeypatch.setattr(bsinfoapi, "set_cache", fake_set_cache)
+    monkeypatch.setattr(bsinfoapi, "delete_cache", fake_delete_cache)
+    monkeypatch.setattr(bsinfoapi._api_client, "get", slow_get)
+    task = asyncio.create_task(bsinfoapi.get_player_owned_skins(TAG))
+    await asyncio.sleep(0.05)
+    assert any(key.startswith("bsinfo_update_lock:") for key in store)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    # 取り消しは失敗ではないため、10分の抑止を残さない
+    assert store == {}
 
 
 def test_member_from_official_api_json():

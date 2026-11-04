@@ -1297,6 +1297,7 @@
                             <img src="{{ url_for('static', path=icon_cands[0]) }}"
                                 alt="モードアイコン"
                                 class="battle-results-digest__mode-icon"
+                                loading="lazy"
                                 data-icon-fallbacks='{{ icon_cands[1:] | tojson }}'
                                 onerror="handleModeIconError(this)">
                         </div>
@@ -1305,6 +1306,7 @@
                         <img src="{{ url_for('static', path='/images/brawler_pins/' + battle.brawler|string + '.png') }}"
                             alt="キャラクターアイコン"
                             class="battle-results-digest__brawler-icon"
+                            loading="lazy"
                             onerror="this.onerror=null; this.src='{{ default_icon }}';">
                     </button>
                 {% endfor %}
@@ -1367,9 +1369,9 @@
                         {% if (battle.battle_type == 'ranked') and (battle.event_map is not none) %}
                             {# トロフィー画像は、変動後のトロフィーが1000以上の場合はトップランカートロフィー画像を貼り付け #}
                             {% if ((battle.trophies is not none) and battle.trophies + battle.trophy_change >= 1000) or (battle.brawlers and (battle.brawlers[0][2] + battle.brawlers[0][3] >= 1000)) %}
-                                (<img src="{{ url_for('static', path='/images/ui/prestige_trophy.png') }}" alt="トップランカートロフィー" class="battle-card__icon battle-card__icon-trophy">{{ battle.trophy_change if battle.trophy_change <= 0 else ('+' + battle.trophy_change|string) }})
+                                (<img src="{{ url_for('static', path='/images/ui/prestige_trophy.png') }}" alt="トップランカートロフィー" class="battle-card__icon battle-card__icon-trophy" loading="lazy">{{ battle.trophy_change if battle.trophy_change <= 0 else ('+' + battle.trophy_change|string) }})
                             {% else %}
-                                (<img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="battle-card__icon battle-card__icon-trophy">{{ battle.trophy_change if battle.trophy_change <= 0 else ('+' + battle.trophy_change|string) }})
+                                (<img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="battle-card__icon battle-card__icon-trophy" loading="lazy">{{ battle.trophy_change if battle.trophy_change <= 0 else ('+' + battle.trophy_change|string) }})
                             {% endif %}
                         {% elif ranked_score_ns.change %}
                             ({{ ("+" ~ ranked_score_ns.change) if ranked_score_ns.change > 0 else ranked_score_ns.change }})
@@ -1390,13 +1392,14 @@
                                 <img src="{{ url_for('static', path='/images/brawler_portraits/' + battle.brawler|string + '.png') }}"
                                     alt="キャラクターアイコン"
                                     class="battle-card__brawler-portrait"
+                                    loading="lazy"
                                     onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                 {# 2. MVPアイコン #}
                                 {% if battle.is_starplayer %}
                                 <div class="battle-card__brawler-portrait__badge-top-left">
                                     <img src="{{ url_for('static', path='/images/ui/starplayer.png') }}"
                                         alt="MVP"
-                                        class="battle-card__brawler-starplayer">
+                                        class="battle-card__brawler-starplayer" loading="lazy">
                                 </div>
                                 {% endif %}
                                 {# 3. パワーレベル #}
@@ -1404,7 +1407,7 @@
                                 <div class="battle-card__brawler-portrait__badge-bottom-left">
                                     <img src="{{ url_for('static', path='/images/power/' + (battle.power|string if battle.power <= 11 else '11') + '.png') }}"
                                         alt="パワーレベル"
-                                        class="battle-card__brawler-power">
+                                        class="battle-card__brawler-power" loading="lazy">
                                 </div>
                                 {% endif %}
                             </div>
@@ -1417,17 +1420,17 @@
                             {% if battle.battle_type == 'friendly' %}
                                 <img src="{{ url_for('static', path='/images/mode_icons/friendly.png') }}"
                                     alt="フレンドバトル"
-                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-friendly">
+                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-friendly" loading="lazy">
                             {# B. イベント #}
                             {% elif battle.battle_type is none %}
                                 <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}"
                                     alt="イベント"
-                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-event">
+                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-event" loading="lazy">
                             {# C. マップメーカー #}
                             {% elif battle.event_map is none %}
                                 <img src="{{ url_for('static', path='/images/mode_icons/mapMaker.png') }}"
                                     alt="マップメーカー"
-                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-map-maker">
+                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-map-maker" loading="lazy">
                             {# D. トロフィー変動 #}
                             {% elif battle.battle_type == 'ranked' %}
                                 <div class="battle-card__main-block-center__trophy-change-block battle-card__main-block-center__trophy-change-block-{{ battle.result }}">
@@ -1441,13 +1444,13 @@
                                 <div class="battle-card__main-block-center__trophy-change-block battle-card__main-block-center__trophy-change-block-{{ battle.result }} battle-card__main-block-center__score-change-block">
                                     <div class="battle-card__main-block-center__trophy-change-block__before battle-card__main-block-center__score-change-block__before">
                                         <img src="{{ url_for('static', path='/images/ranked_icons/' + (ranked_score_ns.rank_before|string if ranked_score_ns.rank_before <= 22 else '22' ) + '.png') }}"
-                                            alt="ガチバトルランク" class="battle-card__main-block-center__icon-ranked__before">
+                                            alt="ガチバトルランク" class="battle-card__main-block-center__icon-ranked__before" loading="lazy">
                                         {{ ranked_score_ns.before }}
                                     </div>
                                     <div class="battle-card__main-block-center__trophy-change-block__arrow battle-card__main-block-center__score-change-block__arrow">▼</div>
                                     <div class="battle-card__main-block-center__trophy-change-block__after battle-card__main-block-center__score-change-block__after">
                                         <img src="{{ url_for('static', path='/images/ranked_icons/' + (ranked_score_ns.rank_after|string if ranked_score_ns.rank_after <= 22 else '22' ) + '.png') }}"
-                                            alt="ガチバトルランク" class="battle-card__main-block-center__icon-ranked__after">
+                                            alt="ガチバトルランク" class="battle-card__main-block-center__icon-ranked__after" loading="lazy">
                                         {{ ranked_score_ns.after }}
                                     </div>
                                 </div>
@@ -1455,13 +1458,13 @@
                                 {% else %}
                                     <img src="{{ url_for('static', path='/images/ranked_icons/' + (battle.trophies|string if battle.trophies <= 22 else '22' ) + '.png') }}"
                                         alt="ガチバトルランク"
-                                        class="battle-card__main-block-center__icon battle-card__main-block-center__icon-ranked">
+                                        class="battle-card__main-block-center__icon battle-card__main-block-center__icon-ranked" loading="lazy">
                                 {% endif %}
                             {# F. チャレンジ #}
                             {% else %}
                                 <img src="{{ url_for('static', path='/images/mode_icons/challenge.png') }}"
                                     alt="チャレンジ"
-                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-challenge">
+                                    class="battle-card__main-block-center__icon battle-card__main-block-center__icon-challenge" loading="lazy">
                             {% endif %}
                         </div>
                         {# 右ブロック #}
@@ -1472,6 +1475,7 @@
                                 <img src="{{ url_for('static', path=icon_cands[0]) }}"
                                     alt="モードアイコン"
                                     class="battle-card__mode-icon"
+                                    loading="lazy"
                                     data-icon-fallbacks='{{ icon_cands[1:] | tojson }}'
                                     onerror="handleModeIconError(this)">
                                 {# 2. マップ名 #}
@@ -1499,13 +1503,14 @@
                                 <img src="{{ url_for('static', path='/images/brawler_borderless_portraits/' + id|string + '.png') }}"
                                     alt="キャラクターアイコン"
                                     class="battle-card__brawler-portrait battle-card__brawler-border-portrait"
+                                    loading="lazy"
                                     onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                 {# 2. パワーレベル #}
                                 {% if battle.battle_type in ['ranked', none] %}
                                 <div class="battle-card__brawler-portrait__badge-bottom-left">
                                     <img src="{{ url_for('static', path='/images/power/' + (power|string if power <= 11 else '11') + '.png') }}"
                                         alt="パワーレベル"
-                                        class="battle-card__brawler-power">
+                                        class="battle-card__brawler-power" loading="lazy">
                                 </div>
                                 {% endif %}
                                 {# 3. トロフィー変動など #}
@@ -1514,18 +1519,20 @@
                                     {% if battle.battle_type == 'friendly' %}
                                         <img src="{{ url_for('static', path='/images/mode_icons/friendly.png') }}"
                                             alt="フレンドバトル"
-                                            class="battle-card__main-block-center__icon battle-card__main-block-center__icon-friendly">
+                                            class="battle-card__main-block-center__icon battle-card__main-block-center__icon-friendly" loading="lazy">
                                     {# B. イベント #}
                                     {% elif battle.battle_type is none %}
                                         <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}"
                                             alt="イベント"
                                             class="battle-card__main-block-center__icon battle-card__main-block-center__icon-event"
+                                            loading="lazy"
                                             style="height: 32px;">
                                     {# C. マップメーカー #}
                                     {% elif battle.event_map is none %}
                                         <img src="{{ url_for('static', path='/images/mode_icons/mapMaker.png') }}"
                                             alt="マップメーカー"
                                             class="battle-card__main-block-center__icon battle-card__main-block-center__icon-map-maker"
+                                            loading="lazy"
                                             style="height: 32px;">
                                     {# D. トロフィー変動 #}
                                     {% elif battle.battle_type == 'ranked' %}
@@ -1537,9 +1544,9 @@
                                         <div class="battle-card__main-block-left-info__trophy-change">
                                             {# トロフィー画像は、変動後のトロフィーが1000以上の場合はトップランカートロフィー画像を貼り付け #}
                                             {% if trophies + trophy_change >= 1000 %}
-                                                <img src="{{ url_for('static', path='/images/ui/prestige_trophy.png') }}" alt="トップランカートロフィー" class="battle-card__icon battle-card__icon-trophy battle-card__icon-trophy__small">{{ trophy_change if trophy_change <= 0 else ('+' + trophy_change|string) }}
+                                                <img src="{{ url_for('static', path='/images/ui/prestige_trophy.png') }}" alt="トップランカートロフィー" class="battle-card__icon battle-card__icon-trophy battle-card__icon-trophy__small" loading="lazy">{{ trophy_change if trophy_change <= 0 else ('+' + trophy_change|string) }}
                                             {% else %}
-                                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="battle-card__icon battle-card__icon-trophy battle-card__icon-trophy__small">{{ trophy_change if trophy_change <= 0 else ('+' + trophy_change|string) }}
+                                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="battle-card__icon battle-card__icon-trophy battle-card__icon-trophy__small" loading="lazy">{{ trophy_change if trophy_change <= 0 else ('+' + trophy_change|string) }}
                                             {% endif %}
                                         </div>
                                     {# E. チャレンジ #}
@@ -1547,6 +1554,7 @@
                                         <img src="{{ url_for('static', path='/images/mode_icons/challenge.png') }}"
                                             alt="チャレンジ"
                                             class="battle-card__main-block-center__icon battle-card__main-block-center__icon-challenge"
+                                            loading="lazy"
                                             style="height: 32px;">
                                     {% endif %}
                                 </div>
@@ -1564,6 +1572,7 @@
                             <img src="{{ url_for('static', path=icon_cands[0]) }}"
                                 alt="モードアイコン"
                                 class="battle-card__mode-icon"
+                                loading="lazy"
                                 data-icon-fallbacks='{{ icon_cands[1:] | tojson }}'
                                 onerror="handleModeIconError(this)">
                             {# 2. マップ名 #}
@@ -1608,12 +1617,13 @@
                         {# 3-B-a. デュエル(3体を1人) #}
                         {% if battle.brawlers %}
                             <div class="battle-card__new-playedwith-block">
-                                <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" style="margin: 0 2px 0 -2px;">
+                                <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin: 0 2px 0 -2px;">
                                 {% for id in battle.opponent_brawlers %}
                                     {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
                                     <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                         alt="キャラクターアイコン"
                                         class="battle-card__new-playedwith-block__brawler-portrait"
+                                        loading="lazy"
                                         onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                 {% endfor %}
                                 <span class="main-text" style="text-align: left; margin-left: 6px; font-weight: bold;"><a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[0][1:]) }}" style="text-decoration: underline;">{{ battle.opponent_names[0] }}</a></span>
@@ -1621,7 +1631,7 @@
                         {# 3-B-b. その他(ソロ、1人チームのフレンドバトルなど、対戦相手として並べる) #}
                         {% else %}
                             <div class="battle-card__new-playedwith-block">
-                                <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" style="margin: 0 2px 0 -2px;">
+                                <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin: 0 2px 0 -2px;">
                                 {% for id in battle.opponent_brawlers %}
                                     <div class="battle-card__new-playedwith-block__player">
                                         <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[loop.index0][1:]) }}" style="display: block;">
@@ -1629,6 +1639,7 @@
                                             <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                                 alt="キャラクターアイコン"
                                                 class="battle-card__new-playedwith-block__brawler-portrait"
+                                                loading="lazy"
                                                 onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                             {# プレイヤー名を左上に小さく表示 #}
                                             <div class="battle-card__new-playedwith-block__name">
@@ -1650,6 +1661,7 @@
                                     <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                         alt="キャラクターアイコン"
                                         class="battle-card__new-playedwith-block__brawler-portrait"
+                                        loading="lazy"
                                         onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                     {# プレイヤー名を左上に小さく表示 #}
                                     <div class="battle-card__new-playedwith-block__name">
@@ -1658,13 +1670,14 @@
                                 </a>
                             </div>
                             {% endfor %}
-                            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" style="margin-right: 1px;">
+                            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin-right: 1px;">
                             {% for id in battle.opponent_brawlers %}
                                 <div class="battle-card__new-playedwith-block__player">
                                     <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[loop.index0][1:]) }}" style="display: block;">
                                         <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                             alt="キャラクターアイコン"
                                             class="battle-card__new-playedwith-block__brawler-portrait"
+                                            loading="lazy"
                                             onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                         {# プレイヤー名を左上に小さく表示 #}
                                         <div class="battle-card__new-playedwith-block__name">
@@ -1688,6 +1701,7 @@
                                     <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                         alt="キャラクターアイコン"
                                         class="battle-card__new-playedwith-block__brawler-portrait"
+                                        loading="lazy"
                                         onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                     {# プレイヤー名を左上に小さく表示 #}
                                     <div class="battle-card__new-playedwith-block__name">
@@ -1696,13 +1710,14 @@
                                 </a>
                             </div>
                             {% endfor %}
-                            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" style="margin-right: 1px;">
+                            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin-right: 1px;">
                             {% for id in battle.opponent_brawlers %}
                                 <div class="battle-card__new-playedwith-block__player">
                                     <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[loop.index0][1:]) }}" style="display: block;">
                                         <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                             alt="キャラクターアイコン"
                                             class="battle-card__new-playedwith-block__brawler-portrait"
+                                            loading="lazy"
                                             onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                         {# プレイヤー名を左上に小さく表示 #}
                                         <div class="battle-card__new-playedwith-block__name">
@@ -1723,6 +1738,7 @@
                                     <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                         alt="キャラクターアイコン"
                                         class="battle-card__new-playedwith-block__brawler-portrait"
+                                        loading="lazy"
                                         onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                     {# プレイヤー名を左上に小さく表示 #}
                                     <div class="battle-card__new-playedwith-block__name">
@@ -1755,7 +1771,7 @@
 
 </div>
     {# ここにChart.jsなどのライブラリとグラフ描画スクリプトを記述 #} {# グラフ以外にもJSを使う処理がもしあれば追加 #}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
     {# Chart.jsの日付アダプタも必要になる場合があります (例: Moment.js, date-fns, Luxon) #}
     {# 例: date-fns を使う場合 #}
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>

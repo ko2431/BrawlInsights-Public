@@ -6,7 +6,7 @@ from typing import Any
 
 import asyncpg
 
-from app.core.cache import get_cache, set_cache
+from app.core.cache import delete_cache, get_cache, set_cache
 from app.core.logger import logger
 
 
@@ -249,10 +249,14 @@ async def get_player_owned_skins(tag: str) -> dict[int, list[int]] | None:
         cached_data = await get_cache(cache_key)
         return _normalize_owned_skins_dict(cached_data) if isinstance(cached_data, dict) else None
 
-    # 同時取得を防ぐため、取得前に失敗時用の短いロックを立てておく
-    await set_cache(key=cache_key_update_lock, value=True, ttl=BSINFO_SKINS_FAILURE_LOCK_TTL)
-
-    response = await _api_client.get(f"skins/{normalized_tag[1:]}")
+    try:
+        # 同時取得を防ぐため、取得前に失敗時用の短いロックを立てておく
+        await set_cache(key=cache_key_update_lock, value=True, ttl=BSINFO_SKINS_FAILURE_LOCK_TTL)
+        response = await _api_client.get(f"skins/{normalized_tag[1:]}")
+    except asyncio.CancelledError:
+        # 取得を取り消された場合(プレイヤー情報の取得に失敗したときなど)はBSInfoの失敗ではないため、立てたロックを外す
+        await delete_cache(cache_key_update_lock)
+        raise
     parsed, is_valid_response = _parse_owned_skins_response(response)
     if not is_valid_response:
         return None

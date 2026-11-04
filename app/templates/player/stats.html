@@ -6,12 +6,13 @@
 {% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタの統計データです。{% else %}{{ tag }} Brawl Stars statistics.{% endif %}{% endblock %}
 
 {% block head_extra %}
+    {# フラグメントの先読みは、CSSやscriptより前に始める #}
+    {% include "components/shell_prefetch.html" %}
     {# プレイヤーページ固有のCSSを読み込む #}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/player.css') }}?v={{ app_version }}">
-    {# Chart.jsをシェル側で事前ロード（フラグメント内の外部scriptより先に読むため） #}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    {% include "components/shell_prefetch.html" %}
+    {# Chart.jsはシェル側で読む（フラグメント内の外部scriptは実行しない）。defer で描画を止めず、フラグメントの差し込みは data-shell-lib の読み込みを待ってから行う #}
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" data-shell-lib></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" data-shell-lib></script>
 {% endblock %}
 
 {% block content %}

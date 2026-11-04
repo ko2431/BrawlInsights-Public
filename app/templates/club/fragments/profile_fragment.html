@@ -153,6 +153,7 @@
                         <img src="{{ member.icon_path }}"
                              alt="{{ member.name }} アイコン"
                              class="member-card__icon"
+                             loading="lazy"
                              onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
 
                         <div class="member-card__info">
@@ -164,7 +165,7 @@
 
                         <div class="member-card__stats">
                             <div class="member-card__trophies">
-                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="member-card__trophy-icon">
+                                <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="member-card__trophy-icon" loading="lazy">
                                 <span class="member-card__trophy-text">{{ '{:,}'.format(member.trophies) }}</span>
                             </div>
                             <div class="member-card__role-container">

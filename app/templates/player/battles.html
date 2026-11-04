@@ -9,15 +9,16 @@
 {% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタのバトル履歴です。{% else %}{{ tag }} Brawl Stars battle log.{% endif %}{% endblock %}
 
 {% block head_extra %}
+    {# フラグメントの先読みは、CSSやscriptより前に始める #}
+    {% include "components/shell_prefetch.html" %}
     {# プレイヤーページ固有のCSSを読み込む #}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/player.css') }}?v={{ app_version }}">
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/battles.css') }}?v={{ app_version }}">
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/search_results.css') }}?v={{ app_version }}">
-    {# Chart.jsをシェル側で事前ロード（フラグメント内の外部scriptより先に読むため） #}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    {# Chart.jsはシェル側で読む（フラグメント内の外部scriptは実行しない）。defer で描画を止めず、フラグメントの差し込みは data-shell-lib の読み込みを待ってから行う #}
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" data-shell-lib></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" data-shell-lib></script>
     <script src="{{ url_for('static', path='/js/select_optgroup_filter.js') }}?v={{ app_version }}"></script>
-    {% include "components/shell_prefetch.html" %}
 {% endblock %}
 
 {% block content %}
@@ -41,8 +42,8 @@
     <div x-show="!headHidden">
         {% include "player/includes/shell_header.html" %}
 
-        {# 外部APIが落ちているときのお知らせ (フラグメントから差し込む) #}
-        <div data-shell-slot-target="api-notice"></div>
+        {# 外部APIが落ちているときのお知らせ (フラグメントから差し込む。エラーの応答など、含まれていない場合は空にする) #}
+        <div data-shell-slot-target="api-notice" data-shell-slot-clear></div>
 
         {# --- バトル履歴選択UI (サブタブはここで切り替え、フィルターはフラグメントから差し込む) --- #}
         <div class="battle-log-filters__container">
@@ -60,7 +61,7 @@
                     {% endfor %}
                 </ul>
             </nav>
-            <div class="battle-log-filters__slot" data-shell-slot-target="battle-filters" :class="{ 'is-switching': isSwitching }"></div>
+            <div class="battle-log-filters__slot" data-shell-slot-target="battle-filters" data-shell-slot-clear :class="{ 'is-switching': isSwitching }"></div>
         </div>
     </div>
 

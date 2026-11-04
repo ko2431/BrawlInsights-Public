@@ -3,7 +3,7 @@ import json
 import asyncio
 import time
 from typing import Optional, Any
-from redis.exceptions import BusyLoadingError, ConnectionError as RedisConnectionError
+from redis.exceptions import BusyLoadingError, ConnectionError as RedisConnectionError, WatchError
 from app.core.config import settings
 from app.core.logger import logger
 
@@ -158,15 +158,39 @@ async def set_cache(key: str, value: Any, ttl: int | None = 3600): # ttlのデ�
     except Exception as e:
         _log_cache_error("へのキャッシュ設定", e, key=key)
 
-async def set_cache_keep_ttl(key: str, value: Any) -> None:
-    """既存キーの値だけを書き換え、残りの有効期限はそのまま保つ。キーがない場合は何もしない。"""
+async def update_cache_fields_keep_ttl(key: str, fields: dict[str, Any], *, retries: int = 3) -> bool:
+    """JSONオブジェクトのキャッシュのうち fields の項目だけを書き換え、残りの有効期限は保つ。
+
+    読み取りから書き込みまでの間にほかの処理がキーを書き換えた・消した場合は、新しい値に対してやり直す(WATCH)。
+    古い値全体で上書きして、ほかの項目(履歴の公開設定など)を巻き戻さないため。
+
+    Returns:
+        bool: 書き換えたか、キーがなく何もしなかった場合は True。競合が続いた・エラーの場合は False。
+    """
     r = get_redis()
     if not r:
-        return
+        return False
     try:
-        await r.set(key, json.dumps(value).encode('utf-8'), keepttl=True, xx=True)
+        async with r.pipeline(transaction=True) as pipe:
+            for _ in range(retries):
+                try:
+                    await pipe.watch(key)
+                    raw = await pipe.get(key)
+                    if not raw:
+                        return True
+                    data = json.loads(raw.decode('utf-8'))
+                    if not isinstance(data, dict):
+                        return False
+                    data.update(fields)
+                    pipe.multi()
+                    pipe.set(key, json.dumps(data).encode('utf-8'), keepttl=True, xx=True)
+                    await pipe.execute()
+                    return True
+                except WatchError:
+                    continue
     except Exception as e:
-        _log_cache_error("へのキャッシュ設定", e, key=key)
+        _log_cache_error("のキャッシュの部分更新", e, key=key)
+    return False
 
 async def delete_cache(key: str):
     """Redisからキャッシュを削除する。存在しないキーを指定してもエラーにはならない。"""

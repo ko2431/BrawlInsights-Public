@@ -17,6 +17,8 @@ from app.core.templating import templates
 
 COOKIE_NAME = "bi_ok"
 COOKIE_MAX_AGE_SECONDS = 15 * 60
+# ゲートで拒否した応答に付けるヘッダー。シェルの読み込み処理が、ほかの403と区別するために使う
+BLOCKED_HEADER = "X-BI-Integrity"
 integrity_router = APIRouter()
 
 

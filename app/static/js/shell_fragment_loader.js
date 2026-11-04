@@ -5,6 +5,15 @@
 (function () {
     'use strict';
 
+    // シェルが defer で読むライブラリ(Chart.js など。script[data-shell-lib])を待つ。フラグメントのscriptが使うため、差し込みはこのあとにする。
+    // このファイルは <body> の末尾で同期に読むため、この時点ではまだ実行されていない(defer は解析の完了後に実行される)
+    const shellLibrariesReady = document.readyState === 'loading'
+        ? Promise.all([...document.querySelectorAll('script[data-shell-lib]')].map((script) => new Promise((resolve) => {
+            script.addEventListener('load', resolve, { once: true });
+            script.addEventListener('error', resolve, { once: true });
+        })))
+        : Promise.resolve();
+
     // インラインscriptだけ実行し直す。外部script(src属性あり)はシェル側で読み込み済みのため除く
     function runFragmentScripts(container) {
         container.querySelectorAll('script').forEach((oldScript) => {
@@ -19,12 +28,24 @@
         });
     }
 
+    // 移した欄の名前を返す
     function moveSlots(container, root) {
+        const filled = new Set();
         container.querySelectorAll('[data-shell-slot]').forEach((source) => {
             const target = root.querySelector(`[data-shell-slot-target="${source.dataset.shellSlot}"]`);
             if (!target) return;
             target.replaceChildren(...source.childNodes);
             source.remove();
+            filled.add(source.dataset.shellSlot);
+        });
+        return filled;
+    }
+
+    // [data-shell-slot-clear] の欄のうち、今回の応答に含まれていなかったもの(エラーの応答など)を空にする。
+    // 前のサブタブのフィルターが残り、そのまま適用されないようにするため
+    function clearUnfilledSlots(root, filled) {
+        root.querySelectorAll('[data-shell-slot-target][data-shell-slot-clear]').forEach((target) => {
+            if (!filled.has(target.dataset.shellSlotTarget)) target.replaceChildren();
         });
     }
 
@@ -75,6 +96,8 @@
         return {
             isLoading: true,
             hasError: false,
+            // 直近の読み込みが失敗したか(専用のエラー表示が出た場合も含む)。選択中のサブタブを押して再試行できるようにする
+            loadFailed: false,
             // サブタブの切り替え中（フィルターを薄くして操作できなくする）
             isSwitching: false,
             // DBにまだなく、読み込みにも失敗した場合はヘッダーごと隠す
@@ -152,8 +175,10 @@
                 if (switching && body && !this.isLoading) body.style.minHeight = `${body.offsetHeight}px`;
                 this.isLoading = true;
                 this.hasError = false;
+                this.loadFailed = false;
                 this.headHidden = false;
                 this.isSwitching = switching;
+                let filledSlots = new Set();
 
                 try {
                     if (window.__biApplyIntegrityBlock && await window.__biApplyIntegrityBlock(this.$refs.content, kind)) {
@@ -162,26 +187,30 @@
                     }
                     let { res, html } = await (prefetch ? prefetch.promise : fetchFragment());
                     // [この部分は公開用リポジトリでは非公開にされています]
+                    await shellLibrariesReady;
                     if (currentLoadId !== loadId) return;
                     if (!html || !html.trim()) throw new Error('Empty response');
 
                     const container = this.$refs.content;
                     destroyCharts(container);
                     container.innerHTML = html;
-                    moveSlots(container, this.$root);
+                    filledSlots = moveSlots(container, this.$root);
                     runFragmentScripts(container);
                     this.syncIdentity();
 
                     // 4xx/5xxでもフラグメント内の専用エラーUIが返るため、UIがある場合は表示を優先
-                    if (!res.ok && !container.querySelector(errorSelector)) {
-                        throw new Error('HTTP ' + res.status);
+                    if (!res.ok) {
+                        this.loadFailed = true;
+                        if (!container.querySelector(errorSelector)) throw new Error('HTTP ' + res.status);
                     }
                 } catch (e) {
                     if (e.name === 'AbortError') return;
                     console.error('Fragment load error:', e);
                     this.hasError = true;
+                    this.loadFailed = true;
                 } finally {
                     if (currentLoadId === loadId) {
+                        clearUnfilledSlots(this.$root, filledSlots);
                         this.isLoading = false;
                         this.isSwitching = false;
                         const identity = this.identity();
@@ -201,7 +230,7 @@
                         // 新しいタブで開く操作などはブラウザに任せる
                         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                         event.preventDefault();
-                        if (link.getAttribute('aria-current') === 'page' && !this.hasError) return;
+                        if (link.getAttribute('aria-current') === 'page' && !this.loadFailed) return;
                         this.switchSubTab(link.href, { push: true });
                     });
                 });
@@ -229,7 +258,8 @@
             switchSubTab(href, { push }) {
                 const target = new URL(href, window.location.href);
                 this.setActiveSubTab(target.searchParams.get('tab') || 'all');
-                if (push) {
+                // 失敗したタブを押し直して再試行する場合は、同じ履歴を重ねない
+                if (push && target.pathname + target.search !== window.location.pathname + window.location.search) {
                     history.pushState({ shellFragment: true }, '', target.pathname + target.search);
                 }
                 this.loadedSearch = target.search;

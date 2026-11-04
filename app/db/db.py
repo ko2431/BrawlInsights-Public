@@ -258,16 +258,29 @@ async def get_db_connection_for_bg_task() -> AsyncGenerator[asyncpg.Connection, 
             await pool.release(conn)
 
 
+# 打ち切ったクエリの接続を返す処理(中断の完了待ち)。返却を待たずに戻るため、参照を保持しておく
+_quick_lookup_releases: set[asyncio.Task] = set()
+
+
+async def _release_quietly(pool: asyncpg.Pool, conn: asyncpg.Connection) -> None:
+    try:
+        await pool.release(conn)
+    except Exception:
+        pass  # 返却できなかった接続はプールが破棄し、必要になったときに作り直す
+
+
 async def run_quick_db_lookup[T](
     load: Callable[[asyncpg.Connection], Awaitable[T]],
     *,
     timeout: float,
     label: str,
 ) -> T | None:
-    """省略してもよい軽い参照を、プールの空きを timeout 秒だけ待って実行する。
+    """省略してもよい軽い参照を、プールの空き待ちとクエリを合わせて timeout 秒以内で実行する。
 
-    混雑で空きを待てない場合やDBのエラー時は None を返す。PostgreSQL の再起動待ちの再試行もしない。
+    混雑で空きを待てない場合、DBが遅い場合、DBのエラー時は None を返す。PostgreSQL の再起動待ちの再試行もしない。
     """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
     try:
         pool = _require_pool()
         try:
@@ -275,11 +288,17 @@ async def run_quick_db_lookup[T](
         except TimeoutError as e:
             raise PoolAcquireTimeoutError(f"DBコネクションプールの空き待ちが {timeout}秒を超えました") from e
         try:
-            return await load(conn)
-        finally:
-            await pool.release(conn)
+            result = await asyncio.wait_for(load(conn), timeout=max(deadline - loop.time(), 0.001))
+        except BaseException:
+            # 打ち切った場合などは、中断したクエリの後始末を待たずに戻る
+            task = asyncio.create_task(_release_quietly(pool, conn))
+            _quick_lookup_releases.add(task)
+            task.add_done_callback(_quick_lookup_releases.discard)
+            raise
+        await pool.release(conn)
+        return result
     except Exception as e:
-        message = f"{label}を省略しました: {e}"
+        message = f"{label}を省略しました: {str(e) or type(e).__name__}"
         if is_transient_pg_error(e):
             log_transient_pg_warning(message)
         else:

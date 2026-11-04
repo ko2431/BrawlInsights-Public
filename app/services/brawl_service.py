@@ -19,7 +19,7 @@ import secrets
 from app.core.config import settings
 from app.models.missing import MISSING
 from app.core.logger import logger
-from app.core.cache import get_cache, set_cache, set_cache_keep_ttl, delete_cache, get_redis
+from app.core.cache import get_cache, set_cache, update_cache_fields_keep_ttl, delete_cache, get_redis
 from app.services import meowapi, bsinfoapi, official_api
 from app.services.user_service import get_region_name
 from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, parse_api_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag
@@ -112,6 +112,13 @@ RANKED_STATS_GLOBAL_BUILD_LOCK_KEY = [この部分は公開用リポジトリで
 RANKED_STATS_CACHE_TTL = [この部分は公開用リポジトリでは非公開にされています]
 CURRENT_RANKED_POOL_CACHE_TTL = [この部分は公開用リポジトリでは非公開にされています]
 BRAWLER_ANALYSIS_CACHE_TTL = [この部分は公開用リポジトリでは非公開にされています]
+
+# キャラクター数(calc_num_of_available_brawlers)。控えは、キャッシュが切れてから計算し直すまでの間に使う
+NUM_OF_AVAILABLE_BRAWLERS_CACHE_KEY = "num_of_available_brawlers"
+NUM_OF_AVAILABLE_BRAWLERS_STALE_KEY = "num_of_available_brawlers:stale"
+NUM_OF_AVAILABLE_BRAWLERS_STALE_TTL = 7 * 24 * 60 * 60
+NUM_OF_AVAILABLE_BRAWLERS_LOCK_KEY = "lock:num_of_available_brawlers"
+NUM_OF_AVAILABLE_BRAWLERS_LOCK_TTL = 60
 
 
 def _make_ranked_stats_lock_key(cache_key: str) -> str:
@@ -825,18 +832,39 @@ async def calc_num_of_available_brawlers(db: asyncpg.Connection) -> int:
     Returns:
         int: キャラクター数
     """
-    cache_key = "num_of_available_brawlers"
-    cached_data = await get_cache(cache_key)
+    cached_data = await get_cache(NUM_OF_AVAILABLE_BRAWLERS_CACHE_KEY)
     if cached_data:
         return cached_data
-    
-    # fetchval を使用
-    max_unlocked_brawlers = await db.fetchval('SELECT MAX(unlocked_brawlers) FROM players')
-    if max_unlocked_brawlers is None:
-        max_unlocked_brawlers = 0
-    
-    await set_cache(key=cache_key, value=max_unlocked_brawlers)
-    return max_unlocked_brawlers
+
+    # players を全件走査するため、キャッシュが切れた瞬間に同時に何本も走らないよう、計算は1本だけにする。
+    # ほかは控えの値を使う(控えがなければ、これまでどおり自分で計算する)
+    redis_client = get_redis()
+    lock_token: str | None = None
+    if redis_client:
+        try:
+            lock_token = await _acquire_redis_lock(redis_client, NUM_OF_AVAILABLE_BRAWLERS_LOCK_KEY, NUM_OF_AVAILABLE_BRAWLERS_LOCK_TTL)
+        except Exception as lock_err:
+            logger.warning(f"キャラクター数の計算ロック取得中にエラー: {lock_err}")
+        if not lock_token:
+            stale_data = await get_cache(NUM_OF_AVAILABLE_BRAWLERS_STALE_KEY)
+            if stale_data:
+                return stale_data
+
+    try:
+        # fetchval を使用
+        max_unlocked_brawlers = await db.fetchval('SELECT MAX(unlocked_brawlers) FROM players')
+        if max_unlocked_brawlers is None:
+            max_unlocked_brawlers = 0
+
+        await set_cache(key=NUM_OF_AVAILABLE_BRAWLERS_CACHE_KEY, value=max_unlocked_brawlers)
+        await set_cache(key=NUM_OF_AVAILABLE_BRAWLERS_STALE_KEY, value=max_unlocked_brawlers, ttl=NUM_OF_AVAILABLE_BRAWLERS_STALE_TTL)
+        return max_unlocked_brawlers
+    finally:
+        if lock_token:
+            try:
+                await _release_redis_lock(redis_client, NUM_OF_AVAILABLE_BRAWLERS_LOCK_KEY, lock_token)
+            except Exception as unlock_err:
+                logger.warning(f"キャラクター数の計算ロック解放中にエラー: {unlock_err}")
 
 async def add_new_brawlers(brawlstats_brawlers: list, db: asyncpg.Connection) -> None:
     """brawlstatsで取得したキャラクターのリストから、DBのbrawlersテーブルに入っていないものがあれば英語名とともに追加する。
