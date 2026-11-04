@@ -44,6 +44,7 @@ from app.services.notification_service import empty_board_notification_context, 
 from app.exceptions.custom_exceptions import DataBaseError
 from app.services.meowapi import _api_client as _meow_api_client
 from app.services.bsinfoapi import _api_client as _bsinfo_api_client
+from app.services.official_api import _api_client as _official_api_client
 from app.utils.utils import get_normalized_ip, get_remote_ip
 
 
@@ -131,6 +132,11 @@ async def lifespan(app: FastAPI):
         logger.info("BSInfo API クライアント接続を閉じました。")
     except Exception as e:
         logger.error(f"BSInfo API クライアントのクローズ中にエラーが発生しました: {e}", exc_info=True)
+    try:
+        await _official_api_client.aclose() # アプリケーション終了時にAPIクライアントを閉じる
+        logger.info("公式API クライアント接続を閉じました。")
+    except Exception as e:
+        logger.error(f"公式API クライアントのクローズ中にエラーが発生しました: {e}", exc_info=True)
     logger.info("Brawl Insights が終了しました (lifespan)。")
 
 

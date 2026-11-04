@@ -3,6 +3,7 @@ import asyncpg
 import datetime
 import heapq
 import math
+import time
 from typing import Any
 
 from app.core.logger import logger
@@ -29,6 +30,12 @@ from app.services.rating_service import (
 from app.utils.utils import parse_utc_datetime
 # pyrefly: ignore [missing-import]
 from tdigest import TDigest
+
+# [この部分は公開用リポジトリでは非公開にされています]
+
+def _remaining_interval(interval: float, started_at: float) -> float:
+    """1人あたりの間隔のうち、処理にかかった時間を除いた残りの秒数（処理が間隔を超えた場合は0）。"""
+    return max(0.0, interval - (time.monotonic() - started_at))
 
 async def player_update_task_loop(ctx=None) -> None:
     """プレイヤーデータを定期的に更新するループタスク（内部で接続管理）"""
@@ -67,8 +74,9 @@ async def player_update_task_loop(ctx=None) -> None:
                 
                 tags = tags_acquire_automatically + tags_not_acquire_automatically + tags_inactive
                 # [この部分は公開用リポジトリでは非公開にされています]
+                loop_started_at = time.monotonic()
                 
-                logger.info(f"今回のプレイヤーアップデート処理では、{len(tags)}人のプレイヤーがアップデート対象です。1回あたりの待ち時間は{waiting_time:.2f}秒です。")
+                logger.info(f"今回のプレイヤーアップデート処理では、{len(tags)}人のプレイヤーがアップデート対象です。1人あたりの間隔は処理時間を含めて{waiting_time:.2f}秒です。")
                 if ctx is not None:
                     await ctx.set_progress(
                         step="updating",
@@ -82,7 +90,7 @@ async def player_update_task_loop(ctx=None) -> None:
                 for index, tag in enumerate(tags, start=1):
                     # [この部分は公開用リポジトリでは非公開にされています]
 
-                logger.info(f"プレイヤーアップデート処理(1ループ)が完了しました。次のループに進みます。")
+                logger.info(f"プレイヤーアップデート処理(1ループ)が完了しました（{(time.monotonic() - loop_started_at) / 60:.0f}分）。次のループに進みます。")
                 await asyncio.sleep(1)
                 
             except asyncio.CancelledError:

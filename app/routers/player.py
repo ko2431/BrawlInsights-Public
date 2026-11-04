@@ -457,7 +457,7 @@ async def get_player_profile_fragment(
 
     # 取得後に高レベルなプレイヤーは高頻度自動取得を有効化
     is_auto_activate = await player.is_auto_activate()
-    if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time)
+    if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time, keep_cache=True)
 
     # ソートを実行
     if hasattr(player, 'brawlers') and isinstance(player.brawlers, list):
@@ -570,7 +570,7 @@ async def get_player_battles_fragment(
 
     # 取得後に高レベルなプレイヤーは高頻度自動取得を有効化
     is_auto_activate = await player.is_auto_activate()
-    if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time)
+    if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time, keep_cache=True)
 
     tab = _normalize_battles_tab(tab)
     selected_brawler_id = brawler_id
@@ -728,7 +728,7 @@ async def get_player_stats_fragment(
         player_stats_data = {"log_trends": None, "oldest_log_date": None, "latest_log_date": None, "total_log_days": 0}
 
     is_auto_activate = await player.is_auto_activate()
-    if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time)
+    if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time, keep_cache=True)
 
     icon_path_rel = get_icon_path(player.icon_id)
     add_log_info(request, f"プレイヤー(stats fragment): {player.name} - {player.tag}")

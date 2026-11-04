@@ -4,13 +4,11 @@ import json
 import random
 import time
 from decimal import Decimal
-from typing import Any, TypedDict, NotRequired
+from typing import Any, Awaitable, TypedDict, NotRequired
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 import asyncpg
 import brawlstats
-import BrawlPlex
-from BrawlPlex.errors import NetworkError
 from cachetools import TTLCache
 import itertools
 import re
@@ -21,8 +19,8 @@ import secrets
 from app.core.config import settings
 from app.models.missing import MISSING
 from app.core.logger import logger
-from app.core.cache import get_cache, set_cache, delete_cache, get_redis
-from app.services import meowapi, bsinfoapi
+from app.core.cache import get_cache, set_cache, set_cache_keep_ttl, delete_cache, get_redis
+from app.services import meowapi, bsinfoapi, official_api
 from app.services.user_service import get_region_name
 from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, parse_api_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError, PlayerNotFoundError
@@ -49,16 +47,6 @@ from app.services.map_mode_catalog import (
 # 設定ファイルからBRAWL_TOKENを取得
 BRAWL_TOKEN = settings.BRAWL_TOKEN
 _brawlstats_client: brawlstats.Client | None = None
-
-
-def _brawlplex_http_status(response: Any) -> int | None:
-    """BrawlPlexの非200応答(NetworkError)からHTTPステータスコードを取り出す。"""
-    if isinstance(response, NetworkError):
-        try:
-            return int(response.message)
-        except (TypeError, ValueError):
-            return None
-    return None
 
 
 def get_brawlstats_client() -> brawlstats.Client:
@@ -1384,13 +1372,14 @@ async def get_ranked_ranking(db: asyncpg.Connection, season: int | None = None, 
 class Member:
     """クラブメンバーのデータ格納用。
     """
-    def __init__(self, brawlstats_member = MISSING):
-        if brawlstats_member is not MISSING:
-            self.tag: str = brawlstats_member.tag
-            self.name: str = brawlstats_member.name
-            self.role: str = brawlstats_member.role
-            self.trophies: int = brawlstats_member.trophies
-            self.icon_id: int = brawlstats_member.icon.id
+    def __init__(self, api_member: dict = MISSING):
+        if api_member is not MISSING:
+            # 公式APIのクラブ情報の members の1件
+            self.tag: str = api_member['tag']
+            self.name: str = api_member['name']
+            self.role: str = api_member.get('role')
+            self.trophies: int = api_member.get('trophies', 0)
+            self.icon_id: int = (api_member.get('icon') or {}).get('id')
             self.icon_path: str | None = None
         else:
             self.tag: str = None
@@ -1836,6 +1825,24 @@ async def search_battles(
 #* /---*---*---*---*---*---*---*---*/
 #* プレイヤー関連
 #* /---*---*---*---*---*---*---*---*/
+class _PlayerAPIRequests:
+    """プレイヤーの取得に使う外部APIを同時に呼び始め、結果は必要になった時点で受け取る。"""
+
+    def __init__(self, tag: str) -> None:
+        self.player = asyncio.create_task(official_api.get_player(tag))
+        self.battlelog = asyncio.create_task(official_api.get_battlelog(tag))
+        self.meow = asyncio.create_task(meowapi.get_player(tag=tag))
+        self.owned_skins = asyncio.create_task(bsinfoapi.get_player_owned_skins(tag=tag))
+
+    async def discard(self) -> None:
+        """使わなかった呼び出しを止め、結果と例外を回収する(未回収の警告を出さないため)。"""
+        tasks = (self.player, self.battlelog, self.meow, self.owned_skins)
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 class Player:
     """プレイヤーのデータ格納用。
     """
@@ -1915,7 +1922,7 @@ class Player:
         self.battle_card_frame: int | None = None
         self.battle_card_stars: dict[str, int] = {}
         self.milestone: int | None = None
-        # --- BrawlPlex新データ
+        # --- 公式APIの新しいデータ
         self.exp_level: int | None = None
         self.exp_points: int | None = None
         self.total_prestige_level: int | None = None

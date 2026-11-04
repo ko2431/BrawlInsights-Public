@@ -158,6 +158,16 @@ async def set_cache(key: str, value: Any, ttl: int | None = 3600): # ttlのデ�
     except Exception as e:
         _log_cache_error("へのキャッシュ設定", e, key=key)
 
+async def set_cache_keep_ttl(key: str, value: Any) -> None:
+    """既存キーの値だけを書き換え、残りの有効期限はそのまま保つ。キーがない場合は何もしない。"""
+    r = get_redis()
+    if not r:
+        return
+    try:
+        await r.set(key, json.dumps(value).encode('utf-8'), keepttl=True, xx=True)
+    except Exception as e:
+        _log_cache_error("へのキャッシュ設定", e, key=key)
+
 async def delete_cache(key: str):
     """Redisからキャッシュを削除する。存在しないキーを指定してもエラーにはならない。"""
     r = get_redis()

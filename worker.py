@@ -17,6 +17,7 @@ from app.background_tasks.task_runner import (
 from app.background_tasks.tasks import player_update_task_loop
 from app.services.meowapi import _api_client as _meow_api_client
 from app.services.bsinfoapi import _api_client as _bsinfo_api_client
+from app.services.official_api import _api_client as _official_api_client
 
 #* グローバル変数 ---
 running_tasks: Set[asyncio.Task] = set()
@@ -59,6 +60,11 @@ async def cleanup_resources():
         logger.info("BSInfo API クライアント接続を閉じました。")
     except Exception as e:
         logger.error(f"BSInfo API クライアントのクローズ中にエラーが発生しました: {e}", exc_info=True)
+    try:
+        await _official_api_client.aclose()
+        logger.info("公式API クライアント接続を閉じました。")
+    except Exception as e:
+        logger.error(f"公式API クライアントのクローズ中にエラーが発生しました: {e}", exc_info=True)
 
     logger.info("すべてのリソースが正常に解放されました。")
 
