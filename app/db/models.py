@@ -378,8 +378,8 @@ class Battle(Base):
     opponent_brawlers = Column(JSONB, nullable=False, server_default='[]')
 
     __table_args__ = (
+        # (tag, datetime DESC) の索引は、主キーを逆向きにたどれば足りるため置かない
         PrimaryKeyConstraint('tag', 'datetime', name='battles_pkey'),
-        Index('idx_battles_tag_time', 'tag', desc('datetime')),
         Index('idx_battles_datetime', 'datetime'),
         CheckConstraint("result IN ('w', 'd', 'l')", name='ck_battles_result')
     )
