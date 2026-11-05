@@ -13,6 +13,9 @@ from app.routers.tools import (
 
 
 class DummyRequest:
+    # ルーターがないため、cached_url_for はキャッシュせず url_for をそのまま呼ぶ
+    scope: dict = {}
+
     def url_for(self, name, **params):
         assert name == "static"
         return f"/static/{params['path']}"

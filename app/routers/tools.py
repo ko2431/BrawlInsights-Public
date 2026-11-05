@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app.core.logger import logger
 # [この部分は公開用リポジトリでは非公開にされています]
-from app.core.templating import templates
+from app.core.templating import cached_url_for, templates
 from app.db.db import get_shared_db, get_db_connection_for_bg_task
 from app.core.cache import get_cache, set_cache
 from app.services.player_account_service import build_player_account_options, get_player_accounts_brawler_data, resolve_user_player_tag
@@ -2177,12 +2177,13 @@ def normalize_trophy_rewards_data(request: Request, raw_data: dict) -> dict:
 
 
 def build_static_url(request: Request, path: str | None) -> str:
+    # テンプレートと同じ経路キャッシュを使い、画像ごとの全ルート照合を避ける
     if not path:
-        return str(request.url_for("static", path="images/ui/starrdrop.png"))
+        return str(cached_url_for({"request": request}, "static", path="images/ui/starrdrop.png"))
     if path.startswith("http://") or path.startswith("https://") or path.startswith("/static/"):
         return path
     normalized_path = path.lstrip("/")
-    return str(request.url_for("static", path=normalized_path))
+    return str(cached_url_for({"request": request}, "static", path=normalized_path))
 
 
 def get_skin_rarity_icon_path(rarity: int | None) -> str:
