@@ -75,6 +75,20 @@ class ReachTest(unittest.TestCase):
         self.assertEqual(box["participation"], 81)
         self.assertEqual(box["bulk"], 8)
 
+    def test_counting_box_keeps_entries_without_next_or_lost(self):
+        c = _campaign()
+        user = type("U", (), {"tokens": 0, "is_prohibit_giveaway": False, "is_invalid": False})()
+        now = datetime(2026, 11, 21, 3, 0, tzinfo=timezone.utc)
+        counts = {"total": 61, "today": 0, "limit_total": 61, "limit_today": 0, "shared": False}
+        box = gs.build_entry_box(c, "counting", "ja", now, user=user, counts=counts, stats={"users": 10, "entries": 300})
+        self.assertEqual(box["badge"], "集計中")
+        self.assertEqual(box["left"], "")
+        self.assertIsNone(box["lost_pct"])
+        self.assertIsNone(box["reach"])
+        self.assertEqual(box["next_texts"], [])
+        self.assertEqual([m["state"] for m in box["marks"]], ["done", ""])
+        self.assertEqual(box["participation"], 81)
+
 
 class RoundTest(unittest.TestCase):
     def test_with_round(self):
