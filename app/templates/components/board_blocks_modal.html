@@ -1,6 +1,7 @@
 {# /app/templates/components/board_blocks_modal.html #}
 {# 掲示板でブロックしたユーザーの一覧モーダル。アカウントタブのオプションから open-board-blocks イベントで開く #}
 {# 状態とロジックは account_settings.html の boardBlocksModal() #}
+{% from "components/player_icon.html" import player_icon_src with context %}
 <div id="board-blocks-modal-overlay" data-back-closable class="post-modal-overlay board-blocks-modal-overlay"
      x-data="boardBlocksModal()"
      :class="{ 'active': isOpen }"
@@ -45,8 +46,7 @@
                 <template x-for="item in items" :key="item.id">
                     <li class="board-blocks-list__item" :class="{ 'board-blocks-list__item--unblocked': item.unblocked }">
                         <img class="board-blocks-list__icon" :class="{ 'board-blocks-list__icon--badge': item.is_guest && item.post_club_badge_path }"
-                             :src="iconPath(item)" alt="" loading="lazy"
-                             onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                             {{ player_icon_src("iconPath(item)", alpine=true) }} alt="" loading="lazy">
                         <div class="board-blocks-list__main">
                             <p class="board-blocks-list__name">
                                 <span class="board-blocks-list__name-text" x-text="displayName(item)"></span>

@@ -1,0 +1,7 @@
+{# アイコンが未設定の場合や、画像を読み込めない場合にデフォルト画像を表示する。 #}
+{% macro player_icon_src(icon, alpine=false) -%}
+    {%- set fallback = url_for('static', path='/images/player_icon/0.png') | string -%}
+    {%- set fallback_js = fallback | tojson | forceescape -%}
+    {% if alpine %}:src="({{ icon }}) || {{ fallback_js }}"{% else %}src="{{ icon or fallback }}"{% endif %}
+    onerror="const fallback = {{ fallback_js }}; if (this.getAttribute('src') !== fallback) this.src = fallback;"
+{%- endmacro %}

@@ -1,3 +1,4 @@
+{% from "components/player_icon.html" import player_icon_src with context %}
         {% for id, post in posts.items() %}
         {# > 投稿者のIDを変数に格納 --- #}
         {% set author_user_id = post.data.host_id %}
@@ -10,7 +11,7 @@
                 <div class="card post-card post-card--friend">
                     {# プレイヤー名とn分前テキスト #}
                     <div class="post-card__header">
-                        <img src="{{ post.data.hostplayer.icon_path }}" alt="プレイヤーアイコン" class="post-card__player-icon" onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';">
+                        <img {{ player_icon_src(post.data.hostplayer.icon_path) }} alt="プレイヤーアイコン" class="post-card__player-icon">
                         <p class="post-card__title">{{ post.data.hostplayer.name }}</p>
                         <div style="display: flex; flex: 1;"></div>
                         <p class="post-card__ago-text" data-created-at="{{ post.data.created_at }}">{{ post.data.ago_ja if lang == "ja" else post.data.ago_en }}</p>

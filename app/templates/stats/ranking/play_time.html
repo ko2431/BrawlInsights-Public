@@ -1,5 +1,6 @@
 {# /app/templates/stats/ranking/play_time.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}推定プレイ時間 ランキング{% else %}Est. Play Time Leaderboards{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタの推定プレイ時間のランキングです。グローバルランキングとローカルランキングのどちらも閲覧できます。{% else %}Brawl Stars est. play time leaderboards. View global and local leaderboards.{% endif %}{% endblock %}
@@ -60,7 +61,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--club">{{ player.name }}</p>
@@ -85,7 +86,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--club">{{ player.name }}</p>

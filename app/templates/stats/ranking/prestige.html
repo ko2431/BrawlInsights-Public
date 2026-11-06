@@ -1,5 +1,6 @@
 {# /app/templates/stats/ranking/prestige.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}旧トップランカー所持数ランキング{% else %}Old Prestige Leaderboards{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタの旧トップランカー所持数のランキングです。グローバルランキングとローカルランキングのどちらも閲覧できます。{% else %}Brawl Stars old prestige leaderboards. View global and local leaderboards.{% endif %}{% endblock %}
@@ -60,7 +61,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--prestigelb">{{ player.name }}</p>
@@ -88,7 +89,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--prestigelb">{{ player.name }}</p>

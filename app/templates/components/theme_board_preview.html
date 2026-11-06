@@ -1,5 +1,6 @@
 {# テーマ掲示板のプレビュー（キャラクター図鑑・マップページ共通）
    引数: board_thread_id（スレッドID）, board_preview_messages（最新メッセージ、新しい順） #}
+{% from "components/player_icon.html" import player_icon_src with context %}
 <div class="chat-room">
     {# メッセージプレビュー（最大3件、新しい順 → 古い順で上から表示） #}
     {% set preview_messages = board_preview_messages | reverse | list %}
@@ -10,7 +11,7 @@
                     <div class="brawler-chat-preview__bubble {% if current_user and message.user_id == current_user.id %}brawler-chat-preview__bubble--self{% endif %}">
                         {% if not (current_user and message.user_id == current_user.id) %}
                             <div class="brawler-chat-preview__icon-wrapper">
-                                <img src="{{ message.user_icon_path }}" alt="icon" class="brawler-chat-preview__icon">
+                                <img {{ player_icon_src(message.user_icon_path) }} alt="icon" class="brawler-chat-preview__icon">
                             </div>
                         {% endif %}
                         <div class="brawler-chat-preview__content-wrapper">

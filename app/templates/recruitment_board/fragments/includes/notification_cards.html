@@ -1,3 +1,4 @@
+{% from "components/player_icon.html" import player_icon_src with context %}
 {% for notification in notifications %}
 <div class="notification{% if notification.notification_type == 'admin_warning' %} notification--warning{% endif %}">
     <div class="notification-type">
@@ -20,7 +21,7 @@
     <div class="notification-content">
         <div class="notification-user-icons__container">
             {% for actor in notification.actors %}
-            <img src="{{ actor.icon_path }}"
+            <img {{ player_icon_src(actor.icon_path) }}
                  alt="{% if lang == 'ja' %}ユーザーアイコン{% else %}User icon{% endif %}"
                  class="notification-user-icons__image{% if actor.user_id %} notification-user-icons__image--clickable{% endif %}"
                  data-user-id="{{ actor.user_id }}"

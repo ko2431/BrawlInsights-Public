@@ -1,5 +1,6 @@
 {# /app/templates/stats/ranking/victories.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}{% if type == 'team_victories' %}3対3{% elif type == 'solo_victories' %}ソロ{% else %}デュオ{% endif %}勝利数 ランキング{% else %}{% if type == 'team_victories' %}3v3{% elif type == 'solo_victories' %}Solo{% else %}Duo{% endif %} Victories Leaderboards{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタの{% if type == 'team_victories' %}3対3{% elif type == 'solo_victories' %}ソロ{% else %}デュオ{% endif %}勝利数のランキングです。グローバルランキングとローカルランキングのどちらも閲覧できます。{% else %}Brawl Stars {% if type == 'team_victories' %}3v3{% elif type == 'solo_victories' %}solo{% else %}duo{% endif %} victories leaderboards. View global and local leaderboards.{% endif %}{% endblock %}
@@ -75,7 +76,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--player">{{ player.name }}</p>
@@ -103,7 +104,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--player">{{ player.name }}</p>

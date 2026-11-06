@@ -1,5 +1,6 @@
 {# /app/templates/recruitment_board/chat.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}チャット{% else %}Chat{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}募集掲示板のチャット画面です。{% else %}Recruitment board chat thread.{% endif %}{% endblock %}
@@ -167,7 +168,9 @@
                 <p class="chat-header__comment">{% if lang == "ja" %}テーマ掲示板{% else %}Theme Board{% endif %}</p>
             </div>
             {% elif post.hostplayer or post.type == "general" %}
-            <img {% if post.type == 'friend' %}src="{{ post.hostplayer.icon_path }}"{% else %}src="{{ url_for('static', path=image_path) }}"{% endif %} alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}>
+            <img alt="Host Icon" class="chat-header__host-icon {% if post.type == 'general' %}chat-header__host-icon--{{ post.category }}{% endif %}"
+                 {% if post.type == 'friend' %}{{ player_icon_src(post.hostplayer.icon_path) }}
+                 {% else %}src="{{ url_for('static', path=image_path) }}"{% if image_fallbacks %} data-icon-fallbacks='{{ image_fallbacks | tojson }}' onerror="handleModeIconError(this)"{% endif %}{% endif %}>
             <div class="chat-header__details">
                 {% if post.type == "friend" %}
                 <p class="chat-header__host-name">{{ post.hostplayer.name }}</p>

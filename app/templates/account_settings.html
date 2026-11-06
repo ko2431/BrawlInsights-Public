@@ -1,5 +1,6 @@
 {# /app/templates/account_settings.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}アカウント{% else %}Account{% endif %} - Brawl Insights{% endblock %}
 
@@ -320,9 +321,8 @@
                                     <span x-show="index > 0" class="sub-account-badge"><span class="sub-account-badge__label">{% if lang == "ja" %}サブ{% else %}SUB{% endif %}</span><span class="sub-account-badge__num" x-text="index"></span></span>
                                 </span>
                                 <a class="player-accounts__player" :href="isReordering ? null : `/${lang}/player/profile/${account.tag.substring(1)}`">
-                                    <img :src="account.icon_id ? `/static/images/player_icon/${account.icon_id}.webp` : '/static/images/player_icon/0.png'"
-                                         alt="" class="player-accounts__icon"
-                                         onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                    <img {{ player_icon_src("account.icon_id ? `/static/images/player_icon/${account.icon_id}.webp` : null", alpine=true) }}
+                                         alt="" class="player-accounts__icon">
                                     <span class="player-accounts__name" x-text="account.name"></span>
                                     <span class="player-accounts__tag" x-text="account.tag"></span>
                                 </a>

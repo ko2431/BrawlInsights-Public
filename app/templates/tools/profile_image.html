@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】プロフィール画像生成ツール{% else %}Profile Image Generator{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}フレンド募集やSNSでの共有、記録用に使いやすいプロフィール画像を生成・作成できるツールです。選べる8種類の画像から生成することができます。{% else %}A tool to generate easy-to-share profile images for friends, social media, and records. Choose from 8 different image types.{% endif %}{% endblock %}
@@ -121,10 +122,9 @@
                             <button type="button"
                                     class="profile-image-tool__player-item"
                                     @click="selectPlayer(player)">
-                                <img :src="player.icon_url"
+                                <img {{ player_icon_src("player.icon_url", alpine=true) }}
                                      alt=""
-                                     class="profile-image-tool__player-icon"
-                                     onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                     class="profile-image-tool__player-icon">
                                 <div class="profile-image-tool__player-texts">
                                     <div class="profile-image-tool__player-name-row">
                                         <span class="profile-image-tool__player-name" x-text="player.name"></span>
@@ -173,10 +173,9 @@
                             <button type="button"
                                     class="profile-image-tool__player-item"
                                     @click="selectPlayer(player)">
-                                <img :src="player.icon_url"
+                                <img {{ player_icon_src("player.icon_url", alpine=true) }}
                                      alt=""
-                                     class="profile-image-tool__player-icon"
-                                     onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                     class="profile-image-tool__player-icon">
                                 <div class="profile-image-tool__player-texts">
                                     <span class="profile-image-tool__player-name" x-text="player.name"></span>
                                     <span class="profile-image-tool__player-tag" x-text="player.tag"></span>
@@ -216,10 +215,9 @@
         <div class="profile-image-tool__panel">
             <template x-if="selectedPlayer">
                 <div class="profile-image-tool__selected-player">
-                    <img :src="selectedPlayer.icon_url"
+                    <img {{ player_icon_src("selectedPlayer.icon_url", alpine=true) }}
                          alt=""
-                         class="profile-image-tool__selected-player-icon"
-                         onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                         class="profile-image-tool__selected-player-icon">
                     <div>
                         <p class="profile-image-tool__selected-player-name" x-text="selectedPlayer.name"></p>
                         <p class="profile-image-tool__selected-player-tag" x-text="selectedPlayer.tag"></p>

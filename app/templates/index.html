@@ -1,5 +1,6 @@
 {# /app/templates/index.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}ホーム{% else %}Home{% endif %} - Brawl Insights{% endblock %}
 {% block og_type %}website{% endblock %}
@@ -216,10 +217,9 @@
                                     <a :href="isEditing ? '#' : `/${currentLang}/player/profile/${account.tag.substring(1)}`"
                                        class="card-link" style="display: contents;"
                                        @click="if(isEditing) $event.preventDefault()">
-                                        <img :src="account.icon_id ? `/static/images/player_icon/${account.icon_id}.webp` : '/static/images/player_icon/0.png'"
+                                        <img {{ player_icon_src("account.icon_id ? `/static/images/player_icon/${account.icon_id}.webp` : null", alpine=true) }}
                                             alt="アイコン"
-                                            class="player-list__item-player-icon"
-                                            onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                            class="player-list__item-player-icon">
                                         <p class="player-list__item-name" x-text="account.name"></p>
                                         <p class="player-list__item-tag" x-text="account.tag"></p>
                                     </a>
@@ -252,10 +252,9 @@
                                     <a :href="isEditing ? '#' : `/${currentLang}/player/profile/${bookmark.tag.substring(1)}`"
                                     class="card-link" style="display: contents;"
                                     @click="if(isEditing) $event.preventDefault()"> {# 編集中はクリックイベントを無効化 #}
-                                        <img :src="bookmark.icon_id ? `/static/images/player_icon/${bookmark.icon_id}.webp` : '/static/images/player_icon/0.png'"
+                                        <img {{ player_icon_src("bookmark.icon_id ? `/static/images/player_icon/${bookmark.icon_id}.webp` : null", alpine=true) }}
                                             alt="アイコン"
-                                            class="player-list__item-player-icon"
-                                            onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                            class="player-list__item-player-icon">
                                         <p class="player-list__item-name" x-text="bookmark.name"></p>
                                         <p class="player-list__item-tag" x-text="bookmark.tag"></p>
                                     </a>
@@ -350,10 +349,9 @@
                                     <a :href="isEditing ? '#' : `/${currentLang}/player/profile/${history.tag.substring(1)}`"
                                        class="card-link" style="display: contents;"
                                        @click="if(isEditing) $event.preventDefault()">
-                                        <img :src="history.icon_id ? `/static/images/player_icon/${history.icon_id}.webp` : '/static/images/player_icon/0.png'"
+                                        <img {{ player_icon_src("history.icon_id ? `/static/images/player_icon/${history.icon_id}.webp` : null", alpine=true) }}
                                             alt="アイコン"
-                                            class="player-list__item-player-icon"
-                                            onerror="this.onerror=null;this.src='/static/images/player_icon/0.png';">
+                                            class="player-list__item-player-icon">
                                         <p class="player-list__item-name" x-text="history.name"></p>
                                         <p class="player-list__item-tag" x-text="history.tag"></p>
                                     </a>

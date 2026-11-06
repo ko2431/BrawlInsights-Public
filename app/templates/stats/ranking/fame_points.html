@@ -1,5 +1,6 @@
 {# /app/templates/stats/ranking/fame_points.html #}
 {% extends "base.html" %}
+{% from "components/player_icon.html" import player_icon_src with context %}
 
 {% block title %}{% if lang == "ja" %}名声ポイント ランキング{% else %}Fame Points Leaderboards{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタの累計名声ポイントのランキングです。グローバルランキングとローカルランキングのどちらも閲覧できます。{% else %}Brawl Stars fame points leaderboards. View global and local leaderboards.{% endif %}{% endblock %}
@@ -60,7 +61,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--fame">{{ player.name }}</p>
@@ -90,7 +91,7 @@
                                 {{ player.rank }}
                             </div>
                             <div class="ranking-list__item-main">
-                                <img src="{{ player.icon_path }}"
+                                <img {{ player_icon_src(player.icon_path) }}
                                     alt="{{ player.name }} アイコン"
                                     class="ranking-list__item-player-icon">
                                 <p class="ranking-list__item-name ranking-list__item-name--fame">{{ player.name }}</p>
