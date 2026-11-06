@@ -68,7 +68,7 @@
         {% if tournament_home_banner %}
         <a class="home-special-reward home-special-reward--green home-special-reward--link" href="{{ url_for('tournament_hub', lang=lang) }}">
             <img class="home-special-reward__icon" src="{{ url_for('static', path='/images/mode_icons/challenge.png') }}" alt="">
-            <p class="home-special-reward__title">{% if lang == 'ja' %}【New】大会の参加・開催はこちらから！{% else %}[New] Join or host tournaments here!{% endif %}</p>
+            <p class="home-special-reward__title">{% if lang == 'ja' %}大会の参加・開催はこちらから！{% else %}Join or host tournaments here!{% endif %}</p>
         </a>
         {% endif %}
     </div>
