@@ -856,6 +856,14 @@ body.has-top-banner .chat-featured-spacer {
 .chat-mention-pop__item.is-active {
     background-color: #f0f0f0;
 }
+.chat-mention-pop__item[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: default;
+}
+.chat-mention-pop__hint {
+    padding: 4px 8px;
+    font-size: 12px;
+}
 .dark .chat-mention-pop__item.is-active {
     background-color: #333;
 }

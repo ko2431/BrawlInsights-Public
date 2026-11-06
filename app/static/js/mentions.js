@@ -6,6 +6,26 @@
     'use strict';
     if (window.BIMentions) return;
 
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const composing = new WeakSet();
+
+    // iOS の WebKit は変換中に入力欄の値を書き換えると、その後の入力を受け付けなくなることがある（WebKit #255857）。
+    function trackComposition(el) {
+        if (!isIOS) return;
+        el.addEventListener('compositionstart', () => composing.add(el));
+        el.addEventListener('compositionend', () => composing.delete(el));
+        el.addEventListener('input', (event) => {
+            if (!event.isTrusted) return;
+            if (event.isComposing) composing.add(el);
+            else composing.delete(el);
+        }, true);
+    }
+
+    function isCompositionPending(el) {
+        return composing.has(el);
+    }
+
     // 候補の検索は、ひらがな・カタカナ、大文字・小文字、全角・半角を区別しない
     function normalize(str) {
         return (str || '').normalize('NFKC').toLowerCase()
@@ -48,5 +68,5 @@
         return parts;
     }
 
-    window.BIMentions = { normalize, queryAt, split };
+    window.BIMentions = { trackComposition, isCompositionPending, normalize, queryAt, split };
 })();

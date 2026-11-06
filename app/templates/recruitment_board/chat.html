@@ -2844,8 +2844,10 @@
                     return;
                 }
                 const hostLabel = lang === 'ja' ? 'スレッド主' : 'OP';
-                mentionPop.innerHTML = mentionState.items.map((c, i) => `
-                    <button type="button" class="chat-mention-pop__item${i === mentionState.index ? ' is-active' : ''}" role="option" data-index="${i}">
+                const composing = window.BIMentions.isCompositionPending(textarea);
+                const hint = composing ? `<div class="chat-mention-pop__hint" role="presentation">${lang === 'ja' ? '変換を確定すると候補を選べます' : 'Confirm the current text to select a mention'}</div>` : '';
+                mentionPop.innerHTML = hint + mentionState.items.map((c, i) => `
+                    <button type="button" class="chat-mention-pop__item${!composing && i === mentionState.index ? ' is-active' : ''}" role="option" aria-disabled="${composing}" data-index="${i}">
                         <img src="${escapeHtml(c.icon || defaultPlayerIconPath)}" alt="" onerror="this.onerror=null;this.src='${defaultPlayerIconPath}';">
                         <span class="chat-mention-pop__name">${escapeHtml(c.name)}</span>
                         ${c.host ? `<span class="message-bubble__host-badge">${hostLabel}</span>` : ''}
@@ -2871,8 +2873,8 @@
             }
 
             function pickMention(c) {
-                if (!c || !textarea) return;
-                const end = textarea.selectionEnd; // 変換中の文字も含めて置き換える
+                if (!c || !textarea || window.BIMentions.isCompositionPending(textarea)) return;
+                const end = textarea.selectionEnd;
                 const start = mentionState.start >= 0 ? mentionState.start : end;
                 closeMention();
                 replaceWithMention(c.name, start, end);
@@ -2894,6 +2896,7 @@
             // 候補の上下・決定・閉じる（候補を出している間だけ。変換中のキーは見ない）
             function handleMentionKey(event) {
                 if (!mentionState.open || !mentionState.items.length || event.isComposing || event.keyCode === 229) return false;
+                if (window.BIMentions.isCompositionPending(textarea)) return false;
                 const n = mentionState.items.length;
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                     event.preventDefault();
@@ -2935,6 +2938,7 @@
             }
 
             if (textarea) {
+                window.BIMentions.trackComposition(textarea);
                 textarea.addEventListener('input', () => {
                     updateSendButtonState();
                     textarea.style.height = 'auto';
@@ -2950,6 +2954,7 @@
                 textarea.addEventListener('keydown', function(event) {
                     if (handleMentionKey(event)) return;
                     if (event.key === 'Enter') {
+                        if (event.isComposing || event.keyCode === 229 || window.BIMentions.isCompositionPending(textarea)) return;
                         // Cmd+Enter (Mac) または Ctrl+Enter (Windows) は常に送信
                         if (event.metaKey || event.ctrlKey) {
                             event.preventDefault();
