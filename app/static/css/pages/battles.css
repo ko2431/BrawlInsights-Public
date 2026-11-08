@@ -704,7 +704,13 @@
 
 .summary-grid {
     display: grid;
+    /* 列幅は minmax(0, 1fr) で指定し、グラフ(canvas)の幅に引っ張られずに縮められるようにする */
+    grid-template-columns: minmax(0, 1fr);
     margin-bottom: 20px; /* 次のグリッドコンテナとのマージン */
+}
+/* グリッドの子要素は既定で中身(canvas)の幅より縮まないため、画面幅を狭めた時にグラフが再描画されずレイアウトが崩れる。min-width: 0 で縮められるようにする */
+.summary-grid > * {
+    min-width: 0;
 }
 .summary-grid:last-child {
     margin-bottom: 0;
@@ -719,39 +725,39 @@
 
 /* --- x2 グリッド (「すべて」など) --- */
 .summary-grid--x2-wide {
-    grid-template-columns: 1fr; /* デフォルト1列 */
+    grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
 }
 @media (min-width: 1194px) { /* PC大画面で2列 */
     .summary-grid--x2-wide {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 30px;
     }
 }
 
 /* --- x2 グリッド (「すべて」など) --- */
 .summary-grid--x2 {
-    grid-template-columns: 1fr; /* デフォルト1列 */
+    grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
 }
 @media (min-width: 840px) { /* PC大画面で2列 */
     .summary-grid--x2 {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 30px;
     }
 }
 
 /* --- x3 グリッド (「円グラフ」など) --- */
 .summary-grid--x3 {
-    grid-template-columns: 1fr; /* デフォルト1列 */
+    grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
 }
 @media (min-width: 840px) { /* 大画面で2列 */
     .summary-grid--x3 {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 30px;
     }
 }
 @media (min-width: 1194px) { /* 大画面で3列 */
     .summary-grid--x3 {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 30px;
     }
 }
