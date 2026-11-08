@@ -342,9 +342,7 @@
     
             if (rawLogTrends && rawLogTrends.dates && rawLogTrends.dates.length > 0) {
                 renderTrophyChart(rawLogTrends);
-                if (typeof renderSeasonTrophyChart === 'function') renderSeasonTrophyChart(rawLogTrends);
                 if (typeof renderAverageTrophiesChart === 'function') renderAverageTrophiesChart(rawLogTrends);
-                if (typeof renderRankedRankChart === 'function') renderRankedRankChart(rawLogTrends);
                 if (typeof renderRankedScoreChart === 'function') renderRankedScoreChart(rawLogTrends);
                 if (typeof renderTotalPrestigeLevelChart === 'function') renderTotalPrestigeLevelChart(rawLogTrends);
                 if (typeof renderBrawlerStatsChart === 'function') renderBrawlerStatsChart(rawLogTrends);
@@ -359,13 +357,10 @@
                 if (typeof renderRecordPointsChart === 'function') renderRecordPointsChart(rawLogTrends);
                 if (typeof renderFamePointsChart === 'function') renderFamePointsChart(rawLogTrends);
                 if (typeof renderMaxWinstreakChart === 'function') renderMaxWinstreakChart(rawLogTrends);
-                if (typeof renderPrestigeChart === 'function') renderPrestigeChart(rawLogTrends);
             } else {
                 // ... (データがない場合のメッセージ表示)
                 displayNoDataMessage('trophy-chart-canvas');
-                displayNoDataMessage('season-trophy-chart-canvas');
                 displayNoDataMessage('average-trophies-chart-canvas');
-                displayNoDataMessage('ranked-rank-chart-canvas');
                 displayNoDataMessage('ranked-score-chart-canvas');
                 displayNoDataMessage('brawler-stats-chart-canvas');
                 displayNoDataMessage('average-power-level-chart-canvas');
@@ -379,7 +374,6 @@
                 displayNoDataMessage('record-points-canvas');
                 displayNoDataMessage('fame-points-canvas');
                 displayNoDataMessage('max-winstreak-chart-canvas');
-                displayNoDataMessage('prestige-chart-canvas');
             }
         };
         if (document.readyState === 'loading') {
@@ -388,30 +382,6 @@
             initStatsCharts();
         }
 
-        // --- ガチバトルランク名定義 ---
-        const rankedRankMap = {
-            ja: {
-                0: 'ランクなし', 1: 'ブロンズ Ⅰ', 2: 'ブロンズ Ⅱ', 3: 'ブロンズ Ⅲ',
-                4: 'シルバー Ⅰ', 5: 'シルバー Ⅱ', 6: 'シルバー Ⅲ',
-                7: 'ゴールド Ⅰ', 8: 'ゴールド Ⅱ', 9: 'ゴールド Ⅲ',
-                10: 'ダイヤモンド Ⅰ', 11: 'ダイヤモンド Ⅱ', 12: 'ダイヤモンド Ⅲ',
-                13: 'エリート Ⅰ', 14: 'エリート Ⅱ', 15: 'エリート Ⅲ',
-                16: 'レジェンド Ⅰ', 17: 'レジェンド Ⅱ', 18: 'レジェンド Ⅲ',
-                19: 'マスター Ⅰ', 20: 'マスター Ⅱ', 21: 'マスター Ⅲ',
-                22: 'プロ'
-            },
-            en: {
-                0: 'No Rank', 1: 'Bronze Ⅰ', 2: 'Bronze Ⅱ', 3: 'Bronze Ⅲ',
-                4: 'Silver Ⅰ', 5: 'Silver Ⅱ', 6: 'Silver Ⅲ',
-                7: 'Gold Ⅰ', 8: 'Gold Ⅱ', 9: 'Gold Ⅲ',
-                10: 'Diamond Ⅰ', 11: 'Diamond Ⅱ', 12: 'Diamond Ⅲ',
-                13: 'Mythic Ⅰ', 14: 'Mythic Ⅱ', 15: 'Mythic Ⅲ',
-                16: 'Legendary Ⅰ', 17: 'Legendary Ⅱ', 18: 'Legendary Ⅲ',
-                19: 'Masters Ⅰ', 20: 'Masters Ⅱ', 21: 'Masters Ⅲ',
-                22: 'Pro'
-            }
-        };
-    
         function displayNoDataMessage(canvasId) {
             const canvas = document.getElementById(canvasId);
             if (canvas && canvas.parentElement) { // canvasとその親要素が存在することを確認
@@ -512,54 +482,6 @@
             if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
         }
 
-        function renderSeasonTrophyChart(logTrends) {
-            const canvasId = 'season-trophy-chart-canvas';
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) {
-                console.error(`Element with ID '${canvasId}' not found.`);
-                return;
-            }
-            const hasData = logTrends.season_trophies && logTrends.season_trophies.some(v => v !== null);
-
-            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
-                displayNoDataMessage(canvasId);
-                return;
-            }
-            const datasets = [{
-                label: SCRIPT_LANG === 'ja' ? 'シーズントロフィー' : 'Season Trophies',
-                data: logTrends.season_trophies,
-                borderColor: 'rgb(38, 222, 182)', // エメラルド
-                tension: 0.1, fill: false,
-                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
-                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
-            }];
-            const data = { labels: logTrends.dates, datasets: datasets };
-            const yValuesForScale = logTrends.season_trophies.filter(v => v !== null);
-            // シーズントロフィーは0から始まることが多いので beginAtZero: true
-            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'シーズントロフィー' : 'Season Trophies', true);
-
-            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
-            config.options.scales.y.beginAtZero = true; // 明示的にtrueに設定
-
-            // 縦軸の目盛りをカンマ区切りにする
-            if (config.options.scales.y.ticks) {
-                config.options.scales.y.ticks.callback = function(value, index, values) {
-                    return value.toLocaleString();
-                };
-            } else {
-                config.options.scales.y.ticks = {
-                    callback: function(value, index, values) {
-                        return value.toLocaleString();
-                    }
-                };
-            }
-
-            if (charts[canvasId]) charts[canvasId].destroy();
-            clearAndShowCanvas(canvasId);
-            charts[canvasId] = new Chart(canvas, config);
-            if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
-        }
-
         function renderAverageTrophiesChart(logTrends) {
             const canvasId = 'average-trophies-chart-canvas';
             const canvas = document.getElementById(canvasId);
@@ -638,141 +560,6 @@
             clearAndShowCanvas(canvasId);
             charts[canvasId] = new Chart(canvas, config);
             if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
-        }
-
-        // --- 推定ガチバトルランク推移 ---
-        function renderRankedRankChart(logTrends) {
-            const canvasId = 'ranked-rank-chart-canvas';
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) {
-                console.error(`Element with ID '${canvasId}' not found.`);
-                return;
-            }
-
-            const hasHighestData = logTrends.ranked_highest_rank && logTrends.ranked_highest_rank.some(v => v !== null && v >= 0);
-            const hasCurrentData = logTrends.ranked_current_rank && logTrends.ranked_current_rank.some(v => v !== null && v >= 0);
-
-            if (!logTrends.dates || logTrends.dates.length === 0 || (!hasHighestData && !hasCurrentData)) {
-                displayNoDataMessage(canvasId);
-                return;
-            }
-
-            const datasets = [];
-            if (hasHighestData) {
-                datasets.push({
-                    label: SCRIPT_LANG === 'ja' ? '推定最高ランク' : 'Est. Highest Rank',
-                    data: logTrends.ranked_highest_rank,
-                    borderColor: 'rgb(227, 61, 141)', // ボタン色
-                    tension: 0.1, fill: false,
-                    stepped: true, // ランクは段階的なのでtrue
-                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
-                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
-                });
-            }
-            if (hasCurrentData) {
-                datasets.push({
-                    label: SCRIPT_LANG === 'ja' ? '推定現在ランク' : 'Est. Current Rank',
-                    data: logTrends.ranked_current_rank,
-                    borderColor: 'rgb(31, 209, 61)', // 緑系
-                    tension: 0.1, fill: false,
-                    stepped: true, // ランクは段階的なのでtrue
-                    pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
-                    pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
-                });
-            }
-
-            const data = { labels: logTrends.dates, datasets: datasets };
-
-            // Y軸に表示する可能性のある全てのランク値を取得 (0-22の範囲でフィルタリング)
-            const allYValues = [].concat(
-                hasHighestData ? logTrends.ranked_highest_rank.filter(v => v !== null && v >= 0 && v <= 22) : [],
-                hasCurrentData ? logTrends.ranked_current_rank.filter(v => v !== null && v >= 0 && v <= 22) : []
-            );
-
-            let minYTick = 0;
-            let maxYTick = 22;
-            let yStepSize = 1;
-
-            if (allYValues.length > 0) {
-                const uniqueSortedValues = [...new Set(allYValues)].sort((a, b) => a - b);
-                minYTick = Math.max(0, uniqueSortedValues[0] -1); // 最小値より1つ下（ただし0以上）
-                maxYTick = Math.min(22, uniqueSortedValues[uniqueSortedValues.length - 1] + 1); // 最大値より1つ上（ただし22以下）
-                
-                // 表示範囲が狭すぎる場合は調整
-                if (maxYTick - minYTick < 2 && uniqueSortedValues.length === 1) { // データ点が1種類しかない場合
-                    minYTick = Math.max(0, uniqueSortedValues[0] -1);
-                    maxYTick = Math.min(22, uniqueSortedValues[0] +1);
-                } else if (maxYTick - minYTick < 2 ) { // データが複数あるが範囲が狭い場合
-                    minYTick = Math.max(0, minYTick -1);
-                    maxYTick = Math.min(22, maxYTick +1);
-                }
-
-                // 目盛りの数が多すぎないように stepSize を調整 (最大でも10個程度の目盛りにしたい)
-                const range = maxYTick - minYTick;
-                if (range > 10) {
-                    yStepSize = Math.ceil(range / 10);
-                }
-            }
-            // 1点データの場合は、その点を中心に表示
-            if (logTrends.dates.length === 1 && allYValues.length > 0) {
-                const singleValue = allYValues[0]; // いずれかのデータがあるはず
-                minYTick = Math.max(0, singleValue - 2);
-                maxYTick = Math.min(22, singleValue + 2);
-                if (singleValue === 0) maxYTick = 2;
-                if (singleValue === 22) minYTick = 20;
-                yStepSize = 1;
-            }
-
-
-            const config = createBaseChartConfig(
-                data,
-                SCRIPT_LANG === 'ja' ? '日付' : 'Date',
-                SCRIPT_LANG === 'ja' ? '推定ランク' : 'Estimated Rank',
-                determineTimeUnit(logTrends.dates),
-                determineMaxTicks(logTrends.dates.length),
-                minYTick, // Y軸の最小値
-                maxYTick, // Y軸の最大値
-                logTrends.dates.length === 1 ? logTrends.dates[0] : null
-            );
-
-            // Y軸の目盛りラベルをランク名に変換し、範囲とステップも設定
-            config.options.scales.y.min = minYTick;
-            config.options.scales.y.max = maxYTick;
-            config.options.scales.y.ticks = {
-                stepSize: yStepSize, // 整数のみ表示
-                callback: function(value, index, values) {
-                    // valueが範囲外や小数の場合、ラベルを表示しないことがあるので整数に丸めるかチェック
-                    const intValue = Math.round(value);
-                    if (intValue >= 0 && intValue <= 22) {
-                        return rankedRankMap[SCRIPT_LANG][intValue] || value;
-                    }
-                    return ''; // 範囲外は表示しない
-                }
-            };
-            // ツールチップのラベルもランク名に変換
-            config.options.plugins.tooltip = config.options.plugins.tooltip || {};
-            config.options.plugins.tooltip.callbacks = config.options.plugins.tooltip.callbacks || {};
-            config.options.plugins.tooltip.callbacks.label = function(context) {
-                let label = context.dataset.label || '';
-                if (label) {
-                    label += ': ';
-                }
-                const rankValue = context.parsed.y;
-                if (rankValue !== null && rankValue >= 0 && rankValue <= 22) {
-                    label += rankedRankMap[SCRIPT_LANG][Math.round(rankValue)] || rankValue;
-                } else if (rankValue !== null) {
-                    label += rankValue;
-                }
-                return label;
-            };
-
-
-            if (charts[canvasId]) charts[canvasId].destroy();
-            clearAndShowCanvas(canvasId);
-            charts[canvasId] = new Chart(canvas, config);
-            // 1点データの場合のY軸範囲の再調整は、min/maxを直接設定しているので不要か、
-            // または updateSinglePointYAxis を改造してランク用に使う必要がある。
-            // 現状は上記の minYTick, maxYTick の計算で対応。
         }
 
         // ガチバトルスコア推移
@@ -1621,69 +1408,6 @@
             if (charts[canvasId]) charts[canvasId].destroy();
             clearAndShowCanvas(canvasId);
             charts[canvasId] = new Chart(canvas, config);
-            // if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
-        }
-
-        function renderPrestigeChart(logTrends) {
-            const canvasId = 'prestige-chart-canvas';
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) {
-                console.error(`Element with ID '${canvasId}' not found.`);
-                return;
-            }
-            const hasData = logTrends.prestige && logTrends.prestige.some(v => v !== null);
-
-            if (!logTrends.dates || logTrends.dates.length === 0 || !hasData) {
-                displayNoDataMessage(canvasId);
-                return;
-            }
-            const datasets = [{
-                label: SCRIPT_LANG === 'ja' ? 'トップランカー所持数' : 'Prestige',
-                data: logTrends.prestige,
-                borderColor: 'rgb(38, 222, 182)',
-                tension: 0.1, fill: false,
-                pointRadius: logTrends.dates.length === 1 ? 5 : (logTrends.dates.length < 60 ? 3 : 1.5),
-                pointHoverRadius: logTrends.dates.length === 1 ? 7 : 5,
-            }];
-            const data = { labels: logTrends.dates, datasets: datasets };
-            const yValuesForScale = logTrends.prestige.filter(v => v !== null);
-            const yAxisConfig = gemeinsamenYAxisConfig(yValuesForScale, SCRIPT_LANG === 'ja' ? 'トップランカー所持数' : 'Prestige');
-
-            const config = createBaseChartConfig(data, SCRIPT_LANG === 'ja' ? '日付' : 'Date', yAxisConfig.title, determineTimeUnit(logTrends.dates), determineMaxTicks(logTrends.dates.length), yAxisConfig.min, yAxisConfig.max, logTrends.dates.length === 1 ? logTrends.dates[0] : null);
-
-            // 1. 縦軸の目盛りが必ず整数になるように設定を上書きします。
-            config.options.scales.y.ticks = config.options.scales.y.ticks || {};
-            // stepSize: 1 で目盛りの間隔を1に固定し、整数刻みを強制します。
-            config.options.scales.y.ticks.stepSize = 1;
-            // precision: 0 で目盛りラベルの小数点以下を0桁にします。
-            config.options.scales.y.ticks.precision = 0;
-
-            // 2. データが1点しかない場合に、Y軸の範囲が狭くなりすぎて小数点刻みになるのを防ぎます。
-            if (logTrends.dates.length === 1 && yValuesForScale.length > 0) {
-                const singleValue = yValuesForScale[0];
-                // Y軸の最小値を「値 - 2」か「0」の大きい方に設定します。
-                config.options.scales.y.min = Math.floor(Math.max(0, singleValue - 2));
-                // Y軸の最大値を「値 + 2」に設定し、グラフに十分な余白を確保します。
-                config.options.scales.y.max = Math.ceil(singleValue + 2);
-            }
-
-            // 縦軸の目盛りをカンマ区切りにする
-            if (config.options.scales.y.ticks) {
-                config.options.scales.y.ticks.callback = function(value, index, values) {
-                    return value.toLocaleString();
-                };
-            } else {
-                config.options.scales.y.ticks = {
-                    callback: function(value, index, values) {
-                        return value.toLocaleString();
-                    }
-                };
-            }
-
-            if (charts[canvasId]) charts[canvasId].destroy();
-            clearAndShowCanvas(canvasId);
-            charts[canvasId] = new Chart(canvas, config);
-            // 3. このグラフではY軸の範囲を独自に調整したため、共通の `updateSinglePointYAxis` は呼び出しません。 
             // if (logTrends.dates.length === 1) updateSinglePointYAxis(charts[canvasId], yValuesForScale);
         }
 

@@ -2808,7 +2808,6 @@ class PlayerLogTrends(TypedDict):
     dates: list[str]
     current_trophies: list[int | None]
     highest_trophies: list[int | None]
-    season_trophies: list[int | None]
     average_highest_trophies: list[float | None]
     average_current_trophies: list[float | None]
     average_power: list[float | None]
@@ -2821,15 +2820,12 @@ class PlayerLogTrends(TypedDict):
     duo_victories: list[int | None]
     unlocked_brawlers: list[int | None]
     max_tier_brawlers: list[int | None]
-    ranked_current_rank: list[int | None]
-    ranked_highest_rank: list[int | None]
     acc_ranked_season_highest_rank: list[int | None]
     season_high_trophies: list[int | None] # <--- 追加
     ranked_current_score: list[int | None] # <--- 追加
     ranked_highest_score: list[int | None] # <--- 追加
     ranked_season_highest_score: list[int | None] # <--- 追加
     max_winstreak: list[int | None] # <--- 追加
-    prestige: list[int | None] # <--- 追加
     fame_points: list[int | None] # <--- 追加
     titles: list[int | None] # <--- 追加
     total_mastery: list[int | None] # <--- 追加

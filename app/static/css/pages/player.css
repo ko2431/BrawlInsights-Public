@@ -239,6 +239,13 @@
     .stats-block {
         margin-bottom: 0; /* グリッド内のマージンはgapで管理 */
     }
+    /* 推移グラフは、グラフ(canvas)の幅に引っ張られず、画面幅を狭めた時にも列が縮むようにする */
+    .stats-graph-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .stats-graph-container > * {
+        min-width: 0;
+    }
     /* 特定のブロックを横長にする場合など */
     /* .stats-block--full-width { grid-column: 1 / -1; } */
 }
