@@ -169,12 +169,48 @@
     color: #111;
 }
 
-@media (max-width: 859px) {
+/* ヘッダーの文字は改行させない（幅が足りない時は下の段階縮小で収める） */
+.header-pc__service-name,
+.header-pc__nav-text {
+    white-space: nowrap;
+}
+
+/* PCヘッダーに切り替わった直後の狭い幅（840〜959px）では、余白と文字を段階的に詰める
+   （日本語は約900px未満で改行していた。スクロールバー分の幅も見込む） */
+@media (max-width: 959px) {
+    .header-pc__container {
+        padding: 0 20px;
+    }
     .header-pc__service-name {
         font-size: 19px;
     }
+    .header-pc__nav {
+        margin-left: 12px;
+        gap: 2px;
+    }
+    .header-pc__nav-link {
+        padding: 3px 7px;
+    }
     .header-pc__nav-text {
         font-size: 17px;
+    }
+    .lang-switcher {
+        margin-left: 10px;
+    }
+}
+@media (max-width: 899px) {
+    .header-pc__container {
+        padding: 0 16px;
+    }
+    .header-pc__service-name {
+        font-size: 18px;
+    }
+    .header-pc__nav-icon {
+        height: 21px;
+    }
+    .header-pc__nav-text {
+        font-size: 16px;
+        margin-left: 4px;
     }
 }
 
