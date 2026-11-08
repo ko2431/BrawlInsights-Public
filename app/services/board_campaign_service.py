@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import math
+from bisect import bisect_right
 import time
 from dataclasses import dataclass, field
 from itertools import groupby
