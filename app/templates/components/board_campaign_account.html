@@ -119,7 +119,7 @@
             <div x-show="open" x-cloak>
                 {% for a in bc.awards %}
                 <div class="bca__row {{ 'bca__row--3' if live else 'bca__row--score bca__row--num' }}">
-                    <span class="bca__row-name">{{ a.name }}{% if live and a.key == "post_count" %}{{ help_tip("投稿数トップ賞は、4種類の掲示板（チーム・フレンド・クラブ・なんでも）すべてに投稿すると対象になります。" if ja else "To qualify for the Posts prize, post at least once on each of the 4 boards (team, friend, club, general).") }}{% endif %}</span>
+                    <span class="bca__row-name">{{ a.name }}{% if live and a.key == "post_count" %}{{ help_tip("投稿数トップ賞は、4種類の掲示板（チーム・フレンド・クラブ・なんでも）すべてに投稿すると対象になります。" if ja else "To qualify for the Posts prize, post at least once on each of the 4 boards (team, friend, club, general).") }}{% elif a.key in ("general_chat", "theme_chat") %}{{ help_tip("短時間での連投はカウント対象外です。" if ja else "Rapid consecutive messages are not counted.") }}{% endif %}</span>
                     {% if live and a.hidden %}<span class="bca__hidden">{{ "非公開" if ja else "Hidden" }}</span>{% else %}<span>{{ a.value }}</span>{% endif %}
                     {% if live %}
                     <span class="bca__rank{% if a.top_rank %} bca__rank--top{% endif %}">{{ a.rank }}</span>
