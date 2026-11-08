@@ -412,6 +412,8 @@ class Post:
         self.down_vote_count: int = 0
         self.is_up_voted_by_current_user: bool = False
 
+    # [この部分は公開用リポジトリでは非公開にされています]
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -1302,11 +1304,11 @@ async def get_posts(db: asyncpg.Connection, page: int = 1, per_page: int = 100, 
         include_deleted_post (bool): 削除されている投稿も取得対象とするかどうか。デフォルトはFalse。
         eliminate_duplicates (bool): Trueの場合、募集のプレイヤーまたはクラブが重複する投稿について、最新の1件のみを取得し、残りは排除する。デフォルトはFalse。
         author_user_id (int | None): 指定した場合、そのユーザーIDがホストの投稿のみを取得する。
-        author_ip (str | None): 指定した場合、そのIPアドレスがホストの投稿のみを取得する。author_user_idと同時に指定するとOR条件になる。
+        author_ip (str | None): author_user_idが未指定の場合、同じIPアドレスのゲスト投稿のみを取得する。
         filter (str | None): 絞り込み種別。'only_instant_recruitment' / 'only_later_recruitment' / 'only_participated_threads' / 'only_liked_posts' など。
         exclude_categories (tuple[str, ...]): 指定したカテゴリーの投稿を除外する。デフォルトは空（除外しない）。
         only_joinable (bool): Trueの場合、参加可能な投稿のみに絞り込む。filter と同時指定可能。
-        viewer_ip (str | None): 閲覧者IP。参加可否フィルタで自身の投稿（host_ip一致）を残すために用いる。
+        viewer_ip (str | None): 未ログインの閲覧者IP。参加可否フィルタで同じIPのゲスト投稿を残すために用いる。
         search (GeneralBoardSearch | None): なんでも掲示板の検索条件（本文 or 投稿者名）。指定時は type='general' に限定される。
         
     Raises:

@@ -2,6 +2,7 @@
         {# > 投稿者のIDを変数に格納 --- #}
         {% set author_user_id = post.data.host_id %}
         {% set author_anonymous_id = post.data.host_anonymous_id %}
+        {% set is_host = post.is_host %}
 
         {# ブロック済みユーザーの投稿はチャットと同様に表示しない #}
         {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
@@ -260,7 +261,6 @@
                             </div>
                         </a>
                         {% endif %}
-                        {% set is_host = (current_user and current_user.id == post.data.host_id) or (ip == post.data.host_ip) %}
                         {% set is_effectively_closed = post.data.is_effectively_closed %}
                         {% if current_user and current_user.has_perm('board.delete_posts') and not is_host %}
                             <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">

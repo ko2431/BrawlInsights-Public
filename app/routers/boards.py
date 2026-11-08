@@ -494,6 +494,7 @@ async def _fetch_team_board_posts(
 ) -> tuple[dict, dict, int]:
     """チーム募集掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
+    viewer_ip = get_ip(request)
     main_account: Player | None = None
 
     if user:
@@ -540,10 +541,10 @@ async def _fetch_team_board_posts(
             mode=None if mode.lower() == "all" or category != "trophy" else mode,
             eliminate_duplicates=eliminate_duplicates,
             author_user_id=user.id if filter == "only_own_posts" and user else None,
-            author_ip=get_ip(request) if filter == "only_own_posts" else None,
+            author_ip=viewer_ip if filter == "only_own_posts" and not user else None,
             filter=filter,
             only_joinable=only_joinable,
-            viewer_ip=get_ip(request) if only_joinable else None,
+            viewer_ip=viewer_ip if only_joinable and not user else None,
         )
     except BrawlStarsAPIError:
         posts_data = []
@@ -555,6 +556,7 @@ async def _fetch_team_board_posts(
     posts = {
         post.id: {
             "data": post.to_dict(),
+            "is_host": post.is_owned_by(user_id=user.id if user else None, ip=viewer_ip),
             "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
             "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None),
         }
@@ -720,6 +722,7 @@ async def _fetch_recruitment_board_posts(
 ) -> tuple[dict, dict, int]:
     """フレンド/クラブ募集掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
+    viewer_ip = get_ip(request)
     main_account: Player | None = None
 
     if user:
@@ -761,10 +764,10 @@ async def _fetch_recruitment_board_posts(
             target_player=main_account if needs_target_player and main_account else None,
             eliminate_duplicates=eliminate_duplicates,
             author_user_id=user.id if filter == "only_own_posts" and user else None,
-            author_ip=get_ip(request) if filter == "only_own_posts" else None,
+            author_ip=viewer_ip if filter == "only_own_posts" and not user else None,
             filter=filter,
             only_joinable=only_joinable,
-            viewer_ip=get_ip(request) if only_joinable else None,
+            viewer_ip=viewer_ip if only_joinable and not user else None,
         )
     except BrawlStarsAPIError:
         posts_data = []
@@ -776,6 +779,7 @@ async def _fetch_recruitment_board_posts(
     posts = {
         post.id: {
             "data": post.to_dict(),
+            "is_host": post.is_owned_by(user_id=user.id if user else None, ip=viewer_ip),
             "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
             "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None),
         }
@@ -1101,6 +1105,7 @@ async def _fetch_general_board_posts(
 ) -> tuple[dict, dict, int]:
     """なんでも掲示板の投稿一覧とブロックリストを取得する。"""
     user: User | None = getattr(request.state, "current_user", None)
+    viewer_ip = get_ip(request)
 
     blocker_user_id = user.id if user else None
     blocker_anonymous_id = request.cookies.get("brawlanonid") if not user else None
@@ -1135,7 +1140,7 @@ async def _fetch_general_board_posts(
 
             if tab == "own":
                 author_user_id = user.id if user else None
-                author_ip = get_ip(request)
+                author_ip = viewer_ip if not user else None
             elif tab == "participated":
                 posts_filter = "only_participated_threads"
                 target_user_for_posts = user
@@ -1187,6 +1192,7 @@ async def _fetch_general_board_posts(
     posts = {
         post.id: {
             "data": post.to_dict(),
+            "is_host": post.is_owned_by(user_id=user.id if user else None, ip=viewer_ip),
             "is_permitted_to_chat": await post.is_permitted_to_chat(db, user_id=user.id if user else None),
             "is_permitted_to_click_link": await post.is_permitted_to_click_link(db, user_id=user.id if user else None),
             "tournament": board_link_for_post(tournament_targets.get(_general_post_tournament_id(post)), post.host_id),
@@ -2064,7 +2070,7 @@ async def delete_post(
         
     # 権限チェック ---
     is_staff_delete = bool(user and user.has_perm("board.delete_posts"))
-    is_host = (user and post.host_id == user.id) or (post.host_ip == get_ip(request))
+    is_host = post.is_owned_by(user_id=user.id if user else None, ip=get_ip(request))
 
     if not is_staff_delete and not is_host:
         raise HTTPException(status_code=403, detail="You do not have permission to delete this post")
@@ -2093,7 +2099,7 @@ async def close_post(
     if post.type != "team":
         raise HTTPException(status_code=400, detail="Only team posts can be closed")
 
-    is_host = (user and post.host_id == user.id) or (post.host_ip == get_ip(request))
+    is_host = post.is_owned_by(user_id=user.id if user else None, ip=get_ip(request))
     if not is_host:
         raise HTTPException(status_code=403, detail="You do not have permission to close this post")
 
@@ -2130,7 +2136,7 @@ async def reopen_post(
     if post.type != "team":
         raise HTTPException(status_code=400, detail="Only team posts can be reopened")
 
-    is_host = (user and post.host_id == user.id) or (post.host_ip == get_ip(request))
+    is_host = post.is_owned_by(user_id=user.id if user else None, ip=get_ip(request))
     if not is_host:
         raise HTTPException(status_code=403, detail="You do not have permission to reopen this post")
 

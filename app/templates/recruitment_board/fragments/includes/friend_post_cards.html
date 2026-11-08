@@ -3,6 +3,7 @@
         {# > 投稿者のIDを変数に格納 --- #}
         {% set author_user_id = post.data.host_id %}
         {% set author_anonymous_id = post.data.host_anonymous_id %}
+        {% set is_host = post.is_host %}
 
         {# ブロック済みユーザーの投稿はチャットと同様に表示しない #}
         {% if not ((author_user_id and author_user_id in blocked_ids.user_ids) or
@@ -191,7 +192,7 @@
                             </div>
                         </a>
                         {% endif %}
-                        {% if current_user and (current_user.id == post.data.host_id or current_user.has_perm('board.delete_posts')) or ip == post.data.host_ip %}
+                        {% if is_host or (current_user and current_user.has_perm('board.delete_posts')) %}
                             <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
                                 {% if lang == "ja" %}削除{% else %}Delete{% endif %}
                             </div>
@@ -206,10 +207,10 @@
                                 {% if lang == "ja" %}ブロック{% else %}Block{% endif %}
                             </div>
                         {% endif %}
-                        {% if post.is_permitted_to_click_link or (current_user and current_user.id == post.data.host_id or ip == post.data.host_ip) %}
+                        {% if post.is_permitted_to_click_link or is_host %}
                         <a href="{{ post.data.link }}" style="display: flex; flex: 1;" {% if platform != 'web' %}target="_blank"{% endif %}>
                             <div class="button button--primary post-card__link-button">
-                                {% if current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
+                                {% if is_host %}
                                     {% if lang == "ja" %}あなたの投稿です{% else %}Your Post{% endif %}
                                 {% else %}
                                     {% if lang == "ja" %}フレンド申請{% else %}Request{% endif %}

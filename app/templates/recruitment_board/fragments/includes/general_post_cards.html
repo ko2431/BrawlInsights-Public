@@ -35,6 +35,7 @@
 {% for id, post in posts.items() %}
         {% set author_user_id = post.data.host_id %}
         {% set author_anonymous_id = post.data.host_anonymous_id %}
+        {% set is_host = post.is_host %}
         {% set cat = post.data.category if post.data.category in category_colors else 'chat' %}
         {% set cat_info = category_colors[cat] %}
 
@@ -169,7 +170,7 @@
                             <span class="post-card__good-button-count">{{ post.data.up_vote_count or 0 }}</span>
                         </div>
                         {% endif %}
-                        {% if current_user and (current_user.id == post.data.host_id or current_user.has_perm('board.delete_posts')) or ip == post.data.host_ip %}
+                        {% if is_host or (current_user and current_user.has_perm('board.delete_posts')) %}
                             <div id="delete-btn-{{ id }}" data-post-id="{{ id }}" class="button post-card__delete-button">
                                 {% if lang == "ja" %}削除{% else %}Delete{% endif %}
                             </div>
@@ -187,10 +188,10 @@
                         {# リンクボタンの分岐 #}
                         {% if cat in link_categories %}
                             {# X/Discord/YouTube/TikTok → リンクを開くボタン #}
-                            {% if post.data.link and (post.is_permitted_to_click_link or (current_user and current_user.id == post.data.host_id) or ip == post.data.host_ip) %}
+                            {% if post.data.link and (post.is_permitted_to_click_link or is_host) %}
                             <a href="{{ post.data.link }}" target="_blank" rel="noopener noreferrer" style="display: flex; flex: 1;">
                                 <div class="button button--primary post-card__link-button">
-                                    {% if current_user and current_user.id == post.data.host_id or ip == post.data.host_ip %}
+                                    {% if is_host %}
                                         {% if lang == "ja" %}あなたの投稿です{% else %}Your Post{% endif %}
                                     {% else %}
                                         {% if lang == "ja" %}リンクを開く{% else %}Open Link{% endif %}
