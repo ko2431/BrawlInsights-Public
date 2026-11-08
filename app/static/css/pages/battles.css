@@ -307,6 +307,7 @@
     margin-left: 0;
     padding: 1px 12px; /* 少し小さめに */
     font-size: 15px;
+    border-radius: 9px;
 }
 .filter-item__reset:disabled {
     color: #fff;
