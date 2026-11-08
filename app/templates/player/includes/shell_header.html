@@ -42,6 +42,17 @@
 </div>
 {% endmacro %}
 
+{# プロフィール画像生成ツールへの導線。3つのタブすべてに出す。狭い幅では短い文言に切り替える #}
+{% set show_profile_image_button = (platform == "ios" and version_at_least(app_client_version, "14.0")) or platform == "android" or platform == "web" %}
+{% macro profile_image_button(variant) %}
+<a href="{{ url_for('profile_image_tool', lang=lang) }}?tag={{ tag[1:] }}" class="profile-image-button profile-image-button--{{ variant }}">
+    <img src="{{ url_for('static', path='/images/ui/total_prestige.png') }}" alt="" class="profile-image-button__icon">
+    <span class="profile-image-button__text profile-image-button__text--full">{% if lang == "ja" %}プロフィール画像を生成する{% else %}Generate Profile Image{% endif %}</span>
+    <span class="profile-image-button__text profile-image-button__text--short">{% if lang == "ja" %}プロフィール画像{% else %}Profile Image{% endif %}</span>
+    <span class="profile-image-button__arrow" aria-hidden="true">▶︎</span>
+</a>
+{% endmacro %}
+
 {# 戻るボタン #}
 {% if platform != "web" %}
 <div class="back-button__container"
@@ -57,8 +68,11 @@
     {{ player_identity(tag, player_header) }}
 </div>
 
-{# --- ブックマークUI --- #}
-{{ bookmark_ui("mobile") }}
+{# --- ブックマークUI・プロフィール画像ボタン (スマホ・タブレット) --- #}
+<div class="player-actions player-actions--mobile">
+    {{ bookmark_ui("mobile") }}
+    {% if show_profile_image_button %}{{ profile_image_button("mobile") }}{% endif %}
+</div>
 
 {# --- ページ内ナビゲーションタブ --- #}
 <nav class="tab-nav player-tab-nav"> {# components.css のタブスタイル #}
@@ -73,5 +87,8 @@
             <a href="{% if player_nav_active == 'stats' %}#{% else %}{{ url_for('get_player_stats', lang=lang, tag=tag[1:]) }}{% endif %}" class="tab-nav__link{% if player_nav_active == 'stats' %} tab-nav__link--active{% endif %}">{% if lang == "ja" %}推移グラフ{% else %}Trends{% endif %}</a>
         </li>
     </ul>
-    {{ bookmark_ui("pc") }}
+    <div class="player-actions player-actions--pc">
+        {% if show_profile_image_button %}{{ profile_image_button("pc") }}{% endif %}
+        {{ bookmark_ui("pc") }}
+    </div>
 </nav>

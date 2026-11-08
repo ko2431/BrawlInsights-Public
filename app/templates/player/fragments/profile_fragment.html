@@ -11,17 +11,6 @@
     </div>
     {% endif %}
 
-    {# プロフィール画像生成ツールへの導線バナー #}
-    {% if (platform == "ios" and version_at_least(app_client_version, "14.0")) or platform == "android" or platform == "web" %}
-    <a href="{{ url_for('profile_image_tool', lang=lang) }}?tag={{ player.tag[1:] }}" class="profile-image-banner__link">
-        <div class="profile-image-banner">
-            <img src="{{ url_for('static', path='/images/ui/total_prestige.png') }}" alt="Prestige" class="profile-image-banner__icon">
-            <p class="profile-image-banner__text">{% if lang == "ja" %}プロフィール画像を生成する{% else %}Generate Profile Image{% endif %}</p>
-            <p class="profile-image-banner__arrow">▶︎</p>
-        </div>
-    </a>
-    {% endif %}
-
     {# --- 統計情報コンテナ (基本データ、育成状況など) --- #}
     <div class="stats-container">
         {# --- 基本データ --- #}
