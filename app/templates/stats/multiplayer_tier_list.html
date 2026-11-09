@@ -81,7 +81,7 @@
         </p>
     </div>
 
-    {% include "stats/fragments/multiplayer_tier_body.html" %}
+    {% with tier_list_ad = true %}{% include "stats/fragments/multiplayer_tier_body.html" %}{% endwith %}
 
     <section class="about-section">
         <h2 class="page-title--sub">{% if lang == "ja" %}集計方法についての詳細{% else %}Details on Data Aggregation{% endif %}</h2>

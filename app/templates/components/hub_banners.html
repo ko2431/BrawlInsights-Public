@@ -1,4 +1,5 @@
 {# 統計データ・ツールのハブ用。バナーと説明文はここで1回だけ描画する。 #}
+{% from "components/adsense_unit.html" import adsense_unit with context %}
 
 {#^ tn_badge: 大会の通知の未読数を出す（ツールの「その他」） #}
 {% macro hub_subtab(endpoint, sub, icon, icon_class, label, tn_badge=false) %}
@@ -23,14 +24,17 @@
 </a>
 {% endmacro %}
 
-{% macro banner_grid(prefix, items) %}
+{#^ ad_unit: AdSense の手動の広告ユニットのキー（components/adsense_unit.html）。
+    バナーが7個以上なら6個目のあと（PC の2列・3列でも行の切れ目になる）に1行ぶんの幅で、6個以下ならバナーの下に置く #}
+{% macro banner_grid(prefix, items, ad_unit=none) %}
+{% set shown = items|rejectattr('show', 'sameas', false)|list %}
 <div class="{{ prefix }}-page__contents-box">
-    {% for item in items %}
-        {% if item.show|default(true) %}
+    {% for item in shown %}
         {{ content_banner(prefix, item) }}
-        {% endif %}
+        {% if ad_unit and loop.index == 6 and not loop.last %}{{ adsense_unit(ad_unit, extra_class='bi-adsense--grid') }}{% endif %}
     {% endfor %}
 </div>
+{% if ad_unit and shown|length <= 6 %}{{ adsense_unit(ad_unit) }}{% endif %}
 {% endmacro %}
 
 {% macro hub_copy(prefix, description, notice=none) %}
@@ -49,7 +53,7 @@
 {% macro hub_panel(prefix, sub, description, banners, notice=none, suggest_items=none, suggest_legend=none, external_items=none, external_legend=none) %}
 <div class="hub-subtab-panel" x-show="activeSubTab === '{{ sub }}'" x-cloak>
     {{ hub_copy(prefix, description, notice) }}
-    {{ banner_grid(prefix, banners) }}
+    {{ banner_grid(prefix, banners, prefix ~ '_hub') }}
     {% if suggest_items %}
     {{ suggest_box(prefix, suggest_items, suggest_legend) }}
     {% endif %}

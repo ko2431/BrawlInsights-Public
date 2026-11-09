@@ -32,6 +32,10 @@
     6: 'Slv. Ⅲ', 5: 'Slv. Ⅱ', 4: 'Slv. Ⅰ',
     3: 'Brz. Ⅲ', 2: 'Brz. Ⅱ', 1: 'Brz. Ⅰ', 0: 'No Rank'
 } %}
+{# AdSense の手動の広告。1回の読み込み（最初・「さらに表示」とも）の中で、表示した投稿の6件目・30件目・54件目のあとに1行ぶんの幅で置く
+   （PC の2列・3列でも行の切れ目になる数。ブロックして表示しない投稿は数えない） #}
+{% from "components/adsense_unit.html" import adsense_unit with context %}
+{% set ad_ns = namespace(shown=0) %}
 {% for id, post in posts.items() %}
         {% set author_user_id = post.data.host_id %}
         {% set author_anonymous_id = post.data.host_anonymous_id %}
@@ -262,5 +266,7 @@
                     </div>
                 </div>
             </div>
+            {% set ad_ns.shown = ad_ns.shown + 1 %}
+            {% if ad_ns.shown in (6, 30, 54) %}{{ adsense_unit('board_feed', extra_class='bi-adsense--grid') }}{% endif %}
         {% endif %}
         {% endfor %}

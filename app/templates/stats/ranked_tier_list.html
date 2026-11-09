@@ -1,5 +1,6 @@
 {# /app/templates/stats/ranked_tier_list.html #}
 {% extends "base.html" %}
+{% from "components/adsense_unit.html" import adsense_unit with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】ガチバトル 最強キャラTier表{% else %}Ranked Brawler Tier List{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ガチバトルの最強キャラTier表です。約5,000万件のガチバトルの勝敗データから集計したスコアで、最強キャラをランキング形式でまとめています。{% else %}This is the brawler tier list for Ranked mode. We've compiled a ranking of the strongest brawlers based on scores calculated from over 50 million ranked match results.{% endif %}{% endblock %}
@@ -156,6 +157,8 @@
                 {% endfor %}
             </div>
         </div>
+        {# AdSense の手動の広告。上位の2段のあと（段が2つ以下のときは表の下） #}
+        {% if loop.index == 2 or (loop.last and loop.length < 2) %}{{ adsense_unit('tier_list') }}{% endif %}
         {% endfor %}
     </div>
     {% elif not use_table %}
@@ -184,6 +187,8 @@
         </a>
         {% endfor %}
     </div>
+    {# AdSense の手動の広告（キャラクターリストの下） #}
+    {% if brawler_stats %}{{ adsense_unit('tier_list') }}{% endif %}
     {% else %}
     {# ^ 6. シンプルな表 (use_tableがオンの場合のみ、Tier表の代わりに表示) #}
     <div class="table-wrapper" style="margin-top: 1em;">

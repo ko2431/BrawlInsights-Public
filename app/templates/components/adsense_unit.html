@@ -1,0 +1,25 @@
+{# /app/templates/components/adsense_unit.html #}
+{# AdSense の手動の広告ユニット。with context で import すること。
+   出す相手は base.html の AdSense の読み込みと同じ（Web 版だけ。管理画面・管理者・広告非表示のユーザーには出さない）。
+   アプリ版は AdMob の下部バナーだけなので出さない（サーバーで判定できなかったときは adsense_units.js が消す）。
+   隠れたタブの中では幅が0で読み込めないので、class="adsbygoogle" は付けずに置き、
+   画面に近づいたときに adsense_units.js が付けて1回だけ読み込む。
+   あとから JS で差し込んだ枠（掲示板の一覧など）は、差し込んだ側で window.biScanAdUnits(root) を呼ぶ。
+   unit: 下の一覧のキー（AdSense の管理画面の広告ユニットごとに分け、レポートで置き場所ごとに見られるようにしている）
+   format: data-ad-format（auto / horizontal など）
+   full_width: スマホで画面の幅いっぱいに広げるか。枠線のある箱の中や、横にスクロールする要素の中では false にする
+   extra_class: 外側の div に足すクラス（置き場所ごとの余白など） #}
+{% macro adsense_unit(unit, format='auto', full_width=true, extra_class='') %}
+{% set slots = {
+    'tournament_hub': '8363821076',
+    'tournament_detail': '7991366118',
+    'tier_list': '4402847570',
+    'stats_hub': '7186737677',
+    'tools_hub': '9621329327',
+    'pick_tool': '2842353890',
+    'board_feed': '7242577993',
+} %}
+{% if platform == 'web' and not is_admin_section and not (current_user and (current_user.is_admin or current_user.is_delete_ads)) %}
+<div class="bi-adsense{% if extra_class %} {{ extra_class }}{% endif %}"><ins class="bi-adsense__slot" style="display:block" data-ad-client="ca-pub-4627806715879063" data-ad-slot="{{ slots[unit] }}" data-ad-format="{{ format }}" data-full-width-responsive="{{ 'true' if full_width else 'false' }}"{% if is_test_ip %} data-adtest="on"{% endif %}></ins></div>
+{% endif %}
+{% endmacro %}

@@ -1021,6 +1021,11 @@
     <script src="{{ url_for('static', path='/js/modal_back.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/visual_viewport_lock.js') }}?v={{ app_version }}"></script>
 
+    {# AdSense の手動の広告ユニット（components/adsense_unit.html）を読み込む。出す相手は adsense_unit と同じ #}
+    {% if platform == 'web' and not is_admin_section and not (current_user and (current_user.is_admin or current_user.is_delete_ads)) %}
+    <script defer src="{{ url_for('static', path='/js/adsense_units.js') }}?v={{ app_version }}"></script>
+    {% endif %}
+
     {# プッシュ通知（ログインしている人だけ。アカウントタブの設定・ログアウトの前の解除・投稿やエントリーの後の案内で使う） #}
     {# push_web_key がないとき（デプロイで git pull してから、アプリを再起動するまでの古いプロセス）は読み込まない #}
     {% if current_user and not is_admin_section and push_web_key is defined %}

@@ -1,4 +1,6 @@
 {# /app/templates/stats/fragments/multiplayer_tier_body.html #}
+{# tier_list_ad: AdSense の手動の広告を出す（マルチプレイTier表のページだけ。マップのページでは出さない） #}
+{% from "components/adsense_unit.html" import adsense_unit with context %}
 {% if not brawler_stats %}
 <div class="info-block" style="padding: 0; margin-top: 1em;">
     <p class="info-block__text">
@@ -33,6 +35,8 @@
             {% endfor %}
         </div>
     </div>
+    {# 上位の2段のあと（段が2つ以下のときは表の下） #}
+    {% if tier_list_ad and (loop.index == 2 or (loop.last and loop.length < 2)) %}{{ adsense_unit('tier_list') }}{% endif %}
     {% endfor %}
 </div>
 {% elif not use_table %}
@@ -56,6 +60,7 @@
     </a>
     {% endfor %}
 </div>
+{% if tier_list_ad %}{{ adsense_unit('tier_list') }}{% endif %}
 {% else %}
 <div class="table-wrapper" style="margin-top: 1em;">
     <table class="data-table">

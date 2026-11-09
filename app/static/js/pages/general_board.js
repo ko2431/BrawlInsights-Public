@@ -414,6 +414,8 @@
                     stopAgoUpdater();
                     container.innerHTML = html;
                     injectFragmentScripts(container);
+                    // 投稿の間の AdSense の広告枠（adsense_units.js）
+                    window.biScanAdUnits?.(container);
                     startAgoUpdater(container);
                     highlightSearchHits(container, this.q);
                     this.syncShellUi();

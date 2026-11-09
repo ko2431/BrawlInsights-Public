@@ -1055,6 +1055,27 @@
     opacity: .9;
 }
 
+/* ============================================================
+   AdSense の手動の広告ユニット (.bi-adsense*、components/adsense_unit.html)
+   広告が入るまでは高さ0で、入らなかったときは場所を取らない
+   ============================================================ */
+
+.bi-adsense:has(ins[data-ad-status="filled"]) {
+    margin: 12px 0;
+}
+.bi-adsense ins.adsbygoogle[data-ad-status="unfilled"] {
+    display: none !important;
+}
+/* グリッドの中に置くとき（統計・ツールのトップのバナーの間、掲示板の投稿の間）。1行ぶんの幅にし、上下の間隔はグリッドの gap に任せる */
+.bi-adsense--grid,
+.bi-adsense--grid:has(ins[data-ad-status="filled"]) {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+.bi-adsense--grid:has(ins[data-ad-status="unfilled"]) {
+    display: none;
+}
+
 .home-special-rewards {
     display: flex;
     flex-direction: column;

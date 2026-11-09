@@ -34,6 +34,8 @@
             [...chunk.children].forEach((child) => {
                 postsContainer.appendChild(document.importNode(child, true));
             });
+            // 足した投稿の間の AdSense の広告枠（なんでも掲示板だけ。adsense_units.js）
+            window.biScanAdUnits?.(postsContainer);
         }
 
         const existingLoadMore = contentRoot.querySelector(LOAD_MORE_SELECTOR);

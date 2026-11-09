@@ -1,5 +1,6 @@
 {# /app/templates/tools/pick_tool.html #}
 {% extends "base.html" %}
+{% from "components/adsense_unit.html" import adsense_unit with context %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】ガチバトルピック提案ツール{% else %}Ranked Pick Suggestion Tool{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}ブロスタのガチバトルピック提案ツールです。モードとマップを選択して、おすすめのキャラクターを自動で提案します。{% else %}This is a Ranked Pick Suggestion Tool for Brawl Stars. Select a mode and map to get automatic suggestions for the best brawlers to pick.{% endif %}{% endblock %}
@@ -161,6 +162,10 @@
                     <br>You can also start without specifying a mode and map, but the suggestions will not be optimized for any specific mode or map.
                 {% endif %}
             </div>
+            {# AdSense の手動の広告（独自広告より先に見えるよう上に置く）。このページは自動広告を除外している。
+               ピックの最中はキャラのボタンを素早く押すので、誤クリックを招かないよう開始画面にだけ置く。
+               キャラの一覧のスクロール領域の中なので、画面の幅いっぱいには広げない #}
+            {{ adsense_unit('pick_tool', full_width=false) }}
             {# バナー広告 #}
             {% include "components/ad_banner.html" %}
         </div>
