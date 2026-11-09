@@ -36,7 +36,8 @@ class ParticipationTest(unittest.TestCase):
 
     def test_participation_text(self):
         c = _campaign()
-        self.assertEqual(gs.participation_text(c, "ja"), "応募口数 × 1トークン（50口以上で+20、100口で+50）")
+        self.assertEqual(gs.participation_text(c, "ja"), "応募口数 × 1トークン（50口以上で+20、100口でさらに+30）")
+        self.assertEqual(gs.participation_text(c, "en"), "1 token per entry (+20 at 50+ entries, +30 more at 100 entries)")
         self.assertEqual(gs.participation_text(_campaign(settings={"participation_per_entry": 0, "participation_bonuses": []}), "ja"), "")
 
 
