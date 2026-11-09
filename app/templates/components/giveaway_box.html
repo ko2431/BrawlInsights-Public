@@ -51,10 +51,10 @@
                 {% for m in box.marks if not m.end %}<i class="gva__tick" style="left: {{ m.pct }}%"></i>{% endfor %}
             </div>
             {% if box.marks %}
-            {# 詳しい書き方（data-v="0"）が重なる・はみ出すなら短い書き方（data-v="1"）に（gvaFit） #}
+            {# 詳しい書き方（data-v="0"）が重なる・はみ出すなら、次の段だけ詳しく、それでもだめなら全部を短い書き方（data-v="1"）に（gvaFit） #}
             <div class="gva__marks" data-gva-fit="marks">
                 {% for m in box.marks %}
-                <span class="gva__mark{% if m.end %} gva__mark--end{% endif %}{% if m.state %} gva__mark--{{ m.state }}{% endif %}"{% if not m.end %} style="left: {{ m.pct }}%"{% endif %}>{% if m.state == "done" %}✓ {% endif %}<span data-v="0" hidden>{{ m.label_long | safe }}</span><span data-v="1">{{ m.label | safe }}</span></span>
+                <span class="gva__mark{% if m.end %} gva__mark--end{% endif %}{% if m.state %} gva__mark--{{ m.state }}{% endif %}{% if m.next %} gva__mark--next{% endif %}"{% if m.next %} data-gva-priority{% endif %}{% if not m.end %} style="left: {{ m.pct }}%"{% endif %}>{% if m.state == "done" %}✓ {% endif %}<span data-v="0" hidden>{{ m.label_long | safe }}</span><span data-v="1">{{ m.label | safe }}</span></span>
                 {% endfor %}
             </div>
             {% endif %}

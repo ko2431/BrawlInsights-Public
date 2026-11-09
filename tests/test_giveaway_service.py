@@ -58,6 +58,8 @@ class ReachTest(unittest.TestCase):
         counts = {"total": 37, "today": 3, "limit_total": 37, "limit_today": 3, "shared": False}
         box = gs.build_entry_box(c, "live", "ja", now, user=user, counts=counts, stats={"users": 1, "entries": 37})
         self.assertEqual(box["next_texts"], ["あと13口で参加賞ボーナス +20トークン", "あと13口でボーナス +20トークン", "あと13口でボーナス +20"])
+        # 次に届く段だけに印（色と、狭い幅で詳しい書き方を優先する）
+        self.assertEqual([m["next"] for m in box["marks"]], [True, False])
 
     def test_reachable_without_daily_limit(self):
         c = _campaign(settings={"daily_limit": 0, "total_limit": 20})
@@ -71,6 +73,7 @@ class ReachTest(unittest.TestCase):
         box = gs.build_entry_box(c, "live", "ja", now, user=user, counts=counts, stats={"users": 1, "entries": 61})
         self.assertEqual(box["reach"], 85)
         self.assertEqual([m["state"] for m in box["marks"]], ["done", "lost"])
+        self.assertFalse(any(m["next"] for m in box["marks"]))  # 届かなくなった段は「次」にしない
         self.assertEqual(box["next_texts"], [])  # 100口には届かないので出さない
         self.assertEqual(box["marks"][0]["label_long"], "50口 ボーナス<b>+20トークン</b>")
         # 100口は前の段（+20）からの増える分
