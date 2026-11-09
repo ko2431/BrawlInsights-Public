@@ -72,6 +72,8 @@ class ReachTest(unittest.TestCase):
         self.assertEqual([m["state"] for m in box["marks"]], ["done", "lost"])
         self.assertEqual(box["next_texts"], [])  # 100口には届かないので出さない
         self.assertEqual(box["marks"][0]["label_long"], "50口 ボーナス<b>+20トークン</b>")
+        # 100口は前の段（+20）からの増える分
+        self.assertEqual([m["label"] for m in box["marks"]], ["50口 <b>+20</b>", "100口 <b>+30</b>"])
         self.assertEqual(box["participation"], 81)
         self.assertEqual(box["bulk"], 8)
 
