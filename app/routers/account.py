@@ -15,7 +15,6 @@ from app.services.user_service import SUB_ACCOUNTS_MAX_LIMIT, SUB_ACCOUNT_EXPAND
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services import main_account_reward_service
 from app.services import player_verification_service
-from app.services.user_service import _current_token_claim_date, _normalize_daily_claim_count
 from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
 from app.services import push_rules, push_service

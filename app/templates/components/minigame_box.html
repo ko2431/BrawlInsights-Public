@@ -1,0 +1,213 @@
+{# アカウントタブの「プレゼント企画」のミニゲーム型の箱（企画ごとに1つ。minigame_campaign_plan 7b、モック 6章 第3版）。
+   box は minigame_box_service.build_box。mode は live（開催中）・preview（管理者の先行プレイ）・upcoming（予告）・ended（終了後の手続き）。
+   参加・演出・受け取りは minigameHandler（account_settings.html）。ゲージの文字は gvaFit（data-gva-fit="marks"） #}
+{% set ja = lang == "ja" %}
+{% set c = box.campaign %}
+{% set mode = box.mode %}
+{% macro detail_toggle() %}<button type="button" class="mga__toggle" @click="detail = !detail" :aria-expanded="detail">{{ "景品・参加規約" if ja else "Prizes & Terms" }}<span class="bca__chev" :class="{ 'bca__chev--open': detail }"></span></button>{% endmacro %}
+
+{% macro procedures() %}
+{% for gift in box.gifts %}
+<div class="bca__gift">
+    <p class="bca__gift-title">{% if ja %}<b>{{ gift.name }}</b> の受け取り{% else %}Claiming your <b>{{ gift.name }}</b>{% endif %}</p>
+    <p>{{ (("<b>" ~ gift.deadline_text ~ "</b>（当選から72時間）までに、下のメールアドレスへご連絡ください。本人確認の後、受け取り方をご案内します。") if ja else ("Please email us by <b>" ~ gift.deadline_text ~ "</b> (72 hours after winning). After verifying your identity, we'll explain how to receive your prize.")) | safe }}</p>
+    <div class="bca__mail"><code>contact.brawlinsights@gmail.com</code></div>
+    <p class="bca__gift-sub">{{ "メールには、以下の内容を含めてください。" if ja else "Please include the following in your email." }}</p>
+    <pre class="bca__mail-body">{% if ja %}ユーザーID: {{ current_user.id }}
+ユーザー名: {{ current_user.name }}
+当選した企画: {{ box.title }}
+当選した景品: {{ gift.name }}{% else %}User ID: {{ current_user.id }}
+Username: {{ current_user.name }}
+Giveaway: {{ box.title }}
+Prize: {{ gift.name }}{% endif %}</pre>
+    <p class="bca__hint">{{ "※期限内にご連絡がない場合、当選は無効となります。" if ja else "*If you do not contact us by the deadline, your win will be voided." }}</p>
+</div>
+{% endfor %}
+<template x-for="reward in (info.claimable_special_rewards || [])" :key="reward.play_id">
+    <div class="mga__claim">
+        <span><b x-text="reward.name"></b>{{ "の特別報酬リンク" if ja else " (special reward link)" }}<small x-text="'{{ "受け取りの期限: " if ja else "Claim by " }}' + reward.deadline_text"></small></span>
+        <button type="button" class="mga__claim-btn" @click="claimSpecialReward(reward)" :disabled="reward.claiming === true" x-text="reward.claimed ? '{{ "もう一度開く" if ja else "Open again" }}' : '{{ "受け取る" if ja else "Claim" }}'"></button>
+    </div>
+</template>
+{% endmacro %}
+
+{% macro detail() %}
+<div class="gva__detail" x-show="detail" x-cloak x-transition>
+    <div>
+        <h4>■ {{ "景品" if ja else "Prizes" }}</h4>
+        <p>{{ box.prize_lines | join("<br>") | safe }}</p>
+        {% if box.bonus_text %}<p>{{ ("参加ボーナス: " ~ box.bonus_text ~ "（トークン）") if ja else ("Play bonus: " ~ box.bonus_text ~ " (tokens)") }}</p>{% endif %}
+    </div>
+    <div>
+        <h4>■ {{ "参加規約" if ja else "Terms and Conditions" }}</h4>
+        <div class="gva__terms">{{ box.terms_html | safe }}</div>
+    </div>
+    {% if box.detail_url_id %}<a href="{{ url_for('announcement_detail', lang=lang, post_id=box.detail_url_id) }}" class="bca__link gva__detail-link">{{ "お知らせで見る ＞" if ja else "View in the news >" }}</a>{% endif %}
+</div>
+{% endmacro %}
+
+{% if mode == "upcoming" %}
+<div class="bca mga" id="mga-{{ c.id }}" x-data="{ detail: false }">
+    <div class="bca__head">
+        <div class="bca__head-main"><span class="bca__title">{{ box.title }}</span><span class="bca__badge bca__badge--ended">{{ box.badge }}</span></div>
+        <div class="bca__head-sub"><span>{{ box.period_text }}</span>{{ detail_toggle() }}</div>
+    </div>
+    <p class="bca__msg">{{ box.lead }}</p>
+    {{ detail() }}
+</div>
+
+{% elif mode == "ended" %}
+<div class="bca mga" id="mga-{{ c.id }}"
+     x-data='minigameHandler({{ box.js | tojson }}, {{ platform | tojson }}, {{ (current_user.is_delete_ads if current_user else false) | tojson }}, {{ (current_user.is_admin if current_user else false) | tojson }}, {{ lang | tojson }}, {{ is_prohibit_giveaway | tojson }})'>
+    <div class="bca__head">
+        <div class="bca__head-main"><span class="bca__title">{{ box.title }}</span><span class="bca__badge bca__badge--ended">{{ box.badge }}</span></div>
+        <div class="bca__head-sub"><span>{{ box.period_text }}</span></div>
+    </div>
+    {{ procedures() }}
+</div>
+
+{% else %}
+{% set g = box.gauge %}
+<div class="bca mga{% if is_prohibit_giveaway %} bca--muted{% endif %}" id="mga-{{ c.id }}"
+     x-data='minigameHandler({{ box.js | tojson }}, {{ platform | tojson }}, {{ (current_user.is_delete_ads if current_user else false) | tojson }}, {{ (current_user.is_admin if current_user else false) | tojson }}, {{ lang | tojson }}, {{ is_prohibit_giveaway | tojson }})'>
+    <div class="bca__head">
+        <div class="bca__head-main">
+            <span class="bca__title">{{ box.title }}</span>
+            <span class="bca__badge {{ 'mga__badge-pre' if mode == 'preview' else 'bca__badge--live' }}">{{ box.badge }}</span>
+        </div>
+        <div class="bca__head-sub"><span>{{ box.period_text }}{{ "・" if ja else " · " }}<span class="mga__left">{{ box.left }}</span></span>{{ detail_toggle() }}</div>
+    </div>
+    {% if mode == "preview" %}
+    <p class="mga__pre-note">{{ "管理者限定の先行プレイ中です。在庫は減らず、全体の数にも入りません。ゲージとボーナスは通常通り進みます。" if ja else "Admin-only preview. Stock isn't used and plays aren't counted in the totals. Your gauge and bonuses work as usual." }}</p>
+    {% endif %}
+
+    {% if is_prohibit_giveaway %}
+    <p class="bca__msg">{{ "規約違反行為が確認されたため、現在プレゼント企画への参加が制限されています。" if ja else "Participation in giveaways is currently restricted because a terms of service violation was confirmed." }}</p>
+    {% else %}
+    <div class="bca__entries">
+        <div class="bca__entries-row">
+            <span>{{ "あなたの参加" if ja else "Your plays" }}</span>
+            <b>{{ "{:,}".format(box.plays) }}</b><small>{% if box.cap %}/{{ box.cap }}{% endif %}{{ "回" if ja else "" }}</small>
+            {% if box.daily and not box.total_done %}<span class="bca__today">{{ "今日" if ja else "Today" }} {{ box.today }}<small>/{{ box.daily }}</small></span>{% endif %}
+        </div>
+        {% if g %}
+        <div class="mga__gauge">
+            <div class="mga__bar{% if g.maxed %} mga__bar--max{% endif %}">
+                <span class="mga__fill" style="width: {{ g.fill }}%"></span>
+                {% if g.lost_pct is not none %}<span class="gva__lost" style="left: {{ g.lost_pct }}%"></span>{% endif %}
+                {% for t in g.ticks %}<i class="mga__tick" style="left: {{ t }}%"></i>{% endfor %}
+            </div>
+            {# 文字は 全部を詳しく → 次の段だけ詳しく → 次の段だけ詳しく・先の段は出さない → 全部を短く → 先の段は出さない（gvaFit） #}
+            <div class="mga__marks" data-gva-fit="marks">
+                {% for m in g.marks %}
+                <span class="mga__mark{% if m.start %} mga__mark--start{% endif %}{% if m.end %} mga__mark--end{% endif %} {{ m.cls }}"{% if m.priority %} data-gva-priority{% endif %} style="left: {{ m.pct }}%"><span data-v="0" hidden>{{ m.long | safe }}</span><span data-v="1" hidden>{{ m.short | safe }}</span><span data-v="2">{{ m.tiny | safe }}</span></span>
+                {% endfor %}
+            </div>
+            {% if box.reach_text %}<span class="gva__reach">{{ box.reach_text }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% if box.ready %}
+    <div class="mga__claim">
+        <span>{% if ja %}ボーナス <b>+{{ box.ready_tokens }}トークン</b>{% else %}Bonus <b>+{{ box.ready_tokens }} tokens</b>{% endif %}<small>{{ box.ready_text }}</small></span>
+        <button type="button" class="mga__claim-btn" @click="claimBonus()" :disabled="bonusBusy" x-text="bonusMessage ? '✓' : '{{ ("まとめて受け取る" if box.ready | length > 1 else "受け取る") if ja else ("Claim all" if box.ready | length > 1 else "Claim") }}'"></button>
+    </div>
+    <p class="bca__claimed" x-show="bonusMessage" x-text="'✓ ' + bonusMessage" x-cloak></p>
+    {% endif %}
+    {% if box.next_text %}<div class="mga__row"><span class="mga__next">{{ box.next_text }}</span></div>{% endif %}
+
+    {% if box.total_done %}
+    <div class="mga__done">✓ {{ "上限まで参加済み" if ja else "You've reached the limit" }}</div>
+    {% elif box.today_done %}
+    <div class="mga__done mga__done--sub">{{ "今日の分は参加済みです" if ja else "You've used today's plays" }}<small>{{ "明日 9:00 から参加できます" if ja else "More plays open at 00:00 UTC" }}</small></div>
+    {% else %}
+    <div class="mga__actions">
+        <button type="button" class="mga__btn" :class="{ 'mga__btn--sub': isApp && !adPrimary && info.can_play, 'mga__btn--off': !isApp || isBusy }" @click="startAdPlay()" :disabled="isApp && (!info.ad_plays_remaining || !info.can_play)">
+            <span x-text="adButtonMainText"></span><small><template x-for="(part, i) in adButtonSubParts" :key="i"><span class="mga__btn-part" x-text="(i ? '{{ '・' if ja else ' · ' }}' : '') + part"></span></template></small>
+        </button>
+        <button type="button" class="mga__btn" :class="{ 'mga__btn--sub': adPrimary && !isBusy, 'mga__btn--off': isBusy }" @click="startPlay('token')">
+            {{ "トークンで参加" if ja else "Play with tokens" }}<small>{{ box.js.price_token_tokens }}{{ "トークン" if ja else " tokens" }}</small>
+        </button>
+    </div>
+    {% endif %}
+    <p class="gva__note" x-show="info.pending_elsewhere" x-cloak>{{ "ほかのプレゼント企画に途中の参加があります。先にそちらを最後まで進めてください。" if ja else "You have an unfinished play in another giveaway. Please finish it first." }}</p>
+    {% if box.shared %}<p class="gva__note">{{ "同じプレイヤーを登録している別のアカウントで参加した分も、上限に数えています。" if ja else "Plays from other accounts that register the same player also count toward the limits." }}</p>{% endif %}
+
+    <div class="mga__play minigame-play-field">
+        <div class="minigame-howto-box">
+            <p class="minigame-howto-lead">{{ box.howto.lead | safe }}</p>
+            <ul class="minigame-prize-legend{% if box.howto.legend and box.howto.legend[0].condition_text %} minigame-prize-legend--bingo{% endif %}">
+                {% for legend in box.howto.legend %}
+                <li :class="{ 'is-won': wonRank === {{ legend.rank }} }"{% if legend.condition_text %} class="minigame-prize-legend__bingo-row"{% endif %}>
+                    {% if legend.condition_text %}
+                    <span class="minigame-bingo-row-inner">
+                        <span class="minigame-bingo-condition">{{ legend.condition_text }}</span>
+                        <b class="minigame-bingo-rank">{{ legend.rank_label }}</b>
+                        <span class="minigame-bingo-prize">{% if legend.icon_url %}<img class="minigame-prize-icon" src="{{ legend.icon_url }}" alt="">{% endif %}<span>{{ legend.label }}</span></span>
+                    </span>
+                    {% else %}
+                    <span class="minigame-combo{% if legend.slot_count >= 3 %} minigame-combo--wide{% endif %}" aria-hidden="true">
+                        {% for face in legend.faces %}<span class="minigame-combo__slot"><img src="{{ face }}" alt=""></span>{% endfor %}
+                        {% for i in range(legend.mysteries) %}<span class="minigame-combo__slot"><img src="{{ url_for('static', path='/images/ui/mystery.png') }}" alt="?"></span>{% endfor %}
+                        {% for i in range(legend.empties) %}<span class="minigame-slot-empty">⬚</span>{% endfor %}
+                    </span>
+                    <span class="minigame-prize-text"><b>{{ legend.rank_label }}</b>{% if legend.icon_url %}<img class="minigame-prize-icon" src="{{ legend.icon_url }}" alt="">{% endif %} {{ legend.label }}</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% if box.howto.note %}<p class="minigame-howto-note">{{ box.howto.note | safe }}</p>{% endif %}
+            {% if box.howto.main_account_note %}<p class="minigame-howto-main-account">{{ box.howto.main_account_note | safe }}</p>{% endif %}
+        </div>
+
+        <div class="minigame-action-hint" x-show="actionHint" x-text="actionHint"></div>
+        <div class="minigame-card-area" x-show="!isScratchGame && !isBingoGame" aria-label="{{ 'カード' if ja else 'Cards' }}">
+            <template x-for="(card, index) in cards" :key="index">
+                <button type="button" class="minigame-card" :class="{ 'minigame-card--back': !card.flipped, 'minigame-card--gold': card.gold, 'is-flipped': card.flipped }" @click="flipCard(index)">
+                    <span class="minigame-card__inner">
+                        <span class="minigame-card__back"><img class="minigame-card__symbol" :src="card.back" alt=""></span>
+                        <span class="minigame-card__front"><img class="minigame-card__art" :src="card.face" alt=""></span>
+                    </span>
+                </button>
+            </template>
+        </div>
+        <div class="minigame-card-area minigame-card-area--bingo" x-show="isBingoGame" aria-label="{{ 'ビンゴカード' if ja else 'Bingo card' }}">
+            <div class="minigame-bingo-board" :class="{ 'minigame-bingo-board--gold': bingoBoardGold }">
+                <template x-for="(card, index) in cards" :key="'bingo-' + index">
+                    <button type="button" class="minigame-bingo-cell" :class="{ 'minigame-card--gold': card.gold, 'is-flipped': card.flipped, 'is-bingo-line': isBingoCellHighlighted(index) }" @click="flipBingoCell(index)">
+                        <span class="minigame-card__inner">
+                            <span class="minigame-card__back"><img class="minigame-card__symbol" :src="card.back" alt=""></span>
+                            <span class="minigame-card__front"><img class="minigame-card__art" :src="card.face" alt=""></span>
+                        </span>
+                    </button>
+                </template>
+            </div>
+        </div>
+        <div class="minigame-card-area minigame-card-area--scratch" x-show="isScratchGame" aria-label="{{ 'スクラッチカード' if ja else 'Scratch card' }}">
+            <div class="minigame-scratch-board" :class="{ 'minigame-scratch-board--gold': scratchBoardGold }">
+                <template x-for="(cell, index) in scratchCells" :key="index">
+                    <button type="button" class="minigame-scratch-cell" :class="{ 'is-peeling': cell.peeling, 'is-revealed': cell.revealed, 'is-disabled': state === 'revealing' && !canScratchCell(cell) }" @click="scratchCell(index, $event)">
+                        <span class="minigame-scratch-cell__face"><img :src="cell.face" alt="" x-show="cell.face"></span>
+                        <span class="minigame-scratch-cell__foil" aria-hidden="true"><span class="minigame-scratch-cell__foil-sheen"></span></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+    <div class="form-field-status server-response minigame-result-message" x-show="resultMessage" :class="resultMessageClass" x-html="resultMessage" x-cloak></div>
+
+    {{ procedures() }}
+
+    {% if box.history %}
+    <button type="button" class="mga__toggle mga__hist-toggle" @click="hist = !hist" :aria-expanded="hist">{{ "参加履歴" if ja else "Play history" }}<span class="bca__chev" :class="{ 'bca__chev--open': hist }"></span></button>
+    <ul class="mga__hist" x-show="hist" x-cloak x-transition>
+        {% for h in box.history %}
+        <li><span>{{ h.time }}</span>{% if h.status == "skipped" %}<span>{{ "中止" if ja else "Abandoned" }}</span>{% else %}<b>{{ h.rank_label }}</b><span>{{ h.label }}</span>{% endif %}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endif %}
+    {{ detail() }}
+    <div class="bca__foot"><span>{% if ja %}現在<b>{{ "{:,}".format(box.stats.users) }}</b>人が<b>{{ "{:,}".format(box.stats.plays) }}</b>回参加中{% else %}<b>{{ "{:,}".format(box.stats.users) }}</b> players have played <b>{{ "{:,}".format(box.stats.plays) }}</b> times{% endif %}</span></div>
+</div>
+{% endif %}

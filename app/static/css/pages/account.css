@@ -755,18 +755,8 @@
 }
 
 /* プレゼント企画ボックス */
-.giveaway-title {
-    font-size: 16px;
-}
 .giveaway-button.cleared {
     cursor: default;
-}
-.giveaway-entry-count {
-    color: #ac3a09;
-    font-size: 15px;
-}
-.dark .giveaway-entry-count {
-    color: #ff7733;
 }
 .remove-ads-buttons {
     display: flex;

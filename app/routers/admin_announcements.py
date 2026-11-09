@@ -37,6 +37,7 @@ from app.services.user_service import User
 # 自動生成の枠の役目（settings.role）。「テンプレートから始める」に出さず、削除できない
 _AUTO_TEMPLATE_ROLES = (
     feedback_service.FEEDBACK_TEMPLATE_ROLE, "board_campaign_result", "board_campaign_start", "giveaway_start", "giveaway_result",
+    "minigame_start",
 )
 
 router = APIRouter(
