@@ -230,7 +230,8 @@
     --ptc-ret-ink: #a9b3ff; --ptc-ret-soft: #1c2040;
     border-color: #3a3a3a;
 }
-.battle-log-no-data__tracking { margin-bottom: 20px; }
+/* バトル0件のときのカード。バトルがあるときの .battle-log-summary__container と同じ横幅にする */
+.battle-log-no-data__tracking { width: 90%; max-width: 1194px; margin: 0 auto 20px; }
 .ptc__sec { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
 .ptc__sec + .ptc__sec { border-top: 1px solid var(--color-eee); }
 .dark .ptc__sec + .ptc__sec { border-color: #333; }
