@@ -762,7 +762,7 @@
                 {% set grade = rating.grade if rating else '-' %}
                 {% set grade_class = rating.grade_class if rating else '' %}
                 {% set percent = rating.percent_display if rating else '-%' %}
-                <div class="td-content-flex">
+                <div class="td-content-flex stats-value-nowrap">
                     <span class="stats-table-rating-grade{% if grade_class %} {{ grade_class }}{% endif %}">{{ grade }}</span>
                     <span class="stats-table-rating-label" {% if lang != "ja" %}style="margin-right: 3px;"{% endif %}>{% if lang == "ja" %}上位{% else %}Top{% endif %}</span>
                     <span class="stats-table-rating-percentage">{{ percent }}</span>
@@ -1365,7 +1365,7 @@
                                             </div>
                                         </td>
                                         <td style="min-width: 70px;">
-                                            <div class="td-content-flex">
+                                            <div class="td-content-flex stats-value-nowrap">
                                                 {% set icon_num = frame_icons[frame_id] %}
                                                 <img src="{{ url_for('static', path='/images/ranked_icons/' + icon_num|string + '.png') }}" alt="Rank Icon" class="icon--stat icon--stat-ranked">
                                                 {{ stars + 1 }}{% if lang == "ja" %}回{% else %} time{{ 's' if stars + 1 > 1 else '' }}{% endif %}

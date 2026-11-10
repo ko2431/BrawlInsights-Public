@@ -173,7 +173,17 @@
     display: flex;
     align-items: center;
 }
+/* 「推移 >」はひとまとまりのボタンなので、ラベルが折り返しても縮めたり改行したりしない */
+.stats-table-label-container > a {
+    flex: none;
+}
+/* 評価(「上位 0.01%」)や回数(「12回」)など、途中で改行すると読みにくい値 */
+.stats-value-nowrap,
+.stats-value-nowrap * {
+    white-space: nowrap;
+}
 .stats-table-link-button {
+    white-space: nowrap;
     margin-left: 5px;
     border-radius: 7px;
     border: 1px solid var(--color-ccc);
@@ -315,25 +325,44 @@
     .ptc__help-link { padding: 0 10px 7px; }
 }
 
-/* PC表示 (1194px以上) で統計ブロックをグリッド表示 */
-@media (min-width: 1194px) {
-    .stats-container {
+/* プロフィールは、タブレット・PC (840px以上) で統計ブロックを2列のグリッド表示にする。
+   1列の幅はスマホ(390px)の画面とほぼ同じになるため、表やカードはスマホと同じ作りで収まる */
+@media (min-width: 840px) {
+    .stats-container:not(.stats-graph-container) {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* 2列グリッド */
-        gap: 30px; /* グリッド間の隙間 */
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2列グリッド。中身に引っ張られず等分にする */
+        grid-auto-flow: row dense; /* 横長の要素(広告)の手前にできる空きを、後ろのブロックで埋める */
+        gap: 24px;
     }
-    .stats-block {
+    .stats-container:not(.stats-graph-container) > .stats-block {
         margin-bottom: 0; /* グリッド内のマージンはgapで管理 */
     }
-    /* 推移グラフは、グラフ(canvas)の幅に引っ張られず、画面幅を狭めた時にも列が縮むようにする */
-    .stats-graph-container {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* セクション以外(アプリの広告枠)は横幅いっぱいにする */
+    .stats-container:not(.stats-graph-container) > :not(.stats-block) {
+        grid-column: 1 / -1;
     }
+}
+/* 2列の幅がスマホに近いあいだは、見出しもスマホと同じ大きさにする(英語の長い見出しが2行になり、左右の表の高さがずれるのを防ぐ) */
+@media (min-width: 840px) and (max-width: 1193px) {
+    .stats-container:not(.stats-graph-container) .section-title {
+        font-size: 24px;
+    }
+}
+/* 推移グラフ (1194px以上) は従来どおり2列。プロフィールもこの幅からは隙間を広げる */
+@media (min-width: 1194px) {
+    .stats-container,
+    .stats-container:not(.stats-graph-container) {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 30px;
+    }
+    .stats-block {
+        margin-bottom: 0;
+    }
+    /* グラフ(canvas)の幅に引っ張られず、画面幅を狭めた時にも列が縮むようにする */
     .stats-graph-container > * {
         min-width: 0;
     }
-    /* 特定のブロックを横長にする場合など */
-    /* .stats-block--full-width { grid-column: 1 / -1; } */
 }
 
 /* --- テーブル説明文 --- */
