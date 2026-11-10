@@ -182,8 +182,14 @@
                 this[kind].custom = clampInt(this[kind].custom, 1, Math.max(1, max));
             },
             step(kind, delta) {
-                const max = kind === 'track' ? this.trackMaxDays : this.retMaxMonths;
-                this[kind].custom = clampInt(Number(this[kind].custom) + delta, 1, Math.max(1, max));
+                const max = Math.max(1, kind === 'track' ? this.trackMaxDays : this.retMaxMonths);
+                let next = clampInt(this[kind].custom, 1, max) + delta;
+                // 自動追跡は10日ごとにまとめ買いの料金になり、末尾が9の日数（9・19・29日…）は次の10日分と同じ料金のため、−／＋では飛ばす。
+                // 飛ばした先が上限を超えるときは、末尾が9の日数のままにする（欄に直接入力した値はそのまま使う）
+                if (kind === 'track' && next % P.trackingBundleDays === P.trackingBundleDays - 1 && next + delta >= 1 && next + delta <= max) {
+                    next += delta;
+                }
+                this[kind].custom = clampInt(next, 1, max);
             },
 
             // --- 支払い ---
