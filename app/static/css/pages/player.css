@@ -325,43 +325,36 @@
     .ptc__help-link { padding: 0 10px 7px; }
 }
 
-/* プロフィールは、タブレット・PC (840px以上) で統計ブロックを2列のグリッド表示にする。
-   1列の幅はスマホ(390px)の画面とほぼ同じになるため、表やカードはスマホと同じ作りで収まる */
+/* プロフィール・推移グラフは、タブレット・PC (840px以上) で統計ブロックを2列のグリッド表示にする。
+   1列の幅はスマホ(390px)の画面とほぼ同じになるため、表・カード・グラフはスマホと同じ作りで収まる */
 @media (min-width: 840px) {
-    .stats-container:not(.stats-graph-container) {
+    .stats-container {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2列グリッド。中身に引っ張られず等分にする */
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2列グリッド。中身(表・グラフのcanvas)に引っ張られず等分にする */
         grid-auto-flow: row dense; /* 横長の要素(広告)の手前にできる空きを、後ろのブロックで埋める */
         gap: 24px;
     }
-    .stats-container:not(.stats-graph-container) > .stats-block {
+    .stats-container > .stats-block {
         margin-bottom: 0; /* グリッド内のマージンはgapで管理 */
     }
+    /* グラフ(canvas)の幅に引っ張られず、画面幅を狭めた時にも列が縮むようにする */
+    .stats-container > * {
+        min-width: 0;
+    }
     /* セクション以外(アプリの広告枠)は横幅いっぱいにする */
-    .stats-container:not(.stats-graph-container) > :not(.stats-block) {
+    .stats-container > :not(.stats-block) {
         grid-column: 1 / -1;
     }
 }
-/* 2列の幅がスマホに近いあいだは、見出しもスマホと同じ大きさにする(英語の長い見出しが2行になり、左右の表の高さがずれるのを防ぐ) */
+/* 2列の幅がスマホに近いあいだは、見出しもスマホと同じ大きさにする(英語の長い見出しが2行になり、左右の高さがずれるのを防ぐ) */
 @media (min-width: 840px) and (max-width: 1193px) {
-    .stats-container:not(.stats-graph-container) .section-title {
+    .stats-container .section-title {
         font-size: 24px;
     }
 }
-/* 推移グラフ (1194px以上) は従来どおり2列。プロフィールもこの幅からは隙間を広げる */
 @media (min-width: 1194px) {
-    .stats-container,
-    .stats-container:not(.stats-graph-container) {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .stats-container {
         gap: 30px;
-    }
-    .stats-block {
-        margin-bottom: 0;
-    }
-    /* グラフ(canvas)の幅に引っ張られず、画面幅を狭めた時にも列が縮むようにする */
-    .stats-graph-container > * {
-        min-width: 0;
     }
 }
 

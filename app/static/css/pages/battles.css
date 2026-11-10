@@ -748,7 +748,7 @@
 .summary-grid--x2-wide {
     grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
 }
-@media (min-width: 1194px) { /* PC大画面で2列 */
+@media (min-width: 840px) { /* タブレット・PCで2列(プロフィール・推移グラフと同じ境目) */
     .summary-grid--x2-wide {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 30px;
