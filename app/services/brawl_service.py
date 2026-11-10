@@ -2434,7 +2434,7 @@ def _hours_to_timedelta(hours: float) -> datetime.timedelta:
     return datetime.timedelta(seconds=seconds)
 
 
-async def add_auto_tracking_time(player: Player, hours: float) -> None:
+async def add_auto_tracking_time(player: Player, hours: float, *, keep_cache: bool = False) -> None:
     """
     プレイヤーの自動追跡機能の有効期限を指定時間分、延長する。
     有効期限が設定されていない、または期限切れの場合は、現在時刻から延長する。
@@ -2444,6 +2444,7 @@ async def add_auto_tracking_time(player: Player, hours: float) -> None:
     Args:
         player (Player):対象のプレイヤーオブジェクト
         hours (float): 延長する時間（小数・負数可）
+        keep_cache (bool): Trueの場合はキャッシュを消さず、自動追跡の項目だけを書き換える(プレイヤーページの延長パネル用)
     """
     # [この部分は公開用リポジトリでは非公開にされています]
 

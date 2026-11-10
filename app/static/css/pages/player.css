@@ -213,20 +213,105 @@
     margin-bottom: 0;
 }
 
-.acquire-automatically-description {
-    margin-top: 7px;
-    margin-bottom: 0;
-    padding: 0;
+/* --- 自動追跡・保存期間のカード (player/includes/tracking_card.html・js/player_tracking.js) --- */
+/* 自動追跡は緑、保存期間は藍。ゲージは目盛りの区間ごとに伸縮させる */
+.ptc {
+    --ptc-track-from: #1f9d63; --ptc-track-to: #3fcf8e; --ptc-track-ink: #13804f; --ptc-track-soft: #e7f6ee;
+    --ptc-ret-from: #5465ef; --ptc-ret-to: #8a7af7; --ptc-ret-ink: #4352d8; --ptc-ret-soft: #eceefd;
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+    border: 1px solid var(--color-ddd);
+    border-radius: 14px;
+    background: var(--bg-main);
 }
-
-.acquire-automatically-description__text{
-    display: inline;
+.dark .ptc {
+    --ptc-track-ink: #5fdca3; --ptc-track-soft: #13281e;
+    --ptc-ret-ink: #a9b3ff; --ptc-ret-soft: #1c2040;
+    border-color: #3a3a3a;
 }
+.battle-log-no-data__tracking { margin-bottom: 20px; }
+.ptc__sec { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
+.ptc__sec + .ptc__sec { border-top: 1px solid var(--color-eee); }
+.dark .ptc__sec + .ptc__sec { border-color: #333; }
+.ptc__sec--track { --ptc-from: var(--ptc-track-from); --ptc-to: var(--ptc-track-to); --ptc-ink: var(--ptc-track-ink); --ptc-soft: var(--ptc-track-soft); }
+.ptc__sec--ret { --ptc-from: var(--ptc-ret-from); --ptc-to: var(--ptc-ret-to); --ptc-ink: var(--ptc-ret-ink); --ptc-soft: var(--ptc-ret-soft); }
+.ptc__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ptc__title { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; font-weight: bold; color: var(--color-222); white-space: nowrap; }
+.ptc__badge { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--bg-f0f0f0); color: var(--color-888); font-size: 11.5px; font-weight: bold; line-height: 1.5; }
+.ptc__badge--on { background: var(--ptc-soft); color: var(--ptc-ink); }
+.ptc__value { margin-left: auto; font-size: 15px; font-weight: bold; color: var(--color-222); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-@media (max-width: 539px){
-    .acquire-automatically-description{
-        margin-top: 6px;
-    }
+.ptc__gauge { display: flex; flex-direction: column; gap: 3px; }
+.ptc__bar { position: relative; height: 10px; border-radius: 5px; background: var(--bg-f0f0f0); overflow: hidden; }
+.ptc__fill { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: linear-gradient(90deg, var(--ptc-from), var(--ptc-to)); transition: width .5s ease; }
+/* 閲覧すれば延びる範囲 */
+.ptc__auto { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, .13) 0 2px, transparent 2px 5px); }
+.dark .ptc__auto { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .16) 0 2px, transparent 2px 5px); }
+/* 延長後の見込み */
+.ptc__preview { position: absolute; top: 0; bottom: 0; border-radius: 0 5px 5px 0; background: repeating-linear-gradient(135deg, var(--ptc-to) 0 3px, transparent 3px 6px); opacity: .6; transition: left .3s ease, width .3s ease; }
+.ptc__tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--bg-main); }
+.ptc__marker { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ptc-ink); }
+.ptc__marks { position: relative; height: 14px; font-size: 10.5px; line-height: 14px; color: var(--color-999); }
+.ptc__mark { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.ptc__mark--end { transform: translateX(-100%); }
+
+.ptc__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.ptc__foot-text { min-width: 0; font-size: 12.5px; line-height: 1.3; color: var(--color-555); }
+.ptc__legend { display: inline-flex; align-items: center; gap: 5px; }
+.ptc__legend-mark { flex: none; width: 2px; height: 11px; border-radius: 1px; background: var(--ptc-ink); }
+.ptc__toggle { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border: 1px solid var(--ptc-from); border-radius: 999px; background: var(--bg-main); color: var(--ptc-ink); font: inherit; font-size: 13px; font-weight: bold; cursor: pointer; transition: background-color .15s ease, transform .1s ease; }
+.ptc__toggle:hover, .ptc__toggle.is-open { background: var(--ptc-soft); }
+.ptc__toggle:active { transform: scale(.97); }
+.ptc__chev { width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .2s ease; }
+.ptc__toggle.is-open .ptc__chev { transform: translateY(1px) rotate(-135deg); }
+.ptc__maxed { flex: none; font-size: 12px; color: var(--color-888); }
+.ptc__note { margin: 0; font-size: 12px; line-height: 1.3; color: var(--color-888); }
+.ptc__note--strong { font-size: 12.5px; color: var(--color-555); }
+.ptc__flash { margin: 0; font-size: 12.5px; font-weight: bold; line-height: 1.3; color: var(--ptc-ink); }
+
+/* 延長のパネル */
+.ptc__panel { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--bg-f8f8f8); }
+.ptc__row { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 8px; }
+.ptc__label { font-size: 12.5px; font-weight: bold; color: var(--color-666); }
+.ptc__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ptc__chip { padding: 3px 12px; border: 1px solid var(--color-ccc); border-radius: 999px; background: var(--bg-main); color: var(--color-333); font: inherit; font-size: 13px; line-height: 1.5; cursor: pointer; transition: border-color .15s ease, background-color .15s ease, color .15s ease; }
+.ptc__chip:hover:not(:disabled) { border-color: var(--ptc-from); }
+.ptc__chip.is-selected { border-color: var(--ptc-from); background: var(--ptc-soft); color: var(--ptc-ink); font-weight: bold; }
+.ptc__chip:disabled { opacity: .45; cursor: not-allowed; }
+.ptc__stepper { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ptc__step { width: 30px; height: 30px; border: 1px solid var(--color-ccc); border-radius: 8px; background: var(--bg-main); color: var(--color-333); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; transition: transform .1s ease, border-color .15s ease; }
+.ptc__step:hover:not(:disabled) { border-color: var(--ptc-from); }
+.ptc__step:active:not(:disabled) { transform: scale(.93); }
+.ptc__step:disabled { opacity: .4; cursor: not-allowed; }
+.ptc__step-input { width: 64px; height: 30px; padding: 0 6px; border: 1px solid var(--color-ccc); border-radius: 8px; background: var(--bg-main); color: var(--color-222); font: inherit; font-size: 15px; font-weight: bold; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+.ptc__step-input::-webkit-inner-spin-button, .ptc__step-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ptc__step-input:focus { outline: none; border-color: var(--ptc-from); }
+.ptc__step-unit { font-size: 13px; color: var(--color-444); }
+.ptc__step-max { font-size: 11.5px; color: var(--color-999); }
+.ptc__pays { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 6px; }
+.ptc__pay { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; padding: 5px 10px; border: 1px solid var(--color-ccc); border-radius: 10px; background: var(--bg-main); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.ptc__pay:hover:not(:disabled) { border-color: var(--ptc-from); }
+.ptc__pay.is-selected { border-color: var(--ptc-from); background: var(--ptc-soft); box-shadow: inset 0 0 0 1px var(--ptc-from); }
+.ptc__pay:disabled { opacity: .45; cursor: not-allowed; }
+.ptc__pay-main { font-size: 14px; font-weight: bold; color: var(--color-222); white-space: nowrap; }
+.ptc__pay.is-selected .ptc__pay-main { color: var(--ptc-ink); }
+.ptc__pay-sub { font-size: 11px; color: var(--color-888); white-space: nowrap; }
+.ptc__summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; font-size: 12.5px; color: var(--color-555); }
+.ptc__summary b { color: var(--color-222); }
+.ptc__summary-pay { font-variant-numeric: tabular-nums; }
+.ptc__submit { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 38px; padding: 6px 12px; border: 0; border-radius: 10px; background: linear-gradient(90deg, var(--ptc-from), var(--ptc-to)); color: #fff; font: inherit; font-size: 14.5px; font-weight: bold; text-decoration: none; cursor: pointer; transition: filter .15s ease, transform .1s ease; }
+.ptc__submit:hover { color: #fff; text-decoration: none; filter: brightness(1.06); }
+.ptc__submit:active:not(:disabled) { transform: scale(.98); }
+.ptc__submit:disabled { opacity: .7; cursor: progress; }
+.ptc__lack p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--color-555); }
+.ptc__error { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--c-red); }
+.ptc__help-link { align-self: flex-end; padding: 0 12px 8px; font-size: 12px; }
+@media (max-width: 539px) {
+    .ptc__sec { padding: 9px 10px; }
+    .ptc__title, .ptc__value { font-size: 14px; }
+    .ptc__foot-text { font-size: 12px; }
+    .ptc__help-link { padding: 0 10px 7px; }
 }
 
 /* PC表示 (1194px以上) で統計ブロックをグリッド表示 */

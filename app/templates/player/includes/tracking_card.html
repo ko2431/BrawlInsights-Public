@@ -1,0 +1,210 @@
+{# /app/templates/player/includes/tracking_card.html #}
+{#^ プレイヤー自動追跡とバトル履歴の保存期間のカード。プロフィールとバトル履歴(各サブタブ)の基本データの下に置く。
+   動きは static/js/player_tracking.js(playerTrackingCard)。ゲージは目盛りの区間ごとに伸縮させ、数分〜365日・4ヶ月〜10年を1本で見せる。
+   延長はカード内のパネルで期間と支払い方法を選び、ページを読み込み直さずにその場で反映する #}
+{% from "components/help_tip.html" import help_tip with context %}
+
+{% macro tracking_card(player) %}
+{%- set ja = lang == "ja" -%}
+{%- set remaining = tracking_remaining_seconds(player) -%}
+{%- set auto_hours = ((player.auto_activate_time.total_seconds() // 3600) | int) if player.auto_activate_time else 0 -%}
+{%- set retention_months = player.battle_log_retention_months if player.battle_log_retention_months is not none else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS -%}
+{%- set cfg = {
+    "tag": player.tag,
+    "lang": lang,
+    "platform": platform,
+    "loggedIn": current_user is not none,
+    "tokens": current_user.tokens if current_user else none,
+    "elixirs": (current_user.auto_track_elixirs or 0) if current_user else none,
+    "remaining": remaining,
+    "autoHours": auto_hours,
+    "retentionMonths": retention_months,
+    "pricing": player_tracking_pricing,
+    "adTest": use_admob_test_ads,
+} -%}
+{#- 初めの表示(スクリプトが動く前)の残り時間・保存期間 -#}
+{%- set r_total = (remaining + 59) // 60 -%}
+{%- set r_days = r_total // 1440 -%}
+{%- set r_hours = (r_total % 1440) // 60 -%}
+{%- set r_minutes = r_total % 60 -%}
+{%- if remaining <= 0 -%}
+    {%- set remaining_text = "—" -%}
+{%- elif ja -%}
+    {%- set remaining_text = ("あと%d日%d時間" % (r_days, r_hours)) if r_days > 0 else (("あと%d時間%d分" % (r_hours, r_minutes)) if r_hours > 0 else ("あと%d分" % r_minutes)) -%}
+{%- else -%}
+    {%- set remaining_text = ("%dd %dh left" % (r_days, r_hours)) if r_days > 0 else (("%dh %dm left" % (r_hours, r_minutes)) if r_hours > 0 else ("%dm left" % r_minutes)) -%}
+{%- endif -%}
+{%- set ret_years = retention_months // 12 -%}
+{%- set ret_rest = retention_months % 12 -%}
+{%- if ja -%}
+    {%- set retention_text = (ret_years ~ "年" if ret_years else "") ~ (ret_rest ~ "ヶ月" if ret_rest else "") -%}
+{%- else -%}
+    {%- set retention_text = ((ret_years ~ (" years" if ret_years > 1 else " year")) if ret_years else "") ~ (" " if ret_years and ret_rest else "") ~ ((ret_rest ~ (" months" if ret_rest > 1 else " month")) if ret_rest else "") -%}
+{%- endif -%}
+{%- set track_marks = ["", "1日", "4日", "10日", "1ヶ月", "3ヶ月", "1年"] if ja else ["", "1d", "4d", "10d", "1mo", "3mo", "1y"] -%}
+{%- set ret_marks = ["", "4ヶ月", "1年", "3年", "5年", "10年"] if ja else ["", "4mo", "1y", "3y", "5y", "10y"] -%}
+<div class="ptc" x-data='playerTrackingCard({{ cfg | tojson }})'>
+    {# --- プレイヤー自動追跡 --- #}
+    <div class="ptc__sec ptc__sec--track">
+        <div class="ptc__head">
+            <span class="ptc__title">{{ "プレイヤー自動追跡" if ja else "Auto-Tracking" }}{{ help_tip("有効な間は、このプレイヤーのデータが通常より高い頻度で自動取得され、バトル履歴などが欠けにくくなります。" if ja else "While active, this player's data is fetched more often in the background, so battle logs and other data are less likely to have gaps.") }}</span>
+            <span class="ptc__badge{{ ' ptc__badge--on' if remaining > 0 else '' }}" :class="{ 'ptc__badge--on': active }" x-text="active ? {{ ('有効' if ja else 'Active') | tojson | forceescape }} : {{ ('無効' if ja else 'Inactive') | tojson | forceescape }}">{{ ("有効" if ja else "Active") if remaining > 0 else ("無効" if ja else "Inactive") }}</span>
+            <span class="ptc__value" x-text="remainingText">{{ remaining_text }}</span>
+        </div>
+        <div class="ptc__gauge">
+            <div class="ptc__bar">
+                <div class="ptc__auto" x-show="autoRegion" x-cloak :style="autoRegionStyle"></div>
+                <div class="ptc__fill" :style="`width: ${trackPct}%`"></div>
+                <div class="ptc__preview" x-show="track.open && trackPreviewStyle" x-cloak :style="trackPreviewStyle"></div>
+                {% for _ in track_marks[1:-1] %}<span class="ptc__tick" style="left: {{ (loop.index / (track_marks | length - 1) * 100) | round(3) }}%;"></span>{% endfor %}
+                {% if auto_hours > 0 %}<span class="ptc__marker" :style="`left: ${autoPct}%`"></span>{% endif %}
+            </div>
+            <div class="ptc__marks">
+                {% for label in track_marks %}{% if label %}<span class="ptc__mark{{ ' ptc__mark--end' if loop.last else '' }}" style="left: {{ (loop.index0 / (track_marks | length - 1) * 100) | round(3) }}%;">{{ label }}</span>{% endif %}{% endfor %}
+            </div>
+        </div>
+        <div class="ptc__foot">
+            <div class="ptc__foot-text">
+                {% if auto_hours > 0 %}
+                <span class="ptc__legend"><i class="ptc__legend-mark" aria-hidden="true"></i>{{ ("閲覧で%d時間まで自動で延長" % auto_hours) if ja else ("Topped up to %dh on each visit" % auto_hours) }}{{ help_tip("ページが開かれるたびに、残り時間がこの長さまで自動で延長されます（30分に1回まで）。この長さは、プレイヤーのレベルが高いほど長くなります。" if ja else "Each time this page is opened, the remaining time is topped up to this length (at most once every 30 minutes). Higher-level players get a longer time.") }}</span>
+                {% else %}
+                <span class="ptc__legend">{{ "閲覧による自動延長の対象外" if ja else "Not topped up on visits" }}{{ help_tip("一定のレベル以上のプレイヤーは、ページが開かれるたびに自動で延長されます。このプレイヤーは対象外です。" if ja else "Players above a certain level are topped up each time their page is opened. This player isn't eligible.") }}</span>
+                {% endif %}
+            </div>
+            <button type="button" class="ptc__toggle" x-show="trackMaxDays >= 1" :class="{ 'is-open': track.open }" @click="togglePanel('track')" :aria-expanded="track.open">{{ "延長する" if ja else "Extend" }}<i class="ptc__chev" aria-hidden="true"></i></button>
+            <span class="ptc__maxed" x-show="trackMaxDays < 1" x-cloak>{{ "上限まで延長済み" if ja else "At the limit" }}</span>
+        </div>
+        <p class="ptc__note" x-show="!track.flash">{{ "無効だった間のバトルは、一部が欠けることがあります。" if ja else "Battles played while inactive may have gaps." }}</p>
+        <p class="ptc__flash" x-show="track.flash" x-cloak x-text="track.flash" x-transition.opacity></p>
+
+        {# 延長のパネル #}
+        <div class="ptc__panel" x-show="track.open" x-cloak x-transition.opacity.duration.150ms>
+            <div class="ptc__row">
+                <span class="ptc__label">{{ "期間" if ja else "Length" }}</span>
+                <div class="ptc__chips">
+                    <button type="button" class="ptc__chip" :class="{ 'is-selected': track.preset === '1' }" @click="track.preset = '1'">{{ "1日" if ja else "1 day" }}</button>
+                    <button type="button" class="ptc__chip" :class="{ 'is-selected': track.preset === '10' }" :disabled="trackMaxDays < 10" @click="track.preset = '10'">{{ "10日" if ja else "10 days" }}</button>
+                    <button type="button" class="ptc__chip" :class="{ 'is-selected': track.preset === 'custom' }" @click="track.preset = 'custom'">{{ "カスタム" if ja else "Custom" }}</button>
+                </div>
+            </div>
+            <div class="ptc__row" x-show="track.preset === 'custom'">
+                <span class="ptc__label" aria-hidden="true"></span>
+                <div class="ptc__stepper">
+                    <button type="button" class="ptc__step" @click="step('track', -1)" :disabled="trackDays <= 1" aria-label="{{ '1日減らす' if ja else 'Decrease' }}">−</button>
+                    <input type="number" class="ptc__step-input" inputmode="numeric" min="1" :max="trackMaxDays" x-model.number="track.custom" @change="clampCustom('track')" aria-label="{{ '日数' if ja else 'Days' }}">
+                    <span class="ptc__step-unit">{{ "日" if ja else "days" }}</span>
+                    <button type="button" class="ptc__step" @click="step('track', 1)" :disabled="trackDays >= trackMaxDays" aria-label="{{ '1日増やす' if ja else 'Increase' }}">＋</button>
+                    <span class="ptc__step-max" x-text="{{ ('最大' if ja else 'Max ') | tojson | forceescape }} + trackMaxDays + {{ ('日' if ja else '') | tojson | forceescape }}"></span>
+                </div>
+            </div>
+            <div class="ptc__row">
+                <span class="ptc__label">{{ "支払い" if ja else "Pay" }}</span>
+                <div class="ptc__pays">
+                    <button type="button" class="ptc__pay ptc__pay--ad" x-show="payState('track', 'ad').available" :class="{ 'is-selected': pay('track') === 'ad' }" @click="track.pay = 'ad'">
+                        <span class="ptc__pay-main">{{ "広告で無料" if ja else "Free (ad)" }}</span>
+                        <span class="ptc__pay-sub" x-text="{{ ('本日あと' if ja else '') | tojson | forceescape }} + adLeft + {{ ('回' if ja else ' left today') | tojson | forceescape }}"></span>
+                    </button>
+                    <button type="button" class="ptc__pay" :class="{ 'is-selected': pay('track') === 'elixir' }" :disabled="!payState('track', 'elixir').usable" @click="track.pay = 'elixir'">
+                        <span class="ptc__pay-main" x-text="'🧪 ' + num(trackCost.elixirs)"></span>
+                        <span class="ptc__pay-sub" x-text="balanceText('elixir')"></span>
+                    </button>
+                    <button type="button" class="ptc__pay" :class="{ 'is-selected': pay('track') === 'token' }" :disabled="!payState('track', 'token').usable" @click="track.pay = 'token'">
+                        <span class="ptc__pay-main" x-text="num(trackCost.tokens) + {{ ('トークン' if ja else ' tokens') | tojson | forceescape }}"></span>
+                        <span class="ptc__pay-sub" x-text="balanceText('token')"></span>
+                    </button>
+                </div>
+            </div>
+            <div class="ptc__summary">
+                <span>{{ "延長後" if ja else "After" }}: <b x-text="formatRemaining(trackAfterSec)"></b></span>
+                <span class="ptc__summary-pay" x-show="balanceChangeText('track')" x-text="balanceChangeText('track')"></span>
+            </div>
+            <template x-if="pay('track')">
+                <button type="button" class="ptc__submit ptc__submit--track" :disabled="track.busy" @click="submit('track')" x-text="track.busy ? {{ ('処理中…' if ja else 'Processing…') | tojson | forceescape }} : submitLabel('track')"></button>
+            </template>
+            <template x-if="!pay('track')">
+                <div class="ptc__lack">
+                    <template x-if="!cfg.loggedIn"><a class="ptc__submit ptc__submit--track" :href="loginUrl()">{{ "ログインして延長する" if ja else "Log in to extend" }}</a></template>
+                    <template x-if="cfg.loggedIn"><p>{{ "トークン・エリクサーが足りません。トークンは" if ja else "Not enough tokens or elixir. You can earn tokens in the " }}<a href="/{{ lang }}/account">{{ "アカウント" if ja else "Account" }}</a>{{ "タブで獲得できます。" if ja else " tab." }}</p></template>
+                </div>
+            </template>
+            <p class="ptc__error" x-show="track.error" x-cloak x-text="track.error"></p>
+        </div>
+    </div>
+
+    {# --- バトル履歴の保存期間 --- #}
+    <div class="ptc__sec ptc__sec--ret">
+        <div class="ptc__head">
+            <span class="ptc__title">{{ "バトル履歴の保存期間" if ja else "Battle Log Storage" }}{{ help_tip("負荷軽減のため、保存期間を過ぎたバトル履歴は順次削除され、その期間のグラフなども見られなくなります。保存期間は最大10年まで延長できます。" if ja else "To reduce server load, battle logs older than the storage period are removed over time, along with graphs for that period. Storage can be extended up to 10 years.") }}</span>
+            <span class="ptc__value" x-text="formatMonths(retentionMonths)">{{ retention_text }}</span>
+        </div>
+        <div class="ptc__gauge">
+            <div class="ptc__bar">
+                <div class="ptc__fill" :style="`width: ${retPct}%`"></div>
+                <div class="ptc__preview" x-show="ret.open && retPreviewStyle" x-cloak :style="retPreviewStyle"></div>
+                {% for _ in ret_marks[1:-1] %}<span class="ptc__tick" style="left: {{ (loop.index / (ret_marks | length - 1) * 100) | round(3) }}%;"></span>{% endfor %}
+            </div>
+            <div class="ptc__marks">
+                {% for label in ret_marks %}{% if label %}<span class="ptc__mark{{ ' ptc__mark--end' if loop.last else '' }}" style="left: {{ (loop.index0 / (ret_marks | length - 1) * 100) | round(3) }}%;">{{ label }}</span>{% endif %}{% endfor %}
+            </div>
+        </div>
+        <div class="ptc__foot">
+            <div class="ptc__foot-text">
+                <span class="ptc__note ptc__note--strong" x-show="!ret.flash" x-text="cutoffText(retentionMonths)"></span>
+                <span class="ptc__flash" x-show="ret.flash" x-cloak x-text="ret.flash" x-transition.opacity></span>
+            </div>
+            <button type="button" class="ptc__toggle" x-show="retMaxMonths >= 1" :class="{ 'is-open': ret.open }" @click="togglePanel('ret')" :aria-expanded="ret.open">{{ "延長する" if ja else "Extend" }}<i class="ptc__chev" aria-hidden="true"></i></button>
+            <span class="ptc__maxed" x-show="retMaxMonths < 1" x-cloak>{{ "最大の10年間" if ja else "At the 10-year max" }}</span>
+        </div>
+
+        {# 延長のパネル #}
+        <div class="ptc__panel" x-show="ret.open" x-cloak x-transition.opacity.duration.150ms>
+            <div class="ptc__row">
+                <span class="ptc__label">{{ "期間" if ja else "Length" }}</span>
+                <div class="ptc__chips">
+                    <button type="button" class="ptc__chip" :class="{ 'is-selected': ret.preset === '1' }" @click="ret.preset = '1'">{{ "1ヶ月" if ja else "1 month" }}</button>
+                    <button type="button" class="ptc__chip" :class="{ 'is-selected': ret.preset === 'custom' }" @click="ret.preset = 'custom'">{{ "カスタム" if ja else "Custom" }}</button>
+                </div>
+            </div>
+            <div class="ptc__row" x-show="ret.preset === 'custom'">
+                <span class="ptc__label" aria-hidden="true"></span>
+                <div class="ptc__stepper">
+                    <button type="button" class="ptc__step" @click="step('ret', -1)" :disabled="retMonths <= 1" aria-label="{{ '1ヶ月減らす' if ja else 'Decrease' }}">−</button>
+                    <input type="number" class="ptc__step-input" inputmode="numeric" min="1" :max="retMaxMonths" x-model.number="ret.custom" @change="clampCustom('ret')" aria-label="{{ '月数' if ja else 'Months' }}">
+                    <span class="ptc__step-unit">{{ "ヶ月" if ja else "months" }}</span>
+                    <button type="button" class="ptc__step" @click="step('ret', 1)" :disabled="retMonths >= retMaxMonths" aria-label="{{ '1ヶ月増やす' if ja else 'Increase' }}">＋</button>
+                    <span class="ptc__step-max" x-text="{{ ('最大' if ja else 'Max ') | tojson | forceescape }} + retMaxMonths + {{ ('ヶ月' if ja else '') | tojson | forceescape }}"></span>
+                </div>
+            </div>
+            <div class="ptc__row">
+                <span class="ptc__label">{{ "支払い" if ja else "Pay" }}</span>
+                <div class="ptc__pays">
+                    <button type="button" class="ptc__pay" :class="{ 'is-selected': pay('ret') === 'elixir' }" :disabled="!payState('ret', 'elixir').usable" @click="ret.pay = 'elixir'">
+                        <span class="ptc__pay-main" x-text="'🧪 ' + num(retCost.elixirs)"></span>
+                        <span class="ptc__pay-sub" x-text="balanceText('elixir')"></span>
+                    </button>
+                    <button type="button" class="ptc__pay" :class="{ 'is-selected': pay('ret') === 'token' }" :disabled="!payState('ret', 'token').usable" @click="ret.pay = 'token'">
+                        <span class="ptc__pay-main" x-text="num(retCost.tokens) + {{ ('トークン' if ja else ' tokens') | tojson | forceescape }}"></span>
+                        <span class="ptc__pay-sub" x-text="balanceText('token')"></span>
+                    </button>
+                </div>
+            </div>
+            <div class="ptc__summary">
+                <span>{{ "延長後" if ja else "After" }}: <b x-text="formatMonths(retentionMonths + retMonths)"></b></span>
+                <span class="ptc__summary-pay" x-show="balanceChangeText('ret')" x-text="balanceChangeText('ret')"></span>
+            </div>
+            <template x-if="pay('ret')">
+                <button type="button" class="ptc__submit ptc__submit--ret" :disabled="ret.busy" @click="submit('ret')" x-text="ret.busy ? {{ ('処理中…' if ja else 'Processing…') | tojson | forceescape }} : submitLabel('ret')"></button>
+            </template>
+            <template x-if="!pay('ret')">
+                <div class="ptc__lack">
+                    <template x-if="!cfg.loggedIn"><a class="ptc__submit ptc__submit--ret" :href="loginUrl()">{{ "ログインして延長する" if ja else "Log in to extend" }}</a></template>
+                    <template x-if="cfg.loggedIn"><p>{{ "トークン・エリクサーが足りません。トークンは" if ja else "Not enough tokens or elixir. You can earn tokens in the " }}<a href="/{{ lang }}/account">{{ "アカウント" if ja else "Account" }}</a>{{ "タブで獲得できます。" if ja else " tab." }}</p></template>
+                </div>
+            </template>
+            <p class="ptc__error" x-show="ret.error" x-cloak x-text="ret.error"></p>
+        </div>
+    </div>
+
+    <a class="ptc__help-link" href="{{ url_for('automatic_acquisition', lang=lang) }}">{{ "自動追跡と保存期間について" if ja else "About auto-tracking and storage" }} ›</a>
+</div>
+{% endmacro %}

@@ -13,6 +13,7 @@ from .context_processors import (
     tournament_notification_processor,
 )
 from app.utils.utils import format_display_datetime, format_last_played_time
+from app.utils.player_tracking import PRICING_FOR_CLIENT, tracking_remaining_seconds
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import mode_icon_candidates
 from app.services.board_colors import board_dark_color
@@ -115,6 +116,8 @@ templates.env.globals['format_last_played_time'] = format_last_played_time
 templates.env.globals['mode_icon_candidates'] = mode_icon_candidates
 templates.env.globals['board_dark_color'] = board_dark_color
 templates.env.globals['version_at_least'] = version_at_least
+templates.env.globals['tracking_remaining_seconds'] = tracking_remaining_seconds
+templates.env.globals['player_tracking_pricing'] = PRICING_FOR_CLIENT
 # [この部分は公開用リポジトリでは非公開にされています]
 
 NG_WORDS = [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています], [この部分は公開用リポジトリでは非公開にされています]

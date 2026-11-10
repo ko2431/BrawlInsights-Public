@@ -1,5 +1,6 @@
 {% from "player/includes/player_identity.html" import player_identity with context %}
 {% from "macros/brawler_select.html" import brawler_optgroups with context %}
+{% from "player/includes/tracking_card.html" import tracking_card with context %}
 {% macro battle_brawler_filter_href(lang, tag, filter_query_without_brawler, brawler_id) -%}
 /{{ lang }}/player/battles/{{ tag }}?{{ (filter_query_without_brawler ~ "&") if filter_query_without_brawler else "" }}brawler_id={{ brawler_id }}
 {%- endmacro %}
@@ -57,7 +58,7 @@
     {% endif %}
 {% endmacro %}
 
-{# --- バトル履歴保存期間の変数定義 (全タブ共通) --- #}
+{# --- バトル履歴保存期間の変数定義 (一覧の注記で使う) --- #}
 {% set retention_months = player.battle_log_retention_months if player.battle_log_retention_months is not none else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS %}
 {% set retention_years = retention_months // 12 %}
 {% set retention_remaining_months = retention_months % 12 %}
@@ -251,115 +252,11 @@
                                     </div>
                                 </td>
                             </tr>
-                            {# --- プレイヤー自動追跡 (player/profile.htmlから流用) --- #}
-                            <tr>
-                                <td>{% if lang == "ja" %}プレイヤー自動追跡{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/' + ('checkmark' if player.level >= 30 else 'crossmark') + '.png') }}" alt="チェックマーク" class="icon--stat">
-                                        {% if lang == "ja" %}
-                                        {% if player.level >= 30 %}有効{% else %}無効{% endif %}
-                                        {% else %}
-                                        {% if player.level >= 30 %}Active{% else %}Inactive{% endif %}
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% if player.level >= 30 and player.remaining_time %}
-                            <tr>
-                                <td>{% if lang == "ja" %}自動追跡の残り時間{% else %}Auto-Tracking Remaining Time{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        {% set rt = player.remaining_time %}
-                                        {% set days = rt.days %}
-                                        {% set hours = rt.seconds // 3600 %}
-                                        {% set minutes = (rt.seconds % 3600) // 60 %}
-                                        {% if lang == "ja" %}
-                                            あと{% if days > 0 %}{{ days }}日{% endif %}{% if hours > 0 or days > 0 %}{{ hours }}時間{% endif %}{{ minutes }}分
-                                        {% else %}
-                                            {% if days > 0 %}{{ days }}d {% endif %}{% if hours > 0 or days > 0 %}{{ hours }}h {% endif %}{{ minutes }}m left
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% if not (player.remaining_time and (player.remaining_time.days * 24 * 3600 + player.remaining_time.seconds > 365 * 24 * 3600)) %}
-                            <tr>
-                                <td>{% if lang == "ja" %}有効時間を手動で24時間追加{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" data-extend-tracking-link
-                                    onclick="extendTracking('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, '{{ platform }}'); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 24 %}
-                                            {% if lang == "ja" %}24エリクサー消費して追加...{% else %}Add for 24 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}10トークン消費して追加...{% else %}Add for 10 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}有効期限を手動で10日間追加{% else %}Player Auto-Tracking (10d){% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendTracking10Days('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 216 %}
-                                            {% if lang == "ja" %}216エリクサー消費して追加...{% else %}Add for 216 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}90トークン消費して追加...{% else %}Add for 90 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
-                <div class="info-block table-description acquire-automatically-description"> {# player/profile.htmlから流用 #}
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">プレイヤー自動追跡機能が有効化されていれば、バトル履歴データの欠損が大幅に生じにくくなります。この機能が無効になっていた期間に行ったバトルは、一部欠損が生じていることがあります。{% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}このプレイヤーは、ページにアクセスされるたびに自動追跡機能が<span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}時間</span>を上限に自動で有効化されます。この自動有効化時間は、プレイヤーのレベルが高いほど長くなります。{% else %}一定のレベル以上のプレイヤーは、ページにアクセスされるたびに自動で自動追跡機能が有効化されますが、このプレイヤーは対象外です。{% endif %}詳細は<a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">こちら</a>をご覧ください。</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">If the player auto-tracking feature is activated, missing battle log data is much less likely to occur. {% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}This player will have the auto-tracking feature activated for <span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}h</span> each time the page is accessed. The higher the player's level, the longer this auto-activation time will be. {% else %}Players above a certain level will have auto-tracking automatically activated every time they visit the page, but this player is either not eligible or the activation time is not set. {% endif %}For more information, please click <a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">here</a>.</p>
-                    {% endif %}
-                </div>
-                {# --- バトル履歴保存期間 --- #}
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}バトル履歴の保存期間{% else %}Battle Log Storage Period{% endif %}</td>
-                                <td>
-                                    {% if lang == "ja" %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}
-                                    {% else %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% if retention_months < retention_max %}
-                            <tr>
-                                <td>{% if lang == "ja" %}保存期間を1ヶ月延長{% else %}Extend Storage by 1 Month{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendRetention('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, {{ retention_months }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 240 %}
-                                            {% if lang == "ja" %}240エリクサー消費して延長...{% else %}Extend for 240 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}100トークン消費して延長...{% else %}Extend for 100 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="info-block table-description acquire-automatically-description">
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">負荷軽減のため、このプレイヤーのバトル履歴は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>を過ぎると順次削除され、閲覧できなくなります。バトル履歴が削除されると、その期間の各種グラフ等も閲覧できなくなります。{% if retention_months < retention_max %}トークンを消費することで保存期間を最大10年間まで延長できます。昔のシーズンのバトル履歴やグラフも振り返りたい方は、早めの延長をおすすめします。{% endif %}</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">To reduce server load, this player's battle history will be gradually deleted and become unviewable after <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>. When battle history is deleted, various graphs for that period will also become unviewable.{% if retention_months < retention_max %} You can extend the storage period up to 10 years by consuming tokens. We recommend extending early if you want to look back at battle history and graphs from past seasons.{% endif %}</p>
-                    {% endif %}
-                </div>
+                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
+                {{ tracking_card(player) }}
                 </div>
             </section>
 
@@ -506,115 +403,11 @@
                                 </td>
                             </tr>
                             
-                            {# --- プレイヤー自動追跡 (player/profile.htmlから流用) --- #}
-                            <tr>
-                                <td>{% if lang == "ja" %}プレイヤー自動追跡{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/' + ('checkmark' if player.level >= 30 else 'crossmark') + '.png') }}" alt="チェックマーク" class="icon--stat">
-                                        {% if lang == "ja" %}
-                                        {% if player.level >= 30 %}有効{% else %}無効{% endif %}
-                                        {% else %}
-                                        {% if player.level >= 30 %}Active{% else %}Inactive{% endif %}
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% if player.level >= 30 and player.remaining_time %}
-                            <tr>
-                                <td>{% if lang == "ja" %}自動追跡の残り時間{% else %}Auto-Tracking Remaining Time{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        {% set rt = player.remaining_time %}
-                                        {% set days = rt.days %}
-                                        {% set hours = rt.seconds // 3600 %}
-                                        {% set minutes = (rt.seconds % 3600) // 60 %}
-                                        {% if lang == "ja" %}
-                                            あと{% if days > 0 %}{{ days }}日{% endif %}{% if hours > 0 or days > 0 %}{{ hours }}時間{% endif %}{{ minutes }}分
-                                        {% else %}
-                                            {% if days > 0 %}{{ days }}d {% endif %}{% if hours > 0 or days > 0 %}{{ hours }}h {% endif %}{{ minutes }}m left
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% if not (player.remaining_time and (player.remaining_time.days * 24 * 3600 + player.remaining_time.seconds > 365 * 24 * 3600)) %}
-                            <tr>
-                                <td>{% if lang == "ja" %}有効時間を手動で24時間追加{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" data-extend-tracking-link
-                                    onclick="extendTracking('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, '{{ platform }}'); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 24 %}
-                                            {% if lang == "ja" %}24エリクサー消費して追加...{% else %}Add for 24 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}10トークン消費して追加...{% else %}Add for 10 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}有効期限を手動で10日間追加{% else %}Player Auto-Tracking (10d){% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendTracking10Days('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 216 %}
-                                            {% if lang == "ja" %}216エリクサー消費して追加...{% else %}Add for 216 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}90トークン消費して追加...{% else %}Add for 90 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
-                <div class="info-block table-description acquire-automatically-description"> {# player/profile.htmlから流用 #}
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">プレイヤー自動追跡機能が有効化されていれば、バトル履歴データの欠損が大幅に生じにくくなります。この機能が無効になっていた期間に行ったバトルは、一部欠損が生じていることがあります。{% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}このプレイヤーは、ページにアクセスされるたびに自動追跡機能が<span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}時間</span>を上限に自動で有効化されます。この自動有効化時間は、プレイヤーのレベルが高いほど長くなります。{% else %}一定のレベル以上のプレイヤーは、ページにアクセスされるたびに自動で自動追跡機能が有効化されますが、このプレイヤーは対象外です。{% endif %}詳細は<a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">こちら</a>をご覧ください。</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">If the player auto-tracking feature is activated, missing battle log data is much less likely to occur. {% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}This player will have the auto-tracking feature activated for <span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}h</span> each time the page is accessed. The higher the player's level, the longer this auto-activation time will be. {% else %}Players above a certain level will have auto-tracking automatically activated every time they visit the page, but this player is either not eligible or the activation time is not set. {% endif %}For more information, please click <a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">here</a>.</p>
-                    {% endif %}
-                </div>
-                {# --- バトル履歴保存期間 --- #}
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}バトル履歴の保存期間{% else %}Battle Log Storage Period{% endif %}</td>
-                                <td>
-                                    {% if lang == "ja" %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}
-                                    {% else %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% if retention_months < retention_max %}
-                            <tr>
-                                <td>{% if lang == "ja" %}保存期間を1ヶ月延長{% else %}Extend Storage by 1 Month{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendRetention('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, {{ retention_months }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 240 %}
-                                            {% if lang == "ja" %}240エリクサー消費して延長...{% else %}Extend for 240 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}100トークン消費して延長...{% else %}Extend for 100 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="info-block table-description acquire-automatically-description">
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">負荷軽減のため、このプレイヤーのバトル履歴は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>を過ぎると順次削除され、閲覧できなくなります。バトル履歴が削除されると、その期間の各種グラフ等も閲覧できなくなります。{% if retention_months < retention_max %}トークンを消費することで保存期間を最大10年間まで延長できます。昔のシーズンのバトル履歴やグラフも振り返りたい方は、早めの延長をおすすめします。{% endif %}</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">To reduce server load, this player's battle history will be gradually deleted and become unviewable after <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>. When battle history is deleted, various graphs for that period will also become unviewable.{% if retention_months < retention_max %} You can extend the storage period up to 10 years by consuming tokens. We recommend extending early if you want to look back at battle history and graphs from past seasons.{% endif %}</p>
-                    {% endif %}
-                </div>
+                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
+                {{ tracking_card(player) }}
                 </div>
             </section>
 
@@ -759,115 +552,11 @@
                                     </div>
                                 </td>
                             </tr>
-                            {# --- プレイヤー自動追跡 (player/profile.htmlから流用) --- #}
-                            <tr>
-                                <td>{% if lang == "ja" %}プレイヤー自動追跡{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/' + ('checkmark' if player.level >= 30 else 'crossmark') + '.png') }}" alt="チェックマーク" class="icon--stat">
-                                        {% if lang == "ja" %}
-                                        {% if player.level >= 30 %}有効{% else %}無効{% endif %}
-                                        {% else %}
-                                        {% if player.level >= 30 %}Active{% else %}Inactive{% endif %}
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% if player.level >= 30 and player.remaining_time %}
-                            <tr>
-                                <td>{% if lang == "ja" %}自動追跡の残り時間{% else %}Auto-Tracking Remaining Time{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        {% set rt = player.remaining_time %}
-                                        {% set days = rt.days %}
-                                        {% set hours = rt.seconds // 3600 %}
-                                        {% set minutes = (rt.seconds % 3600) // 60 %}
-                                        {% if lang == "ja" %}
-                                            あと{% if days > 0 %}{{ days }}日{% endif %}{% if hours > 0 or days > 0 %}{{ hours }}時間{% endif %}{{ minutes }}分
-                                        {% else %}
-                                            {% if days > 0 %}{{ days }}d {% endif %}{% if hours > 0 or days > 0 %}{{ hours }}h {% endif %}{{ minutes }}m left
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% if not (player.remaining_time and (player.remaining_time.days * 24 * 3600 + player.remaining_time.seconds > 365 * 24 * 3600)) %}
-                            <tr>
-                                <td>{% if lang == "ja" %}有効時間を手動で24時間追加{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" data-extend-tracking-link
-                                    onclick="extendTracking('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, '{{ platform }}'); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 24 %}
-                                            {% if lang == "ja" %}24エリクサー消費して追加...{% else %}Add for 24 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}10トークン消費して追加...{% else %}Add for 10 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}有効期限を手動で10日間追加{% else %}Player Auto-Tracking (10d){% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendTracking10Days('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 216 %}
-                                            {% if lang == "ja" %}216エリクサー消費して追加...{% else %}Add for 216 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}90トークン消費して追加...{% else %}Add for 90 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
-                <div class="info-block table-description acquire-automatically-description"> {# player/profile.htmlから流用 #}
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">プレイヤー自動追跡機能が有効化されていれば、バトル履歴データの欠損が大幅に生じにくくなります。この機能が無効になっていた期間に行ったバトルは、一部欠損が生じていることがあります。{% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}このプレイヤーは、ページにアクセスされるたびに自動追跡機能が<span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}時間</span>を上限に自動で有効化されます。この自動有効化時間は、プレイヤーのレベルが高いほど長くなります。{% else %}一定のレベル以上のプレイヤーは、ページにアクセスされるたびに自動で自動追跡機能が有効化されますが、このプレイヤーは対象外です。{% endif %}詳細は<a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">こちら</a>をご覧ください。</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">If the player auto-tracking feature is activated, missing battle log data is much less likely to occur. {% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}This player will have the auto-tracking feature activated for <span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}h</span> each time the page is accessed. The higher the player's level, the longer this auto-activation time will be. {% else %}Players above a certain level will have auto-tracking automatically activated every time they visit the page, but this player is either not eligible or the activation time is not set. {% endif %}For more information, please click <a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">here</a>.</p>
-                    {% endif %}
-                </div>
-                {# --- バトル履歴保存期間 --- #}
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}バトル履歴の保存期間{% else %}Battle Log Storage Period{% endif %}</td>
-                                <td>
-                                    {% if lang == "ja" %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}
-                                    {% else %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% if retention_months < retention_max %}
-                            <tr>
-                                <td>{% if lang == "ja" %}保存期間を1ヶ月延長{% else %}Extend Storage by 1 Month{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendRetention('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, {{ retention_months }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 240 %}
-                                            {% if lang == "ja" %}240エリクサー消費して延長...{% else %}Extend for 240 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}100トークン消費して延長...{% else %}Extend for 100 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="info-block table-description acquire-automatically-description">
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">負荷軽減のため、このプレイヤーのバトル履歴は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>を過ぎると順次削除され、閲覧できなくなります。バトル履歴が削除されると、その期間の各種グラフ等も閲覧できなくなります。{% if retention_months < retention_max %}トークンを消費することで保存期間を最大10年間まで延長できます。昔のシーズンのバトル履歴やグラフも振り返りたい方は、早めの延長をおすすめします。{% endif %}</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">To reduce server load, this player's battle history will be gradually deleted and become unviewable after <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>. When battle history is deleted, various graphs for that period will also become unviewable.{% if retention_months < retention_max %} You can extend the storage period up to 10 years by consuming tokens. We recommend extending early if you want to look back at battle history and graphs from past seasons.{% endif %}</p>
-                    {% endif %}
-                </div>
+                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
+                {{ tracking_card(player) }}
                 </div>
             </section>
 
@@ -1085,115 +774,11 @@
                                     </div>
                                 </td>
                             </tr>
-                            {# --- プレイヤー自動追跡 (player/profile.htmlから流用) --- #}
-                            <tr>
-                                <td>{% if lang == "ja" %}プレイヤー自動追跡{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/' + ('checkmark' if player.level >= 30 else 'crossmark') + '.png') }}" alt="チェックマーク" class="icon--stat">
-                                        {% if lang == "ja" %}
-                                        {% if player.level >= 30 %}有効{% else %}無効{% endif %}
-                                        {% else %}
-                                        {% if player.level >= 30 %}Active{% else %}Inactive{% endif %}
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% if player.level >= 30 and player.remaining_time %}
-                            <tr>
-                                <td>{% if lang == "ja" %}自動追跡の残り時間{% else %}Auto-Tracking Remaining Time{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        {% set rt = player.remaining_time %}
-                                        {% set days = rt.days %}
-                                        {% set hours = rt.seconds // 3600 %}
-                                        {% set minutes = (rt.seconds % 3600) // 60 %}
-                                        {% if lang == "ja" %}
-                                            あと{% if days > 0 %}{{ days }}日{% endif %}{% if hours > 0 or days > 0 %}{{ hours }}時間{% endif %}{{ minutes }}分
-                                        {% else %}
-                                            {% if days > 0 %}{{ days }}d {% endif %}{% if hours > 0 or days > 0 %}{{ hours }}h {% endif %}{{ minutes }}m left
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% if not (player.remaining_time and (player.remaining_time.days * 24 * 3600 + player.remaining_time.seconds > 365 * 24 * 3600)) %}
-                            <tr>
-                                <td>{% if lang == "ja" %}有効時間を手動で24時間追加{% else %}Player Auto-Tracking{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" data-extend-tracking-link
-                                    onclick="extendTracking('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, '{{ platform }}'); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 24 %}
-                                            {% if lang == "ja" %}24エリクサー消費して追加...{% else %}Add for 24 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}10トークン消費して追加...{% else %}Add for 10 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}有効期限を手動で10日間追加{% else %}Player Auto-Tracking (10d){% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendTracking10Days('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 216 %}
-                                            {% if lang == "ja" %}216エリクサー消費して追加...{% else %}Add for 216 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}90トークン消費して追加...{% else %}Add for 90 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
-                <div class="info-block table-description acquire-automatically-description"> {# player/profile.htmlから流用 #}
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">プレイヤー自動追跡機能が有効化されていれば、バトル履歴データの欠損が大幅に生じにくくなります。この機能が無効になっていた期間に行ったバトルは、一部欠損が生じていることがあります。{% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}このプレイヤーは、ページにアクセスされるたびに自動追跡機能が<span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}時間</span>を上限に自動で有効化されます。この自動有効化時間は、プレイヤーのレベルが高いほど長くなります。{% else %}一定のレベル以上のプレイヤーは、ページにアクセスされるたびに自動で自動追跡機能が有効化されますが、このプレイヤーは対象外です。{% endif %}詳細は<a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">こちら</a>をご覧ください。</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">If the player auto-tracking feature is activated, missing battle log data is much less likely to occur. {% if player.auto_activate_time and player.auto_activate_time.total_seconds() > 0 %}This player will have the auto-tracking feature activated for <span class="info-block__text--bold">{{ (player.auto_activate_time.days * 24 + player.auto_activate_time.seconds // 3600) | int }}h</span> each time the page is accessed. The higher the player's level, the longer this auto-activation time will be. {% else %}Players above a certain level will have auto-tracking automatically activated every time they visit the page, but this player is either not eligible or the activation time is not set. {% endif %}For more information, please click <a href="{{ url_for('automatic_acquisition', lang=lang) }}" class="info-block__link">here</a>.</p>
-                    {% endif %}
-                </div>
-                {# --- バトル履歴保存期間 --- #}
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}バトル履歴の保存期間{% else %}Battle Log Storage Period{% endif %}</td>
-                                <td>
-                                    {% if lang == "ja" %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}
-                                    {% else %}
-                                        {% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% if retention_months < retention_max %}
-                            <tr>
-                                <td>{% if lang == "ja" %}保存期間を1ヶ月延長{% else %}Extend Storage by 1 Month{% endif %}</td>
-                                <td>
-                                    <a href="#" class="stats-table-link" 
-                                    onclick="extendRetention('{{ player.tag }}', '{{ player.name.replace("'", "\\'") }}', '{{ lang }}', {{ current_user.tokens if current_user else 'null' }}, {{ current_user.auto_track_elixirs if current_user else 'null' }}, {{ retention_months }}); return false;">
-                                        {% if current_user and (current_user.auto_track_elixirs or 0) >= 240 %}
-                                            {% if lang == "ja" %}240エリクサー消費して延長...{% else %}Extend for 240 Elixir...{% endif %}
-                                        {% else %}
-                                            {% if lang == "ja" %}100トークン消費して延長...{% else %}Extend for 100 Tokens...{% endif %}
-                                        {% endif %}
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="info-block table-description acquire-automatically-description">
-                    {% if lang == "ja" %}
-                    <p class="info-block__text acquire-automatically-description__text">負荷軽減のため、このプレイヤーのバトル履歴は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>を過ぎると順次削除され、閲覧できなくなります。バトル履歴が削除されると、その期間の各種グラフ等も閲覧できなくなります。{% if retention_months < retention_max %}トークンを消費することで保存期間を最大10年間まで延長できます。昔のシーズンのバトル履歴やグラフも振り返りたい方は、早めの延長をおすすめします。{% endif %}</p>
-                    {% else %}
-                    <p class="info-block__text acquire-automatically-description__text">To reduce server load, this player's battle history will be gradually deleted and become unviewable after <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>. When battle history is deleted, various graphs for that period will also become unviewable.{% if retention_months < retention_max %} You can extend the storage period up to 10 years by consuming tokens. We recommend extending early if you want to look back at battle history and graphs from past seasons.{% endif %}</p>
-                    {% endif %}
-                </div>
+                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
+                {{ tracking_card(player) }}
                 </div>
             </section>
 
@@ -1275,7 +860,7 @@
         </div>
         <div class="info-block table-description" style="width: 90%; max-width: 1194px; margin: 0 auto;">
             <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-            <p class="info-block__text" style="display: inline;">{% if lang == "ja" %}閲覧できるバトル履歴は、初めてBrawl Insightsでこのプレイヤーが閲覧された日からのバトルとなります。最新のバトルが反映されるまで最大で約3分の遅延があります。<b>また、<span style="color: var(--c-red);">プレイヤー自動追跡機能が無効になっていた期間</span>に行ったバトルは、<span style="color: var(--c-red);">一部欠損が生じている</span>ことがあります。</b>詳しくは、このページ上部の表をご確認ください。このプレイヤーのバトル履歴保存期間は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>です。{% if retention_months < retention_max %}このページ上部の表より、保存期間を延長することが可能です。{% endif %}{% if current_tab == 'powerleague' %}<b>ポイント変動表示はベータ版です。<a href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change" class="info-block__link">条件</a>を満たした場合のみ表示されます。</b>{% endif %}{% else %}Battles that can be viewed are from the date of the first time this player was viewed in Brawl Insights. It may take up to 3 minutes for the latest battles to be reflected. In addition, battles that took place during the period when the automatic player tracking function was disabled may have some missing information. This player's battle log storage period is <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>.{% if retention_months < retention_max %} You can extend the storage period from the top of this page.{% endif %}{% if current_tab == 'powerleague' %} <b>Score changes (beta) are displayed only when <a href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change" class="info-block__link">conditions</a> are met.</b>{% endif %}{% endif %}</p>
+            <p class="info-block__text" style="display: inline;">{% if lang == "ja" %}閲覧できるバトル履歴は、初めてBrawl Insightsでこのプレイヤーが閲覧された日からのバトルとなります。最新のバトルが反映されるまで最大で約3分の遅延があります。<b>また、<span style="color: var(--c-red);">プレイヤー自動追跡機能が無効になっていた期間</span>に行ったバトルは、<span style="color: var(--c-red);">一部欠損が生じている</span>ことがあります。</b>詳しくは、このページ上部の基本データをご確認ください。このプレイヤーのバトル履歴保存期間は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>です。{% if retention_months < retention_max %}保存期間は、このページ上部の基本データから延長できます。{% endif %}{% if current_tab == 'powerleague' %}<b>ポイント変動表示はベータ版です。<a href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change" class="info-block__link">条件</a>を満たした場合のみ表示されます。</b>{% endif %}{% else %}Battles that can be viewed are from the date of the first time this player was viewed in Brawl Insights. It may take up to 3 minutes for the latest battles to be reflected. In addition, battles that took place during the period when the automatic player tracking function was disabled may have some missing information. This player's battle log storage period is <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>.{% if retention_months < retention_max %} You can extend the storage period from Basic Stats at the top of this page.{% endif %}{% if current_tab == 'powerleague' %} <b>Score changes (beta) are displayed only when <a href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change" class="info-block__link">conditions</a> are met.</b>{% endif %}{% endif %}</p>
         </div>
         {{ render_battle_log_pagination(pagination, filter_query, lang) }}
     {% endif %}
@@ -1761,6 +1346,8 @@
         <p class="battle-log-no-data">
             {% if lang == "ja" %}指定された条件に一致するバトル履歴はありませんでした。<br>閲覧できるバトル履歴の範囲は、初めてBrawl Insightsでこのプレイヤーが閲覧された日からとなります。<br>プレイヤー自動追跡機能が無効になっていた期間に行ったバトルは、一部欠損が生じていることがあります。<br>また、保存期間を過ぎたバトルは順次削除されます。このプレイヤーのバトル履歴保存期間は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>です。{% else %}No battle logs matched the specified criteria.<br>Battle logs that can be viewed are from the date this player was first viewed in Brawl Insights.<br>Battles that were conducted during a period of time when the automatic player tracking feature was disabled may have some missing.<br>Also, battles that have exceeded the retention period will be deleted sequentially. The retention period for this player's battle history is <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} years {{ retention_remaining_months }} months{% elif retention_years > 0 %}{{ retention_years }} years{% else %}{{ retention_remaining_months }} months{% endif %}</b>.{% endif %}
         </p>
+        {# バトルがないときは基本データごと出ないため、自動追跡・保存期間のカードだけここに出す #}
+        <div class="battle-log-no-data__tracking">{{ tracking_card(player) }}</div>
     {% endif %}
 
 
@@ -3188,189 +2775,5 @@
         } else {
             initBattleLogFilterUI();
             initBattleResultsDigestScroll();
-        }
-    </script>
-
-    <script>
-        async function extendTrackingByTokens(playerTag, playerName, lang, userTokens, userElixirs) {
-            const elixirCost = 24;
-            const tokenCost = 10;
-            const useElixir = userElixirs !== null && userElixirs >= elixirCost;
-
-            if (!useElixir && userTokens < tokenCost) {
-                const alertMsg = lang === 'ja'
-                    ? `トークンが足りません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`
-                    : `Not enough tokens. (You have: ${userTokens})\nFor details on how to get tokens, check the Account tab.`;
-                alert(alertMsg);
-                return;
-            }
-
-            const confirmMsg = useElixir
-                ? (lang === 'ja'
-                    ? `${elixirCost}エリクサー消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を24時間追加しますか？\n(エリクサー: ${userElixirs} → ${userElixirs - elixirCost})`
-                    : `Spend ${elixirCost} elixir to extend auto-tracking for "${playerName}" by 24 hours?\n(Elixir: ${userElixirs} → ${userElixirs - elixirCost})`)
-                : (lang === 'ja'
-                    ? `${tokenCost}トークン消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を24時間追加しますか？\n(トークン数: ${userTokens} → ${userTokens - tokenCost})`
-                    : `Spend ${tokenCost} tokens to extend auto-tracking for "${playerName}" by 24 hours?\n(Tokens: ${userTokens} → ${userTokens - tokenCost})`);
-            if (!confirm(confirmMsg)) {
-                return;
-            }
-
-            const url = `/${lang}/player/extend-tracking/${playerTag.replace('#', '')}`;
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                alert(data.message);
-                if (response.ok && data.success) {
-                    location.reload();
-                }
-            } catch (error) {
-                console.error('Error extending tracking:', error);
-                alert(lang === 'ja' ? '通信中にエラーが発生しました。' : 'A network error occurred.');
-            }
-        }
-
-        async function extendTracking(playerTag, playerName, lang, userTokens, userElixirs, platform) {
-            if (userTokens === null) {
-                const alertMsg = lang === 'ja'
-                    ? 'この機能を利用するにはログインが必要です。\nアカウントタブより、ログインまたはアカウントを作成できます。'
-                    : 'You must be logged in to use this feature. \nYou can log in or create an account from the Account tab.';
-                alert(alertMsg);
-                return;
-            }
-
-            await extendTrackingByTokens(playerTag, playerName, lang, userTokens, userElixirs);
-        }
-
-        // [この部分は公開用リポジトリでは非公開にされています]
-    </script>
-
-    <script>
-        async function extendTracking10Days(playerTag, playerName, lang, userTokens, userElixirs) {
-            // ログイン状態のチェック (userTokens が null かどうかで判定)
-            if (userTokens === null) {
-                const alertMsg = lang === 'ja' 
-                    ? 'この機能を利用するにはログインが必要です。\nアカウントタブより、ログインまたはアカウントを作成できます。'
-                    : 'You must be logged in to use this feature. \nYou can log in or create an account from the Account tab.';
-                alert(alertMsg);
-                return;
-            }
-
-            const elixirCost = 216;
-            const tokenCost = 90;
-            const useElixir = userElixirs !== null && userElixirs >= elixirCost;
-            if (!useElixir && userTokens < tokenCost) {
-                const alertMsg = lang === 'ja'
-                    ? `トークンが足りません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`
-                    : `Not enough tokens. (You have: ${userTokens})\nFor details on how to get tokens, check the Account tab.`;
-                alert(alertMsg);
-                return;
-            }
-
-            const confirmMsg = useElixir
-                ? (lang === 'ja'
-                    ? `${elixirCost}エリクサー消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を10日間追加しますか？\n(エリクサー: ${userElixirs} → ${userElixirs - elixirCost})`
-                    : `Spend ${elixirCost} elixir to extend auto-tracking for "${playerName}" by 10 days?\n(Elixir: ${userElixirs} → ${userElixirs - elixirCost})`)
-                : (lang === 'ja'
-                    ? `${tokenCost}トークン消費して、プレイヤー「${playerName}」の自動追跡機能の残り時間を10日間追加しますか？\n(トークン数: ${userTokens} → ${userTokens - tokenCost})`
-                    : `Spend ${tokenCost} tokens to extend auto-tracking for "${playerName}" by 10 days?\n(Tokens: ${userTokens} → ${userTokens - tokenCost})`);
-
-            if (confirm(confirmMsg)) {
-                const url = `/${lang}/player/extend-tracking-10days/${playerTag.replace('#', '')}`;
-
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    const data = await response.json();
-
-                    alert(data.message);
-
-                    if (response.ok && data.success) {
-                        location.reload();
-                    }
-                } catch (error) {
-                    console.error('Error extending tracking:', error);
-                    const errorMsg = lang === 'ja' ? '通信中にエラーが発生しました。' : 'A network error occurred.';
-                    alert(errorMsg);
-                }
-            }
-        }
-    </script>
-
-    <script>
-        async function extendRetention(playerTag, playerName, lang, userTokens, userElixirs, currentMonths) {
-            if (userTokens === null) {
-                const alertMsg = lang === 'ja' 
-                    ? 'この機能を利用するにはログインが必要です。\nアカウントタブより、ログインまたはアカウントを作成できます。'
-                    : 'You must be logged in to use this feature. \nYou can log in or create an account from the Account tab.';
-                alert(alertMsg);
-                return;
-            }
-
-            const elixirCost = 240;
-            const tokenCost = 100;
-            const useElixir = userElixirs !== null && userElixirs >= elixirCost;
-            if (!useElixir && userTokens < tokenCost) {
-                const alertMsg = lang === 'ja'
-                    ? `トークンが足りません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`
-                    : `Not enough tokens. (You have: ${userTokens})\nFor details on how to get tokens, check the Account tab.`;
-                alert(alertMsg);
-                return;
-            }
-
-            const newMonths = currentMonths + 1;
-            function formatPeriod(months, lang) {
-                const y = Math.floor(months / 12);
-                const m = months % 12;
-                if (lang === 'ja') {
-                    if (y > 0 && m > 0) return `${y}年 ${m}ヶ月間`;
-                    if (y > 0) return `${y}年間`;
-                    return `${m}ヶ月間`;
-                } else {
-                    const yStr = y > 0 ? `${y} year${y > 1 ? 's' : ''}` : '';
-                    const mStr = m > 0 ? `${m} month${m > 1 ? 's' : ''}` : '';
-                    if (y > 0 && m > 0) return `${yStr} ${mStr}`;
-                    return yStr || mStr;
-                }
-            }
-
-            const confirmMsg = useElixir
-                ? (lang === 'ja'
-                    ? `${elixirCost}エリクサー消費して、プレイヤー「${playerName}」のバトル履歴保存期間を1ヶ月延長しますか？\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(エリクサー: ${userElixirs} → ${userElixirs - elixirCost})`
-                    : `Spend ${elixirCost} elixir to extend battle log storage for "${playerName}" by 1 month?\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(Elixir: ${userElixirs} → ${userElixirs - elixirCost})`)
-                : (lang === 'ja'
-                    ? `${tokenCost}トークン消費して、プレイヤー「${playerName}」のバトル履歴保存期間を1ヶ月延長しますか？\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(トークン数: ${userTokens} → ${userTokens - tokenCost})`
-                    : `Spend ${tokenCost} tokens to extend battle log storage for "${playerName}" by 1 month?\n(${formatPeriod(currentMonths, lang)} → ${formatPeriod(newMonths, lang)})\n(Tokens: ${userTokens} → ${userTokens - tokenCost})`);
-
-            if (confirm(confirmMsg)) {
-                const url = `/${lang}/player/extend-retention/${playerTag.replace('#', '')}`;
-
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    const data = await response.json();
-
-                    alert(data.message);
-
-                    if (response.ok && data.success) {
-                        location.reload();
-                    }
-                } catch (error) {
-                    console.error('Error extending retention:', error);
-                    const errorMsg = lang === 'ja' ? '通信中にエラーが発生しました。' : 'A network error occurred.';
-                    alert(errorMsg);
-                }
-            }
         }
     </script>

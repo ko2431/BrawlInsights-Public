@@ -15,7 +15,7 @@ from app.core.logger import logger
 from app.core.config import settings
 from app.core.logging_config import add_log_info
 from app.db.db import get_shared_db, run_quick_db_lookup
-from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_battle_log_retention_months, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
+from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
 from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
@@ -23,6 +23,7 @@ from app.services.user_service import User, _current_token_claim_date, try_claim
 from app.utils.utils import format_tag, confirm_tag, get_icon_path, get_ranked_seasons_for_filter, get_remote_ip, get_normalized_ip, group_brawlers_by_rarity
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.core.templating import templates
+from app.utils.player_tracking import TRACKING_MAX_DAYS, TRACKING_BUNDLE_DAYS, RETENTION_MAX_MONTHS, tracking_cost, tracking_max_days, retention_cost
 
 router = APIRouter(
     prefix="/{lang}/player",
@@ -984,38 +985,121 @@ async def get_player_search_fragment(
 
 
 
+class _ExtensionLimitError(Exception):
+    """延長すると上限を超える場合"""
+
+
+async def _read_extension_body(request: Request) -> dict:
+    """延長の本文(JSON)を読む。旧UIは本文なしで送るため、読めなければ空とする。"""
+    try:
+        body = await request.json()
+    except Exception:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _parse_extension_amount(value: Any, default: int) -> int | None:
+    """延長する日数・月数を整数で受け取る。指定がなければ default、不正なら None。"""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
+def _choose_extension_payment(current_user: User, pay: Any, token_cost: int, elixir_cost: int, lang: str) -> tuple[bool | None, str | None]:
+    """支払い方法を決める。(エリクサーを使うか, エラーの文言) を返す。
+
+    pay が "elixir" / "token" ならそれを使う。指定なし(旧UI)は、エリクサーが足りればエリクサー、足りなければトークン。
+    """
+    elixirs = current_user.auto_track_elixirs or 0
+    no_elixir = "エリクサーが足りません。" if lang == "ja" else "Not enough elixir."
+    no_token = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
+    if pay == "elixir":
+        return (True, None) if elixirs >= elixir_cost else (None, no_elixir)
+    if pay == "token":
+        return (False, None) if current_user.tokens >= token_cost else (None, no_token)
+    if pay is not None:
+        return None, ("リクエストが不正です。" if lang == "ja" else "Invalid request.")
+    if elixirs >= elixir_cost:
+        return True, None
+    return (False, None) if current_user.tokens >= token_cost else (None, no_token)
+
+
+async def _spend_for_extension(current_user: User, db: asyncpg.Connection, use_elixir: bool, token_cost: int, elixir_cost: int) -> None:
+    """延長の代金を払う。足りなければ ValueError(トランザクションごと取り消す)。"""
+    if use_elixir:
+        if not await current_user.spend_elixirs(db, elixir_cost):
+            raise ValueError("エリクサー不足により処理を中断しました。")
+    elif not await current_user.spend_tokens(db, token_cost):
+        raise ValueError("トークン不足により処理を中断しました。")
+
+
+def _seconds_until(expiration: datetime.datetime | None) -> float:
+    if not expiration:
+        return 0
+    if expiration.tzinfo is None:
+        expiration = expiration.replace(tzinfo=datetime.timezone.utc)
+    return max(0.0, (expiration - datetime.datetime.now(datetime.timezone.utc)).total_seconds())
+
+
+def _format_extension_days(days: int, lang: str) -> str:
+    return f"{days}日" if lang == "ja" else f"{days} day{'s' if days > 1 else ''}"
+
+
+def _format_retention_months(months: int, lang: str) -> str:
+    years, rest = divmod(months, 12)
+    if lang == "ja":
+        if years and rest:
+            return f"{years}年{rest}ヶ月"
+        return f"{years}年" if years else f"{rest}ヶ月"
+    parts = []
+    if years:
+        parts.append(f"{years} year{'s' if years > 1 else ''}")
+    if rest:
+        parts.append(f"{rest} month{'s' if rest > 1 else ''}")
+    return " ".join(parts)
+
+
 async def _extend_player_tracking(
     *,
+    request: Request,
     formatted_tag: str,
     db: asyncpg.Connection,
     current_user: User,
     lang: str,
-    token_cost: int,
-    elixir_cost: int,
-    hours: int,
-    success_message_ja: str,
-    success_message_en: str,
+    days: int | None,
+    pay: Any,
 ) -> JSONResponse:
+    if days is None or not (1 <= days <= TRACKING_MAX_DAYS):
+        message = "リクエストが不正です。" if lang == "ja" else "Invalid request."
+        return JSONResponse({"success": False, "message": message}, status_code=400)
+
     player = await get_player_for_tracking_extension(formatted_tag, db)
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    use_elixir = (current_user.auto_track_elixirs or 0) >= elixir_cost
-    if not use_elixir and current_user.tokens < token_cost:
-        message = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
-        return JSONResponse({"success": False, "message": message}, status_code=400)
+    token_cost, elixir_cost = tracking_cost(days)
+    use_elixir, error_message = _choose_extension_payment(current_user, pay, token_cost, elixir_cost, lang)
+    if error_message:
+        return JSONResponse({"success": False, "message": error_message}, status_code=400)
 
     try:
         async with db.transaction():
-            if use_elixir:
-                success_spend = await current_user.spend_elixirs(db, elixir_cost)
-                if not success_spend:
-                    raise ValueError("エリクサー不足により処理を中断しました。")
-            else:
-                success_spend = await current_user.spend_tokens(db, token_cost)
-                if not success_spend:
-                    raise ValueError("トークン不足により処理を中断しました。")
-            await add_auto_tracking_time(player, hours)
+            # 上限(残り365日)の確認は、同時に延長されても超えないよう行をロックしてから行う
+            row = await db.fetchrow("SELECT auto_track_expiration FROM players WHERE tag = $1 FOR UPDATE", formatted_tag)
+            if days > tracking_max_days(_seconds_until(row["auto_track_expiration"] if row else None)):
+                raise _ExtensionLimitError()
+            await _spend_for_extension(current_user, db, use_elixir, token_cost, elixir_cost)
+            await add_auto_tracking_time(player, days * 24, keep_cache=True)
+    except _ExtensionLimitError:
+        message = (f"残り時間が上限（{TRACKING_MAX_DAYS}日）を超えるため、延長できません。" if lang == "ja"
+                   else f"This would exceed the {TRACKING_MAX_DAYS}-day limit.")
+        return JSONResponse({"success": False, "message": message}, status_code=400)
     except ValueError as e:
         logger.warning(f"自動追跡時間の延長処理を中断 (User: {current_user.name}): {e}")
         if use_elixir:
@@ -1028,10 +1112,19 @@ async def _extend_player_tracking(
         message = "処理中にエラーが発生しました。" if lang == "ja" else "An error occurred during processing."
         return JSONResponse({"success": False, "message": message}, status_code=500)
 
-    message = (success_message_ja if lang == "ja" else success_message_en).format(name=player.name)
-    return JSONResponse({"success": True, "message": message})
+    add_log_info(request, f"自動追跡を{days}日延長 ({'エリクサー' if use_elixir else 'トークン'})")
+    period = _format_extension_days(days, lang)
+    message = f"自動追跡を{period}延長しました。" if lang == "ja" else f"Extended auto-tracking by {period}."
+    return JSONResponse({
+        "success": True,
+        "message": message,
+        "remaining_seconds": int(player.remaining_time.total_seconds()) if player.remaining_time else 0,
+        "tokens": current_user.tokens,
+        "elixirs": current_user.auto_track_elixirs or 0,
+    })
 
 
+# 自動追跡の延長。本文は {"days": 日数, "pay": "elixir" | "token"}。本文なし(旧UI)は24時間・エリクサー優先
 @router.post("/extend-tracking/{tag}", name="extend_player_tracking")
 async def extend_player_tracking(
     request: Request,
@@ -1045,20 +1138,19 @@ async def extend_player_tracking(
     if not confirm_tag(formatted_tag):
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
+    body = await _read_extension_body(request)
     return await _extend_player_tracking(
+        request=request,
         formatted_tag=formatted_tag,
         db=db,
         current_user=current_user,
         lang=lang,
-        token_cost=10,
-        elixir_cost=24,
-        hours=24,
-        success_message_ja="プレイヤー「{name}」の自動追跡時間を24時間延長しました。",
-        success_message_en="Successfully extended auto-tracking for '{name}' by 24 hours.",
+        days=_parse_extension_amount(body.get("days"), 1),
+        pay=body.get("pay"),
     )
 
 
-# プレイヤー自動追跡時間延長(10日間)のエンドポイント
+# 自動追跡の10日間延長(旧UIの互換用。新しいUIは extend-tracking に日数を渡す)
 @router.post("/extend-tracking-10days/{tag}", name="extend_player_tracking_10days")
 async def extend_player_tracking_10days(
     request: Request,
@@ -1073,24 +1165,20 @@ async def extend_player_tracking_10days(
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
     return await _extend_player_tracking(
+        request=request,
         formatted_tag=formatted_tag,
         db=db,
         current_user=current_user,
         lang=lang,
-        token_cost=90,
-        elixir_cost=216,
-        hours=240,
-        success_message_ja="プレイヤー「{name}」の自動追跡時間を10日間追加しました。",
-        success_message_en="Successfully extended auto-tracking for '{name}' by 10 days.",
+        days=TRACKING_BUNDLE_DAYS,
+        pay=None,
     )
 
 
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
-# バトル履歴保存期間延長のエンドポイント
-MAX_BATTLE_LOG_RETENTION_MONTHS = 120
-
+# バトル履歴の保存期間の延長。本文は {"months": 月数, "pay": "elixir" | "token"}。本文なし(旧UI)は1ヶ月・エリクサー優先
 @router.post("/extend-retention/{tag}", name="extend_player_retention")
 async def extend_player_retention(
     request: Request,
@@ -1100,49 +1188,40 @@ async def extend_player_retention(
 ):
     lang = request.path_params.get("lang", "ja")
 
-    # 1. プレイヤータグを検証
     formatted_tag = format_tag(tag)
     if not confirm_tag(formatted_tag):
         raise HTTPException(status_code=400, detail="Invalid player tag format.")
 
-    # 2. プレイヤー情報を取得
-    try:
-        player = await get_player(formatted_tag, db)
-    except BrawlStarsAPIError:
+    body = await _read_extension_body(request)
+    months = _parse_extension_amount(body.get("months"), 1)
+    if months is None or not (1 <= months <= RETENTION_MAX_MONTHS):
+        message = "リクエストが不正です。" if lang == "ja" else "Invalid request."
+        return JSONResponse({"success": False, "message": message}, status_code=400)
+
+    # 名前の確認だけなので、外部APIは呼ばずDBから取る
+    player = await get_player_for_tracking_extension(formatted_tag, db)
+    if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    # 3. 現在の保存期間を取得し、上限チェック
-    current_retention = await get_battle_log_retention_months(db=db, tag=formatted_tag)
-    current_months = current_retention if current_retention is not None else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS
+    token_cost, elixir_cost = retention_cost(months)
+    use_elixir, error_message = _choose_extension_payment(current_user, body.get("pay"), token_cost, elixir_cost, lang)
+    if error_message:
+        return JSONResponse({"success": False, "message": error_message}, status_code=400)
 
-    if current_months >= MAX_BATTLE_LOG_RETENTION_MONTHS:
-        message = "保存期間は既に上限に達しています。" if lang == "ja" else "Storage period has already reached the maximum."
-        return JSONResponse({"success": False, "message": message}, status_code=400)
-
-    # 4. エリクサーまたはトークンが足りるかチェック
-    TOKEN_COST = 100
-    ELIXIR_COST = 240
-    use_elixir = (current_user.auto_track_elixirs or 0) >= ELIXIR_COST
-    if not use_elixir and current_user.tokens < TOKEN_COST:
-        message = f"トークンが足りません。(現在所持: {current_user.tokens})" if lang == "ja" else f"Not enough tokens. (You have: {current_user.tokens})"
-        return JSONResponse({"success": False, "message": message}, status_code=400)
-
-    # 5. トランザクションを開始
-    new_months = min(current_months + 1, MAX_BATTLE_LOG_RETENTION_MONTHS)
+    new_months = None
     try:
         async with db.transaction():
-            if use_elixir:
-                success_spend = await current_user.spend_elixirs(db, ELIXIR_COST)
-                if not success_spend:
-                    raise ValueError("エリクサー不足により処理を中断しました。")
-            else:
-                success_spend = await current_user.spend_tokens(db, TOKEN_COST)
-                if not success_spend:
-                    raise ValueError("トークン不足により処理を中断しました。")
-
-            # 7. 保存期間を更新
+            # 上限(10年)の確認は、同時に延長されても超えないよう行をロックしてから行う
+            row = await db.fetchrow("SELECT battle_log_retention_months FROM players WHERE tag = $1 FOR UPDATE", formatted_tag)
+            current = row["battle_log_retention_months"] if row and row["battle_log_retention_months"] is not None else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS
+            if current + months > RETENTION_MAX_MONTHS:
+                raise _ExtensionLimitError()
+            await _spend_for_extension(current_user, db, use_elixir, token_cost, elixir_cost)
+            new_months = current + months
             await extend_battle_log_retention(db=db, tag=formatted_tag, new_months=new_months)
-
+    except _ExtensionLimitError:
+        message = "保存期間の上限（10年）を超えるため、延長できません。" if lang == "ja" else "This would exceed the 10-year limit."
+        return JSONResponse({"success": False, "message": message}, status_code=400)
     except ValueError as e:
         logger.warning(f"バトル履歴保存期間の延長処理を中断 (User: {current_user.name}): {e}")
         if use_elixir:
@@ -1151,11 +1230,11 @@ async def extend_player_retention(
             message = "トークンが足りません。" if lang == "ja" else "Not enough tokens."
         return JSONResponse({"success": False, "message": message}, status_code=400)
     except Exception as e:
-        logger.error(f"バトル履歴保存期間の延長処理中にエラー (User: {current_user.name}, Player: {player.tag}): {e}", exc_info=True)
+        logger.error(f"バトル履歴保存期間の延長処理中にエラー (User: {current_user.name}, Player: {formatted_tag}): {e}", exc_info=True)
         message = "処理中にエラーが発生しました。" if lang == "ja" else "An error occurred during processing."
         return JSONResponse({"success": False, "message": message}, status_code=500)
 
-    # 8. プレイヤーキャッシュ内の保存期間を部分更新（API再呼び出し不要）
+    # プレイヤーキャッシュ内の保存期間を部分更新（API再呼び出し不要）
     try:
         player_cache_key = f"player:{formatted_tag}"
         cached_player_data = await get_cache(player_cache_key)
@@ -1165,25 +1244,13 @@ async def extend_player_retention(
     except Exception as e:
         logger.warning(f"プレイヤーキャッシュの部分更新に失敗 (Player: {formatted_tag}): {e}")
 
-    # 9. 成功レスポンス
-    # 延長後の期間を表示用にフォーマット
-    new_years = new_months // 12
-    new_remaining = new_months % 12
-    if lang == "ja":
-        if new_years > 0 and new_remaining > 0:
-            period_str = f"{new_years}年 {new_remaining}ヶ月間"
-        elif new_years > 0:
-            period_str = f"{new_years}年間"
-        else:
-            period_str = f"{new_remaining}ヶ月間"
-        message = f"プレイヤー「{player.name}」のバトル履歴保存期間を{period_str}に延長しました。"
-    else:
-        if new_years > 0 and new_remaining > 0:
-            period_str = f"{new_years} year{'s' if new_years > 1 else ''} {new_remaining} month{'s' if new_remaining > 1 else ''}"
-        elif new_years > 0:
-            period_str = f"{new_years} year{'s' if new_years > 1 else ''}"
-        else:
-            period_str = f"{new_remaining} month{'s' if new_remaining > 1 else ''}"
-        message = f"Successfully extended battle log storage for '{player.name}' to {period_str}."
-
-    return JSONResponse({"success": True, "message": message})
+    add_log_info(request, f"保存期間を{months}ヶ月延長 ({'エリクサー' if use_elixir else 'トークン'})")
+    period = _format_retention_months(new_months, lang)
+    message = f"保存期間を{period}に延長しました。" if lang == "ja" else f"Extended storage to {period}."
+    return JSONResponse({
+        "success": True,
+        "message": message,
+        "retention_months": new_months,
+        "tokens": current_user.tokens,
+        "elixirs": current_user.auto_track_elixirs or 0,
+    })

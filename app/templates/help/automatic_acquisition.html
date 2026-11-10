@@ -42,29 +42,66 @@
     </div>
 
     <h2 class="help-page__section-title" style="margin-top: 20px;">{% if lang == "ja" %}プレイヤー自動追跡機能を有効化する方法{% else %}How to enable the player auto-tracking feature{% endif %}</h2>
-    <div class="help-page__text">{% if lang == "ja" %}プレイヤー自動追跡機能を有効化する方法は2つあります。
+    <div class="help-page__text">{% if lang == "ja" %}プレイヤー自動追跡機能は、次の2つの方法で有効になります。
             <div class="line-space"></div>
-            1. プレイヤーのページにアクセスして自動で有効化
+            1. プレイヤーのページが開かれると、自動で有効化（一定のレベル以上のプレイヤーのみ）
             <div class="line-space"></div>
-            2. <b>10トークン</b>または<b>24エリクサー</b>消費して<b>24時間</b>、または<b>90トークン</b>または<b>216エリクサー</b>消費して<b>10日間</b>有効化 (残り時間が<b>365日間</b>に達するまで重ねがけ可。十分なエリクサーを所持している場合はトークンの代わりにエリクサーが消費されます。トークン・エリクサーに関する詳細は<b>アカウント</b>タブをご覧ください)
+            2. プレイヤーのページの「延長する」から、<b>トークン</b>または<b>エリクサー</b>を使って延長（アプリ版では、<b>広告の視聴</b>で1日ずつ無料で延長することもできます。1日5回まで）
             <div class="line-space"></div>
-            このうち、1番については一定のレベル以上のプレイヤーに限ります。一定のレベル以上のプレイヤーは、ページにアクセスされるたびに<b>自動有効化時間</b>まで有効時間が延長されます(負荷軽減のため、一度延長処理が行われると30分間は再度行われません)。
-            <div class="line-space"></div>
-            この<b>自動有効化時間</b>はプレイヤーのレベルが高いほど長くなります。具体的には下表のとおりです。
-            <div class="line-space"></div>
-            表にある4つの項目について、それぞれ対応する<b>自動有効化時間</b>を計算したあと、その4つのうち<b>最も長いもの</b>が適用されます。
+            2番の料金は下表のとおりです。カスタムでは日数を1日単位で指定でき、<b>10日ごとに10日間の料金</b>、端数の日は1日の料金で計算されます（例: 23日間なら 90×2＋10×3＝210トークン）。残り時間が<b>365日</b>に達するまで重ねて延長できます。トークン・エリクサーについて詳しくは<b>アカウント</b>タブをご覧ください。
         {% else %}
-            There are two ways to enable the player auto-tracking feature:
+            The player auto-tracking feature can be enabled in two ways:
             <div class="line-space"></div>
-            1. Visit the player’s page to enable it automatically
+            1. Automatically, when the player's page is opened (only for players above a certain level)
             <div class="line-space"></div>
-            2. Consumes <b>10 tokens</b> or <b>24 elixir</b> to activate for <b>24 hours</b>, or <b>90 tokens</b> or <b>216 elixir</b> to activate for <b>10 days</b> (Can be stacked until the remaining time reaches <b>365 days</b>. If you have enough elixir, it is used instead of tokens. For more information about tokens and elixir, please refer to the <b>Account</b> tab.)
+            2. From "Extend" on the player's page, using <b>tokens</b> or <b>elixir</b> (in the app, you can also extend by 1 day for free by <b>watching an ad</b>, up to 5 times a day)
             <div class="line-space"></div>
-            The first method is only available for players above a certain level. When such players' pages are accessed, their tracking duration is automatically extended up to the <b>auto-enable time</b>. (To reduce server load, this extension can only occur once every 30 minutes.)
+            Prices for method 2 are shown below. With Custom, you can choose any number of days; every <b>10 days are charged at the 10-day price</b> and the remaining days at the 1-day price (e.g. 23 days = 90×2 + 10×3 = 210 tokens). You can keep extending until the remaining time reaches <b>365 days</b>. For more about tokens and elixir, see the <b>Account</b> tab.
+        {% endif %}</div>
+
+    <div class="table-wrapper" style="margin-top: 15px;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>{% if lang == "ja" %}延長する期間{% else %}Length{% endif %}</th>
+                    <th>{% if lang == "ja" %}トークン{% else %}Tokens{% endif %}</th>
+                    <th>{% if lang == "ja" %}エリクサー{% else %}Elixir{% endif %}</th>
+                    <th>{% if lang == "ja" %}広告（アプリ版）{% else %}Ad (app){% endif %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{% if lang == "ja" %}1日{% else %}1 day{% endif %}</td>
+                    <td>10</td>
+                    <td>24</td>
+                    <td>{% if lang == "ja" %}無料（1日5回まで）{% else %}Free (up to 5 a day){% endif %}</td>
+                </tr>
+                <tr>
+                    <td>{% if lang == "ja" %}10日{% else %}10 days{% endif %}</td>
+                    <td>90</td>
+                    <td>216</td>
+                    <td>—</td>
+                </tr>
+                <tr>
+                    <td>{% if lang == "ja" %}カスタム（n日）{% else %}Custom (n days){% endif %}</td>
+                    <td colspan="2">{% if lang == "ja" %}10日ごとに10日の料金＋端数の日数×1日の料金{% else %}10-day price per 10 days + 1-day price per remaining day{% endif %}</td>
+                    <td>—</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="help-page__text" style="margin-top: 15px;">{% if lang == "ja" %}1番については、一定のレベル以上のプレイヤーに限ります。一定のレベル以上のプレイヤーは、ページが開かれるたびに<b>自動有効化時間</b>まで残り時間が延長されます（負荷軽減のため、一度延長されると30分間は再度延長されません）。
             <div class="line-space"></div>
-            The higher the player's level, the longer their <b>auto-enable time</b>. Details are shown in the table below.
+            この<b>自動有効化時間</b>はプレイヤーのレベルが高いほど長くなります。具体的には下表のとおりです。表にある4つの項目について、それぞれ対応する<b>自動有効化時間</b>を計算したあと、その4つのうち<b>最も長いもの</b>が適用されます。
             <div class="line-space"></div>
-            <b>Auto-enable time</b> is calculated separately for four criteria, and the longest among the four is applied.
+            プレイヤーのページのゲージは、短い残り時間も見えるよう目盛りの間隔をそろえているため、右に行くほど1目盛りあたりの時間が長くなります。ゲージ上の縦線は<b>自動有効化時間</b>の位置で、その手前の斜線の部分は、ページを開けば延長される範囲です。
+        {% else %}
+            Method 1 is only available for players above a certain level. Each time such a player's page is opened, the remaining time is topped up to the <b>auto-enable time</b> (to reduce server load, this happens at most once every 30 minutes).
+            <div class="line-space"></div>
+            The higher the player's level, the longer the <b>auto-enable time</b>, as shown in the table below. The auto-enable time is calculated for each of the four criteria, and the <b>longest</b> one is applied.
+            <div class="line-space"></div>
+            On the player's page, the gauge has evenly spaced marks so that short remaining times are still visible, which means each mark covers more time toward the right. The vertical line on the gauge marks the <b>auto-enable time</b>, and the striped part before it is how far the time will be topped up when the page is opened.
         {% endif %}</div>
 
     <div class="table-wrapper" style="margin-top: 15px;">
@@ -118,6 +155,16 @@
             </tbody>
         </table>
     </div>
+
+    <h2 class="help-page__section-title" id="storage" style="margin-top: 20px;">{% if lang == "ja" %}バトル履歴の保存期間{% else %}Battle log storage period{% endif %}</h2>
+    <div class="help-page__text">{% if lang == "ja" %}負荷軽減のため、バトル履歴は保存期間を過ぎると順次削除され、その期間のバトル履歴やグラフなども見られなくなります。
+            <div class="line-space"></div>
+            保存期間は最初は<b>{{ settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS }}ヶ月</b>で、プレイヤーのページの「延長する」から、<b>1ヶ月あたり100トークンまたは240エリクサー</b>で延長できます（最大<b>10年</b>）。何ヶ月延長するかは、カスタムで1ヶ月単位で指定できます。昔のシーズンのバトル履歴やグラフも振り返りたい場合は、早めの延長がおすすめです。
+        {% else %}
+            To reduce server load, battle logs older than the storage period are removed over time, and battle logs and graphs for that period can no longer be viewed.
+            <div class="line-space"></div>
+            The storage period starts at <b>{{ settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS }} month{{ 's' if settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS > 1 else '' }}</b> and can be extended from "Extend" on the player's page for <b>100 tokens or 240 elixir per month</b> (up to <b>10 years</b>). With Custom, you can choose how many months to add. If you want to look back at battle logs and graphs from past seasons, we recommend extending early.
+        {% endif %}</div>
 
     <div id="score-change" style="height: 20px;"></div>
 
