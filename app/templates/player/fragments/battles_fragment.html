@@ -1234,29 +1234,15 @@
                             </div>
                         {% endif %}
                     {# 3-C. [新バージョン - 味方がいて、チーム数が3以上の場合(デュオ、トリオなど)] #}
+                    {# 人数が多いバトル(20人のバトルロイヤルなど)では折り返す。チームの途中で改行しないよう、チームごとにまとめる #}
                     {% elif battle.num_of_teams >= 3 and battle.team_size != 1 %}
                         <div class="battle-card__new-playedwith-block">
-                            <span style="margin-right: 5px;">{% if lang == "ja" %}味方 :{% else %}Played With:{% endif %}</span>
                             {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
-                            {% for id in battle.teammate_brawlers %}
-                            <div class="battle-card__new-playedwith-block__player">
-                                <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.teammate_tags[loop.index0][1:]) }}" style="display: block;">
-                                    <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
-                                        alt="キャラクターアイコン"
-                                        class="battle-card__new-playedwith-block__brawler-portrait"
-                                        loading="lazy"
-                                        onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
-                                    {# プレイヤー名を左上に小さく表示 #}
-                                    <div class="battle-card__new-playedwith-block__name">
-                                        <span class="battle-card__new-playedwith-block__name-text">{{ battle.teammate_names[loop.index0] }}</span>
-                                    </div>
-                                </a>
-                            </div>
-                            {% endfor %}
-                            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin-right: 1px;">
-                            {% for id in battle.opponent_brawlers %}
+                            <div class="battle-card__playedwith-group">
+                                <span class="battle-card__playedwith-label">{% if lang == "ja" %}味方 :{% else %}Played With:{% endif %}</span>
+                                {% for id in battle.teammate_brawlers %}
                                 <div class="battle-card__new-playedwith-block__player">
-                                    <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[loop.index0][1:]) }}" style="display: block;">
+                                    <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.teammate_tags[loop.index0][1:]) }}" style="display: block;">
                                         <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                             alt="キャラクターアイコン"
                                             class="battle-card__new-playedwith-block__brawler-portrait"
@@ -1264,39 +1250,45 @@
                                             onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                         {# プレイヤー名を左上に小さく表示 #}
                                         <div class="battle-card__new-playedwith-block__name">
-                                            <span class="battle-card__new-playedwith-block__name-text">{{ battle.opponent_names[loop.index0] }}</span>
+                                            <span class="battle-card__new-playedwith-block__name-text">{{ battle.teammate_names[loop.index0] }}</span>
                                         </div>
                                     </a>
                                 </div>
-                                {% if loop.index % battle.team_size == 0 %}
-                                <div style="width: 5px;"></div>
-                                {% endif %}
+                                {% endfor %}
+                                <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin-right: 1px;">
+                            </div>
+                            {% for team in battle.opponent_brawlers | batch(battle.team_size) %}
+                            {% set team_start = loop.index0 * battle.team_size %}
+                            <div class="battle-card__playedwith-group">
+                                {% for id in team %}
+                                {% set i = team_start + loop.index0 %}
+                                <div class="battle-card__new-playedwith-block__player">
+                                    <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[i][1:]) }}" style="display: block;">
+                                        <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
+                                            alt="キャラクターアイコン"
+                                            class="battle-card__new-playedwith-block__brawler-portrait"
+                                            loading="lazy"
+                                            onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
+                                        {# プレイヤー名を左上に小さく表示 #}
+                                        <div class="battle-card__new-playedwith-block__name">
+                                            <span class="battle-card__new-playedwith-block__name-text">{{ battle.opponent_names[i] }}</span>
+                                        </div>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
                             {% endfor %}
                         </div>
                     {# 3-D. [新バージョン - 味方がいて、チーム数が2の場合(2対2、3対3、5対5)] #}
+                    {# 収まらないときは敵のアイコンの途中で折り返す(ラベル・味方・VSはひとまとまり) #}
                     {% elif battle.num_of_teams == 2 and battle.team_size != 1 %}
                         <div class="battle-card__new-playedwith-block">
-                            <span style="margin-right: 5px;">{% if lang == "ja" %}味方 :{% else %}Played With:{% endif %}</span>
                             {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
-                            {% for id in battle.teammate_brawlers %}
-                            <div class="battle-card__new-playedwith-block__player">
-                                <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.teammate_tags[loop.index0][1:]) }}" style="display: block;">
-                                    <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
-                                        alt="キャラクターアイコン"
-                                        class="battle-card__new-playedwith-block__brawler-portrait"
-                                        loading="lazy"
-                                        onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
-                                    {# プレイヤー名を左上に小さく表示 #}
-                                    <div class="battle-card__new-playedwith-block__name">
-                                        <span class="battle-card__new-playedwith-block__name-text">{{ battle.teammate_names[loop.index0] }}</span>
-                                    </div>
-                                </a>
-                            </div>
-                            {% endfor %}
-                            <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin-right: 1px;">
-                            {% for id in battle.opponent_brawlers %}
+                            <div class="battle-card__playedwith-group">
+                                <span class="battle-card__playedwith-label">{% if lang == "ja" %}味方 :{% else %}Played With:{% endif %}</span>
+                                {% for id in battle.teammate_brawlers %}
                                 <div class="battle-card__new-playedwith-block__player">
-                                    <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[loop.index0][1:]) }}" style="display: block;">
+                                    <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.teammate_tags[loop.index0][1:]) }}" style="display: block;">
                                         <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
                                             alt="キャラクターアイコン"
                                             class="battle-card__new-playedwith-block__brawler-portrait"
@@ -1304,16 +1296,33 @@
                                             onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
                                         {# プレイヤー名を左上に小さく表示 #}
                                         <div class="battle-card__new-playedwith-block__name">
-                                            <span class="battle-card__new-playedwith-block__name-text">{{ battle.opponent_names[loop.index0] }}</span>
+                                            <span class="battle-card__new-playedwith-block__name-text">{{ battle.teammate_names[loop.index0] }}</span>
                                         </div>
                                     </a>
                                 </div>
+                                {% endfor %}
+                                <img src="{{ url_for('static', path='/images/ui/vs.png') }}" alt="VS" class="battle-card__vs-icon" loading="lazy" style="margin-right: 1px;">
+                            </div>
+                            {% for id in battle.opponent_brawlers %}
+                            <div class="battle-card__new-playedwith-block__player">
+                                <a href="{{ url_for('get_player_profile', lang=lang, tag=battle.opponent_tags[loop.index0][1:]) }}" style="display: block;">
+                                    <img src="{{ url_for('static', path='/images/brawler_border_portraits/' + id|string + '.png') }}"
+                                        alt="キャラクターアイコン"
+                                        class="battle-card__new-playedwith-block__brawler-portrait"
+                                        loading="lazy"
+                                        onerror="this.onerror=null; this.src='{{ default_icon }}';"> {# 代替画像表示 #}
+                                    {# プレイヤー名を左上に小さく表示 #}
+                                    <div class="battle-card__new-playedwith-block__name">
+                                        <span class="battle-card__new-playedwith-block__name-text">{{ battle.opponent_names[loop.index0] }}</span>
+                                    </div>
+                                </a>
+                            </div>
                             {% endfor %}
                         </div>
                     {# 3-E. ボスファイトなどの協力系イベント #}
                     {% elif battle.battle_type is none %}
                         <div class="battle-card__new-playedwith-block">
-                            <span style="margin-right: 5px;">{% if lang == "ja" %}一緒にプレイ :{% else %}Played With:{% endif %}</span>
+                            <span class="battle-card__playedwith-label">{% if lang == "ja" %}一緒にプレイ :{% else %}Played With:{% endif %}</span>
                             {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
                             {% for id in battle.teammate_brawlers %}
                             <div class="battle-card__new-playedwith-block__player">

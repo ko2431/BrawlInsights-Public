@@ -426,13 +426,31 @@
     overflow: hidden;
     max-width: 100%;
 }
+/* 味方・敵の並び。人数が多いバトル(20人のバトルロイヤルなど)では縮めずに折り返す */
 .battle-card__new-playedwith-block {
     width: 100%;
     min-height: 24px;
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 2px;
+}
+/* 改行しないまとまり(ラベル・味方・VS、デュオなどの各チーム) */
+.battle-card__playedwith-group {
+    display: flex;
+    flex: none;
     align-items: center;
 }
+.battle-card__playedwith-group + .battle-card__playedwith-group {
+    margin-left: 5px;
+}
+.battle-card__playedwith-label {
+    flex: none;
+    margin-right: 5px;
+    white-space: nowrap;
+}
 .battle-card__vs-icon {
+    flex: none;
     height: 24px;
     width: auto;
 }
@@ -442,6 +460,7 @@
 }
 .battle-card__new-playedwith-block__player {
     position: relative;
+    flex: none;
     width: 24px;
 }
 .battle-card__new-playedwith-block__name {
