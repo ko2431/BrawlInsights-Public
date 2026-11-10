@@ -767,6 +767,45 @@
 /* =============================================== */
 /* バトル勝敗ダイジェスト                             */
 /* =============================================== */
+/* --- バトルに欠損がありますか？ (player/includes/battle_gap_notice.html) --- */
+.bgn {
+    width: 90%;
+    max-width: 1194px;
+    margin: 10px auto 0;
+    border: 1px solid var(--color-ddd);
+    border-radius: 12px;
+    background: var(--bg-main);
+    overflow: hidden;
+}
+.dark .bgn { border-color: #3a3a3a; }
+.bgn__toggle { display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px 12px; border: 0; background: var(--bg-f8f8f8); color: var(--color-333); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s ease; }
+.bgn__toggle:hover { background: var(--bg-f0f0f0); }
+.bgn__icon { flex: none; width: 16px; height: 16px; }
+.bgn__title { flex: 1; min-width: 0; font-size: 14px; font-weight: bold; }
+.bgn__flag { flex: none; padding: 1px 8px; border-radius: 999px; background: #fdecea; color: #c62828; font-size: 11.5px; font-weight: bold; line-height: 1.5; white-space: nowrap; }
+.dark .bgn__flag { background: #3a1d1d; color: #ff8a80; }
+.bgn__chev { flex: none; width: 7px; height: 7px; margin: 0 3px; border-right: 2px solid var(--color-666); border-bottom: 2px solid var(--color-666); transform: translateY(-2px) rotate(45deg); transition: transform .2s ease; }
+.bgn__toggle.is-open .bgn__chev { transform: translateY(2px) rotate(-135deg); }
+.bgn__list { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 10px 12px 11px; border-top: 1px solid var(--color-eee); list-style: none; counter-reset: bgn; }
+.dark .bgn__list { border-color: #333; }
+.bgn__item { position: relative; padding-left: 25px; counter-increment: bgn; }
+.bgn__item::before { content: counter(bgn); position: absolute; top: 1px; left: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--bg-f0f0f0); color: var(--color-666); font-size: 11px; font-weight: bold; line-height: 18px; text-align: center; }
+.bgn__item--main::before { background: #1f9d63; color: #fff; }
+.bgn__item-head { display: flex; align-items: center; gap: 6px; }
+.bgn__item-title { font-size: 13.5px; font-weight: bold; color: var(--color-222); }
+.bgn__badge { flex: none; padding: 0 7px; border-radius: 999px; background: #fdecea; color: #c62828; font-size: 11px; font-weight: bold; line-height: 1.6; }
+.bgn__badge--on { background: #e7f6ee; color: #13804f; }
+.dark .bgn__badge { background: #3a1d1d; color: #ff8a80; }
+.dark .bgn__badge--on { background: #13281e; color: #5fdca3; }
+.bgn__text { margin: 2px 0 0; font-size: 12.5px; line-height: 1.3; color: var(--color-555); }
+.bgn__link { display: inline; margin-left: 6px; padding: 0; border: 0; background: none; color: var(--c-blue); font: inherit; font-weight: bold; white-space: nowrap; text-decoration: none; cursor: pointer; }
+.bgn__link:hover { text-decoration: underline; }
+@media (max-width: 539px) {
+    .bgn__toggle { padding: 7px 10px; }
+    .bgn__title { font-size: 13.5px; }
+    .bgn__list { padding: 9px 10px 10px; }
+}
+
 .battle-results-digest-container {
     width: 90%;
     max-width: 1194px;

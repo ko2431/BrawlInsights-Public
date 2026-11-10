@@ -1,6 +1,7 @@
 {% from "player/includes/player_identity.html" import player_identity with context %}
 {% from "macros/brawler_select.html" import brawler_optgroups with context %}
 {% from "player/includes/tracking_card.html" import tracking_card with context %}
+{% from "player/includes/battle_gap_notice.html" import battle_gap_notice with context %}
 {% macro battle_brawler_filter_href(lang, tag, filter_query_without_brawler, brawler_id) -%}
 /{{ lang }}/player/battles/{{ tag }}?{{ (filter_query_without_brawler ~ "&") if filter_query_without_brawler else "" }}brawler_id={{ brawler_id }}
 {%- endmacro %}
@@ -58,11 +59,6 @@
     {% endif %}
 {% endmacro %}
 
-{# --- バトル履歴保存期間の変数定義 (一覧の注記で使う) --- #}
-{% set retention_months = player.battle_log_retention_months if player.battle_log_retention_months is not none else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS %}
-{% set retention_years = retention_months // 12 %}
-{% set retention_remaining_months = retention_months % 12 %}
-{% set retention_max = 120 %}
 {% set map_page_href_query = 'tab=home&from=battles&player=' ~ player.tag[1:] ~ '&battles_tab=' ~ current_tab %}
 <div class="player-page__container battles-page__container"> {# ページ全体のコンテナ #}
 
@@ -858,10 +854,6 @@
                 <p>{% if lang == "ja" %}更新{% else %}Refresh{% endif %}</p>
             </button>
         </div>
-        <div class="info-block table-description" style="width: 90%; max-width: 1194px; margin: 0 auto;">
-            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-            <p class="info-block__text" style="display: inline;">{% if lang == "ja" %}閲覧できるバトル履歴は、初めてBrawl Insightsでこのプレイヤーが閲覧された日からのバトルとなります。最新のバトルが反映されるまで最大で約3分の遅延があります。<b>また、<span style="color: var(--c-red);">プレイヤー自動追跡機能が無効になっていた期間</span>に行ったバトルは、<span style="color: var(--c-red);">一部欠損が生じている</span>ことがあります。</b>詳しくは、このページ上部の基本データをご確認ください。このプレイヤーのバトル履歴保存期間は<b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }}年 {{ retention_remaining_months }}ヶ月間{% elif retention_years > 0 %}{{ retention_years }}年間{% else %}{{ retention_remaining_months }}ヶ月間{% endif %}</b>です。{% if retention_months < retention_max %}保存期間は、このページ上部の基本データから延長できます。{% endif %}{% if current_tab == 'powerleague' %}<b>ポイント変動表示はベータ版です。<a href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change" class="info-block__link">条件</a>を満たした場合のみ表示されます。</b>{% endif %}{% else %}Battles that can be viewed are from the date of the first time this player was viewed in Brawl Insights. It may take up to 3 minutes for the latest battles to be reflected. In addition, battles that took place during the period when the automatic player tracking function was disabled may have some missing information. This player's battle log storage period is <b>{% if retention_years > 0 and retention_remaining_months > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }} and {{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% elif retention_years > 0 %}{{ retention_years }} year{{ 's' if retention_years > 1 else '' }}{% else %}{{ retention_remaining_months }} month{{ 's' if retention_remaining_months > 1 else '' }}{% endif %}</b>.{% if retention_months < retention_max %} You can extend the storage period from Basic Stats at the top of this page.{% endif %}{% if current_tab == 'powerleague' %} <b>Score changes (beta) are displayed only when <a href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change" class="info-block__link">conditions</a> are met.</b>{% endif %}{% endif %}</p>
-        </div>
         {{ render_battle_log_pagination(pagination, filter_query, lang) }}
     {% endif %}
 
@@ -897,6 +889,12 @@
                 {% endfor %}
             </div>
         </div>
+    {% endif %}
+
+
+    {# --- バトルに欠損がありますか？ (player/includes/battle_gap_notice.html) --- #}
+    {% if battles_on_page %}
+        {{ battle_gap_notice(player, current_tab) }}
     {% endif %}
 
 

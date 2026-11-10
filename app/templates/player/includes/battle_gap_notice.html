@@ -1,0 +1,46 @@
+{# /app/templates/player/includes/battle_gap_notice.html #}
+{#^ バトル履歴の「バトルに欠損がありますか？」。勝敗ダイジェストとバトルカードの間に置き、開くと注意事項が見える。
+   以前はバトルの見出しの下に長い説明文を置いていたが、読み飛ばされやすいため開閉式にした。
+   「延長する」は上部の自動追跡・保存期間のカード(tracking_card.html)へスクロールしてパネルを開く。動きは static/js/player_tracking.js(battleGapNotice) #}
+
+{% macro battle_gap_notice(player, current_tab) %}
+{%- set ja = lang == "ja" -%}
+{%- set active = tracking_remaining_seconds(player) > 0 -%}
+{%- set retention_months = player.battle_log_retention_months if player.battle_log_retention_months is not none else settings.DEFAULT_BATTLE_LOG_RETENTION_MONTHS -%}
+{%- set cfg = {"lang": lang, "active": active, "retentionMonths": retention_months, "retentionMax": player_tracking_pricing.retentionMaxMonths} -%}
+<div class="bgn" x-data='battleGapNotice({{ cfg | tojson }})' @bi-tracking-updated.window="onTrackingUpdated($event.detail)">
+    <button type="button" class="bgn__toggle" :class="{ 'is-open': open }" @click="open = !open" :aria-expanded="open">
+        <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="" class="bgn__icon">
+        <span class="bgn__title">{{ "バトルに欠損がありますか？" if ja else "Missing battles?" }}</span>
+        <span class="bgn__flag" x-show="!active"{% if active %} x-cloak{% endif %}>{{ "自動追跡: 無効" if ja else "Auto-tracking: Off" }}</span>
+        <i class="bgn__chev" aria-hidden="true"></i>
+    </button>
+    <ol class="bgn__list" x-show="open" x-cloak x-transition.opacity.duration.150ms>
+        <li class="bgn__item bgn__item--main">
+            <div class="bgn__item-head">
+                <span class="bgn__item-title">{{ "自動追跡が無効だった間のバトル" if ja else "Battles while auto-tracking was off" }}</span>
+                <span class="bgn__badge" :class="{ 'bgn__badge--on': active }" x-text="active ? {{ ('現在: 有効' if ja else 'Now: Active') | tojson | forceescape }} : {{ ('現在: 無効' if ja else 'Now: Inactive') | tojson | forceescape }}">{{ ("現在: 有効" if ja else "Now: Active") if active else ("現在: 無効" if ja else "Now: Inactive") }}</span>
+            </div>
+            <p class="bgn__text">{{ "プレイヤー自動追跡が無効だった間に行われたバトルは、一部が欠けていることがあります。" if ja else "Battles played while player auto-tracking was inactive may be partly missing." }}<button type="button" class="bgn__link" @click="openCard('track')">{{ "延長する" if ja else "Extend" }} ›</button></p>
+        </li>
+        <li class="bgn__item">
+            <div class="bgn__item-head"><span class="bgn__item-title">{{ "初めて閲覧される前のバトル" if ja else "Battles before the first view" }}</span></div>
+            <p class="bgn__text">{{ "このプレイヤーがBrawl Insightsで初めて閲覧された日より前のバトルは、記録されていません。" if ja else "Battles from before this player was first viewed on Brawl Insights aren't recorded." }}</p>
+        </li>
+        <li class="bgn__item">
+            <div class="bgn__item-head"><span class="bgn__item-title">{{ "保存期間を過ぎたバトル" if ja else "Battles past the storage period" }}</span></div>
+            <p class="bgn__text"><span x-text="retentionText"></span><button type="button" class="bgn__link" x-show="retentionMonths < cfg.retentionMax" @click="openCard('ret')">{{ "延長する" if ja else "Extend" }} ›</button></p>
+        </li>
+        <li class="bgn__item">
+            <div class="bgn__item-head"><span class="bgn__item-title">{{ "直近のバトル" if ja else "Latest battles" }}</span></div>
+            <p class="bgn__text">{{ "最新のバトルが反映されるまで、最大で約3分かかります。少し待ってから「更新」を押してください。" if ja else "New battles can take up to about 3 minutes to appear. Wait a moment, then tap Refresh." }}</p>
+        </li>
+        {% if current_tab in ("all", "powerleague") %}
+        <li class="bgn__item">
+            <div class="bgn__item-head"><span class="bgn__item-title">{{ "ガチバトルのポイント変動" if ja else "Ranked score changes" }}</span></div>
+            <p class="bgn__text">{{ "ガチバトルのポイント変動の表示はベータ版で、条件を満たした場合のみ表示されます。" if ja else "Ranked score changes are in beta and are only shown when certain conditions are met." }}<a class="bgn__link" href="{{ url_for('automatic_acquisition', lang=lang) }}#score-change">{{ "表示の条件" if ja else "Conditions" }} ›</a></p>
+        </li>
+        {% endif %}
+    </ol>
+</div>
+{% endmacro %}

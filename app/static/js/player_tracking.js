@@ -177,6 +177,11 @@
                     this.clampCustom(kind);
                 }
             },
+            // ほかの場所（バトル一覧の案内）から開く。開いていなければ開き、上限に達していれば開かない
+            openFromOutside(kind) {
+                const max = kind === 'track' ? this.trackMaxDays : this.retMaxMonths;
+                if (max >= 1 && !this[kind].open) this.togglePanel(kind);
+            },
             clampCustom(kind) {
                 const max = kind === 'track' ? this.trackMaxDays : this.retMaxMonths;
                 this[kind].custom = clampInt(this[kind].custom, 1, Math.max(1, max));
@@ -293,9 +298,53 @@
                 }
                 s.open = false;
                 s.pay = null;
+                // バトル一覧の「バトルに欠損がありますか？」にも反映する
+                window.dispatchEvent(new CustomEvent('bi-tracking-updated', {
+                    detail: { active: this.remainingSec > 0, retentionMonths: this.retentionMonths },
+                }));
                 s.flash = data.message || '';
                 clearTimeout(s.flashTimer);
                 s.flashTimer = setTimeout(() => { s.flash = ''; }, 4000);
+            },
+        };
+    };
+    // バトル一覧の「バトルに欠損がありますか？」（player/includes/battle_gap_notice.html）
+    window.battleGapNotice = function (cfg) {
+        const ja = cfg.lang === 'ja';
+        return {
+            cfg,
+            open: false,
+            active: cfg.active,
+            retentionMonths: cfg.retentionMonths,
+            get retentionText() {
+                const m = this.retentionMonths;
+                const y = Math.floor(m / 12);
+                const r = m % 12;
+                const d = new Date();
+                d.setMonth(d.getMonth() - m);
+                if (ja) {
+                    const period = `${y ? `${y}年` : ''}${r ? `${r}ヶ月` : ''}`;
+                    return `保存期間（${period}）を過ぎたバトルは順次削除され、${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日より前のバトルは表示されません。`;
+                }
+                const parts = [];
+                if (y) parts.push(`${y} year${y > 1 ? 's' : ''}`);
+                if (r) parts.push(`${r} month${r > 1 ? 's' : ''}`);
+                const date = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                return `Battles older than the storage period (${parts.join(' ')}) are removed over time, so battles before ${date} aren't shown.`;
+            },
+            onTrackingUpdated(detail) {
+                if (typeof detail.active === 'boolean') this.active = detail.active;
+                if (typeof detail.retentionMonths === 'number') this.retentionMonths = detail.retentionMonths;
+            },
+            // 上部の自動追跡・保存期間のカードへスクロールし、延長のパネルを開く
+            openCard(kind) {
+                const card = [...document.querySelectorAll('.ptc')].find((el) => el.offsetParent !== null);
+                if (!card) return;
+                const data = window.Alpine && window.Alpine.$data(card);
+                if (data && typeof data.openFromOutside === 'function') data.openFromOutside(kind);
+                const section = card.querySelector(kind === 'track' ? '.ptc__sec--track' : '.ptc__sec--ret') || card;
+                // 固定のヘッダーに隠れないよう、少し上に余白を取る
+                requestAnimationFrame(() => window.scrollTo({ top: section.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }));
             },
         };
     };
