@@ -1,4 +1,12 @@
 {% from "player/includes/player_identity.html" import player_identity with context %}
+    {% from "components/help_tip.html" import help_tip with context %}
+    {#^ ラベルの横に「?」を付ける。最後の1語と「?」は改行させず、「?」だけが次の行に落ちないようにする。
+       英語は最後の空白のあと、日本語は tail（末尾の語）をまとめる #}
+    {% macro label_with_help(label, tip, tail=none) -%}
+    {%- set i = label.rfind(' ') -%}
+    {%- set head = label[:label|length - tail|length] if tail else (label[:i + 1] if i >= 0 else label[:-1]) -%}
+    {{ head }}<span class="label-with-help__tail">{{ label[head|length:] }}{{ help_tip(tip) }}</span>
+    {%- endmacro %}
     {% from "macros/mode_icon.html" import mode_icon_img with context %}
     {# ヘッダー・ブックマーク・タブはシェル側にある。ここでは最新の値のヘッダーを渡し、シェルのものと差し替える #}
     <div data-shell-slot="player-identity">
@@ -30,7 +38,7 @@
                     <tbody> {# tbody推奨 #}
                         {% if player.region_ja %}
                         <tr>
-                            <td>{% if lang == "ja" %}推定地域<span style="font-size: 0.8em;">（所属クラブに基づく）</span>{% else %}Est. Region<span style="font-size: 0.8em;">(Based on Club)</span>{% endif %}</td>
+                            <td>{% if lang == "ja" %}{{ label_with_help("推定地域", "地域は、所属クラブに基づいて推定されています。実際の地域と異なることがあります。", "地域") }}{% else %}{{ label_with_help("Est. Region", "Region is estimated from the player's club and may differ from their actual region.") }}{% endif %}</td>
                             <td>
                                 <div class="td-content-flex">
                                     <img src="{{ url_for('static', path='/images/ui/local.png') }}" alt="地域" class="icon--stat">
@@ -145,7 +153,7 @@
                         <tr x-show="showAllBasicStats" x-cloak>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}平均最多トロフィー{% else %}Avg. Highest Trophies{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}{{ label_with_help("平均最多トロフィー", "キャラ1体あたりの最多トロフィーの平均です。", "トロフィー") }}{% else %}{{ label_with_help("Avg. Highest Trophies", "Average highest trophies per brawler.") }}{% endif %}</span>
                                     <a href="{{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) }}#average-trophies-trend">
                                         <div class="stats-table-link-button">
                                             {% if lang == "ja" %}推移 ＞{% else %}Trend ＞{% endif %}
@@ -163,7 +171,7 @@
                         <tr x-show="showAllBasicStats" x-cloak>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}平均現在トロフィー{% else %}Avg. Current Trophies{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}{{ label_with_help("平均現在トロフィー", "キャラ1体あたりの現在トロフィーの平均です。", "トロフィー") }}{% else %}{{ label_with_help("Avg. Current Trophies", "Average current trophies per brawler.") }}{% endif %}</span>
                                     <a href="{{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) }}#average-trophies-trend">
                                         <div class="stats-table-link-button">
                                             {% if lang == "ja" %}推移 ＞{% else %}Trend ＞{% endif %}
@@ -916,7 +924,7 @@
                         <tr x-show="showAll" x-cloak>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}平均最多トロフィー{% else %}Avg. Highest Trophies{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}{{ label_with_help("平均最多トロフィー", "キャラ1体あたりの最多トロフィーの平均です。", "トロフィー") }}{% else %}{{ label_with_help("Avg. Highest Trophies", "Average highest trophies per brawler.") }}{% endif %}</span>
                                     <div class="stats-table-rating-value-box">
                                         <img src="{{ url_for('static', path='/images/ui/leaderboard_switch.png') }}" alt="Avg. Highest Trophies" class="stats-table-rating-value-icon">
                                         <span class="stats-table-rating-value-text">{{ '{:,}'.format(player.average_highest_trophies|round(2)) }}</span>
@@ -928,7 +936,7 @@
                         <tr x-show="showAll" x-cloak>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}平均現在トロフィー{% else %}Avg. Current Trophies{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}{{ label_with_help("平均現在トロフィー", "キャラ1体あたりの現在トロフィーの平均です。", "トロフィー") }}{% else %}{{ label_with_help("Avg. Current Trophies", "Average current trophies per brawler.") }}{% endif %}</span>
                                     <div class="stats-table-rating-value-box">
                                         <img src="{{ url_for('static', path='/images/ui/trophy_switch.png') }}" alt="Avg. Current Trophies" class="stats-table-rating-value-icon">
                                         <span class="stats-table-rating-value-text">{{ '{:,}'.format((player.current_trophies / ( player.unlocked_brawlers - player.unlocked_temporary_brawlers ))|round(2)) }}</span>

@@ -1131,6 +1131,11 @@
     min-width: 30px; /* 数字表示エリアの最小幅 */
 }
 
+/* ラベルの最後の1語と「?」は改行させない（profile_fragment.html の label_with_help） */
+.label-with-help__tail {
+    white-space: nowrap;
+}
+
 /* ページ内タブ・ブックマークUI */
 .player-tab-nav {
     display: flex;
