@@ -34,8 +34,9 @@
         <button type="button" class="bca__btn bca__btn--primary bca__btn--big" @click="reveal()" :disabled="busy">{{ "結果を確認する" if ja else "Check my results" }}</button>
         <div class="bca__deadlines">
             <p class="bca__deadline">{{ (("結果の確認・受け取りの期限: <b>" ~ dl.claim ~ "</b>") if ja else ("Check and claim by <b>" ~ dl.claim ~ "</b>")) | safe }}</p>
-            {% if dl.has_gifts %}
-            {# ギフトの連絡の期限は受け取りより短いので、結果を確認する前に全員共通で出す（当選は分からない） #}
+            {% if dl.has_gifts and dl.gift_differs %}
+            {# 以前の企画（ギフトの連絡の期限が受け取りより短い）だけ、結果を確認する前に全員共通で出す（当選は分からない）。
+               同じ期限の企画（GD32）は上の1行で足りる #}
             <p class="bca__deadline">
                 {%- if dl.gift_passed -%}
                 {{ (("※ギフト景品に当選した場合の連絡の期限（" ~ dl.gift_short ~ "）は過ぎています。") if ja else ("*The contact deadline for gift prizes (" ~ dl.gift_short ~ ") has passed.")) }}

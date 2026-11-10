@@ -151,3 +151,95 @@ class TextTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _FakeDB:
+    """save_campaign・create_campaign の書き込みを記録するだけの DB。"""
+
+    def __init__(self):
+        self.calls = []
+
+    def transaction(self):
+        db = self
+
+        class _Tx:
+            async def __aenter__(self):
+                return db
+
+            async def __aexit__(self, *exc):
+                return False
+
+        return _Tx()
+
+    async def execute(self, sql, *args):
+        self.calls.append((sql, args))
+
+    async def fetchval(self, sql, *args):
+        self.calls.append((sql, args))
+        return 123
+
+    async def fetchrow(self, sql, *args):
+        return None
+
+
+def _payload(c: gs.Campaign, **kwargs) -> dict:
+    payload = gs.form_values(c)
+    payload.update(kwargs)
+    return payload
+
+
+def _saved_settings(db: _FakeDB) -> dict:
+    sql, args = next(call for call in db.calls if "UPDATE giveaway_campaigns" in call[0])
+    return args[6]
+
+
+class ClaimDeadlineTest(unittest.IsolatedAsyncioTestCase):
+    """受け取りの期限はアプリ内の景品・ギフトの連絡とも72時間（GD32）。"""
+
+    def test_default_is_72_hours_for_both(self):
+        s = gs.default_settings()
+        self.assertEqual((s["claim_hours"], s["gift_contact_hours"]), (72, 72))
+        self.assertIsNone(gs.form_values(_campaign())["legacy_gift_hours"])
+
+    async def test_copy_does_not_carry_the_old_deadlines(self):
+        source = _campaign(settings={"claim_hours": 168, "gift_contact_hours": 72})
+        original = gs.next_round_no
+
+        async def fake_next_round_no(db):
+            return 98
+
+        gs.next_round_no = fake_next_round_no
+        try:
+            db = _FakeDB()
+            await gs.create_campaign(db, 1, source=source, now=datetime(2026, 11, 10, tzinfo=timezone.utc))
+        finally:
+            gs.next_round_no = original
+        sql, args = next(call for call in db.calls if "INSERT INTO giveaway_campaigns" in call[0])
+        settings = args[5]
+        self.assertEqual((settings["claim_hours"], settings["gift_contact_hours"]), (72, 72))
+        self.assertEqual(source.settings["claim_hours"], 168)
+
+    async def test_save_sets_both_from_one_field(self):
+        c = _campaign(is_published=False)
+        db = _FakeDB()
+        await gs.save_campaign(db, c, _payload(c, claim_hours=48), 1, now=datetime(2026, 11, 1, tzinfo=timezone.utc))
+        s = _saved_settings(db)
+        self.assertEqual((s["claim_hours"], s["gift_contact_hours"]), (48, 48))
+
+    async def test_save_keeps_the_gift_deadline_of_an_older_campaign(self):
+        c = _campaign(settings={"claim_hours": 168, "gift_contact_hours": 72})
+        self.assertEqual(gs.form_values(c)["legacy_gift_hours"], 72)
+        db = _FakeDB()
+        await gs.save_campaign(db, c, _payload(c), 1, now=datetime(2026, 11, 10, tzinfo=timezone.utc))
+        s = _saved_settings(db)
+        self.assertEqual((s["claim_hours"], s["gift_contact_hours"]), (168, 72))
+
+    def test_result_box_shows_one_deadline_when_they_match(self):
+        published = datetime(2026, 11, 21, 0, 0, tzinfo=timezone.utc)
+        now = published + timedelta(hours=1)
+        same = _campaign(results_published_at=published, claim_deadline_at=published + timedelta(hours=72),
+                         gift_deadline_at=published + timedelta(hours=72))
+        self.assertFalse(gp.deadline_texts(same, "ja", now)["gift_differs"])
+        older = _campaign(results_published_at=published, claim_deadline_at=published + timedelta(hours=168),
+                          gift_deadline_at=published + timedelta(hours=72))
+        self.assertTrue(gp.deadline_texts(older, "ja", now)["gift_differs"])
