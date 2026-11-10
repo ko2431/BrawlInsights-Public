@@ -355,6 +355,7 @@
     display: grid;
     gap: 10px; /* カード間の隙間 */
     grid-template-columns: 1fr; /* デフォルト: 1列 */
+    align-items: start; /* 同じ行で高さが違うときは、低いカードを伸ばさず下を余白にする(行の高さは高い方に合わせるので、次の行の位置は列でそろう) */
     margin: 12px auto 15px;
 }
 @media (min-width: 780px) {
