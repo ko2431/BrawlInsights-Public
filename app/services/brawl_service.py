@@ -24,7 +24,7 @@ from app.core.logger import logger
 from app.core.cache import get_cache, set_cache, update_cache_fields_keep_ttl, delete_cache, get_redis
 from app.services import meowapi, bsinfoapi, official_api
 from app.services.user_service import get_region_name
-from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, parse_api_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag
+from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError, PlayerNotFoundError
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import (
@@ -38,8 +38,6 @@ from app.services.map_mode_catalog import (
     get_mode_by_slug,
     mode_icon_candidates,
     mode_sort_key,
-    normalize_official_mode_id,
-    prepare_battle_mode_id,
     resolve_map_filter_label,
     resolve_mode_filter_label,
 )
@@ -1746,49 +1744,6 @@ class Battles:
     #> 各統計メソッド (遅延計算とキャッシュ)
     # [この部分は公開用リポジトリでは非公開にされています]
 
-class APIBattle:
-    """バトルのAPIデータを整理する用。
-    """
-    def __init__(self, tag: str, apibattle: dict) -> None:
-        self.datetime: datetime.datetime = parse_api_utc_datetime(apibattle["battleTime"])
-        self.event_id: int | None = apibattle['event'].get("id") # おそらく必ず存在する。コンペの時は0
-        self.event_mode: str | None = apibattle['event'].get("mode") # Ver11.0より保存を開始。
-        self.event_map: str | None = apibattle['event'].get("map") # 英語のマップ名。コンペの時はNone
-        self.battle_mode: str | None = apibattle['battle'].get("mode") # バトル自体のモードであり、おそらく必ず存在する。55では33と同じモード名となるので注意。
-        raw_mode_id = apibattle['event'].get("modeId")
-        try:
-            raw_mode_id_int = int(raw_mode_id) if raw_mode_id is not None else None
-        except (TypeError, ValueError):
-            raw_mode_id_int = None
-        self.mode_id: int | None = normalize_official_mode_id(raw_mode_id_int)
-        self.battle_type: str | None = apibattle["battle"].get("type") # 通常='ranked', チャレンジ='challenge','championshipChallenge'ほか, フレバト='friendly', ガチバトル='soloRanked', ビッグゲーム系=None
-        self.result: str = apibattle["battle"].get("result") # 勝利"w", 引き分け"d", 敗北"l" バトロイなどではここではNoneとなってしまうため、後から順位を元に追加する
-        self.rank: int | None = apibattle['battle'].get("rank") # 順位のあるモードにおける順位。
-        starplayer_tag: str | None = apibattle["battle"].get("starPlayer").get("tag") if apibattle["battle"].get("starPlayer") else None # MVPのプレイヤータグ。
-        if starplayer_tag:
-            self.is_starplayer: bool | None = True if starplayer_tag == tag else False
-        else:
-            self.is_starplayer: bool | None = None
-        self.brawler: int | None = None
-        self.power: int | None = None
-        self.trophies: int | None = None
-        self.trophy_change: int | None = apibattle["battle"].get("trophyChange", 0) # トロフィー変動は、ない場合は0を入れておく。(デュエルも一時的に0が入る。)
-        self.brawlers: list[tuple[int | None]] | None = []
-        self.team_size: int = None
-        self.num_of_teams: int = None
-        self.teammate_tags: list[str] = []
-        self.opponent_tags: list[str] = []
-        self.teammate_names: list[str] = []
-        self.opponent_names: list[str] = []
-        self.teammate_brawlers: list[int] = []
-        self.opponent_brawlers: list[int] = []
-        self.ranked_score_after: int | None = None
-        
-        players: list[dict] | None = apibattle["battle"].get("players")
-        teams: list[list[dict]] | None = apibattle["battle"].get("teams") # 上記2つどちらかが存在する。
-        # [この部分は公開用リポジトリでは非公開にされています]
-
-
 #* /---*---*---*---*---*---*---*---*/
 #* バトル検索
 #* /---*---*---*---*---*---*---*---*/
@@ -3437,45 +3392,3 @@ async def get_accessory_stats(db: asyncpg.Connection, brawler_id: int, days: int
         データが存在しない場合は空の dict を返す。
     """
     # [この部分は公開用リポジトリでは非公開にされています]
-
-
-async def insert_api_battle(db: asyncpg.Connection, tag: str, battle: APIBattle) -> bool:
-    """バトルを battles テーブルに追加する（すでにあれば何もしない）。Player._insert_battle と大会のバトルログ取得で使う。
-
-    Returns:
-        bool: すでに保存済みだった場合は True
-    """
-    mode_id = await prepare_battle_mode_id(
-        db,
-        mode_id=battle.mode_id,
-        event_id=battle.event_id,
-        event_map=battle.event_map,
-        event_mode=battle.event_mode,
-        battle_mode=battle.battle_mode,
-    )
-    query = '''
-        INSERT INTO battles (
-            tag, datetime, event_id, event_mode, event_map, battle_mode, mode_id, battle_type, result, rank,
-            is_starplayer, brawler, power, trophies, trophy_change, brawlers, team_size, num_of_teams,
-            teammate_tags, opponent_tags, teammate_names, opponent_names, teammate_brawlers, opponent_brawlers, ranked_score_after
-        ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-            $11, $12, $13, $14, $15, $16, $17, $18,
-            $19, $20, $21, $22, $23, $24, $25
-        )
-        ON CONFLICT DO NOTHING
-    '''
-
-    params = (
-        tag, battle.datetime, battle.event_id, battle.event_mode, battle.event_map, battle.battle_mode, mode_id, battle.battle_type, battle.result,
-        battle.rank, battle.is_starplayer, battle.brawler, battle.power, battle.trophies, battle.trophy_change, battle.brawlers, battle.team_size,
-        battle.num_of_teams, battle.teammate_tags, battle.opponent_tags, battle.teammate_names, battle.opponent_names, battle.teammate_brawlers,
-        battle.opponent_brawlers, battle.ranked_score_after,
-    )
-
-    try:
-        result = await db.execute(query, *params)
-        # execute()の戻り値は "INSERT 0 1" or "INSERT 0 0"
-        return result != "INSERT 0 1"
-    except asyncpg.PostgresError as e:
-        raise DataBaseError(e) from e

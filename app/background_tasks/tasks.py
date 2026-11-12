@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.cache import get_redis, set_cache, is_transient_redis_error, log_transient_redis_warning
 from app.db.db import get_db_connection_for_bg_task, is_transient_pg_error, log_transient_pg_warning
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
+from app.services.battle_log import BATTLE_COLUMNS
 from app.services.brawl_service import Brawler, get_available_brawlers, record_prestige_borders, get_player, insert_new_players_from_rankings, update_ranked_stats, calculate_and_save_accessory_stats, calculate_and_save_skin_stats, calculate_and_save_battle_card_stats, calculate_and_save_player_icon_stats, TEAM_3V3_COEF, TEAM_3V3_COEF_OVER10000, TEAM_3V3_COEF_OVER30000, TEAM_3V3_COEF_OVER60000, SOLO_COEF, SOLO_COEF_OVER1000, SOLO_COEF_OVER3000, SOLO_COEF_OVER6000, DUO_COEF, DUO_COEF_OVER2000, DUO_COEF_OVER6000, DUO_COEF_OVER12000
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.services.map_mode_catalog import fill_slugs_from_legacy_modes, sync_maps_and_modes_from_bsinfo
@@ -395,6 +396,10 @@ ARCHIVE_QUERY_TIMEOUT = 300.0
 # アーカイブ処理の開始日 (UTC)。この日時以降に初めてアーカイブが実行される。
 # JST 2026-03-06 02:00 = UTC 2026-03-05 17:00
 ARCHIVE_ACTIVATION_DATE = datetime.datetime(2026, 3, 5, 17, 0, tzinfo=datetime.timezone.utc)
+# battles と archived_battles の間で移す列。列を足したときに移管・復元で漏れないよう、battle_log の一覧から作る
+_BATTLE_COLUMNS_SQL = ", ".join(BATTLE_COLUMNS)
+_ARCHIVE_COLUMNS_B = ", ".join(f"b.{column}" for column in BATTLE_COLUMNS)
+_ARCHIVE_COLUMNS_AB = ", ".join(f"ab.{column}" for column in BATTLE_COLUMNS)
 
 
 async def archive_expired_battles_task(db: asyncpg.Connection) -> None:

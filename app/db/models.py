@@ -376,6 +376,21 @@ class Battle(Base):
     opponent_names = Column(JSONB, nullable=False, server_default='[]')
     teammate_brawlers = Column(JSONB, nullable=False, server_default='[]')
     opponent_brawlers = Column(JSONB, nullable=False, server_default='[]')
+    # リザルトのデータ（2026-11 にAPIに追加。列の一覧と配列の並びは app/services/battle_log.py）。無いバトルは NULL
+    duration = Column(SmallInteger, nullable=True)  # 秒。開始前に終わったバトルは負の値。バトルロイヤル系は NULL
+    kills = Column(SmallInteger, nullable=True)
+    deaths = Column(SmallInteger, nullable=True)
+    damage_dealt = Column(Integer, nullable=True)
+    healing = Column(Integer, nullable=True)
+    damage_taken = Column(Integer, nullable=True)
+    mode_stat_type = Column(SmallInteger, nullable=True)  # battle_log.MODE_STAT_TYPES の番号
+    mode_stat = Column(Integer, nullable=True)
+    banned_brawler = Column(Integer, nullable=True)  # 自分がBANしたキャラ
+    star_player_slot = Column(SmallInteger, nullable=True)  # 0=自分、1〜=味方、その後ろ=敵
+    teammate_stats = Column(ARRAY(Integer), nullable=True)  # 1人8個の値を teammate_tags の順に
+    opponent_stats = Column(ARRAY(Integer), nullable=True)
+    teammate_banned_brawlers = Column(ARRAY(Integer), nullable=True)
+    opponent_banned_brawlers = Column(ARRAY(Integer), nullable=True)
 
     __table_args__ = (
         # (tag, datetime DESC) の索引は、主キーを逆向きにたどれば足りるため置かない
@@ -418,6 +433,21 @@ class ArchivedBattle(Base):
     opponent_names = Column(JSONB, nullable=False, server_default='[]')
     teammate_brawlers = Column(JSONB, nullable=False, server_default='[]')
     opponent_brawlers = Column(JSONB, nullable=False, server_default='[]')
+    # リザルトのデータ（2026-11 にAPIに追加。列の一覧と配列の並びは app/services/battle_log.py）。無いバトルは NULL
+    duration = Column(SmallInteger, nullable=True)  # 秒。開始前に終わったバトルは負の値。バトルロイヤル系は NULL
+    kills = Column(SmallInteger, nullable=True)
+    deaths = Column(SmallInteger, nullable=True)
+    damage_dealt = Column(Integer, nullable=True)
+    healing = Column(Integer, nullable=True)
+    damage_taken = Column(Integer, nullable=True)
+    mode_stat_type = Column(SmallInteger, nullable=True)  # battle_log.MODE_STAT_TYPES の番号
+    mode_stat = Column(Integer, nullable=True)
+    banned_brawler = Column(Integer, nullable=True)  # 自分がBANしたキャラ
+    star_player_slot = Column(SmallInteger, nullable=True)  # 0=自分、1〜=味方、その後ろ=敵
+    teammate_stats = Column(ARRAY(Integer), nullable=True)  # 1人8個の値を teammate_tags の順に
+    opponent_stats = Column(ARRAY(Integer), nullable=True)
+    teammate_banned_brawlers = Column(ARRAY(Integer), nullable=True)
+    opponent_banned_brawlers = Column(ARRAY(Integer), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (
