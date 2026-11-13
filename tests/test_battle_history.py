@@ -110,3 +110,41 @@ def test_thin_keeps_the_last_point():
     thinned = bh._thin(points, 100)
     assert len(thinned) <= 102 and thinned[0] == [0, 0] and thinned[-1] == [1000, 1000]
     assert bh._thin(points[:50], 100) == points[:50]
+
+
+def test_ranked_rank_borders_match_battle_rank():
+    """ランクの境目の表が、Battle.ranked_rank_after（カードのランク表示）と食い違わないこと。"""
+    from app.services.brawl_service import Battle
+    rank_of = Battle.ranked_rank_after.fget
+    for rank in range(1, 23):
+        low = bh.RANKED_RANK_MIN_SCORES[rank]
+        probe = type("Probe", (), {"ranked_score_after": low})()
+        assert rank_of(probe) == rank
+        if low > 1:
+            probe.ranked_score_after = low - 1
+            assert rank_of(probe) == rank - 1
+
+
+def test_ranked_data_prefers_scores_and_falls_back_to_ranks():
+    def ranked_set(minutes_ago, score, rank=10):
+        row = _row(minutes_ago, score=score, opps=f'["o{minutes_ago}"]')
+        row["trophies"] = rank
+        return bh.BattleSet([row], None)
+    with_scores = [ranked_set(0, 5200), ranked_set(60, None), ranked_set(120, 5100)]
+    data = bh._ranked_data(with_scores, show_trend=True, show_current=True)
+    assert data["mode"] == "score" and [p[1] for p in data["points"]] == [5100, 5200] and data["current"][1] == 5200
+    one_score = [ranked_set(0, 5200, rank=14), ranked_set(60, None, rank=13)]
+    data = bh._ranked_data(one_score, show_trend=True, show_current=False)
+    assert data["mode"] == "rank" and [p[1] for p in data["points"]] == [13, 14] and "current" not in data
+    assert "mode" not in bh._ranked_data(with_scores, show_trend=False, show_current=False)
+
+
+def test_ban_data_counts_per_set():
+    def banned(minutes_ago, mine, opp, team):
+        row = _row(minutes_ago, opps=f'["o{minutes_ago}"]')
+        row.update(banned_brawler=mine, opponent_banned_brawlers=opp, teammate_banned_brawlers=team)
+        return bh.BattleSet([row], None)
+    sets = [banned(0, 7, [1, 2, 3], [4, None]), banned(60, 7, [1, 9, 9], None), banned(120, None, None, None)]
+    data = bh._ban_data(sets)
+    assert data["n"] == 2 and data["mine"] == [(7, 2)] and data["opp"][0] in ((1, 2), (9, 2)) and dict(data["team"]) == {4: 1}
+    assert bh._ban_data([banned(0, None, None, None)]) is None

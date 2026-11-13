@@ -15,7 +15,7 @@ from app.core.logger import logger
 from app.core.config import settings
 from app.core.logging_config import add_log_info
 from app.db.db import get_shared_db, run_quick_db_lookup
-from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
+from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, add_auto_tracking_time, extend_battle_log_retention, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
 from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.battle_result_view import attach_battle_results
 from app.services.battle_history import NEW_PLAYER_NOTICE_MAX, build_stats, count_saved_battles, scan_battles
@@ -203,36 +203,6 @@ async def _build_log_brawler_filter_options(
             ))
 
     return group_brawlers_by_rarity(resolved, lang)
-
-
-def _battle_filter_scope_labels(
-    lang: str,
-    *,
-    has_brawler: bool,
-    has_mode: bool,
-    has_map: bool,
-) -> tuple[str, str]:
-    parts_ja: list[str] = []
-    parts_en: list[str] = []
-    if has_brawler:
-        parts_ja.append("キャラクター")
-        parts_en.append("brawler")
-    if has_mode:
-        parts_ja.append("モード")
-        parts_en.append("mode")
-    if has_map:
-        parts_ja.append("マップ")
-        parts_en.append("map")
-    if not parts_ja:
-        return "", ""
-    scope_ja = "選択されている" + "、".join(parts_ja) + "の"
-    if len(parts_en) == 1:
-        scope_en = f" of the selected {parts_en[0]}"
-    elif len(parts_en) == 2:
-        scope_en = f" of the selected {parts_en[0]} and {parts_en[1]}"
-    else:
-        scope_en = f" of the selected {', '.join(parts_en[:-1])}, and {parts_en[-1]}"
-    return scope_ja, scope_en
 
 
 def _add_selected_filter_options(
@@ -652,15 +622,6 @@ async def get_player_battles_fragment(
             logger.warning(f"Invalid 'after_date' format: {after_date_str}. Ignoring filter.")
             after_date_str = None
 
-    # search_battles のパラメータ準備
-    search_params = {
-        "db": db,
-        "tag": player.tag,
-        "limit": 100000,
-        "until": before_datetime_utc,
-        "after": after_datetime_utc,
-    }
-
     # [この部分は公開用リポジトリでは非公開にされています]
 
     context = {
@@ -677,20 +638,10 @@ async def get_player_battles_fragment(
         "mode_filter_options": mode_filter_options,
         "map_filter_options": map_filter_options,
         "has_unknown_mode_option": has_unknown_mode_option,
-        "show_brawler_usage": show_brawler_usage,
-        "show_mode_usage": show_mode_usage,
-        "show_teammate_usage": show_teammate_usage,
-        "show_map_graphs": show_map_graphs,
-        "show_map_pick_rates": show_map_pick_rates,
-        "show_brawler_trophy_trend": show_brawler_trophy_trend,
-        "show_ranked_trend": show_ranked_trend,
         "show_new_player_notice": show_new_player_notice,
-        "raw_battle_count": raw_battle_count,
-        "saved_battle_count": saved_battle_count,
+        "notice_battle_count": notice_battle_count or saved_battle_count,
         "battle_stats": battle_stats,
-        "has_mode_filter": has_mode_filter,
-        "filter_scope_ja": filter_scope_ja,
-        "filter_scope_en": filter_scope_en,
+        "total_battles": total_battles,
         "filter_query": filter_query,
         "filter_query_without_brawler": filter_query_without_brawler,
         "shared_filter_query": shared_filter_query,
@@ -699,14 +650,11 @@ async def get_player_battles_fragment(
         "win": battles_on_page_win,
         "lose": battles_on_page_lose,
         "draw": battles_on_page_draw,
-        "stats_data": stats_data,
-        "graphs_data": graphs_data,
         "pagination": pagination_info,
         "current_page_num": page,
         "before_date_filter": before_date_str,
         "after_date_filter": after_date_str,
         "current_page": "home",
-        "should_display_ranked_score_trend": should_display_ranked_score_trend,
         "selected_season_number": selected_season_number,
         "seasons": seasons_for_filter,
         "current_user": current_login_user,

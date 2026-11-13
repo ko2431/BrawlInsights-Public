@@ -12,6 +12,7 @@ import orjson
 
 from app.services.battle_result_view import STATS_SINCE
 from app.services.brawl_service import Battle, _BATTLE_SEARCH_COLUMNS, _same_members, ensure_catalog
+from app.utils.utils import REMOVED_BRAWLERS, removed_brawler_name
 from app.services.map_mode_catalog import (
     get_map_by_en, get_map_by_id, get_mode_by_id, get_mode_by_slug, mode_icon_candidates, resolve_map_filter_label, resolve_mode_filter_label,
 )
@@ -23,6 +24,9 @@ MATES_LIMIT = 40
 TREND_MAX_POINTS = 600
 RECENT_DAYS = 93  # 日ごと・週ごとの勝敗に使う範囲（13週 + 端数）
 MIN_PLAYER_TAG_LENGTH = 5  # "#" を含む。これより短いタグはボット
+BAN_LIST_LIMIT = 30
+# ガチバトルのランク（1〜22）の下限のポイント。先頭（0番目）はランクなし。Battle.ranked_rank_after と同じ境目
+RANKED_RANK_MIN_SCORES = (0, 1, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6750, 7500, 8250, 9250, 10250, 11250)
 
 # [この部分は公開用リポジトリでは非公開にされています]
 

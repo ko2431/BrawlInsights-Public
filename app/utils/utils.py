@@ -713,6 +713,17 @@ def format_last_played_time(dt: datetime.datetime, lang: str = "ja") -> str:
 
 
 # セレクトメニューでキャラクターをレアリティ別に分類する
+# ゲームから削除されていて、キャラクター一覧（brawlers テーブル）に無いキャラ: (英語名, 日本語名, レア度)。
+# バズ・ライトイヤーは期間限定のコラボキャラで、過去のバトル履歴には残っている。値は brawl_service の Brawler.get_brawler_info と同じ
+REMOVED_BRAWLERS: dict[int, tuple[str, str, int]] = {16000088: ("BUZZ-LIGHTYEAR", "バズ・ライトイヤー", 6)}
+
+
+def removed_brawler_name(brawler_id: int, lang: str) -> str | None:
+    """削除済みのキャラの名前。該当しなければ None。"""
+    removed = REMOVED_BRAWLERS.get(brawler_id)
+    return (removed[1] if lang == "ja" else removed[0]) if removed else None
+
+
 BRAWLER_RARITY_LABELS_JA = {
     1: "ノーマル",
     2: "レア",

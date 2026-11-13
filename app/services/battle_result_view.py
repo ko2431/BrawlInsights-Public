@@ -1,6 +1,6 @@
 """バトル履歴ページのバトルカードで開く「リザルト」のデータを組み立てる。
 
-全件の読み込み（search_battles）にはリザルトの列を足さず、表示するページのバトル（セットは中の試合も）だけを
+全件の読み込み（battle_history の scan_battles）には味方・敵のリザルトの列を足さず、表示するページのバトル（セットは中の試合も）だけを
 主キーで読む。組み立てた値は小さな JSON としてページに埋め込み、カードを開いたときに JS（battle_results.js）が描く。
 """
 import datetime
@@ -10,6 +10,7 @@ import asyncpg
 import orjson
 
 from app.services.battle_log import PLAYER_STATS_WIDTH, rank_result_bounds
+from app.utils.utils import removed_brawler_name
 
 # スタッツ（stats）が公式APIのバトル履歴に入り始めた日時（2026年11月のアップデート）。これより前のバトルには無い
 STATS_SINCE = datetime.datetime(2026, 11, 3, 9, 41, tzinfo=datetime.timezone.utc)

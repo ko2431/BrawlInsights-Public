@@ -711,64 +711,11 @@
     margin: 10px auto 50px;
 }
 
-.summary-grid {
-    display: grid;
-    /* 列幅は minmax(0, 1fr) で指定し、グラフ(canvas)の幅に引っ張られずに縮められるようにする */
-    grid-template-columns: minmax(0, 1fr);
-    margin-bottom: 20px; /* 次のグリッドコンテナとのマージン */
-}
-/* グリッドの子要素は既定で中身(canvas)の幅より縮まないため、画面幅を狭めた時にグラフが再描画されずレイアウトが崩れる。min-width: 0 で縮められるようにする */
-.summary-grid > * {
-    min-width: 0;
-}
-.summary-grid:last-child {
-    margin-bottom: 0;
-}
-
 .chart-wrapper {
     position: relative; /* canvasのレスポンシブ対応のため */
     height: 280px;  /* HTML側で設定済み、またはここで設定 */
     width: 100%;
     padding-top: 5px;
-}
-
-/* --- x2 グリッド (「すべて」など) --- */
-.summary-grid--x2-wide {
-    grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
-}
-@media (min-width: 840px) { /* タブレット・PCで2列(プロフィール・推移グラフと同じ境目) */
-    .summary-grid--x2-wide {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 30px;
-    }
-}
-
-/* --- x2 グリッド (「すべて」など) --- */
-.summary-grid--x2 {
-    grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
-}
-@media (min-width: 840px) { /* PC大画面で2列 */
-    .summary-grid--x2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 30px;
-    }
-}
-
-/* --- x3 グリッド (「円グラフ」など) --- */
-.summary-grid--x3 {
-    grid-template-columns: minmax(0, 1fr); /* デフォルト1列 */
-}
-@media (min-width: 840px) { /* 大画面で2列 */
-    .summary-grid--x3 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 30px;
-    }
-}
-@media (min-width: 1194px) { /* 大画面で3列 */
-    .summary-grid--x3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 30px;
-    }
 }
 
 
@@ -1307,3 +1254,35 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-tile.is-up .bx-tile__value { color: var(--bx-win); }
 .bx-tile.is-down .bx-tile__value { color: var(--bx-lose); }
 .bx-pos { color: var(--bx-win) !important; } .bx-neg { color: var(--bx-lose) !important; }
+
+/* --- ガチバトル: 現在のポイント・モードとマップ（よく使ったキャラ・勝率のレーダー）・BAN --- */
+.bx-tile .bx-tile__value--icon { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.bx-tile .bx-tile__value--icon img { height: 24px; width: auto; }
+.bx-radar { height: 300px; }
+.bx-radar--s { height: 210px; }
+.bx-radargrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px 14px; }
+.bx-radarcell__title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--color-111); }
+.bx-radarcell__title .bx-modeicon { width: 24px; height: 24px; border-radius: 7px; } .bx-radarcell__title .bx-modeicon img { width: 18px; height: 18px; }
+.bx-picks { display: flex; justify-content: flex-end; gap: 2px; }
+.bx-picks img { width: 22px; height: 22px; border-radius: 6px; background: var(--bx-track); }
+.bx-pie--s .bx-pie__chart { height: 150px; flex: 0 0 150px; }
+.bx-pie--s .bx-pie__legend { flex: 1; width: auto; max-width: none; }
+.bx-banpies { display: flex; flex-direction: column; gap: 4px; }
+.bx-bangroup + .bx-bangroup { margin-top: 10px; }
+.bx-bangroup__label { margin-bottom: 4px; font-size: 12px; font-weight: 700; color: var(--color-333); }
+.bx-bans { display: flex; flex-wrap: wrap; gap: 6px; }
+.bx-ban { position: relative; width: 40px; }
+.bx-ban img { display: block; width: 40px; height: 40px; border-radius: 10px; background: var(--bx-track); }
+.bx-ban::after { content: ""; position: absolute; left: 4px; top: 19px; width: 32px; height: 2.5px; border-radius: 2px; background: #e23b3b; transform: rotate(-45deg); box-shadow: 0 0 0 1px rgba(255, 255, 255, .55); pointer-events: none; }
+.bx-ban span { display: block; margin-top: 1px; font-size: 11px; text-align: center; font-variant-numeric: tabular-nums; color: var(--color-444); }
+.bx-list--mode.has-picks .bx-row { grid-template-columns: 30px minmax(120px, 1.5fr) minmax(30px, 1.2fr) 50px 104px 78px 16px; }
+@media (min-width: 540px) { .bx-list--mode.has-picks { min-width: 512px; } }
+/* 広い画面では、モードを2列に流す（.bx-list は縦並びの flex なので、段組みにするには block に戻す） */
+@media (min-width: 1100px) { .bx-modecols { display: block; columns: 2; column-gap: 22px; } .bx-modecols .bx-modeblock { break-inside: avoid; } }
+@media (max-width: 539px) {
+    /* スマホ幅は2段（1段目: 名前とよく使ったキャラ、2段目: 棒・回数・勝率） */
+    .bx-list--mode.has-picks .bx-row { grid-template-columns: 28px minmax(0, 1fr) 44px 96px 12px; }
+    .bx-list--mode.has-picks .bx-row > :nth-child(2) { grid-area: 1 / 2 / 2 / 4; }
+    .bx-list--mode.has-picks .bx-row > :nth-child(6) { grid-area: 1 / 4 / 2 / 5; }
+    .bx-picks img { width: 20px; height: 20px; }
+}

@@ -1569,8 +1569,8 @@ async def search_clubs(query: str, db: asyncpg.Connection, page: int = 1, per_pa
 #* /---*---*---*---*---*---*---*---*/
 #* バトル関連
 #* /---*---*---*---*---*---*---*---*/
-# search_battles で取得する列。バトルの JSONB の列(キャラID・タグ・名前の配列)は文字列で受け取り、
-# 標準の json より速い orjson で読む(全件を読み込むため、デコードの時間が大きい)
+# バトルカード用に読む列（battle_history の load_page）。バトルの JSONB の列(キャラID・タグ・名前の配列)は文字列で受け取り、
+# 標準の json より速い orjson で読む
 _BATTLE_JSONB_COLUMNS = ("brawlers", "teammate_tags", "opponent_tags", "teammate_names", "opponent_names", "teammate_brawlers", "opponent_brawlers")
 _BATTLE_SEARCH_COLUMNS = ", ".join([
     "tag", "datetime", "event_id", "event_mode", "event_map", "battle_mode", "mode_id", "battle_type", "result", "rank",
@@ -1580,7 +1580,7 @@ _BATTLE_SEARCH_COLUMNS = ", ".join([
 
 
 def _load_battle_jsonb(value: Any) -> Any:
-    """バトルの JSONB の列を読む。search_battles 以外の経路では、接続のコーデックでデコード済みの値が来る。"""
+    """バトルの JSONB の列を読む。文字列で読まない経路では、接続のコーデックでデコード済みの値が来る。"""
     return orjson.loads(value) if isinstance(value, str) else value
 
 
@@ -1650,198 +1650,7 @@ class Battle:
     # [この部分は公開用リポジトリでは非公開にされています]
 
 
-def _wrap_ranked_mode_display(ja_name: str | None, en_name: str | None, slug: str | None, lang: str) -> str:
-    if lang == "ja" and ja_name:
-        if ja_name == "エメラルドハント":
-            return "エメラルド\nハント"
-        if ja_name == "ノックアウト":
-            return "ノック\nアウト"
-        if ja_name == "ブロストライカー":
-            return "ブロスト\nライカー"
-        if len(ja_name) >= 7:
-            split_point = len(ja_name) // 2
-            return ja_name[:split_point] + "\n" + ja_name[split_point:]
-        return ja_name
-    if en_name:
-        return en_name
-    return format_mode_slug_to_display(slug) if slug else (slug or "")
-
-
-def _wrap_ranked_map_display(ja_name: str | None, en_name: str | None, lang: str) -> str:
-    if lang == "ja" and ja_name:
-        if len(ja_name) >= 10:
-            split_point = len(ja_name) // 2
-            return ja_name[:split_point] + "\n" + ja_name[split_point:]
-        return ja_name
-    return en_name or ja_name or ""
-
-
-class Battles:
-    def __init__(self, dbrows: list[asyncpg.Record], player_tag_for_battles: str, db: asyncpg.Connection):
-        self.battles: list[Battle] = [Battle(dbrow=dbrow) for dbrow in dbrows]
-        self.player_tag: str = player_tag_for_battles # 統計計算時にどのプレイヤー視点かを知るため
-        self.db: asyncpg.Connection = db # Brawler名取得などに使う可能性
-
-        # 基本統計 (初期化時に計算)
-        self.wins: int = 0
-        self.losses: int = 0
-        self.draws: int = 0
-        self._calculate_basic_stats() # wins, losses, draws, win_rateなどを計算
-        self.max_win_streak: int = self._calculate_max_streak("w")
-        self.max_loss_streak: int = self._calculate_max_streak("l")
-
-        # 遅延計算される統計データのキャッシュ用 (初期値はNone)
-        self._win_rate: float | None = None
-        self._total_trophy_change: int | None = None
-        self._average_trophy_change: float | None = None
-        self._brawler_usage_rate: dict[int | str, float] | None = None
-        self._teammate_usage_rate: dict[str, float] | None = None
-        self._opponent_usage_rate: dict[str, float] | None = None
-        self._mode_usage_rate: dict[str, float] | None = None
-        self._overall_trophy_trend_data: dict[str, Any] | None = None
-        self._ranked_rank_trend_data: dict[str, Any] | None = None
-        self._character_trophy_trend_data: dict[int, dict[str, Any] | None] = {} # brawler_id をキーとする
-        self._current_ranked_season_modes_and_maps: dict[str, Any] | None = None
-        self._ranked_mode_win_rates: dict[str, float] | None = None
-        self._ranked_map_win_rates: dict[str, dict[str, float] | None] = {} # mode_name をキーとする
-        self._ranked_brawler_pick_rates: dict[str, dict[str | None, dict[int | str, float] | None]] = {} # mode_name, map_name をキー
-
-    @property # 常に最新のバトル数を返すプロパティとして定義
-    def total_battles(self) -> int:
-        return len(self.battles)
-
-    def _calculate_basic_stats(self):
-        self.wins: int = 0
-        self.losses: int = 0
-        self.draws: int = 0
-
-        if self.total_battles == 0:
-            self._win_rate = 0.0
-            return
-
-        for battle in self.battles:
-            if battle.result == "w":
-                self.wins += 1
-            elif battle.result == "l":
-                self.losses += 1
-            elif battle.result == "d":
-                self.draws += 1
-        
-        # 実際の勝敗がついたバトル数 (引き分けを除く)
-        decided_battles = self.wins + self.losses
-        self._win_rate = (self.wins / decided_battles * 100) if decided_battles > 0 else 0.0
-
-    def _calculate_max_streak(self, result_type: str) -> int:
-        current_streak = 0
-        max_streak = 0
-        for battle in self.battles: # 新しい順に並んでいる想定
-            if battle.result == result_type:
-                current_streak += 1
-            else:
-                max_streak = max(max_streak, current_streak)
-                current_streak = 0
-        max_streak = max(max_streak, current_streak) # 最後の連続も考慮
-        return max_streak
-
-    #> 各統計メソッド (遅延計算とキャッシュ)
-    # [この部分は公開用リポジトリでは非公開にされています]
-
-#* /---*---*---*---*---*---*---*---*/
-#* バトル検索
-#* /---*---*---*---*---*---*---*---*/
-async def search_battles(
-    db: asyncpg.Connection,
-    *,
-    tag: str | None = None,
-    tags: list[str] | None = None,
-    reverse: bool = False,
-    limit: int = 100000,
-    until: datetime.datetime | None = None,
-    after: datetime.datetime | None = None,
-    event_ids: list[int | None] | None = None,
-    exclude_event_ids: list[int | None] | None = None,
-    event_modes: list[str | None] | None = None,
-    exclude_event_modes: list[str | None] | None = None,
-    event_maps: list[str | None] | None = None,
-    exclude_event_maps: list[str | None] | None = None,
-    battle_modes: list[str | None] | None = None,
-    exclude_battle_modes: list[str | None] | None = None,
-    battle_types: list[str | None] | None = None,
-    exclude_battle_types: list[str | None] | None = None,
-    include_win: bool = True,
-    include_draw: bool = True,
-    include_loss: bool = True,
-    ranks: list[int | None] | None = None,
-    exclude_ranks: list[int | None] | None = None,
-    is_starplayer: bool | None = None,
-    brawler_ids: list[int] | None = None,
-    exclude_brawler_ids: list[int] | None = None,
-    min_power: int | None = None,
-    max_power: int | None = None,
-    min_trophies: int | None = None,
-    max_trophies: int | None = None,
-    min_trophy_change: int | None = None,
-    max_trophy_change: int | None = None,
-    team_sizes: list[int] | None = None,
-    num_of_teams_list: list[int] | None = None,
-    player_tags: list[str] | None = None,
-    player_names: list[str] | None = None,
-    player_filter_mode: bool | None = None,
-    related_brawler_ids: list[int] | None  = None,
-    related_brawler_filter_mode: bool | None = None
-) -> Battles | None:
-    """
-    指定された条件でバトル履歴を検索する関数。
-
-    Args:
-        db (asyncpg.Connection): データベース接続。必須。
-        tag (Optional[Union[int, str]]): 検索対象とする単一プレイヤータグ。tags指定時は無視される。
-        tags (Optional[list[Union[int, str]]]): 検索対象とする複数プレイヤータグのリスト。
-        reverse (bool): Trueの場合、古い順にソートする (デフォルト: False、新しい順)。
-        limit (int): 最大検索件数 (デフォルト: 100000)。
-        until (Optional[datetime.datetime]): この日時以前のバトルのみを対象とする。
-        after (Optional[datetime.datetime]): この日時以降のバトルのみを対象とする。
-        event_ids (Optional[list[Union[int, None]]]): 検索対象とするイベントIDのリスト。Noneを含むことができる。
-        exclude_event_ids (Optional[list[Union[int, None]]]): 除外するイベントIDのリスト。event_ids指定時は無視される。
-        event_modes (Optional[list[Union[str, None]]]): 検索対象とするイベントモードのリスト。
-        exclude_event_modes (Optional[list[Union[str, None]]]): 除外するイベントモードのリスト。event_modes指定時は無視される。
-        event_maps (Optional[list[Union[str, None]]]): 検索対象とするイベントマップのリスト。
-        exclude_event_maps (Optional[list[Union[str, None]]]): 除外するイベントマップのリスト。event_maps指定時は無視される。
-        battle_modes (Optional[list[Union[str, None]]]): 検索対象とするバトルモードのリスト。
-        exclude_battle_modes (Optional[list[Union[str, None]]]): 除外するバトルモードのリスト。battle_modes指定時は無視される。
-        battle_types (Optional[list[Union[str, None]]]): 検索対象とするバトルタイプのリスト。
-        exclude_battle_types (Optional[list[Union[str, None]]]): 除外するバトルタイプのリスト。battle_types指定時は無視される。
-        include_win (bool): 結果が'w'のバトルを含めるか (デフォルト: True)。
-        include_draw (bool): 結果が'd'のバトルを含めるか (デフォルト: True)。
-        include_loss (bool): 結果が'l'のバトルを含めるか (デフォルト: True)。
-        ranks (Optional[list[Union[int, None]]]): 検索対象とするランクのリスト。
-        exclude_ranks (Optional[list[Union[int, None]]]): 除外するランクのリスト。ranks指定時は無視される。
-        is_starplayer (bool | None): Trueならスタープレイヤー(1)のみ、Falseなら非スタープレイヤー(0またはNone)のみ、Noneなら絞り込まない。
-        brawler_ids (Optional[list[int]]): 検索対象とする自身の使用キャラクターIDのリスト。brawlerカラムまたはbrawlersカラムのいずれか。
-        exclude_brawler_ids (Optional[list[int]]): 除外する自身の使用キャラクターIDのリスト。brawler_ids指定時は無視される。
-        min_power (int | None): 最小パワーレベル (powerカラム)。指定するとpower=Noneは除外。
-        max_power (int | None): 最大パワーレベル (powerカラム)。指定するとpower=Noneは除外。
-        min_trophies (int | None): 最小トロフィー数 (trophiesカラム)。指定するとtrophies=Noneは除外。
-        max_trophies (int | None): 最大トロフィー数 (trophiesカラム)。指定するとtrophies=Noneは除外。
-        min_trophy_change (int | None): 最小トロフィー変動量 (trophy_changeカラム)。指定するとtrophy_change=Noneは除外。
-        max_trophy_change (int | None): 最大トロフィー変動量 (trophy_changeカラム)。指定するとtrophy_change=Noneは除外。
-        team_sizes (Optional[list[int]]): 検索対象とするチームサイズのリスト。
-        num_of_teams_list (Optional[list[int]]): 検索対象とするチーム数のリスト。
-        player_tags (Optional[list[str]]): 検索対象とするチームメイトまたは対戦相手のプレイヤータグのリスト。JSON文字列内の値と比較。これを指定した場合、player_namesは指定しても無視される。
-        player_names (Optional[list[str]]): 検索対象とするチームメイトまたは対戦相手の名前リスト。JSON文字列内の値と比較。
-        player_filter_mode (bool | None): player_tags, namesの絞り込み方法。True: チームメイトのみ, False: 対戦相手のみ, None: 両方。
-        related_brawler_ids (Optional[list[int]]): 検索対象とするチームメイトまたは対戦相手のキャラクターIDリスト。JSON配列内の数値と比較。
-        related_brawler_filter_mode (bool | None): related_brawler_idsの絞り込み方法。True: チームメイトのみ, False: 対戦相手のみ, None: 両方。
-
-
-    Returns:
-        Union[Battles, None]: 検索結果のバトル履歴のリスト。該当なしの場合はNone。
-
-    Raises:
-        DataBaseError: データベースエラー
-    """
-    # [この部分は公開用リポジトリでは非公開にされています]
-
+# [この部分は公開用リポジトリでは非公開にされています]
 
 #* /---*---*---*---*---*---*---*---*/
 #* プレイヤー関連

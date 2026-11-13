@@ -13,6 +13,9 @@
     const RARITY = { 1: '#4dc2c8', 2: '#58cc54', 3: '#6196e0', 4: '#c75ceb', 5: '#e15555', 6: '#d2c448', 7: '#dfad66' };  // スキンのレア度の色（player.css の --sr-accent）と同じ
     const PALETTE = ['#5b7fd6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6', '#e34948', '#4cc9f0', '#8bc34a', '#b07cd8', '#d98e5f', '#5fd8b0'];
     const SL = '<i class="bx-sl">/</i>';
+    // ガチバトルのランクの帯（3ランクずつ。最後はプロ）の色
+    const LEAGUE_COLORS = ['#c8824a', '#9aa9bd', '#e3b01f', '#3fb6ea', '#a45cf0', '#e5484d', '#f08a24', '#2bb673'];
+    const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ'];
 
     const TEXT = {
         ja: {
@@ -36,6 +39,12 @@
             trophySum: 'トロフィー増減の推移', trophySumCap: (v) => `期間の合計 ${v}`, trophySumTip: (v) => `期間の初めから ${v}`, trophyAbs: 'トロフィーの推移', trophyUnit: 'トロフィー',
             trophyBy: 'キャラ別のトロフィー増減', trophyByCap: '増えた5キャラ・減った5キャラ', trophyByTop: '変動の大きい10キャラ', trophyByTip: (g, v) => `${g}戦で ${v}`,
             empty: 'バトルがありません',
+            leagues: ['ブロンズ', 'シルバー', 'ゴールド', 'ダイヤモンド', 'エリート', 'レジェンド', 'マスター', 'プロ'],
+            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
+            modesMaps: 'モード・マップ別の成績', picksCap: 'マップの右はよく使ったキャラ', graph: 'グラフ', byMode: 'モード別', byMap: 'マップ別',
+            modeRates: 'モードごとの勝率', mapRates: 'マップごとの勝率（モード別）', radarTip: (rate, n) => `勝率 ${rate}%（${n}回）`, pickTip: (name, n) => `${name}: ${n}回`,
+            radarNeedModes: 'レーダーを出すには、3つ以上のモードのバトルが必要です', radarNeedMaps: 'レーダーを出すには、同じモードで3つ以上のマップのバトルが必要です',
+            bans: 'BAN', bansCap: (n) => `BANのある${n}セット`, banMine: '自分がBANしたキャラ', banOpp: '敵チームにBANされたキャラ', banTeam: '味方がBANしたキャラ', banTip: (name, n, p) => `${name}\n${n}回（${p}%）`,
         },
         en: {
             dow: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], dowLong: (d) => d,
@@ -58,6 +67,12 @@
             trophySum: 'Trophy change over time', trophySumCap: (v) => `Total ${v}`, trophySumTip: (v) => `${v} since the start`, trophyAbs: 'Trophies over time', trophyUnit: 'trophies',
             trophyBy: 'Trophy change by brawler', trophyByCap: 'Top 5 gains and losses', trophyByTop: '10 biggest changes', trophyByTip: (g, v) => `${v} in ${g} battles`,
             empty: 'No battles',
+            leagues: ['Bronze', 'Silver', 'Gold', 'Diamond', 'Mythic', 'Legendary', 'Masters', 'Pro'],
+            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', pointsTip: (v, rank) => `${v} points (${rank})`,
+            modesMaps: 'Modes and maps', picksCap: 'Most-picked brawlers are shown beside each map', graph: 'Chart', byMode: 'By mode', byMap: 'By map',
+            modeRates: 'Win rate by mode', mapRates: 'Win rate by map, per mode', radarTip: (rate, n) => `Win rate ${rate}% (${n})`, pickTip: (name, n) => `${name}: ${n}`,
+            radarNeedModes: 'The radar chart needs battles in at least 3 modes', radarNeedMaps: 'The radar chart needs battles on at least 3 maps of one mode',
+            bans: 'Bans', bansCap: (n) => `${n} sets with bans`, banMine: 'Banned by you', banOpp: 'Banned by opponents', banTeam: 'Banned by teammates', banTip: (name, n, p) => `${name}\n${n} (${p}%)`,
         },
     };
 
@@ -112,7 +127,7 @@
         let after = [];
 
         // 選んでいる表示。別のプレイヤーを開いても引き継ぐ
-        const S = Object.assign({ dailyRange: 30, heatMode: 'n', bsort: 'n', bview: 'list', msort: 'n', mview: 'list', matesort: 'n', mateview: 'list' }, readJson(PREF_KEY, {}));
+        const S = Object.assign({ dailyRange: 30, heatMode: 'n', bsort: 'n', bview: 'list', msort: 'n', mview: 'list', matesort: 'n', mateview: 'list', mgraph: 'mode', banview: 'list' }, readJson(PREF_KEY, {}));
         const V = { bmore: false, mmore: false, matemore: false, mopen: new Set() };  // この表示の間だけの状態
         const savePrefs = () => writeJson(PREF_KEY, Object.assign(readJson(PREF_KEY, {}), S));
 
@@ -132,6 +147,11 @@
             return a < 1000000 ? (n / 1000).toFixed(a < 100000 ? 1 : 0) + '<small>k</small>' : (n / 1000000).toFixed(2) + '<small>M</small>';
         }
         const shortText = (n) => short(n).replace(/<[^>]+>/g, '');
+        // ガチバトルのランク。境目のポイントはサーバーから届く（Battle.ranked_rank_after と同じ）
+        const RANK_MIN = (D.ranked && D.ranked.rankMin) || [];
+        const rankOf = (score) => { let r = 0; for (let i = 1; i < RANK_MIN.length; i++) if (score >= RANK_MIN[i]) r = i; return r; };
+        const leagueIndex = (rank) => Math.min(7, Math.floor((Math.max(1, rank) - 1) / 3));
+        const rankName = (rank) => (rank >= 22 ? T.leagues[7] : `${T.leagues[leagueIndex(rank)]} ${ROMAN[(rank - 1) % 3]}`);
         const ymd = (t) => { const d = new Date(t * 1000); return `${d.getMonth() + 1}/${d.getDate()}`; };
         const ymdFull = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
@@ -176,7 +196,7 @@
             });
         }
         // 円グラフ（一覧との切り替え用）。0.5% 未満は「その他」にまとめる。同じ色が続くときは薄い色と交互にする
-        function pieBody(id, items) {
+        function pieBody(id, items, small) {
             const tot = items.reduce((s, x) => s + x.n, 0) || 1;
             const main = items.slice().sort((a, b) => b.n - a.n).filter((x) => x.n / tot >= 0.005).map((x, i) => ({ ...x, base: x.color || PALETTE[i % PALETTE.length] }));
             main.forEach((x, i) => { const prev = main[i - 1]; x.color = prev && prev.base === x.base && prev.color === prev.base ? lighten(x.base) : x.base; });
@@ -186,8 +206,8 @@
                 type: 'pie', data: { labels: main.map((x) => x.label), datasets: [{ data: main.map((x) => x.n), backgroundColor: main.map((x) => x.color), borderColor: th.card, borderWidth: 1.5, hoverOffset: 6 }] },
                 options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, layout: { padding: 6 }, plugins: { legend: { display: false }, tooltip: { ...baseOptions(th).plugins.tooltip, callbacks: { label: (it) => T.pieTip(nf(it.parsed), (it.parsed / tot * 100).toFixed(1)) } } } },
             }));
-            const legend = main.slice(0, 10).map((x) => `<li><i style="background:${x.color}"></i><span>${esc(x.label)}</span><b>${(x.n / tot * 100).toFixed(1)}%</b></li>`).join('');
-            return `<div class="bx-pie"><div class="bx-pie__chart"><canvas id="${id}"></canvas></div><ul class="bx-pie__legend">${legend}</ul></div>`;
+            const legend = main.slice(0, small ? 6 : 10).map((x) => `<li><i style="background:${x.color}"></i><span>${esc(x.label)}</span><b>${(x.n / tot * 100).toFixed(1)}%</b></li>`).join('');
+            return `<div class="bx-pie${small ? ' bx-pie--s' : ''}"><div class="bx-pie__chart"><canvas id="${id}"></canvas></div><ul class="bx-pie__legend">${legend}</ul></div>`;
         }
         // 勝率の順。回数の少ないものは下に回す
         const byRate = (list, minN) => list.sort((a, b) => ((b.a.n >= minN) - (a.a.n >= minN)) || (wr(b.a) ?? -1) - (wr(a.a) ?? -1) || b.a.n - a.a.n);
@@ -226,6 +246,10 @@
                 <span class="bx-tile__value"><span class="bx-nw">${st.bw}<small>${T.streakW}</small></span> <span class="bx-nw">${SL}${st.bl}<small>${T.streakL}</small></span></span><span class="bx-tile__sub">${st.cw >= 2 ? T.nowW(st.cw) : st.cl >= 2 ? T.nowL(st.cl) : '&nbsp;'}</span></div>`);
             if (D.tab === 'trophy') {
                 tiles.push(`<div class="bx-tile ${a.tc > 0 ? 'is-up' : a.tc < 0 ? 'is-down' : ''}"><span class="bx-tile__label"><img src="${IMG}/ui/trophy.png" alt="">${T.trophyChange}</span><span class="bx-tile__value">${signed(a.tc)}</span><span class="bx-tile__sub">${T.perBattle} ${(a.g ? a.tc / a.g : 0).toFixed(2)}</span></div>`);
+            }
+            if (D.ranked && D.ranked.current) {
+                const score = D.ranked.current[1], rank = Math.max(1, rankOf(score));
+                tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.currentPoints}</span><span class="bx-tile__value bx-tile__value--icon"><img src="${IMG}/ranked_icons/${rank}.png" alt="">${nf(score)}</span><span class="bx-tile__sub">${rankName(rank)}</span></div>`);
             }
             tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.mvpRate}</span><span class="bx-tile__value">${a.n ? (a.sp / a.n * 100).toFixed(1) : '—'}<small>%</small></span><span class="bx-tile__sub">${nf(a.sp)}${T.times}</span></div>`);
             if (a.sn) {
@@ -323,6 +347,134 @@
             return card('hours', '', T.hours, `${T.tz}${esc(tzLabel())}`, seg('heatMode', S.heatMode, [['n', T.battleCount], ['wr', T.winRate]]), max ? html + legend + facts : `<div class="bx-empty">${T.empty}</div>`);
         }
 
+        // ---------- ガチバトル: ポイント（無ければランク）の推移 ----------
+        // 補助線の位置。範囲に入るランクの境目の数を見て、細かさを決める
+        function rankTicks(lo, hi) {
+            const inRange = (list) => list.filter((v) => v >= lo && v <= hi);
+            const subs = inRange(RANK_MIN.slice(1)), leagues = inRange([1, 4, 7, 10, 13, 16, 19, 22].map((r) => RANK_MIN[r]));
+            if (subs.length > 9 && leagues.length >= 2) return leagues;   // 広い範囲: 帯（ブロンズ・シルバー…）の境目だけ
+            if (subs.length >= 3) return subs;                              // ふつう: ランクの境目すべて
+            // 狭い範囲: 境目に、きりのいい値を足す
+            const span = hi - lo, step = [25, 50, 100, 250, 500].find((s) => span / s <= 6) || 500;
+            const out = new Set(subs);
+            for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) if (!subs.some((s) => Math.abs(s - v) < step * 0.45)) out.add(v);
+            return [...out].sort((a, b) => a - b);
+        }
+        function cardRankedTrend() {
+            const rk = D.ranked;
+            if (!rk || !rk.points || rk.points.length < 2) return '';
+            const pts = rk.points.map(([t, y]) => ({ x: t * 1000, y })), byRank = rk.mode === 'rank';
+            const ys = pts.map((p) => p.y), dataLo = Math.min(...ys), dataHi = Math.max(...ys);
+            const pad = byRank ? 0.5 : Math.max(30, (dataHi - dataLo) * 0.08);
+            const lo = byRank ? Math.max(0.5, dataLo - pad) : Math.max(0, Math.floor(dataLo - pad)), hi = byRank ? Math.min(22.5, dataHi + pad) : Math.ceil(dataHi + pad);
+            // 背景にランクの帯の色を薄く敷き、右端にランクの名前を出す
+            const bands = {
+                id: 'rankBands',
+                beforeDatasetsDraw(chart) {
+                    const { ctx, chartArea: area, scales: { y } } = chart;
+                    ctx.save();
+                    ctx.beginPath(); ctx.rect(area.left, area.top, area.width, area.height); ctx.clip();
+                    for (let rank = 1; rank <= 22; rank++) {
+                        const from = byRank ? rank - 0.5 : RANK_MIN[rank], to = byRank ? rank + 0.5 : rank < 22 ? RANK_MIN[rank + 1] : Infinity;
+                        if (to <= lo || from >= hi) continue;
+                        const top = y.getPixelForValue(Math.min(to, hi)), bottom = y.getPixelForValue(Math.max(from, lo));
+                        ctx.globalAlpha = 0.09 + ((rank - 1) % 3) * 0.035;
+                        ctx.fillStyle = LEAGUE_COLORS[leagueIndex(rank)];
+                        ctx.fillRect(area.left, top, area.width, bottom - top);
+                        if (!byRank && bottom - top >= 18) { ctx.globalAlpha = 0.8; ctx.font = `600 11px ${CHART_FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(rankName(rank), area.right - 6, (top + bottom) / 2); }
+                    }
+                    ctx.restore();
+                },
+            };
+            const ticks = byRank ? null : rankTicks(lo, hi);
+            mountChart('bxRanked', (th) => {
+                const o = baseOptions(th);
+                o.scales.x.type = 'linear'; o.scales.x.ticks.callback = (v) => ymd(v / 1000); o.scales.x.min = pts[0].x; o.scales.x.max = pts[pts.length - 1].x;
+                o.scales.y.min = lo; o.scales.y.max = hi;
+                o.scales.y.grid.color = th.mut + '55';
+                if (byRank) {
+                    // 目盛りはランクごと。範囲が広いときは、帯の初めのランク（Ⅰ）だけ
+                    const shown = [];
+                    for (let rank = Math.ceil(lo); rank <= Math.floor(hi); rank++) if (hi - lo <= 9 || (rank - 1) % 3 === 0) shown.push(rank);
+                    o.scales.y.afterBuildTicks = (axis) => { axis.ticks = shown.map((value) => ({ value })); };
+                    o.scales.y.ticks.maxTicksLimit = 23;
+                    o.scales.y.ticks.callback = (v) => rankName(v);
+                    o.scales.y.grid.display = false;
+                    o.plugins.tooltip.callbacks = { title: (it) => ymdFull(it[0].parsed.x / 1000), label: (it) => rankName(it.parsed.y) };
+                } else {
+                    o.scales.y.afterBuildTicks = (axis) => { axis.ticks = ticks.map((value) => ({ value })); };
+                    o.scales.y.ticks.callback = (v) => nf(v);
+                    o.scales.y.ticks.maxTicksLimit = 30;
+                    o.plugins.tooltip.callbacks = { title: (it) => ymdFull(it[0].parsed.x / 1000), label: (it) => T.pointsTip(nf(it.parsed.y), rankName(Math.max(1, rankOf(it.parsed.y)))) };
+                }
+                return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: byRank ? 0 : 0.15, stepped: byRank }] }, options: o, plugins: [bands] };
+            });
+            const first = pts[0].y, last = pts[pts.length - 1].y;
+            const cap = byRank ? `${rankName(first)} → ${rankName(last)}` : `${nf(first)} → ${nf(last)}（${signed(last - first)}）`;
+            return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, '', '<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>');
+        }
+
+        // ---------- ガチバトル: モード・マップ別の成績（マップごとによく使ったキャラ。グラフは勝率のレーダー） ----------
+        function cardRankedModes() {
+            const g = D.modes.map((row) => ({ id: row[0], a: toAgg(row, 1) })).sort((x, y) => y.a.n - x.a.n);
+            if (!g.length) return '';
+            const maps = D.maps.map((row) => ({ m: row[0], e: row[1], a: toAgg(row, 2) }));
+            const picks = new Map((D.picks || []).map(([m, e, top]) => [m + ':' + e, top]));
+            const tools = (S.mview === 'list' ? seg('msort', S.msort, [['n', T.plays], ['wr', T.winRate]]) : seg('mgraph', S.mgraph, [['mode', T.byMode], ['map', T.byMap]])) + seg('mview', S.mview, [['list', T.list], ['pie', T.graph]]);
+            if (S.mview === 'pie') {
+                const radar = (id, labels, values, counts, color) => mountChart(id, (th) => ({
+                    type: 'radar', data: { labels, datasets: [{ data: values, borderColor: color, backgroundColor: color + '33', borderWidth: 2, pointRadius: 3, pointBackgroundColor: color }] },
+                    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, plugins: { legend: { display: false }, tooltip: { ...baseOptions(th).plugins.tooltip, callbacks: { label: (it) => T.radarTip(it.parsed.r.toFixed(1), nf(counts[it.dataIndex])) } } },
+                        scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, color: th.mut, backdropColor: 'transparent', font: { size: 9.5 }, callback: (v) => (v === 50 || v === 100 ? v + '%' : '') }, grid: { color: (ctx) => (ctx.tick.value === 50 ? th.mut : th.grid) }, angleLines: { color: th.grid }, pointLabels: { color: th.ink, font: { size: 11.5 } } } } },
+                }));
+                const rated = g.filter((x) => wr(x.a) != null);
+                let graph;
+                if (S.mgraph === 'mode') {
+                    if (rated.length < 3) graph = `<div class="bx-empty">${T.radarNeedModes}</div>`;
+                    else { radar('bxRadarM', rated.map((x) => mname(x.id)), rated.map((x) => wr(x.a)), rated.map((x) => x.a.n), chartTheme().accent); graph = '<div class="bx-chart bx-radar"><canvas id="bxRadarM"></canvas></div>'; }
+                } else {
+                    const blocks = rated.map(({ id }) => {
+                        const ms = maps.filter((x) => x.m === id && wr(x.a) != null).sort((x, y) => y.a.n - x.a.n).slice(0, 8);
+                        if (ms.length < 3) return '';
+                        const icon = micon(id);
+                        radar('bxRadarMap' + id, ms.map((x) => mapname(x.e)), ms.map((x) => wr(x.a)), ms.map((x) => x.a.n), mcolor(id));
+                        return `<div class="bx-radarcell"><div class="bx-radarcell__title"><span class="bx-modeicon" style="--c:${mcolor(id)}">${icon ? `<img src="${esc(icon)}" alt="" onerror="this.remove()">` : ''}</span>${esc(mname(id))}</div><div class="bx-chart bx-radar bx-radar--s"><canvas id="bxRadarMap${id}"></canvas></div></div>`;
+                    }).filter(Boolean);
+                    graph = blocks.length ? `<div class="bx-radargrid">${blocks.join('')}</div>` : `<div class="bx-empty">${T.radarNeedMaps}</div>`;
+                }
+                return card('modes', 'bx-span2', T.modesMaps, S.mgraph === 'mode' ? T.modeRates : T.mapRates, tools, graph);
+            }
+            if (S.msort === 'wr') byRate(g, Math.max(5, Math.round(total.n * 0.01)));
+            const max = Math.max(...g.map((x) => x.a.n));
+            const wide = window.matchMedia('(min-width: 840px)').matches;  // PC 幅は初めからマップを開く。スマホ幅は押してから
+            const list = V.mmore ? g : g.slice(0, 8);
+            const body = list.map(({ id, a }) => {
+                const ms = maps.filter((x) => x.m === id).sort((x, y) => y.a.n - x.a.n);
+                const open = wide ? !V.mopen.has('c' + id) : V.mopen.has(id), icon = micon(id);
+                const mapRows = ms.map((x) => {
+                    const top = (picks.get(id + ':' + x.e) || []).map(([b, n]) => `<img src="${bimg(b)}" alt="" loading="lazy"${tipAttr(T.pickTip(bname(b), nf(n)))}>`).join('');
+                    return `<div class="bx-row bx-row--map${x.a.n < 3 ? ' is-thin' : ''}"><span></span><span class="bx-name">${esc(mapname(x.e))}</span><span class="bx-bar" style="--c:${mcolor(id)}"><i style="width:${x.a.n / max * 100}%"></i></span><span class="bx-num">${times(x.a.n)}</span>${wrCell(x.a)}<span class="bx-picks">${top}</span><span></span></div>`;
+                }).join('');
+                return `<div class="bx-modeblock"><button type="button" class="bx-row${open ? ' is-open' : ''}" data-act="mopen" data-id="${id}"${ms.length ? '' : ' disabled'}>
+                    <span class="bx-modeicon" style="--c:${mcolor(id)}">${icon ? `<img src="${esc(icon)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span><span class="bx-name">${esc(mname(id))}</span>
+                    <span class="bx-bar" style="--c:${mcolor(id)}"><i style="width:${a.n / max * 100}%"></i></span><span class="bx-num">${times(a.n)}</span>${wrCell(a)}<span></span>${ms.length ? '<span class="bx-chev"></span>' : '<span></span>'}</button>
+                    ${ms.length ? `<div class="bx-maps${open ? ' is-open' : ''}"><div>${mapRows}</div></div>` : ''}</div>`;
+            }).join('');
+            const more = g.length > 8 ? `<button type="button" class="bx-more" data-act="mmore">${V.mmore ? T.showTop : T.showAllModes(g.length)}</button>` : '';
+            return card('modes', 'bx-span2', T.modesMaps, T.picksCap, tools, `<div class="bx-scrollx"><div class="bx-list bx-list--mode has-picks bx-modecols">${body}</div></div>${more}`);
+        }
+
+        // ---------- ガチバトル: BAN ----------
+        function cardBans() {
+            const bans = D.bans;
+            if (!bans) return '';
+            const groups = [[T.banMine, bans.mine, 'bxPieBan0'], [T.banOpp, bans.opp, 'bxPieBan1'], [T.banTeam, bans.team, 'bxPieBan2']].filter((x) => x[1].length);
+            let body;
+            if (S.banview === 'pie') body = `<div class="bx-banpies">${groups.map(([label, list, id]) => `<div class="bx-bangroup"><div class="bx-bangroup__label">${label}</div>${pieBody(id, list.map(([b, n]) => ({ label: bname(b), n, color: rcolor(b) })), true)}</div>`).join('')}</div>`;
+            else body = groups.map(([label, list]) => `<div class="bx-bangroup"><div class="bx-bangroup__label">${label}</div><div class="bx-bans">${list.slice(0, 9).map(([b, n]) => `<div class="bx-ban"${tipAttr(T.banTip(bname(b), nf(n), (n / bans.n * 100).toFixed(1)))}><img src="${bimg(b)}" alt="${esc(bname(b))}" loading="lazy"><span>${nf(n)}</span></div>`).join('')}</div></div>`).join('');
+            return card('bans', '', T.bans, T.bansCap(nf(bans.n)), viewSeg('banview', S.banview), body);
+        }
+
         // ---------- キャラ別の成績 ----------
         function cardBrawlers() {
             const g = D.brawlers.map((row) => ({ id: row[0], a: toAgg(row, 1) }));
@@ -343,6 +495,7 @@
 
         // ---------- モード別の成績 ----------
         function cardModes() {
+            if (D.tab === 'powerleague') return cardRankedModes();
             const g = D.modes.map((row) => ({ id: row[0], a: toAgg(row, 1) })).sort((x, y) => y.a.n - x.a.n);
             if (!g.length) return '';
             if (S.msort === 'wr') byRate(g, Math.max(5, Math.round(total.n * 0.01)));
@@ -426,19 +579,23 @@
         }
 
         // ---------- 描画 ----------
-        const CARD_FN = { daily: cardDaily, hours: cardHours, brawlers: cardBrawlers, modes: cardModes, mates: cardMates };
+        const CARD_FN = { daily: cardDaily, hours: cardHours, brawlers: cardBrawlers, modes: cardModes, mates: cardMates, bans: cardBans };
         const runAfter = () => { const run = after; after = []; run.forEach((f) => f()); };
         function render() {
             const summarySlot = root.querySelector('[data-bx-slot="summary"]'), cardsSlot = root.querySelector('[data-bx-slot="cards"]');
             if (!summarySlot || !cardsSlot) return;
             summarySlot.innerHTML = cardSummary();
             const filtered = root.dataset.brawlerFilter === '1';
+            const ranked = D.tab === 'powerleague';
             let html = '';
             if (D.tab === 'trophy') html += cardTrophyTrend();
+            if (ranked) html += cardRankedTrend();
             html += cardDaily() + cardHours();
+            if (ranked) html += cardModes();
             if (!filtered) html += cardBrawlers();
-            html += cardModes();
+            if (!ranked) html += cardModes();
             if (D.tab === 'trophy' && !filtered) html += cardTrophyByBrawler();
+            if (ranked) html += cardBans();
             html += cardMates();
             cardsSlot.innerHTML = html;
             runAfter();
@@ -455,7 +612,7 @@
             runAfter();
         }
 
-        const SEG_CARD = { dailyRange: 'daily', heatMode: 'hours', bsort: 'brawlers', bview: 'brawlers', msort: 'modes', mview: 'modes', matesort: 'mates', mateview: 'mates' };
+        const SEG_CARD = { dailyRange: 'daily', heatMode: 'hours', bsort: 'brawlers', bview: 'brawlers', msort: 'modes', mview: 'modes', mgraph: 'modes', matesort: 'mates', mateview: 'mates', banview: 'bans' };
         root.addEventListener('click', (e) => {
             const segBtn = e.target.closest('.bx-seg button');
             if (segBtn && root.contains(segBtn)) {
@@ -477,8 +634,9 @@
                 writeJson(CLOSED_KEY, [...closed]);
                 if (!nowClosed) setTimeout(() => { charts.forEach((c) => { if (cardEl.contains(c.canvas)) c.resize(); }); fitWbars(); }, 220);
             } else if (a === 'mopen') {
-                const id = Number(act.dataset.id);
-                if (V.mopen.has(id)) V.mopen.delete(id); else V.mopen.add(id);
+                // ガチバトルの PC 幅は「初めから開いている」ので、閉じたものを覚える
+                const key = D.tab === 'powerleague' && window.matchMedia('(min-width: 840px)').matches ? 'c' + act.dataset.id : Number(act.dataset.id);
+                if (V.mopen.has(key)) V.mopen.delete(key); else V.mopen.add(key);
                 act.classList.toggle('is-open');
                 const mapsEl = act.nextElementSibling;
                 if (mapsEl && mapsEl.classList.contains('bx-maps')) mapsEl.classList.toggle('is-open');
