@@ -114,9 +114,15 @@
                 }
             })));
             if (!hasModeStat) sum.forEach((row) => { row[5] = null; });
-            return { d: view.games.reduce((total, game) => total + Math.max(0, game.d || 0), 0), s: sum, sp: null };
+            // セットのMVPはセット全体で決まり、APIでは最後の試合にだけ付いて来る。試合ごとではなく合計のところに出す
+            const star = view.games[view.games.length - 1].sp;
+            return { d: view.games.reduce((total, game) => total + Math.max(0, game.d || 0), 0), s: sum, sp: star ?? null };
         }
-        const gameOf = (view, selected) => (selected === 'all' ? totalGame(view) : view.games[selected]);
+        function gameOf(view, selected) {
+            if (selected === 'all') return totalGame(view);
+            const game = view.games[selected];
+            return view.games.length > 1 ? { ...game, sp: null } : game;
+        }
 
         function stripMetaHTML(view, selected) {
             if (view.k === 'r') {
@@ -172,8 +178,10 @@
                 <div class="bcr-head"><span></span><span>${T.kd}</span><span>${T.dmg}</span><span>${T.heal}</span><span>${T.taken}</span>${hasModeStat ? `<span>${T.modeStat[view.ms] || T.modeStatOther}</span>` : ''}</div>`;
             html += team(word(T.ally, T.allyTeam), 'bcr-team--ally', 0, allyCount);
             for (let i = 0; i < allyCount; i++) html += row(players[i], i);
-            html += team(word(T.enemy, T.enemyTeam), 'bcr-team--enemy', allyCount, players.length);
-            for (let i = allyCount; i < players.length; i++) html += row(players[i], i);
+            if (players.length > allyCount) {
+                html += team(word(T.enemy, T.enemyTeam), 'bcr-team--enemy', allyCount, players.length);
+                for (let i = allyCount; i < players.length; i++) html += row(players[i], i);
+            }
             return html + '</div>';
         }
 

@@ -1383,10 +1383,10 @@
                             </div>
                             {% endfor %}
                         </div>
-                    {# 3-E. ボスファイトなどの協力系イベント #}
-                    {% elif battle.battle_type is none %}
+                    {# 3-E. ボスファイトなどの協力系イベント、敵のいないバトル(フレンドバトルは味方だけでも始められる) #}
+                    {% elif battle.battle_type is none or (battle.teammate_tags and not battle.opponent_tags) %}
                         <div class="battle-card__new-playedwith-block">
-                            <span class="battle-card__playedwith-label">{% if lang == "ja" %}一緒にプレイ :{% else %}Played With:{% endif %}</span>
+                            <span class="battle-card__playedwith-label">{% if lang == "ja" %}{{ "一緒にプレイ :" if battle.battle_type is none else "味方 :" }}{% else %}Played With:{% endif %}</span>
                             {% set default_icon = url_for('static', path='/images/player_icon/0.png') %}
                             {% for id in battle.teammate_brawlers %}
                             <div class="battle-card__new-playedwith-block__player">
