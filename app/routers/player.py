@@ -18,6 +18,7 @@ from app.db.db import get_shared_db, run_quick_db_lookup
 from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, Battles, search_battles, add_auto_tracking_time, extend_battle_log_retention, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
 from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.battle_result_view import attach_battle_results
+from app.services.battle_history import NEW_PLAYER_NOTICE_MAX, build_stats, count_saved_battles, scan_battles
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
 from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
@@ -232,6 +233,40 @@ def _battle_filter_scope_labels(
     else:
         scope_en = f" of the selected {', '.join(parts_en[:-1])}, and {parts_en[-1]}"
     return scope_ja, scope_en
+
+
+def _add_selected_filter_options(
+    mode_filter_options: list[dict[str, Any]], map_filter_options: list[dict[str, Any]], has_unknown_mode_option: bool, lang: str,
+    *, filter_unknown_mode: bool, selected_mode_id: int | None, selected_event_id: int | None,
+) -> bool:
+    """絞り込みで選んでいるモード・マップが候補に無ければ足す（期間を変えて該当が無くなっても、選択が消えないように）。"""
+    if filter_unknown_mode:
+        has_unknown_mode_option = True
+    elif selected_mode_id is not None and all(option["id"] != selected_mode_id for option in mode_filter_options):
+        mode_filter_options.append({
+            "id": selected_mode_id,
+            "name": resolve_mode_filter_label(selected_mode_id, lang),
+        })
+        mode_filter_options.sort(key=lambda option: mode_sort_key(mode_id=option["id"]))
+    if selected_event_id is not None and all(option["id"] != selected_event_id for option in map_filter_options):
+        map_info = get_map_by_id(selected_event_id)
+        resolved_mode_id = (
+            map_info.mode_id if map_info and map_info.mode_id is not None else None
+        ) or selected_mode_id or 0
+        if resolved_mode_id:
+            stub_mode_name = resolve_mode_filter_label(resolved_mode_id, lang)
+        else:
+            stub_mode_name = "その他" if lang == "ja" else "Other"
+        map_filter_options.append({
+            "id": selected_event_id,
+            "name": resolve_map_filter_label(selected_event_id, lang),
+            "mode_id": resolved_mode_id,
+            "mode_name": stub_mode_name,
+        })
+        map_filter_options.sort(
+            key=lambda item: (mode_sort_key(mode_id=item["mode_id"] or None), item["id"])
+        )
+    return has_unknown_mode_option
 
 
 def _attach_ranked_score_neighbors(battles_on_page: list) -> None:
@@ -651,6 +686,8 @@ async def get_player_battles_fragment(
         "show_ranked_trend": show_ranked_trend,
         "show_new_player_notice": show_new_player_notice,
         "raw_battle_count": raw_battle_count,
+        "saved_battle_count": saved_battle_count,
+        "battle_stats": battle_stats,
         "has_mode_filter": has_mode_filter,
         "filter_scope_ja": filter_scope_ja,
         "filter_scope_en": filter_scope_en,
@@ -1264,3 +1301,4 @@ async def extend_player_retention(
         "tokens": current_user.tokens,
         "elixirs": current_user.auto_track_elixirs or 0,
     })
+

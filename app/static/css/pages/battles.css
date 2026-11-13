@@ -1127,3 +1127,183 @@ a.bcr-mem:hover span { text-decoration: underline; }
 @keyframes bcrFlash { 0% { box-shadow: 0 0 0 0 rgba(255, 190, 40, .95); } 35% { box-shadow: 0 0 0 5px rgba(255, 190, 40, .75); } 100% { box-shadow: 0 0 0 9px rgba(255, 190, 40, 0); } }
 .battle-card.is-flash { animation: bcrFlash 1.1s ease-out; }
 @media (prefers-reduced-motion: reduce) { .bcr-wrap, .battle-results-digest, .bcr-toggle__chev { transition: none; } .battle-card.is-flash { animation: none; } }
+
+/* =============================================== */
+/* グラフのカード（サマリー・日ごとの勝敗・プレイ時間帯・キャラ別・モード別など）。描画は js/pages/battle_stats.js */
+/* =============================================== */
+.bx, .bx-tip {
+    --bx-win: #1fa863; --bx-lose: #e5534b; --bx-draw: #5db4dd; --bx-accent: #5b7fd6; --bx-accent-soft: rgba(91, 127, 214, .14);
+    --bx-track: rgba(0, 0, 0, .065); --bx-mut: var(--color-777); --bx-card: var(--bg-fdfdfd);
+}
+.dark .bx, .dark .bx-tip {
+    --bx-win: #2dbb74; --bx-lose: #ec6a62; --bx-draw: #58a9cf; --bx-accent: #7797e6; --bx-accent-soft: rgba(119, 151, 230, .2);
+    --bx-track: rgba(255, 255, 255, .085); --bx-card: #1c1c1c;
+}
+.bx [hidden] { display: none !important; }
+.bx small { font-size: .72em; font-weight: 600; margin-left: 1px; }
+
+/* --- カードの並び --- */
+.bx-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: stretch; }
+@media (min-width: 840px) { .bx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bx-span2 { grid-column: 1 / -1; } }
+.bx-card { min-width: 0; padding: 11px 13px 12px; border: 1px solid var(--color-ddd); border-radius: 16px; background: var(--bx-card); }
+.bx-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 8px; }
+.bx-card__title { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.3; color: var(--color-111); }
+.bx-card__cap { font-size: 11.5px; line-height: 1.3; color: var(--bx-mut); }
+.bx-card__cap b { font-size: 12.5px; color: var(--color-222); }
+.bx-card__toggle { display: inline-flex; align-items: center; gap: 9px; margin: 0; padding: 0 2px 0 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.bx-card__toggle .bx-chev { transform: rotate(-135deg) translate(-2px, -2px); transition: transform .18s ease; }
+.bx-card.is-closed .bx-card__toggle .bx-chev { transform: rotate(45deg) translate(-2px, -2px); }
+.bx-card__toggle:hover .bx-chev { border-color: var(--color-333); }
+.bx-card__fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .2s ease; }
+.bx-card__fold > div { min-width: 0; min-height: 0; overflow: hidden; }
+.bx-card.is-closed .bx-card__fold { grid-template-rows: 0fr; }
+.bx-card.is-closed .bx-card__head { margin-bottom: 0; }
+.bx-card.is-closed .bx-card__tools { display: none; }
+.bx-sl { font-style: normal; font-weight: 500; margin: 0 .3em; color: var(--color-999); }
+.bx-nw { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.bx-tile__value .bx-nw { display: inline-block; }
+.bx-tile__value .bx-nw .bx-sl { margin-left: 0; }
+.bx-scrollx { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.bx-card__tools { margin-left: auto; min-width: 0; max-width: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bx-note { margin: 8px 0 0; font-size: 11.5px; line-height: 1.3; color: var(--bx-mut); }
+.bx-notice { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent); border-radius: 16px; background: var(--bx-accent-soft); }
+.bx-notice img { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+.bx-notice b { display: block; font-size: 14px; color: var(--color-111); }
+.bx-notice p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--color-333); }
+.bx-empty { padding: 18px 0; text-align: center; font-size: 12.5px; color: var(--bx-mut); }
+
+/* --- 小さな切り替え --- */
+.bx-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; padding: 2px; border-radius: 9px; background: var(--bx-track); }
+.bx-seg button { padding: 3px 9px; border: 0; border-radius: 7px; background: transparent; color: var(--color-555); font: inherit; font-size: 12px; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, color .15s ease, box-shadow .15s ease; }
+.bx-seg button:hover { color: var(--color-111); }
+.bx-seg button.is-on { background: var(--bg-main); color: var(--color-111); font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, .16); }
+.dark .bx-seg button.is-on { background: #3a3a3a; }
+.bx-more { display: block; width: 100%; margin-top: 4px; padding: 6px; border: 0; border-radius: 9px; background: transparent; color: var(--color-555); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color .15s ease; }
+.bx-more:hover { background: var(--bx-track); color: var(--color-111); }
+
+/* --- サマリーのタイル --- */
+.bx-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 8px; }
+.bx-tile { min-width: 0; padding: 8px 11px 9px; border: 1px solid var(--color-eee); border-radius: 12px; background: var(--bg-f8f8f8); }
+.bx-tile__label { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; font-size: 11.5px; line-height: 1.35; color: var(--bx-mut); }
+.bx-tile__label .bx-sl { margin: 0; }
+.bx-tile__label img { height: 14px; width: auto; }
+.bx-tile__value { display: block; margin-top: 1px; font-size: 23px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; color: var(--color-111); }
+.bx-tile__value small { font-size: 13px; }
+.bx-tile__sub { display: block; font-size: 11.5px; color: var(--color-666); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bx-tile--wr, .bx-tile--wide { grid-column: span 2; }
+/* 勝率の帯（勝敗ダイジェストの帯と同じ見た目）。文字が入らない区間のぶんは、帯の右上に出す */
+.bx-wrline { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.bx-wbar-out { display: flex; justify-content: flex-end; gap: 0 2px; min-height: 0; margin-top: -17px; height: 17px; pointer-events: none; }
+.bx-wbar-out .bx-key { margin: 0 0 0 8px; font-size: 11px; color: var(--color-333); }
+.bx-wbar-out .bx-key b { margin-right: 1px; font-size: 13px; }
+.bx-wbar { display: flex; gap: 2px; height: 20px; margin-top: 5px; border-radius: 999px; overflow: hidden; }
+.bx-wbar i { display: flex; align-items: center; justify-content: center; min-width: 4px; overflow: hidden; color: #fff; font-size: 11px; font-style: normal; line-height: 1; white-space: nowrap; text-shadow: 0 1px 1px rgba(0, 0, 0, .28); }
+.bx-wbar i b { margin-right: 1px; font-size: 13px; }
+.bx-wbar i.is-empty span { visibility: hidden; }
+.bx-wbar .w { background: linear-gradient(90deg, #12a150, #56cf7a); }
+.bx-wbar .d { background: linear-gradient(90deg, #58b4dc, #9bd9f2); color: #0b4660; text-shadow: none; }
+.bx-wbar .l { background: linear-gradient(90deg, #f37a63, #e23b3b); }
+.bx-key { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 11.5px; color: var(--color-666); }
+.bx-key::before { content: ""; width: 9px; height: 9px; border-radius: 3px; background: var(--c); }
+
+/* --- 画像つきの横棒の一覧（キャラ・モード・プレイヤー） --- */
+.bx-list { display: flex; flex-direction: column; }
+.bx-row { display: grid; align-items: center; column-gap: 8px; min-height: 36px; padding: 3px 6px; border-radius: 10px; color: inherit; text-decoration: none; transition: background-color .12s ease; }
+a.bx-row:hover, button.bx-row:hover { background: var(--bx-track); }
+button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.bx-row--head { min-height: 0; padding-top: 0; padding-bottom: 2px; font-size: 11px; color: var(--bx-mut); }
+.bx-row--head span { white-space: nowrap; }
+.bx-list--brawler { min-width: 484px; }
+.bx-list--brawler .bx-row { grid-template-columns: 30px minmax(72px, 1.2fr) minmax(36px, 1.5fr) 46px 104px 70px 54px; }
+.bx-list--mode .bx-row { grid-template-columns: 30px minmax(120px, 1.5fr) minmax(40px, 1.6fr) 50px 104px 16px; }
+.bx-list--mode .bx-row--map { min-height: 28px; }
+.bx-list--mate { min-width: 336px; }
+.bx-list--mate .bx-row { grid-template-columns: minmax(96px, 1.3fr) minmax(40px, 1.7fr) 46px 104px; }
+@media (min-width: 540px) { .bx-list--mode { min-width: 414px; } }
+.bx-ava { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; background: var(--bx-track); }
+.bx-modeicon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: color-mix(in srgb, var(--c, #888) 26%, transparent); }
+.bx-modeicon img { width: 22px; height: 22px; object-fit: contain; }
+.bx-name { min-width: 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-111); }
+.bx-row--map .bx-name { font-size: 12.5px; font-weight: 500; color: var(--color-333); }
+.bx-bar { display: block; height: 10px; }
+.bx-bar i { display: block; height: 100%; min-width: 3px; border-radius: 0 5px 5px 0; background: var(--c, var(--bx-accent)); transition: width .35s ease; }
+.bx-row--map .bx-bar { height: 6px; } .bx-row--map .bx-bar i { opacity: .55; }
+.bx-num { font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-222); }
+.bx-num small { color: var(--color-777); font-weight: 500; font-size: .82em; }
+.bx-wr { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bx-split { flex: 1; min-width: 20px; height: 6px; border-radius: 99px; background: var(--bx-lose); overflow: hidden; }
+.bx-split i { display: block; height: 100%; background: var(--bx-win); box-shadow: 2px 0 0 var(--bx-card); transition: width .35s ease; }
+.bx-split.is-none { background: var(--bx-track); }
+.bx-wr b { flex: none; width: 45px; font-size: 12.5px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--color-111); }
+.bx-row.is-thin .bx-wr { opacity: .5; }
+.bx-chev { width: 7px; height: 7px; border-right: 2px solid var(--color-888); border-bottom: 2px solid var(--color-888); transform: rotate(45deg) translate(-2px, -2px); transition: transform .18s ease; justify-self: center; }
+.is-open > .bx-chev { transform: rotate(-135deg) translate(-1px, -1px); }
+.bx-maps { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .2s ease; }
+.bx-maps.is-open { grid-template-rows: 1fr; }
+.bx-maps > div { overflow: hidden; }
+@media (max-width: 539px) {
+    /* モードの一覧は2段にする（1段目: 名前とよく使うキャラ、2段目: 棒・回数・勝率） */
+    .bx-list--mode .bx-row--head { display: none; }
+    .bx-list--mode .bx-row { grid-template-columns: 28px minmax(0, 1fr) 44px 96px 12px; row-gap: 1px; padding: 4px 6px; }
+    .bx-list--mode .bx-row > :nth-child(1) { grid-area: 1 / 1 / 3 / 2; }
+    .bx-list--mode .bx-row > :nth-child(2) { grid-area: 1 / 2 / 2 / 5; }
+    .bx-list--mode .bx-row > :nth-child(3) { grid-area: 2 / 2 / 3 / 3; }
+    .bx-list--mode .bx-row > :nth-child(4) { grid-area: 2 / 3 / 3 / 4; }
+    .bx-list--mode .bx-row > :nth-child(5) { grid-area: 2 / 4 / 3 / 5; }
+    .bx-list--mode .bx-row > :last-child { grid-area: 1 / 5 / 3 / 6; }
+    .bx-ava, .bx-modeicon { width: 28px; height: 28px; }
+    .bx-wr b { width: 42px; }
+}
+
+/* --- 形式の内訳（1本の帯） --- */
+.bx-fmt { display: flex; gap: 2px; height: 24px; margin-bottom: 4px; border-radius: 7px; overflow: hidden; }
+.bx-fmt i { display: flex; align-items: center; min-width: 3px; padding-left: 6px; background: var(--c); color: #fff; font-style: normal; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+.bx-fmt i.is-dark { color: #1b1b1b; }
+.bx-pie { display: flex; align-items: center; gap: 12px; }
+.bx-pie__chart { position: relative; flex: 1 1 0; min-width: 0; height: 236px; }
+.bx-pie__legend { flex: none; width: 42%; max-width: 200px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.bx-pie__legend li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.bx-pie__legend i { flex: none; width: 10px; height: 10px; border-radius: 3px; }
+.bx-pie__legend span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-222); }
+.bx-pie__legend b { flex: none; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--color-666); }
+.bx-fmtkeys { margin-bottom: 8px; line-height: 1.5; }
+
+/* --- グラフ --- */
+.bx-chart { position: relative; height: 210px; }
+.bx-chart--tall { height: 240px; }
+
+/* --- プレイ時間帯 --- */
+.bx-heat { display: grid; grid-template-columns: minmax(20px, max-content) repeat(24, minmax(0, 1fr)); gap: 2px; align-items: center; }
+.bx-heat__h { font-size: 10px; color: var(--bx-mut); text-align: left; height: 13px; line-height: 13px; white-space: nowrap; }
+.bx-heat__h small { font-size: 8.5px; font-weight: 400; margin: 0; }
+.bx-heat__d { padding-right: 3px; font-size: 11px; color: var(--color-666); }
+.bx-heat__c { aspect-ratio: 1; border-radius: 3px; background: var(--bx-track); transition: transform .1s ease; }
+.bx-heat__c[data-tip]:hover { transform: scale(1.35); outline: 2px solid var(--bx-card); }
+.bx-heatlegend { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 11px; color: var(--bx-mut); }
+.bx-heatlegend i { width: 12px; height: 12px; border-radius: 3px; }
+.bx-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12px; color: var(--color-444); }
+.bx-facts b { color: var(--color-111); }
+.bx-facts--col { flex-direction: column; }
+
+/* --- トロフィーの増減（中央から左右に伸びる棒） --- */
+.bx-list--delta { min-width: 300px; }
+.bx-list--delta .bx-row { grid-template-columns: 30px minmax(60px, 1fr) minmax(80px, 2.2fr) 56px; }
+.bx-delta { display: grid; grid-template-columns: 1fr 1fr; height: 10px; position: relative; }
+.bx-delta::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--color-bbb); }
+.bx-delta i { display: block; height: 100%; min-width: 2px; }
+.bx-delta.bx-delta--one { grid-template-columns: 1fr; } .bx-delta.bx-delta--one::before { left: 0; } .bx-delta.bx-delta--one .pos { grid-column: 1; }
+.bx-delta .neg { justify-self: end; background: var(--bx-lose); border-radius: 5px 0 0 5px; }
+.bx-delta .pos { grid-column: 2; background: var(--bx-win); border-radius: 0 5px 5px 0; }
+
+/* --- 吹き出し --- */
+.bx-tip { position: fixed; z-index: 90; max-width: 260px; padding: 6px 9px; border-radius: 9px; background: rgba(28, 28, 28, .94); color: #fff; font-size: 12px; line-height: 1.5; white-space: pre-line; pointer-events: none; opacity: 0; transform: translateY(3px); transition: opacity .1s ease, transform .1s ease; }
+.bx-tip.is-on { opacity: 1; transform: none; }
+.dark .bx-tip { background: rgba(240, 240, 240, .96); color: #111; }
+
+/* サマリーとカードの入れ物は、グリッドの子として数えない（中のカードがそのまま並ぶ） */
+.bx-slot { display: contents; }
+.bx-trackcell { min-width: 0; }
+.bx-trackcell > .ptc { height: 100%; margin: 0; }
+.bx-tile.is-up .bx-tile__value { color: var(--bx-win); }
+.bx-tile.is-down .bx-tile__value { color: var(--bx-lose); }
+.bx-pos { color: var(--bx-win) !important; } .bx-neg { color: var(--bx-lose) !important; }

@@ -54,7 +54,9 @@ def _brawler_name(row: asyncpg.Record, lang: str) -> str:
 # [この部分は公開用リポジトリでは非公開にされています]
 
 
-async def attach_battle_results(db: asyncpg.Connection, tag: str, self_name: str, battles: list, lang: str) -> dict[str, Any]:
+async def attach_battle_results(
+    db: asyncpg.Connection, tag: str, self_name: str, battles: list, lang: str, rows: dict[Any, Any] | None = None,
+) -> dict[str, Any]:
     """表示するページのバトルに、カードとダイジェストで使う値を付け、開いたときのデータ（ページに埋め込む）を返す。
 
     バトルに付ける値:
@@ -62,6 +64,8 @@ async def attach_battle_results(db: asyncpg.Connection, tag: str, self_name: str
         my_ban: 自分がBANしたキャラ
         tip_kills / tip_deaths: 自分のキル・デス（セットは合計）。スタッツが無ければ None
         tip_brawler_names: 使ったキャラの名前
+
+    rows: リザルトの列を読み込み済みなら渡す（日時 → 行）。渡さなければここで読む。
     """
     for battle in battles:
         battle.result_view_kind = None

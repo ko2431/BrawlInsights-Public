@@ -194,311 +194,30 @@
 
     {# --- 統計表・グラフ --- #}
     {% if battles_on_page %}
-    <div class="battle-log-summary__container">
-        {# ============================ #}
-        {# === 「すべて」タブのコンテンツ === #}
-        {# ============================ #}
-        {% if current_tab == 'all' %}
-        {# --- すべてタブにおいて、バトル履歴数が25以下の場合は特別な案内文を表示 --- #}
+    <div class="battle-log-summary__container bx">
+        {# --- 保存済みのバトルが少ないプレイヤーへの案内（全タブ） --- #}
         {% if show_new_player_notice %}
-        <div class="info-block info-block-newplayer">
-            <img src="{{ url_for('static', path='/images/ui/warning.png') }}" alt="注意" class="info-block__icon info-block__icon-big">
-            <p class="info-block__text info-block__text-big">{% if lang == "ja" %}このプレイヤーは、Brawl Insightsで初めて閲覧されたばかりのため、初期状態で取得できる過去{{ raw_battle_count }}件のバトルまでしか確認できません。今後バトルを行えば、バトル履歴データがどんどん蓄積されていきます。{% else %}Since this player has just been viewed for the first time in Brawl Insights, you can only see up to the last {{ raw_battle_count }} battles that can be obtained initially. As more battles are conducted in the future, more and more battle log data will be accumulated.{% endif %}</p>
-        </div>
-        {% endif %}
-        <div class="summary-grid{% if show_brawler_usage %} summary-grid--x2{% endif %}">
-            {# --- 基本データ (すべてタブ) --- #}
-            <section class="stats-block summary-item" id="all-basic-stats" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}基本データ{% else %}Basic Stats{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{{ battle_stats_data_intro('バトル', 'battles', lang, filter_scope_ja, filter_scope_en, stats_data.total_battles, false) }}{% if lang == "ja" %}ガチバトル、パワーマッチ形式のフレンドバトルは自動でセット単位にまとめられています。{% else %} Ranked battles and Power Match friendly battles are automatically grouped into sets.{% endif %}</p>
-                </div>
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}総合勝率{% else %}Overall Win Rate{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="総合勝率" class="icon--stat icon--stat-big">
-                                        {{ stats_data.win_rate if stats_data.win_rate else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}最大連勝数{% else %}Max Win Streak{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="最大連勝数" class="icon--stat icon--stat-big">
-                                        {{ stats_data.max_win_streak if stats_data.max_win_streak is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}最大連敗数{% else %}Max Loss Streak{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/win_streak_blue.png') }}" alt="最大連敗数" class="icon--stat icon--stat-big">
-                                        {{ stats_data.max_loss_streak if stats_data.max_loss_streak is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
-                {{ tracking_card(player) }}
-                </div>
-            </section>
-
-            {# --- キャラ使用率 (すべてタブ) --- #}
-            {% if show_brawler_usage %}
-            <section class="stats-block summary-item" id="all-brawler-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}キャラクター使用率{% else %}Brawler Usage{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.1%未満のキャラクターはその他に振り分けられます。{% else %}Brawlers who make up less than 0.1% of the total are assigned to the Other category.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="allBrawlerUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-        </div>
-
-        <div class="summary-grid{% if show_teammate_usage and show_mode_usage %} summary-grid--x3{% elif show_teammate_usage or show_mode_usage %} summary-grid--x2{% endif %}">
-            {# --- 一緒にプレイしたプレイヤー (すべてタブ) --- #}
-            {% if show_teammate_usage %}
-            <section class="stats-block summary-item" id="all-teammate-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}一緒にプレイしたプレイヤー{% else %}Played With{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.1%未満のプレイヤーはその他に振り分けられます。一緒にプレイしたバトル当時の名前で集計されています。つまり、期間内に改名しているプレイヤーはバトル当時の名前ごとに別項目で集計されているためご注意ください。{% else %}Players who make up less than 0.1% of the total are assigned to Other. The total is calculated based on the names at the time of the battles played together. In other words, please note that players who changed their names during the period are counted in a separate category for each name at the time of the battle.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="allTeammateUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# --- モードプレイ率 (すべてタブ) --- #}
-            {% if show_mode_usage %}
-            <section class="stats-block summary-item" id="all-mode-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}ゲームモードプレイ率{% else %}Game Mode Play Rate{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.5%未満のモードはその他に振り分けられます。{% else %}Modes that make up less than 0.5% of the total are assigned to the Other category.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="allModeUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# --- プレイスタイル分布 (すべてタブ) --- #}
-            <section class="stats-block summary-item" id="all-playstyle-distribution" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}プレイスタイル分布{% else %}Playstyle Distribution{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】ソロ、デュオ、3対3、5対5など、どの形式のバトルをどのくらいプレイしているのか示したグラフです。{% else %}This graph shows how many battles are played in which format, such as solo, duo, 3v3, 5v5, etc.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="allPlaystyleDistributionChart"></canvas>
-                </div>
-                </div>
-            </section>
+        <div class="bx-notice">
+            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="">
+            <div>
+                <b>{% if lang == "ja" %}バトル履歴はこれから蓄積されていきます{% else %}The battle log will build up from here{% endif %}</b>
+                <p>{% if lang == "ja" %}このプレイヤーは Brawl Insights で初めて閲覧されたばかりのため、現在表示できるのは直近の{{ saved_battle_count }}件までです。これ以降のバトルは自動で保存され、グラフや成績もバトルを重ねるごとに充実していきます。{% else %}This player has only just been viewed on Brawl Insights for the first time, so only the last {{ saved_battle_count }} battles can be shown for now. Battles from here on are saved automatically, and the charts and stats fill out as more battles are played.{% endif %}</p>
+            </div>
         </div>
         {% endif %}
 
-        {# ============================ #}
-        {# === 「トロフィー」タブのコンテンツ === #}
-        {# ============================ #}
-        {% if current_tab == 'trophy' %}
-        <div class="summary-grid summary-grid--x2-wide">
-            {# --- 基本データ (トロフィータブ) --- #}
-            <section class="stats-block summary-item" id="trophy-basic-stats" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}基本データ{% else %}Basic Stats{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{{ battle_stats_data_intro('トロフィーバトル', 'trophy battles', lang, filter_scope_ja, filter_scope_en, stats_data.total_battles, false) }}</p>
-                </div>
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}総合勝率{% else %}Overall Win Rate{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="総合勝率" class="icon--stat icon--stat-big">
-                                        {{ stats_data.win_rate if stats_data.win_rate else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}最大連勝数{% else %}Max Win Streak{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="最大連勝数" class="icon--stat icon--stat-big">
-                                        {{ stats_data.max_win_streak if stats_data.max_win_streak is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}最大連敗数{% else %}Max Loss Streak{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/win_streak_blue.png') }}" alt="最大連敗数" class="icon--stat icon--stat-big">
-                                        {{ stats_data.max_loss_streak if stats_data.max_loss_streak is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            {# <tr>
-                                <td>{% if lang == "ja" %}上がったトロフィー数 (累計){% else %}Total Trophy Change{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="トロフィー" class="icon--stat">
-                                        {{ stats_data.total_trophy_change if stats_data.total_trophy_change is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr> #}
-                            <tr>
-                                <td>{% if lang == "ja" %}平均トロフィー変動{% else %}Average Trophy Change{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/trophy_switch.png') }}" alt="平均トロフィー" class="icon--stat">
-                                        {{ stats_data.average_trophy_change if stats_data.average_trophy_change else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                        </tbody>
-                    </table>
-                </div>
-                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
-                {{ tracking_card(player) }}
-                </div>
-            </section>
-
-            {# --- キャラ別トロフィー推移 / キャラクター使用率 (トロフィータブ) --- #}
-            {% if show_brawler_trophy_trend %}
-            <section class="stats-block summary-item" id="trophy-brawler-trophy-trend-section" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}トロフィー推移{% else %}Trophy Trend{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                {% if lang == "ja" %}
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text" style="display: inline;">{% if lang == "ja" %}【グラフは触って確認できます！】{% else %}{% endif %}</p>
-                </div>
-                {% endif %}
-                <div class="chart-wrapper" style="height:350px;">
-                    <canvas id="trophyBrawlerTrophyTrendChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% elif show_brawler_usage %}
-            <section class="stats-block summary-item" id="trophy-brawler-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}キャラクター使用率{% else %}Brawler Usage{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.1%未満のキャラクターはその他に振り分けられます。{% else %}Brawlers who make up less than 0.1% of the total are assigned to the Other category.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="trophyBrawlerUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-        </div>
-        <div class="summary-grid{% if show_teammate_usage and show_mode_usage %} summary-grid--x3{% elif show_teammate_usage or show_mode_usage %} summary-grid--x2{% endif %}">
-            {# --- 一緒にプレイしたプレイヤー (トロフィータブ) --- #}
-            {% if show_teammate_usage %}
-            <section class="stats-block summary-item" id="trophy-teammate-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}一緒にプレイしたプレイヤー{% else %}Played With{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.1%未満のプレイヤーはその他に振り分けられます。一緒にプレイしたバトル当時の名前で集計されています。つまり、期間内に改名しているプレイヤーはバトル当時の名前ごとに別項目で集計されているためご注意ください。{% else %}Players who make up less than 0.1% of the total are assigned to Other. The total is calculated based on the names at the time of the battles played together. In other words, please note that players who changed their names during the period are counted in a separate category for each name at the time of the battle.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="trophyTeammateUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# --- モードプレイ率 (トロフィータブ) --- #}
-            {% if show_mode_usage %}
-            <section class="stats-block summary-item" id="trophy-mode-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}ゲームモードプレイ率{% else %}Game Mode Play Rate{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.5%未満のモードはその他に振り分けられます。{% else %}Modes that make up less than 0.5% of the total are assigned to the Other category.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="trophyModeUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# --- プレイスタイル分布 (トロフィータブ) --- #}
-            <section class="stats-block summary-item" id="trophy-playstyle-distribution" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}プレイスタイル分布{% else %}Playstyle Distribution{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】ソロ、デュオ、3対3、5対5など、どの形式のバトルをどのくらいプレイしているのか示したグラフです。{% else %}This graph shows how many battles are played in which format, such as solo, duo, 3v3, 5v5, etc.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="trophyPlaystyleDistributionChart"></canvas>
-                </div>
-                </div>
-            </section>
+        {# --- グラフのカード（すべて・トロフィー・フレンドバトル）。中身は static/js/pages/battle_stats.js が下のデータから描く --- #}
+        {% if battle_stats %}
+        <div id="battleStatsRoot" data-lang="{{ lang }}" data-img-base="{{ url_for('static', path='/images') }}"
+             data-brawler-href="{{ battle_brawler_filter_href(lang, player.tag[1:], filter_query_without_brawler, '') }}"
+             data-brawler-filter="{{ '1' if selected_brawler_id is not none else '0' }}">
+            <div class="bx-grid">
+                <div class="bx-slot" data-bx-slot="summary"></div>
+                {# 自動追跡・保存期間 (player/includes/tracking_card.html)。PC はサマリーの右、スマホ幅はすぐ下 #}
+                <div class="bx-trackcell">{{ tracking_card(player) }}</div>
+                <div class="bx-slot" data-bx-slot="cards"></div>
+            </div>
+            <script type="application/json" id="battleStatsData">{{ battle_stats | tojson }}</script>
         </div>
         {% endif %}
 
@@ -723,120 +442,6 @@
         {% endif %}
         {% endif %}
         {% endif %}
-
-        {# ============================ #}
-        {# === 「フレンドバトル」タブのコンテンツ === #}
-        {# ============================ #}
-        {% if current_tab == 'friendly' %}
-        <div class="summary-grid summary-grid--x2"> {# PC版で2x2グリッドを想定 #}
-            {# --- 基本データ (フレンドバトルタブ) --- #}
-            <section class="stats-block summary-item" id="friendly-basic-stats" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}基本データ{% else %}Basic Stats{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{{ battle_stats_data_intro('フレンドバトル', 'friendly battles', lang, filter_scope_ja, filter_scope_en, stats_data.total_battles, false) }}{% if lang == "ja" %}パワーマッチ形式のフレンドバトルがある場合は、自動でバトル単位ではなくセット単位にまとめられています。{% endif %}</p>
-                </div>
-                <div class="table-wrapper basic-stats-table-wrapper">
-                    <table class="data-table key-value-table">
-                        <tbody>
-                            <tr>
-                                <td>{% if lang == "ja" %}総合勝率{% else %}Overall Win Rate{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/starrdrop.png') }}" alt="総合勝率" class="icon--stat icon--stat-big">
-                                        {{ stats_data.win_rate if stats_data.win_rate else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}最大連勝数{% else %}Max Win Streak{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/win_streak.png') }}" alt="最大連勝数" class="icon--stat icon--stat-big">
-                                        {{ stats_data.max_win_streak if stats_data.max_win_streak is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>{% if lang == "ja" %}最大連敗数{% else %}Max Loss Streak{% endif %}</td>
-                                <td>
-                                    <div class="td-content-flex">
-                                        <img src="{{ url_for('static', path='/images/ui/win_streak_blue.png') }}" alt="最大連敗数" class="icon--stat icon--stat-big">
-                                        {{ stats_data.max_loss_streak if stats_data.max_loss_streak is not none else 'N/A' }}
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                {# --- 自動追跡・保存期間 (player/includes/tracking_card.html) --- #}
-                {{ tracking_card(player) }}
-                </div>
-            </section>
-
-            {# --- キャラクター使用率 (フレンドバトルタブ) --- #}
-            {% if show_brawler_usage %}
-            <section class="stats-block summary-item" id="friendly-brawler-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}キャラクター使用率{% else %}Brawler Usage{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.1%未満のキャラクターはその他に振り分けられます。{% else %}Brawlers who make up less than 0.1% of the total are assigned to the Other category.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="friendlyBrawlerUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# --- 一緒にプレイしたプレイヤー(敵含む) (フレンドバトルタブ) --- #}
-            {% if show_teammate_usage %}
-            <section class="stats-block summary-item" id="friendly-player-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}一緒にプレイしたプレイヤー{% else %}Played With (incl. Opponents){% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】敵として一緒にプレイした人も含みます。全体に占める割合が0.1%未満のプレイヤーはその他に振り分けられます。一緒にプレイしたバトル当時の名前で集計されています。つまり、期間内に改名しているプレイヤーはバトル当時の名前ごとに別項目で集計されているためご注意ください。{% else %}Players who make up less than 0.1% of the total are assigned to Other. The total is calculated based on the names at the time of the battles played together. In other words, please note that players who changed their names during the period are counted in a separate category for each name at the time of the battle.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="friendlyPlayerUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {# --- モードプレイ率 (フレンドバトルタブ) --- #}
-            {% if show_mode_usage %}
-            <section class="stats-block summary-item" id="friendly-mode-usage" x-data="{ open: true }">
-                <h2 class="section-title" @click="open = !open">
-                    <span>{% if lang == "ja" %}ゲームモードプレイ率{% else %}Game Mode Play Rate{% endif %}</span>
-                    <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
-                </h2>
-                <div x-show="open" x-transition>
-                <div class="info-block table-description">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}【グラフは触って確認できます！】全体に占める割合が0.5%未満のモードはその他に振り分けられます。{% else %}Modes that make up less than 0.5% of the total are assigned to the Other category.{% endif %}</p>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="friendlyModeUsageChart"></canvas>
-                </div>
-                </div>
-            </section>
-            {% endif %}
-        </div>
-        {% endif %}
-
     
     </div>
     {% endif %}
@@ -1745,73 +1350,6 @@
             }
 
             // ===========================================
-            // 「すべて」タブのグラフ描画
-            // ===========================================
-            if (currentTab === "all") {
-                createPieChart('allBrawlerUsageChart', SCRIPT_LANG === 'ja' ? 'キャラクター使用率' : 'Brawler Usage', graphsData.brawler_usage);
-                createPieChart('allTeammateUsageChart', SCRIPT_LANG === 'ja' ? '一緒にプレイしたプレイヤー' : 'Played With', graphsData.teammate_usage);
-                createPieChart('allModeUsageChart', SCRIPT_LANG === 'ja' ? 'ゲームモードプレイ率' : 'Game Mode Play Rate', graphsData.mode_usage);
-                createPieChart(
-                    'allPlaystyleDistributionChart',
-                    SCRIPT_LANG === 'ja' ? 'プレイスタイル分布' : 'Playstyle Distribution',
-                    graphsData.playstyle_distribution
-                );
-            }
-
-            // ===========================================
-            // 「トロフィー」タブのグラフ描画
-            // ===========================================
-            if (currentTab === "trophy") {
-                createPieChart('trophyBrawlerUsageChart', SCRIPT_LANG === 'ja' ? 'キャラクター使用率' : 'Brawler Usage', graphsData.brawler_usage);
-                createPieChart('trophyTeammateUsageChart', SCRIPT_LANG === 'ja' ? '一緒にプレイしたプレイヤー' : 'Played With', graphsData.teammate_usage);
-                createPieChart('trophyModeUsageChart', SCRIPT_LANG === 'ja' ? 'ゲームモードプレイ率' : 'Game Mode Play Rate', graphsData.mode_usage);
-                createPieChart(
-                    'trophyPlaystyleDistributionChart',
-                    SCRIPT_LANG === 'ja' ? 'プレイスタイル分布' : 'Playstyle Distribution',
-                    graphsData.playstyle_distribution
-                );
-                const brawlerTrendCtx = document.getElementById('trophyBrawlerTrophyTrendChart');
-                if (brawlerTrendCtx && graphsData.brawler_trophy_trend && graphsData.brawler_trophy_trend.dates && graphsData.brawler_trophy_trend.dates.length > 0) {
-                    const originalXLabels_brawler = graphsData.brawler_trophy_trend.dates;
-                    const xAxisLabel_brawler = SCRIPT_LANG === 'ja' ? 'バトル日時 (日本時間)' : 'Battle Datetime (UTC)';
-                    const yAxisLabel_brawler = SCRIPT_LANG === 'ja' ? 'トロフィー' : 'Trophies';
-                    const lineChartOptions_brawler = getLineChartBaseOptions(xAxisLabel_brawler, yAxisLabel_brawler, SCRIPT_LANG, originalXLabels_brawler);
-                    const yValues_brawler = graphsData.brawler_trophy_trend.trophies.filter(v => v !== null);
-                    if (yValues_brawler.length > 0) {
-                        const minY = Math.min(...yValues_brawler);
-                        const maxY = Math.max(...yValues_brawler);
-                        const padding = (maxY - minY) * 0.1 || (maxY > 0 ? Math.max(10, maxY * 0.1) : 50);
-                        lineChartOptions_brawler.scales.y.suggestedMin = Math.max(0, Math.floor((minY - padding) / 50) * 50);
-                        lineChartOptions_brawler.scales.y.suggestedMax = Math.ceil((maxY + padding) / 50) * 50;
-                        if (lineChartOptions_brawler.scales.y.suggestedMin === lineChartOptions_brawler.scales.y.suggestedMax && yValues_brawler.length === 1) {
-                            lineChartOptions_brawler.scales.y.suggestedMin = Math.max(0, yValues_brawler[0] - 25);
-                            lineChartOptions_brawler.scales.y.suggestedMax = yValues_brawler[0] + 25;
-                        } else if (lineChartOptions_brawler.scales.y.suggestedMin >= lineChartOptions_brawler.scales.y.suggestedMax) {
-                            lineChartOptions_brawler.scales.y.suggestedMax = lineChartOptions_brawler.scales.y.suggestedMin + 50;
-                        }
-                    }
-                    new Chart(brawlerTrendCtx, {
-                        type: 'line',
-                        data: {
-                            labels: originalXLabels_brawler,
-                            datasets: [{
-                                label: SCRIPT_LANG === 'ja' ? 'トロフィー' : 'Trophies',
-                                data: graphsData.brawler_trophy_trend.trophies,
-                                borderColor: 'rgb(255, 205, 86)',
-                                tension: 0.1,
-                                fill: false,
-                                pointRadius: originalXLabels_brawler.length <= 30 ? 3 : (originalXLabels_brawler.length <= 100 ? 2 : 1.5),
-                                pointHoverRadius: 5,
-                            }]
-                        },
-                        options: lineChartOptions_brawler
-                    });
-                } else if (brawlerTrendCtx) {
-                    displayNoDataMessageForChart('trophyBrawlerTrophyTrendChart', SCRIPT_LANG);
-                }
-            }
-
-            // ===========================================
             // 「ガチバトル」タブのグラフ描画
             // ===========================================
             if (currentTab === "powerleague") {
@@ -2424,15 +1962,6 @@
                 }
             }
 
-            // ===========================================
-            // 「フレンドバトル」タブのグラフ描画
-            // ===========================================
-            if (currentTab === "friendly") {
-                createPieChart('friendlyBrawlerUsageChart', SCRIPT_LANG === 'ja' ? 'キャラクター使用率' : 'Brawler Usage', graphsData.brawler_usage);
-                createPieChart('friendlyPlayerUsageChart', SCRIPT_LANG === 'ja' ? '一緒にプレイしたプレイヤー' : 'Played With (incl. Opponents)', graphsData.friendly_player_usage);
-                createPieChart('friendlyModeUsageChart', SCRIPT_LANG === 'ja' ? 'ゲームモードプレイ率' : 'Game Mode Play Rate', graphsData.mode_usage);
-            }
-
             if (reloadButton) {
                 let isReloading = false; // 連打防止用のフラグ
 
@@ -2855,6 +2384,11 @@
             const root = document.querySelector('.battles-page__container[data-img-base]');
             if (root && typeof window.initBattleResults === 'function') {
                 window.initBattleResults(root);
+            }
+            // グラフのカード（static/js/pages/battle_stats.js）
+            var statsRoot = document.querySelector('#battleStatsRoot');
+            if (statsRoot && window.initBattleStats) {
+                window.initBattleStats(statsRoot);
             }
         }
 
