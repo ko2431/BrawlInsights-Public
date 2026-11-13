@@ -156,7 +156,10 @@ def test_solo_showdown():
     assert battle.brawler == 16000099 and battle.trophies == 640
     assert battle.teammate_tags == [] and battle.opponent_tags == [f"#P{i}" for i in (1, 2, 4, 5, 6, 7, 8, 9, 10)]
     assert battle.opponent_brawlers == [16000000 + i for i in (1, 2, 4, 5, 6, 7, 8, 9, 10)]
-    assert battle.duration is None and battle.kills is None and battle.opponent_stats is None and battle.star_player_slot is None
+    assert battle.duration is None and battle.kills is None and battle.star_player_slot is None
+    # スタッツは無いが、敵のパワーとトロフィーは残す（スタッツの6個は NULL）
+    assert battle.teammate_stats is None and len(battle.opponent_stats) == PLAYER_STATS_WIDTH * 9
+    assert battle.opponent_stats[:PLAYER_STATS_WIDTH] == [None] * 6 + [11, 500]
     # 自分はタグで探す（並びが順位とずれていても取り違えない）
     assert parse_api_battle(ME, _solo(3, 10, trophy_change=5, me_at=7)).brawler == 16000099
 
@@ -196,6 +199,9 @@ def test_team_showdown_results(mode, team_size, team_count, rank, trophy_change,
     battle = parse_api_battle(ME, _ranked_teams(rank, team_size, team_count, trophy_change=trophy_change, mode=mode))
     assert (battle.team_size, battle.num_of_teams, battle.result) == (team_size, team_count, expected)
     assert len(battle.teammate_tags) == team_size - 1 and len(battle.opponent_tags) == team_size * (team_count - 1)
+    assert len(battle.teammate_stats) == PLAYER_STATS_WIDTH * (team_size - 1)
+    assert len(battle.opponent_stats) == PLAYER_STATS_WIDTH * team_size * (team_count - 1)
+    assert battle.teammate_stats[-2:] == [11, 500] and battle.kills is None
 
 
 def test_result_from_rank_without_rule_or_rank_is_draw():
@@ -267,13 +273,31 @@ def _saved(minutes_ago, *, duration=95, year=2026):
     return battle
 
 
+def _saved_showdown(minutes_ago):
+    battle = parse_api_battle(ME, _solo(3, 10, trophy_change=5))
+    battle.datetime = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc) - datetime.timedelta(minutes=minutes_ago)
+    return battle
+
+
 async def test_fill_stops_at_first_row_that_already_has_result_data():
     db = _FakeDB(["UPDATE 1", "UPDATE 0"])
-    battles = [_saved(1), _saved(2, duration=None), _saved(3), _saved(4)]
+    boss = _saved(2, duration=None)
+    boss.teammate_stats = boss.opponent_stats = None
+    battles = [_saved(1), boss, _saved(3), _saved(4)]
     assert await battle_log.fill_missing_result_data(db, ME, battles) == 1
-    # バトルロイヤル系（duration なし）は飛ばし、埋まっている行に当たったらやめる
+    # 埋めるものの無いバトルは飛ばし、埋まっている行に当たったらやめる
     assert [args[1] for _, args in db.calls] == [battles[0].datetime, battles[2].datetime]
     assert db.calls[0][1][2:] == tuple(getattr(battles[0], column) for column in battle_log.RESULT_DATA_COLUMNS)
+
+
+async def test_fill_handles_showdown_separately_from_other_battles():
+    # 対戦モードは1件目で埋まっていると分かっても、バトルロイヤル系は別に進める
+    db = _FakeDB(["UPDATE 0", "UPDATE 1", "UPDATE 0"])
+    battles = [_saved(1), _saved(2), _saved_showdown(3), _saved(4), _saved_showdown(5), _saved_showdown(6)]
+    assert await battle_log.fill_missing_result_data(db, ME, battles) == 1
+    assert [args[1] for _, args in db.calls] == [battles[0].datetime, battles[2].datetime, battles[4].datetime]
+    assert db.calls[1][1][2:] == (None, battles[2].opponent_stats)
+    assert "duration IS NULL" not in db.calls[1][0] and "opponent_stats IS NULL" in db.calls[1][0]
 
 
 async def test_fill_does_nothing_for_battles_after_cutoff():
@@ -305,7 +329,8 @@ async def test_insert_saves_result_data_and_reports_existing_rows(test_db_pool):
         showdown.datetime -= datetime.timedelta(minutes=5)
         assert await battle_log.insert_api_battle(db, tag, showdown) is False
         row = await _row(db, tag, showdown)
-        assert all(row[column] is None for column in battle_log.RESULT_DATA_COLUMNS)
+        assert all(row[column] is None for column in battle_log.RESULT_DATA_COLUMNS if column != "opponent_stats")
+        assert row["opponent_stats"] == showdown.opponent_stats and row["opponent_stats"][6:8] == [11, 500]
         await db.execute("DELETE FROM battles WHERE tag = $1", tag)
 
 
@@ -330,6 +355,8 @@ async def test_save_fills_rows_saved_before_result_data_existed(test_db_pool):
         assert [row["kills"] for row in rows] == [2, 2, None, 2, 99]
         assert [row["duration"] for row in rows] == [95, 95, None, 95, 95]
         assert rows[1]["teammate_stats"] == battles[1].teammate_stats
+        # バトルロイヤル系は、敵のパワーとトロフィーだけが埋まる
+        assert rows[2]["opponent_stats"] == battles[2].opponent_stats and rows[2]["opponent_stats"][6:8] == [11, 500]
         # 埋めるのはリザルトのデータの列だけ。ほかの列（勝敗など）には触らない
         assert [row["result"] for row in rows] == ["w", "l", "l", "l", "w"]
         await db.execute("DELETE FROM battles WHERE tag = $1", tag)

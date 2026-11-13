@@ -3,6 +3,7 @@
 バトルの形はモードによって違う。
 - 対戦モード（teams が2チーム）: result・duration がある。全員に stats（キル・デス・ダメージなど）が入る。
 - バトルロイヤル系（ソロは players、デュオ・トリオは teams）: rank がある。result・duration・stats は無い。
+  味方・敵のパワーとトロフィーだけは teammate_stats / opponent_stats に保存する（スタッツの6個は NULL）。
 - デュエル（players が2人で、1人ずつ brawlers を持つ）: result・duration がある。stats は無い。
 - ボスファイトなど（players と、あれば bigBrawler）: 全員が味方。
 """
@@ -34,6 +35,8 @@ BATTLE_COLUMNS = (
 
 # teammate_stats / opponent_stats は、1人ぶんの値をこの順に並べた整数の配列（teammate_tags / opponent_tags と同じ人の順）。
 # 値が無いところは NULL（mode_stat はノックアウトなど modeStat の無いモード、power・trophies はフレンドバトルなどで -1）。
+# バトルロイヤル系は stats が無いので、power・trophies だけが入り、ほかの6個は NULL。
+# 配列があってもスタッツがあるとは限らないので、スタッツの有無は自分の kills で見る。
 PLAYER_STATS_FIELDS = ("kills", "deaths", "damage_dealt", "healing", "damage_taken", "mode_stat", "power", "trophies")
 PLAYER_STATS_WIDTH = len(PLAYER_STATS_FIELDS)
 
@@ -116,6 +119,12 @@ _FILL_RESULT_DATA_QUERY = f"""
     SET {", ".join(f"{column} = ${i}" for i, column in enumerate(RESULT_DATA_COLUMNS, start=3))}
     WHERE tag = $1 AND datetime = $2 AND duration IS NULL
 """
+# バトルロイヤル系は duration が無いので、味方・敵の配列（パワーとトロフィー）が空かどうかを目印にする
+_FILL_SHOWDOWN_DATA_QUERY = """
+    UPDATE battles
+    SET teammate_stats = $3, opponent_stats = $4
+    WHERE tag = $1 AND datetime = $2 AND teammate_stats IS NULL AND opponent_stats IS NULL
+"""
 
 
 async def insert_api_battle(db: asyncpg.Connection, tag: str, battle: APIBattle) -> bool:
@@ -146,24 +155,37 @@ async def fill_missing_result_data(db: asyncpg.Connection, tag: str, saved_battl
     """保存済みのバトルのうち、リザルトのデータを保存していなかった頃の行を、APIに残っている分で埋める。
 
     saved_battles は新しい順で、先頭が「保存済みだった最初のバトル」。埋まっている行に当たったら、それより古い行も
-    埋まっているのでやめる。RESULT_DATA_FILL_BEFORE より後のバトルでは何もしない。
+    埋まっているのでやめる（対戦モード・デュエルと、パワーとトロフィーだけを埋めるバトルロイヤル系は別々に数える）。
+    RESULT_DATA_FILL_BEFORE より後のバトルでは何もしない。
 
     Returns:
         int: 埋めた行の数
     """
     filled = 0
+    # 対戦モード・デュエル（duration が目印）と、バトルロイヤル系（配列が目印）は別々に進める。
+    # どちらも、埋まっている行に当たったらその種類はやめる
+    pending = {"result": True, "showdown": True}
     for battle in saved_battles:
-        if battle.datetime >= RESULT_DATA_FILL_BEFORE:
+        if battle.datetime >= RESULT_DATA_FILL_BEFORE or not any(pending.values()):
             break
-        if battle.duration is None:
-            continue  # バトルロイヤル系。埋めるものが無い
+        if battle.duration is not None:
+            kind, query = "result", _FILL_RESULT_DATA_QUERY
+            args = [getattr(battle, column) for column in RESULT_DATA_COLUMNS]
+        elif battle.teammate_stats is not None or battle.opponent_stats is not None:
+            kind, query = "showdown", _FILL_SHOWDOWN_DATA_QUERY
+            args = [battle.teammate_stats, battle.opponent_stats]
+        else:
+            continue  # 埋めるものが無い（ボスファイトなど）
+        if not pending[kind]:
+            continue
         try:
-            status = await db.execute(_FILL_RESULT_DATA_QUERY, tag, battle.datetime, *(getattr(battle, column) for column in RESULT_DATA_COLUMNS))
+            status = await db.execute(query, tag, battle.datetime, *args)
         except asyncpg.PostgresError as e:
             raise DataBaseError(e) from e
-        if status != "UPDATE 1":
-            break
-        filled += 1
+        if status == "UPDATE 1":
+            filled += 1
+        else:
+            pending[kind] = False
     return filled
 
 
