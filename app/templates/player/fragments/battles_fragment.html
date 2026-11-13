@@ -60,7 +60,7 @@
 {% endmacro %}
 
 {% set map_page_href_query = 'tab=home&from=battles&player=' ~ player.tag[1:] ~ '&battles_tab=' ~ current_tab %}
-<div class="player-page__container battles-page__container"> {# ページ全体のコンテナ #}
+<div class="player-page__container battles-page__container" data-lang="{{ lang }}" data-img-base="{{ url_for('static', path='/images') }}"> {# ページ全体のコンテナ #}
 
     {# ヘッダー・ブックマーク・タブはシェル側にある。ここでは最新の値のヘッダーを渡し、シェルのものと差し替える #}
     <div data-shell-slot="player-identity">
@@ -850,20 +850,46 @@
     {% if battles_on_page %} {# battles_on_page が存在し、かつ空でない場合 #}
         <div class="battle-section-header" id="battle-section-anchor">
             <h2 class="section-title">{% if lang == "ja" %}バトル ({{ "{:,}".format(stats_data.total_battles) }}{% if current_tab == 'powerleague' %}セット{% else %}件{% endif %}){% else %}Battles ({{ "{:,}".format(stats_data.total_battles) }}){% endif %}</h2>
-            <button type="button" class="reload-button__container reload-button__container-battles">
-                <p>{% if lang == "ja" %}更新{% else %}Refresh{% endif %}</p>
-            </button>
+            <div class="bcr-tools">
+                {# カードのリザルトをまとめて開閉する。状態は端末に記憶する(js/pages/battle_results.js) #}
+                <button type="button" class="bcr-all" role="switch" aria-checked="false"><span>{% if lang == "ja" %}リザルトを開く{% else %}Open results{% endif %}</span><span class="bcr-all__track"></span></button>
+                <button type="button" class="reload-button__container reload-button__container-battles">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v2.9h-2.9"/></svg>
+                    <p>{% if lang == "ja" %}更新{% else %}Refresh{% endif %}</p>
+                </button>
+            </div>
         </div>
         {{ render_battle_log_pagination(pagination, filter_query, lang) }}
     {% endif %}
 
 
     {# --- 勝敗ダイジェスト表示 --- #}
+    {# タイルを押すとそのカードへ移動する。PCではカーソルを乗せると、中の .bcr-tip-src の内容が吹き出しで出る(js/pages/battle_results.js) #}
     {% if battles_on_page %}
         <div class="battle-results-digest-container">
-            <p><b>{% if lang == "ja" %}勝敗ダイジェスト表示{% else %}Results Digest{% endif %}</b> <span style="color: var(--color-333);">({% if win %}{{ win }}{% if lang == "ja" %}勝{% else %}W{% endif %}{% endif %}{% if draw %}{{ draw }}{% if lang == "ja" %}分{% else %}D{% endif %}{% endif %}{% if lose %}{{ lose }}{% if lang == "ja" %}敗{% else %}L{% endif %}{% endif %} - {% if lang == "ja" %}勝率{% else %}Win Rate {% endif %}{{ (win / ( (win + lose) if (win + lose) != 0 else 1 ) * 100) | round(1) }}%)</span></p>
+            <div class="bcr-dg-head">
+                <p><b>{% if lang == "ja" %}勝敗ダイジェスト表示{% else %}Results Digest{% endif %}</b></p>
+                <span class="bcr-dg-rate">{% if lang == "ja" %}勝率{% else %}Win Rate{% endif %} <b>{{ (win / ( (win + lose) if (win + lose) != 0 else 1 ) * 100) | round(1) }}%</b></span>
+            </div>
             <div class="battle-results-digest-box">
+                {# 勝ち・引き分け・負けの帯 #}
+                <div class="bcr-dg-bar" role="img" aria-label="{% if lang == 'ja' %}{{ win }}勝{{ draw }}分{{ lose }}敗{% else %}{{ win }}W {{ draw }}D {{ lose }}L{% endif %}">
+                    {% if win %}<i class="bcr-dg-bar__seg bcr-dg-bar__seg--w" style="flex-grow: {{ win }};"><b>{{ win }}</b>{% if lang == "ja" %}勝{% else %}W{% endif %}</i>{% endif %}
+                    {% if draw %}<i class="bcr-dg-bar__seg bcr-dg-bar__seg--d" style="flex-grow: {{ draw }};"><b>{{ draw }}</b>{% if lang == "ja" %}分{% else %}D{% endif %}</i>{% endif %}
+                    {% if lose %}<i class="bcr-dg-bar__seg bcr-dg-bar__seg--l" style="flex-grow: {{ lose }};"><b>{{ lose }}</b>{% if lang == "ja" %}敗{% else %}L{% endif %}</i>{% endif %}
+                </div>
                 {% for battle in battles_on_page %}
+                    {% if battle.rank %}
+                        {% set tip_result = battle.rank|string + '位' if lang == "ja" else '#' + battle.rank|string %}
+                    {% elif battle.battle_type is none and battle.set_w is none %}
+                        {% set tip_result = 'イベント' if lang == "ja" else 'Event' %}
+                    {% elif battle.result == 'w' %}
+                        {% set tip_result = '勝利' if lang == "ja" else 'Victory' %}
+                    {% elif battle.result == 'l' %}
+                        {% set tip_result = '敗北' if lang == "ja" else 'Defeat' %}
+                    {% else %}
+                        {% set tip_result = '引き分け' if lang == "ja" else 'Draw' %}
+                    {% endif %}
                     <button type="button"
                         data-battle-card-target="battle-card-{{ loop.index }}"
                         aria-label="{% if lang == 'ja' %}バトル{{ loop.index }}へ移動{% else %}Go to battle {{ loop.index }}{% endif %}"
@@ -880,11 +906,45 @@
                         </div>
                         {# キャラクターアイコン #}
                         {% set default_icon = url_for('static', path='/images/ui/mystery.png') %}
-                        <img src="{{ url_for('static', path='/images/brawler_pins/' + battle.brawler|string + '.png') }}"
+                        {# デュエルは brawler が無いので、使ったキャラの先頭を出す #}
+                        {% set digest_brawler = battle.brawler if battle.brawler else (battle.brawlers[0][0] if battle.brawlers else none) %}
+                        <img src="{{ url_for('static', path='/images/brawler_pins/' + digest_brawler|string + '.png') if digest_brawler else default_icon }}"
                             alt="キャラクターアイコン"
                             class="battle-results-digest__brawler-icon"
                             loading="lazy"
                             onerror="this.onerror=null; this.src='{{ default_icon }}';">
+                        {# セットのスコア #}
+                        {% if battle.set_w is not none %}<span class="bcr-dg-set">{{ battle.set_w }}-{{ battle.set_l }}</span>{% endif %}
+                        {# 吹き出しの中身 #}
+                        <span class="bcr-tip-src">
+                            <span class="bcr-tip__r bcr-tip__r--{{ battle.result }}">{{ tip_result }}{% if battle.set_w is not none %} ({% if battle.set_w %}{{ battle.set_w }}{{ "勝" if lang == "ja" else "W" }}{% endif %}{% if battle.set_d %}{{ battle.set_d }}{{ "分" if lang == "ja" else "D" }}{% endif %}{% if battle.set_l %}{{ battle.set_l }}{{ "敗" if lang == "ja" else "L" }}{% endif %}){% endif %}</span>
+                            <span class="bcr-tip__line">{{ (battle.mode_ja or battle.mode_en or '') if lang == "ja" else (battle.mode_en or '') }}{% if battle.event_map %} ・ {{ (battle.event_map_ja or battle.event_map_en or battle.event_map) if lang == "ja" else (battle.event_map_en or battle.event_map) }}{% endif %}</span>
+                            {% if battle.tip_brawler_names %}<span class="bcr-tip__line bcr-tip__sub">{{ battle.tip_brawler_names | join('・' if lang == "ja" else ', ') }}</span>{% endif %}
+                            <span class="bcr-tip__line bcr-tip__sub">{{ battle.time_str_ja if lang == "ja" else battle.time_str_en }} ({{ battle.ago(lang) }})</span>
+                            {# トロフィー・ガチバトルのポイントの変動 #}
+                            {% if battle.battle_type == 'ranked' and battle.event_map is not none and battle.trophy_change is not none %}
+                                {% set tip_delta = battle.trophy_change %}
+                                <span class="bcr-tip__chg">
+                                    <img src="{{ url_for('static', path='/images/ui/trophy.png') }}" alt="" loading="lazy">
+                                    {% if battle.brawlers %}{{ "トロフィー" if lang == "ja" else "Trophies" }}{% elif battle.trophies is not none %}{{ "{:,}".format(battle.trophies) }}<i>→</i>{{ "{:,}".format(battle.trophies + battle.trophy_change) }}{% endif %}
+                                    <span class="bcr-tip__delta--{{ 'up' if tip_delta > 0 else ('down' if tip_delta < 0 else 'zero') }}">({{ '+' if tip_delta > 0 else '' }}{{ tip_delta }})</span>
+                                </span>
+                            {% elif battle.page_ranked_score_change %}
+                                {% set tip_delta = battle.page_ranked_score_change %}
+                                <span class="bcr-tip__chg">
+                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + ([battle.page_ranked_rank_before, 22] | min)|string + '.png') }}" alt="" loading="lazy">{{ "{:,}".format(battle.page_ranked_score_before) }}<i>→</i><img src="{{ url_for('static', path='/images/ranked_icons/' + ([battle.ranked_rank_after, 22] | min)|string + '.png') }}" alt="" loading="lazy">{{ "{:,}".format(battle.ranked_score_after) }}
+                                    <span class="bcr-tip__delta--{{ 'up' if tip_delta > 0 else 'down' }}">({{ '+' if tip_delta > 0 else '' }}{{ tip_delta }})</span>
+                                </span>
+                            {% endif %}
+                            {% if battle.tip_kills is not none or battle.is_starplayer %}
+                                <span class="bcr-tip__stats">
+                                    {% if battle.tip_kills is not none %}
+                                        {% if lang == "ja" %}<span><b>{{ battle.tip_kills }}</b><small>キル</small></span><span><b>{{ battle.tip_deaths }}</b><small>デス</small></span>{% else %}<span><b>{{ battle.tip_kills }}</b><small> kills</small></span><span><b>{{ battle.tip_deaths }}</b><small> deaths</small></span>{% endif %}
+                                    {% endif %}
+                                    {% if battle.is_starplayer %}<span class="bcr-tip__mvp">★{{ "MVP" if lang == "ja" else "Star Player" }}</span>{% endif %}
+                                </span>
+                            {% endif %}
+                        </span>
                     </button>
                 {% endfor %}
             </div>
@@ -920,14 +980,10 @@
                     {% set ranked_score_ns.rank_after = battle.ranked_rank_after %}
                     {% set ranked_score_ns.before = battle.page_ranked_score_before %}
                     {% set ranked_score_ns.rank_before = battle.page_ranked_rank_before %}
-                    {% if ranked_score_ns.after and ranked_score_ns.before %}
-                        {% set ranked_score_ns.change = ranked_score_ns.after - ranked_score_ns.before %}
-                        {% if (battle.result == 'w' and ranked_score_ns.change <= 0) or (battle.result == 'l' and ranked_score_ns.change >= 0) or (ranked_score_ns.change < -250) or (ranked_score_ns.change > 250) %}
-                            {% set ranked_score_ns.change = none %} {# スコア変動が勝敗と矛盾している、スコア変動が大きすぎる場合は、バグの可能性があるため表示しないでおく #}
-                        {% endif %}
-                    {% endif %}
+                    {# スコア変動。勝敗と矛盾している・大きすぎる場合は none (ルーターの _attach_ranked_score_neighbors) #}
+                    {% set ranked_score_ns.change = battle.page_ranked_score_change %}
                 {% endif %}
-                <article class="card battle-card {{ card_result_class }}" id="battle-card-{{ loop.index }}">
+                <article class="card battle-card {{ card_result_class }}" id="battle-card-{{ loop.index }}"{% if battle.result_view_kind %} data-bcr="{{ loop.index0 }}"{% endif %}>
                     {# 1. リザルトとトロフィー増減、バトル日時 #}
                     <div class="battle-card__result-block">
                         {# バトルの結果 #}
@@ -996,6 +1052,13 @@
                             </div>
                         {% if selected_brawler_id != battle.brawler %}
                             </a>
+                        {% endif %}
+                        {# 自分がBANしたキャラ (BANのあるバトルだけ) #}
+                        {% if battle.my_ban %}
+                        <div class="bcr-myban{% if ranked_score_ns.change %} bcr-myban--score{% endif %}" title="BAN: {{ battle.my_ban_name }}">
+                            <span class="bcr-myban__label">BAN</span>
+                            <span class="bcr-myban__img"><img src="{{ url_for('static', path='/images/brawler_border_portraits/' + battle.my_ban|string + '.png') }}" alt="{{ battle.my_ban_name }}" loading="lazy" onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/player_icon/0.png') }}';"></span>
+                        </div>
                         {% endif %}
                         {# 中央ブロック #}
                         <div class="battle-card__main-block-center">
@@ -1170,7 +1233,8 @@
                         {% if battle.event_id and battle.event_map %}</a>{% endif %}
                     {% endif %}
                     </div>
-                    <div class="battle-card__playedwith-block">
+                    {# 帯。リザルトを開けるカード(bcr-strip)は必ず1行にして、収まらない人は +N にまとめる(js/pages/battle_results.js) #}
+                    <div class="battle-card__playedwith-block{% if battle.result_view_kind %} bcr-strip{% endif %}">
                     {# 3-A. [旧バージョン用の表記]味方がいる場合は**とプレイ(または味方 : **), 敵がいる場合は**と対戦、それ以外はソロでプレイ #}
                     {% if (not battle.event_mode) and (not battle.teammate_tags) and (not battle.opponent_tags) %}
                         {% if battle.teammate_names %}
@@ -1345,7 +1409,15 @@
                         <span>{% if lang == "ja" %}味方と敵の情報を取得できませんでした{% else %}Failed to retrieve information on teammates and opponents{% endif %}</span>
                     {% endif %}
                     {% endif %}
+                    {# リザルトの開閉。開いている間は、帯の中身がバトル時間などに置き換わる #}
+                    {% if battle.result_view_kind %}
+                        <div class="bcr-strip__meta"></div>
+                        <button type="button" class="bcr-toggle" aria-expanded="false" title="{% if lang == 'ja' %}Shift + クリックで、すべてのカードを開閉{% else %}Shift + click to open or close all cards{% endif %}"><span>{% if battle.result_view_kind == 'result' %}{{ "リザルト" if lang == "ja" else "Results" }}{% else %}{{ "メンバー" if lang == "ja" else "Players" }}{% endif %}</span><i class="bcr-toggle__chev"></i></button>
+                    {% endif %}
                     </div>
+                    {% if battle.result_view_kind %}
+                    <div class="bcr-wrap"><div><div class="bcr-panel"></div></div></div>
+                    {% endif %}
                 </article>
             {% endfor %}
         </div>
@@ -1361,6 +1433,8 @@
     {# --- ページネーションUI (下部) --- #}
     {% if battles_on_page %}
         {{ render_battle_log_pagination(pagination, filter_query, lang) }}
+        {# カードを開いたときのリザルトのデータ (app/services/battle_result_view.py) #}
+        <script type="application/json" id="battleResultsData">{{ battle_results | tojson }}</script>
     {% endif %}
 
 </div>
@@ -2776,11 +2850,21 @@
             });
         }
 
+        // バトルカードのリザルトの開閉・ダイジェストの吹き出し (js/pages/battle_results.js)
+        function initBattleResultsUI() {
+            const root = document.querySelector('.battles-page__container[data-img-base]');
+            if (root && typeof window.initBattleResults === 'function') {
+                window.initBattleResults(root);
+            }
+        }
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initBattleLogFilterUI, { once: true });
             document.addEventListener('DOMContentLoaded', initBattleResultsDigestScroll, { once: true });
+            document.addEventListener('DOMContentLoaded', initBattleResultsUI, { once: true });
         } else {
             initBattleLogFilterUI();
             initBattleResultsDigestScroll();
+            initBattleResultsUI();
         }
     </script>

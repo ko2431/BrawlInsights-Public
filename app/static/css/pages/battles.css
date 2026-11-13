@@ -20,6 +20,9 @@
     border-bottom: 1px solid #eee;
     scroll-margin-top: 60px;
 }
+.battle-section-header .reload-button__container-battles p {
+    margin: 0;
+}
 .dark .battle-section-header {
     border-bottom-color: #333;
 }
@@ -33,21 +36,6 @@
     flex: 1;
     min-width: 0;
 }
-.battle-section-header .reload-button__container-battles {
-    width: auto;
-    max-width: none;
-    margin: 0;
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 2px 10px;
-    font-size: 15px;
-    line-height: 1.3;
-    border-radius: 8px;
-}
-.battle-section-header .reload-button__container-battles p {
-    margin: 0;
-}
-
 /* --- バトル履歴選択UIコンテナ --- */
 .battle-log-filters__container {
     width: 90%;
@@ -926,3 +914,216 @@
         border-radius: 7px;
     }
 }
+
+/* =============================================== */
+/* バトルカードのリザルト（開閉）・勝敗ダイジェストの吹き出し    */
+/* 中身は js/pages/battle_results.js が描く                  */
+/* =============================================== */
+/* --- バトルの見出しの右: リザルトの一括開閉と更新 --- */
+.bcr-tools { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.bcr-all, .battle-section-header .reload-button__container-battles { display: inline-flex; align-items: center; gap: 6px; height: 28px; margin: 0; padding: 0 10px; border: 1px solid var(--color-ddd); border-radius: 9px; background: var(--bg-main); color: var(--color-444); font: inherit; font-size: 13px; font-weight: bold; line-height: 1; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; -webkit-tap-highlight-color: transparent; }
+.battle-section-header .reload-button__container-battles { width: auto; max-width: none; flex: none; text-align: left; }
+.dark .bcr-all, .dark .battle-section-header .reload-button__container-battles { border-color: #3a3a3a; }
+.bcr-all:hover, .battle-section-header .reload-button__container-battles:hover { background: var(--bg-f0f0f0); color: var(--color-222); }
+.bcr-all:active, .battle-section-header .reload-button__container-battles:active { transform: scale(.96); }
+.bcr-all { padding-right: 7px; }
+.bcr-all__track { position: relative; width: 28px; height: 16px; border-radius: 999px; background: var(--color-ccc); transition: background-color .18s ease; }
+.bcr-all__track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .18s ease; }
+.bcr-all[aria-checked="true"] .bcr-all__track { background: #2f9e62; }
+.bcr-all[aria-checked="true"] .bcr-all__track::after { transform: translateX(12px); }
+.reload-button__container-battles svg { width: 13px; height: 13px; transition: transform .45s ease; }
+.reload-button__container-battles:hover svg { transform: rotate(180deg); }
+@media (max-width: 539px) {
+    .bcr-tools { flex-direction: column; align-items: flex-end; gap: 4px; }
+    .bcr-all, .battle-section-header .reload-button__container-battles { height: 24px; padding: 0 8px; font-size: 12px; }
+    .bcr-all { padding-right: 6px; }
+    .battle-section-header { align-items: flex-end; }
+    /* スマホではカードの横幅を広げる(上のサブタブの箱と同じ幅)。スタッツの桁が収まりやすくなる */
+    .battle-card-grid { width: 95%; }
+}
+
+/* --- カード下の帯: 必ず1行。収まらない人数は +N --- */
+.battle-card__playedwith-block.bcr-strip { height: 24px; min-height: 24px; padding: 0 2px 0 5px; gap: 4px; }
+.bcr-strip > .battle-card__new-playedwith-block { flex: 1; width: auto; min-width: 0; height: 24px; flex-wrap: nowrap; overflow: hidden; }
+.bcr-strip > .battle-card__new-playedwith-block [hidden] { display: none !important; }
+.bcr-strip > .battle-card__new-playedwith-block > .main-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bcr-strip__more { flex: none; margin-left: 4px; padding: 0 5px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: 11px; line-height: 16px; white-space: nowrap; }
+.bcr-strip__meta { flex: 1; min-width: 0; display: none; align-items: center; gap: 8px; height: 24px; overflow: hidden; white-space: nowrap; font-size: 12px; }
+.bcr-strip__meta b { font-weight: bold; }
+.bcr-chip { display: inline-flex; align-items: center; gap: 3px; }
+.bcr-chip svg { width: 12px; height: 12px; opacity: .8; }
+.bcr-chip__sub { opacity: .7; }
+.bcr-chip--warn { padding: 0 6px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: 11px; line-height: 16px; }
+.bcr-toggle { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 19px; margin: 0 1px 0 0; padding: 0 6px 0 8px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .14); color: #fff; font: inherit; font-size: 11.5px; font-weight: bold; line-height: 1; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, transform .1s ease; -webkit-tap-highlight-color: transparent; }
+.bcr-toggle:hover { background: rgba(255, 255, 255, .26); }
+.bcr-toggle:active { transform: scale(.95); }
+.bcr-toggle__chev { width: 6px; height: 6px; margin: -3px 2px 0 1px; border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor; transform: rotate(45deg); transition: transform .2s ease, margin .2s ease; }
+.battle-card.is-open .bcr-toggle__chev { margin-top: 3px; transform: rotate(-135deg); }
+.battle-card.is-open .bcr-toggle { background: rgba(255, 255, 255, .92); color: #222; }
+/* 開くと、帯の中身（味方と敵の並び）がバトル時間などに置き換わる。帯に出すものが無いバトル(bcr-keep)は並びを残す */
+.battle-card.is-open:not(.bcr-keep) .bcr-strip > .battle-card__new-playedwith-block { display: none; }
+.battle-card.is-open:not(.bcr-keep) .bcr-strip__meta { display: flex; }
+.battle-card.is-open .battle-card__playedwith-block.bcr-strip { border-radius: 0; }
+
+/* --- カードの中: 自分がBANしたキャラ（使用キャラと中央のアイコンの間） --- */
+.bcr-myban { position: absolute; left: 31.5%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bcr-myban__label { color: #d42020; font-size: 9px; font-weight: bold; line-height: 1; }
+.bcr-myban--score { left: calc(31.5% - 9px); }
+.bcr-myban__img { position: relative; display: block; width: 28px; height: 28px; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 1.5px #d42020; }
+.bcr-myban__img img { display: block; width: 28px; height: 28px; filter: grayscale(.75) brightness(.82); }
+.bcr-myban__img::after { content: ""; position: absolute; left: -6px; right: -6px; top: 13px; height: 2px; background: #e02020; transform: rotate(-45deg); }
+
+/* --- 開いたリザルト --- */
+.bcr-wrap { width: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .2s ease; }
+.battle-card.is-open .bcr-wrap { grid-template-rows: 1fr; }
+.bcr--noanim .bcr-wrap { transition: none; }
+.bcr-wrap > div { min-height: 0; overflow: hidden; }
+.bcr-panel { padding: 5px 6px 6px; border-radius: 0 0 7px 7px; background: #fff; color: #222; font-size: 12px; line-height: 1.2; text-align: left; }
+.dark .bcr-panel { background: #1e1e1e; color: #eee; }
+
+/* セットの試合の切り替え */
+.bcr-games { display: flex; gap: 3px; margin-bottom: 5px; padding: 2px; border-radius: 9px; background: #f0f0f0; }
+.dark .bcr-games { background: #2c2c2c; }
+.bcr-games button { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 22px; margin: 0; padding: 0 2px; border: 0; border-radius: 7px; background: transparent; color: #555; font: inherit; font-size: 11.5px; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.dark .bcr-games button { color: #bbb; }
+.bcr-games button.is-on { background: #fff; color: #111; font-weight: bold; box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
+.dark .bcr-games button.is-on { background: #444; color: #fff; }
+.bcr-games__r { font-weight: bold; }
+.bcr-games__r--w { color: #0a8f0a; } .bcr-games__r--l { color: #e02020; } .bcr-games__r--d { color: #2b8fc0; }
+.dark .bcr-games__r--w { color: #5ddc5d; } .dark .bcr-games__r--l { color: #ff7070; } .dark .bcr-games__r--d { color: #7fd0f5; }
+.bcr-u { font-size: .82em; font-weight: normal; }
+
+/* スタッツの表 */
+.bcr-table { --kd: 36px; --n: 46px; --ms: 40px; }
+.bcr-table.is-wide-ms { --ms: 46px; }
+.bcr-row, .bcr-team, .bcr-head { display: grid; align-items: center; column-gap: 3px; grid-template-columns: minmax(0, 1fr) var(--kd) var(--n) var(--n) var(--n); }
+.bcr-table.has-ms .bcr-row, .bcr-table.has-ms .bcr-team, .bcr-table.has-ms .bcr-head { grid-template-columns: minmax(0, 1fr) var(--kd) var(--n) var(--n) var(--n) var(--ms); }
+.bcr-head { padding: 0 4px 2px; color: #888; font-size: 10px; text-align: right; }
+.bcr-head > span { justify-self: end; white-space: nowrap; }
+.bcr-team { margin-top: 3px; padding: 2px 4px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums; }
+.bcr-team:first-of-type { margin-top: 0; }
+.bcr-team--ally { background: #e8f1ff; color: #1d5fc4; }
+.bcr-team--enemy { background: #ffecec; color: #cf2e2e; }
+.dark .bcr-team--ally { background: #1c2c47; color: #8fbcff; }
+.dark .bcr-team--enemy { background: #452020; color: #ff9a9a; }
+.bcr-team__label { text-align: left; }
+.bcr-row { padding: 2px 4px; border-radius: 6px; }
+.bcr-row + .bcr-row { margin-top: 1px; }
+.bcr-row.is-me { background: #fff6cf; }
+.dark .bcr-row.is-me { background: #3d3513; }
+.bcr-pl { display: flex; align-items: center; gap: 5px; min-width: 0; color: inherit; text-decoration: none; }
+a.bcr-pl:hover .bcr-pl__name { text-decoration: underline; }
+.bcr-pl__icon { position: relative; flex: none; width: 28px; height: 28px; }
+.bcr-pl__icon > img:first-child { width: 28px; height: 28px; border-radius: 5px; display: block; }
+.bcr-pl__power { position: absolute; left: -2px; bottom: -2px; height: 10px; width: auto; }
+.bcr-pl__txt { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bcr-pl__name { display: flex; align-items: center; gap: 3px; min-width: 0; font-size: 12px; font-weight: bold; }
+.bcr-pl__name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bcr-pl__star { flex: none; display: inline-block; height: 10px; width: auto; }
+.bcr-pl__bot { flex: none; padding: 0 4px; border-radius: 999px; background: #e6e6e6; color: #666; font-size: 9.5px; font-weight: normal; line-height: 13px; }
+.dark .bcr-pl__bot { background: #3a3a3a; color: #bbb; }
+.bcr-pl__sub { display: flex; align-items: center; gap: 5px; min-width: 0; height: 13px; color: #777; font-size: 10.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dark .bcr-pl__sub { color: #aaa; }
+.bcr-pl__sub > span { display: inline-flex; align-items: center; gap: 2px; }
+.bcr-pl__sub img { display: inline-block; height: 12px; width: auto; }
+.bcr-pl__rank { height: 14px !important; margin: -1px 0; }
+.bcr-ban { display: inline-flex; align-items: center; gap: 2px; color: #cf2e2e; font-size: 9.5px; font-weight: bold; }
+.dark .bcr-ban { color: #ff8f8f; }
+.bcr-ban__img { position: relative; display: inline-block; width: 14px; height: 14px; border-radius: 3px; overflow: hidden; }
+.bcr-ban__img img { display: block; width: 14px; height: 14px; filter: grayscale(.85) brightness(.9); }
+.bcr-ban__img::after { content: ""; position: absolute; left: -3px; right: -3px; top: 6px; height: 1.6px; background: #e02020; transform: rotate(-45deg); }
+.bcr-num { position: relative; padding-bottom: 4px; text-align: right; font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bcr-num.is-top { font-weight: bold; }
+.bcr-num.is-zero { color: #aaa; }
+.dark .bcr-num.is-zero { color: #666; }
+.bcr-num__bar { position: absolute; right: 0; bottom: 0; width: 100%; height: 3px; border-radius: 2px; background: rgba(0, 0, 0, .07); overflow: hidden; }
+.dark .bcr-num__bar { background: rgba(255, 255, 255, .09); }
+.bcr-num__bar::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p, 0%); border-radius: 2px; background: #5b9bf5; }
+.bcr-row--enemy .bcr-num__bar::after { background: #f07a7a; }
+.bcr-num--kd { padding-bottom: 0; font-size: 12.5px; }
+.bcr-num--kd b { font-weight: bold; }
+.bcr-num--kd i { margin: 0 1px; font-style: normal; opacity: .4; }
+.bcr-team .bcr-num { padding-bottom: 0; font-size: 11px; }
+
+/* 順位の一覧（バトルロイヤル系） */
+.bcr-ranks { display: grid; gap: 1px 6px; }
+.bcr-ranks--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; }
+.bcr-rank { display: flex; align-items: center; gap: 5px; min-width: 0; padding: 2px 4px; border-radius: 6px; }
+.bcr-rank.is-me { background: #fff6cf; }
+.dark .bcr-rank.is-me { background: #3d3513; }
+.bcr-rank__no { flex: none; width: 22px; border-radius: 5px; font-size: 11px; font-weight: bold; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.bcr-rank__no--n { background: var(--bg-f0f0f0); color: var(--color-555); }
+.bcr-rank__no--w { background: #dcf5dc; color: #0a7d0a; } .bcr-rank__no--d { background: #dff1fb; color: #1f7fae; } .bcr-rank__no--l { background: #fde3e3; color: #c92a2a; }
+.dark .bcr-rank__no--w { background: #173a17; color: #6fe06f; } .dark .bcr-rank__no--d { background: #153545; color: #7fd0f5; } .dark .bcr-rank__no--l { background: #451c1c; color: #ff8f8f; }
+.bcr-rank__members { flex: 1; min-width: 0; display: flex; gap: 6px; }
+.bcr-mem { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 4px; color: inherit; text-decoration: none; font-size: 12px; }
+.bcr-mem img { flex: none; width: 20px; height: 20px; border-radius: 4px; }
+.bcr-mem span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bcr-mem.is-self span { font-weight: bold; }
+.bcr-mem__tr { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 1px; color: #777; font-size: 10.5px; font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dark .bcr-mem__tr { color: #aaa; }
+.bcr-mem .bcr-mem__tr img { display: inline-block; width: auto; height: 11px; border-radius: 0; }
+.bcr-mem .bcr-mem__icon { position: relative; flex: none; overflow: visible; }
+.bcr-mem__icon > img:first-child { display: block; }
+.bcr-mem .bcr-mem__icon .bcr-mem__power { position: absolute; left: -2px; bottom: -2px; width: auto; height: 8px; border-radius: 0; }
+.bcr-mem--stack { align-items: center; }
+.bcr-mem--stack .bcr-mem__col { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bcr-mem--stack .bcr-mem__col > span { display: block; }
+.bcr-mem--stack .bcr-mem__tr { margin-left: 0; }
+a.bcr-mem:hover span { text-decoration: underline; }
+
+/* メンバーだけ（スタッツのないバトル・デュエル） */
+.bcr-roster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.bcr-roster--single { grid-template-columns: minmax(0, 1fr); }
+.bcr-roster__team { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bcr-roster__label { padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+.bcr-roster .bcr-mem { flex: none; padding: 1px 4px; border-radius: 6px; }
+.bcr-roster .bcr-mem img { width: 24px; height: 24px; }
+.bcr-roster .bcr-mem.is-self { background: #fff6cf; }
+.dark .bcr-roster .bcr-mem.is-self { background: #3d3513; }
+.bcr-duel { display: flex; flex-direction: column; gap: 3px; }
+.bcr-duel__row { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 6px; }
+.bcr-duel__row.is-me { background: #fff6cf; }
+.dark .bcr-duel__row.is-me { background: #3d3513; }
+.bcr-duel__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: bold; color: inherit; text-decoration: none; }
+.bcr-duel__row img { width: 28px; height: 28px; border-radius: 5px; }
+.bcr-foot { margin: 5px 2px 0; color: #888; font-size: 10.5px; line-height: 1.35; }
+
+/* --- 勝敗ダイジェスト --- */
+.bcr-dg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.bcr-dg-head p { margin: 0; }
+.bcr-dg-rate { color: var(--color-555); font-size: 13px; white-space: nowrap; }
+.bcr-dg-rate b { color: var(--color-222); font-size: 15px; }
+.bcr-dg-bar { grid-column: 1 / -1; display: flex; gap: 2px; height: 20px; border-radius: 999px; overflow: hidden; }
+.bcr-dg-bar__seg { flex: 1 1 0; min-width: 40px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-style: normal; line-height: 1; white-space: nowrap; text-shadow: 0 1px 1px rgba(0, 0, 0, .28); }
+.bcr-dg-bar__seg b { margin-right: 1px; font-size: 13px; }
+.bcr-dg-bar__seg--w { background: linear-gradient(90deg, #12a150, #56cf7a); }
+.bcr-dg-bar__seg--d { background: linear-gradient(90deg, #58b4dc, #9bd9f2); color: #0b4660; text-shadow: none; }
+.bcr-dg-bar__seg--l { background: linear-gradient(90deg, #f37a63, #e23b3b); }
+.battle-results-digest { padding: 0; overflow: hidden; transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease; }
+@media (hover: hover) {
+    .battle-results-digest:hover { transform: scale(1.12); z-index: 2; box-shadow: 0 3px 10px rgba(0, 0, 0, .22); }
+    .battle-results-digest-box:hover .battle-results-digest:not(:hover) { opacity: .72; }
+}
+.battle-results-digest:active { transform: scale(.94); }
+/* セットのスコア。枠の内側の角にぴったり付けて、角丸は親の切り抜きに任せる */
+.bcr-dg-set { position: absolute; right: 0; bottom: 0; padding: 0 4px 0 5px; border-radius: 7px 0 0 0; background: rgba(0, 0, 0, .64); color: #fff; font-size: 9px; font-weight: bold; line-height: 13px; pointer-events: none; }
+.bcr-tip-src { display: none; }
+.bcr-tip { position: fixed; z-index: 1000; left: 0; top: 0; max-width: 250px; padding: 7px 9px; border-radius: 10px; background: rgba(28, 28, 28, .96); color: #fff; font-size: 12px; line-height: 1.35; text-align: left; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .12s ease, transform .12s ease; }
+.bcr-tip.is-on { opacity: 1; transform: none; }
+.bcr-tip__r { font-weight: bold; }
+.bcr-tip__r--w { color: #6fe06f; } .bcr-tip__r--l { color: #ff8585; } .bcr-tip__r--d { color: #8fd8fa; }
+.bcr-tip__sub { color: #c8c8c8; font-size: 11px; }
+.bcr-tip__line { display: block; }
+.bcr-tip__r { display: block; }
+.bcr-tip__stats { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, .16); font-variant-numeric: tabular-nums; }
+.bcr-tip__stats b { font-size: 13.5px; }
+.bcr-tip__stats small { margin-left: 1px; font-size: 10.5px; }
+.bcr-tip__mvp { margin-left: auto; color: #ffd24a; font-size: 11.5px; font-weight: bold; letter-spacing: -.02em; }
+.bcr-tip__chg { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-weight: bold; font-variant-numeric: tabular-nums; }
+.bcr-tip__chg img { display: inline-block; height: 14px; width: auto; }
+.bcr-tip__chg i { font-style: normal; opacity: .6; font-weight: normal; }
+.bcr-tip__delta--up { color: #6fe06f; } .bcr-tip__delta--down { color: #ff8585; } .bcr-tip__delta--zero { color: #c8c8c8; }
+@keyframes bcrFlash { 0% { box-shadow: 0 0 0 0 rgba(255, 190, 40, .95); } 35% { box-shadow: 0 0 0 5px rgba(255, 190, 40, .75); } 100% { box-shadow: 0 0 0 9px rgba(255, 190, 40, 0); } }
+.battle-card.is-flash { animation: bcrFlash 1.1s ease-out; }
+@media (prefers-reduced-motion: reduce) { .bcr-wrap, .battle-results-digest, .bcr-toggle__chev { transition: none; } .battle-card.is-flash { animation: none; } }

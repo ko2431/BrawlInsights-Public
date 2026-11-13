@@ -1639,6 +1639,8 @@ class Battle:
         self.set_w: int | None = None # バトルセット時、セットの勝利数。
         self.set_d: int | None = None # バトルセット時、セットの引き分け数。
         self.set_l: int | None = None # バトルセット時、セットの敗北数。
+        self.set_battles: list["Battle"] | None = None # バトルセット時、まとめた試合（新しい順。先頭は自分自身）。リザルトの表示で試合ごとに読む
+        self.game_result: str | None = None # バトルセット時、この試合そのものの勝敗（result はセットの勝敗に書き換わる）
 
     # 日本時間の日時。表示するバトルでしか使わないため、全件の読み込み時には計算しない
     @functools.cached_property
