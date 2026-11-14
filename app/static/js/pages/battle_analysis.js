@@ -20,7 +20,7 @@
         ja: {
             dow: ['日', '月', '火', '水', '木', '金', '土'], dowName: (d) => d + '曜', hourName: (h) => `${h}時台`,
             types: ['トロフィー', 'ガチバトル', 'フレンドバトル', 'その他'], other: 'その他', unknownMap: '不明なマップ', typeOther: '他',
-            dateTo: '〜', seasonPick: 'シーズンを選択',
+            dateTo: '〜', seasonPick: 'ガチバトルシーズン',
             durRange: (a, b) => `バトル時間 ${a}〜${b} 秒`, rkmax: (input) => `順位 ${input} 位以内`, trRange: (a, b) => `トロフィー ${a}〜${b}`, ban: 'BAN: ',
             highlights: 'ハイライト', highlightsCap: '一定の回数以上のものから',
             hl: { brawler: '勝率の高いキャラ', mapGood: '得意なマップ', mapBad: '苦手なマップ', oppGood: '得意な相手キャラ', oppBad: '苦手な相手キャラ', mate: '相性のいい味方' },
@@ -73,7 +73,7 @@
         en: {
             dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], dowName: (d) => d, hourName: (h) => `${h}:00`,
             types: ['Trophy', 'Ranked', 'Friendly', 'Other'], other: 'Other', unknownMap: 'Unknown map', typeOther: '–',
-            dateTo: '–', seasonPick: 'Pick a season',
+            dateTo: '–', seasonPick: 'Ranked season',
             durRange: (a, b) => `Battle time ${a}–${b} s`, rkmax: (input) => `Place ≤ ${input}`, trRange: (a, b) => `Trophies ${a}–${b}`, ban: 'Ban: ',
             highlights: 'Highlights', highlightsCap: 'Among those with enough battles',
             hl: { brawler: 'Best brawler', mapGood: 'Best map', mapBad: 'Toughest map', oppGood: 'Easiest enemy brawler', oppBad: 'Toughest enemy brawler', mate: 'Best teammate' },
