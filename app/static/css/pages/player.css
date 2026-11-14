@@ -123,7 +123,7 @@
 .stats-content-container {
     width: 90%;
     max-width: 1194px;
-    margin: 20px auto 30px auto; /* 上下マージン、左右中央揃え */
+    margin: 10px auto 30px auto; /* 上下マージン、左右中央揃え */
 }
 
 .stats-graph-container {

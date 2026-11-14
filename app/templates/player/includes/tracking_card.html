@@ -75,7 +75,7 @@
             <button type="button" class="ptc__toggle" x-show="trackMaxDays >= 1" :class="{ 'is-open': track.open }" @click="togglePanel('track')" :aria-expanded="track.open">{{ "延長する" if ja else "Extend" }}<i class="ptc__chev" aria-hidden="true"></i></button>
             <span class="ptc__maxed" x-show="trackMaxDays < 1" x-cloak>{{ "上限まで延長済み" if ja else "At the limit" }}</span>
         </div>
-        <p class="ptc__note" x-show="!track.flash">{{ "無効だった間のバトルは、一部が欠けることがあります。" if ja else "Battles played while inactive may have gaps." }}</p>
+        <p class="ptc__note" x-show="!track.flash">{% if show_retention %}{{ "無効だった間のバトルは、一部が欠けることがあります。" if ja else "Battles played while inactive may have gaps." }}{% else %}{{ "無効だった間の推移データは、一部が欠けることがあります。" if ja else "Trend data from while inactive may have gaps." }}{% endif %}</p>
         <p class="ptc__flash" x-show="track.flash" x-cloak x-text="track.flash" x-transition.opacity></p>
 
         {# 延長のパネル #}
