@@ -67,3 +67,24 @@ def test_enemy_and_ally_brawlers_and_ban():
     data = _columns([_row(0, opp_brawlers="[7,8,9]", banned=16000009)])
     assert data["cols"]["ob"] == [[7, 8, 9]] and data["cols"]["tb"] == [[1, 2]] and data["cols"]["bn"] == [16000009]
     assert data["mapModes"] == {15000001: 48000005}
+
+
+def test_card_groups_are_parsed_and_limited():
+    groups = ba.parse_card_groups("1794000000.1794000200:7425:7530,1794000400,1794000600:7000")
+    assert groups == [
+        {"times": [1794000000, 1794000200], "score": 7425, "previous": 7530},
+        {"times": [1794000400], "score": None, "previous": None},
+        {"times": [1794000600], "score": 7000, "previous": None},
+    ]
+    for bad in ("", "abc", "1794000000:x", "1794000000:1:2:3", "0", "1794000000:999999", ",".join(["1794000000"] * (ba.CARDS_MAX_SETS + 1)),
+                ".".join(["1794000000"] * 11)):
+        try:
+            ba.parse_card_groups(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"通ってしまった: {bad[:40]}")
+
+
+def test_rank_of_matches_the_rank_borders():
+    assert ba._rank_of(None) is None and ba._rank_of(0) is None
+    assert ba._rank_of(1) == 1 and ba._rank_of(249) == 1 and ba._rank_of(250) == 2 and ba._rank_of(11250) == 22

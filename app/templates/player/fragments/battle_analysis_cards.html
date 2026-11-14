@@ -1,0 +1,10 @@
+{# 詳細分析タブのカード表示の1ページぶん（get_player_battle_analysis_cards）。
+   static/js/pages/battle_analysis.js が読み込んで差し込み、リザルトの開閉は js/pages/battle_results.js が受け持つ #}
+{% macro battle_brawler_filter_href(lang, tag, filter_query_without_brawler, brawler_id) -%}
+/{{ lang }}/player/battles/{{ tag }}?{{ (filter_query_without_brawler ~ "&") if filter_query_without_brawler else "" }}brawler_id={{ brawler_id }}
+{%- endmacro %}
+{% set map_page_href_query = 'tab=home&from=battles&player=' ~ player.tag[1:] ~ '&battles_tab=analysis' %}
+{% if battles_on_page %}
+{% include "player/includes/battle_card_grid.html" %}
+<script type="application/json" id="battleResultsData">{{ battle_results | tojson }}</script>
+{% endif %}

@@ -719,6 +719,37 @@ async def get_player_battle_analysis_data(
     # [この部分は公開用リポジトリでは非公開にされています]
 
 
+# 詳細分析タブのカード表示（ログイン必須）。絞り込みと並べ替えはブラウザで済んでいるので、表示する1ページぶんのバトルを指定された並びのままカードにして返す
+@api_router.get("/{tag}/battles/analysis-cards", name="get_player_battle_analysis_cards")
+async def get_player_battle_analysis_cards(
+    request: Request,
+    lang: str,
+    tag: str,
+    sets: str = Query(..., max_length=6000, description="セットごとに試合の時刻（秒）を . でつなぎ、, で並べたもの"),
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    formatted_tag = format_tag(tag)
+    if not confirm_tag(formatted_tag):
+        raise HTTPException(status_code=400, detail="Invalid player tag format.")
+    current_login_user: Optional[User] = getattr(request.state, "current_user", None)
+    if not current_login_user:
+        return JSONResponse({"error": "login"}, status_code=status.HTTP_401_UNAUTHORIZED)
+    # [この部分は公開用リポジトリでは非公開にされています]
+    context = {
+        "request": request,
+        "lang": lang,
+        "player": SimpleNamespace(tag=formatted_tag, name=player_name),
+        "battles_on_page": battles_on_page,
+        "battle_results": battle_results,
+        "selected_brawler_id": None,
+        "filter_query_without_brawler": "tab=all",
+        "current_user": current_login_user,
+    }
+    response = templates.TemplateResponse("player/fragments/battle_analysis_cards.html", context)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 # 推移グラフフラグメント
 @api_router.get("/{tag}/stats", name="get_player_stats_fragment")
 async def get_player_stats_fragment(

@@ -13,11 +13,12 @@ import asyncpg
 from app.core.cache import get_redis
 from app.core.logger import logger
 from app.services.battle_history import (
-    AGG_FIELDS, MIN_PLAYER_TAG_LENGTH, SET_BATTLE_TYPES, BattleSet,
-    _add_set, _has_mvp, _loads, _mode_color, _new_agg, group_into_sets, load_brawler_names,
+    AGG_FIELDS, MIN_PLAYER_TAG_LENGTH, RANKED_RANK_MIN_SCORES, SET_BATTLE_TYPES, BattleSet,
+    _PAGE_QUERY, _add_set, _has_mvp, _loads, _mode_color, _new_agg, group_into_sets, load_brawler_names,
 )
 from app.services.battle_result_view import STATS_SINCE
-from app.services.brawl_service import ensure_catalog
+from app.services.brawl_service import Battle, ensure_catalog
+from app.utils.utils import get_ranked_seasons_for_filter
 from app.services.map_mode_catalog import mode_icon_candidates, resolve_map_filter_label, resolve_mode_filter_label
 
 # [この部分は公開用リポジトリでは非公開にされています]

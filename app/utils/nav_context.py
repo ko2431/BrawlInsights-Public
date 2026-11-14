@@ -20,7 +20,7 @@ VALID_FROM_SOURCES = frozenset({
     "multiplayer_tier",
     "ranked_tier",
 })
-VALID_BATTLES_TABS = frozenset({"all", "trophy", "powerleague", "friendly"})
+VALID_BATTLES_TABS = frozenset({"all", "trophy", "powerleague", "friendly", "analysis"})
 FROM_DEFAULT_TAB: dict[str, str | None] = {
     "battles": "home",
     "profile": "home",

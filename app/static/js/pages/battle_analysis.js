@@ -7,15 +7,36 @@
 
     const K = window.BattleStatsKit;  // battle_stats.js の小物
     if (!K) return;
-    const { CLOSED_KEY, PREF_KEY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson } = K;
+    const { CLOSED_KEY, PREF_KEY, CHART_FONT, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson } = K;
     const PER_PAGE = 30;
     const TYPE_ICON = ['ui/trophy.png', 'ui/ranked.png', 'mode_icons/friendly.png', null];
     const AGG_KEYS = ['n', 'w', 'd', 'l', 'sp', 'sn', 'k', 'dth', 'dd', 'he', 'dt', 'dn', 'du', 'tc', 'g', 'mg'];
+    const NUM_KEYS = ['kmin', 'ddmin', 'dumin', 'dumax', 'rkmax', 'trmin', 'trmax'];  // 数値で絞り込む条件
+    const CARD_CACHE_MAX = 12;
+
+    // [この部分は公開用リポジトリでは非公開にされています]
 
     const TEXT = {
         ja: {
             dow: ['日', '月', '火', '水', '木', '金', '土'], dowName: (d) => d + '曜', hourName: (h) => `${h}時台`,
             types: ['トロフィー', 'ガチバトル', 'フレンドバトル', 'その他'], other: 'その他', unknownMap: '不明なマップ', typeOther: '他',
+            dateTo: '〜', seasonPick: 'シーズンを選択',
+            durRange: (a, b) => `バトル時間 ${a}〜${b} 秒`, rkmax: (input) => `順位 ${input} 位以内`, trRange: (a, b) => `トロフィー ${a}〜${b}`, ban: 'BAN: ',
+            highlights: 'ハイライト', highlightsCap: '一定の回数以上のものから',
+            hl: { brawler: '勝率の高いキャラ', mapGood: '得意なマップ', mapBad: '苦手なマップ', oppGood: '得意な相手キャラ', oppBad: '苦手な相手キャラ', mate: '相性のいい味方' },
+            hlSub: (rate, w, l) => `勝率 ${rate}（${w}勝${l}敗）`,
+            trend: '推移', metrics: { wr: '勝率', kd: 'キルデス比', dd: '与ダメ', dt: '被ダメ', he: '回復', du: 'バトル時間', tc: 'トロフィー増減' },
+            day: '日', week: '週', chart: 'グラフ', table: '表', trendNeed: '推移を出すにはバトルが足りません', from: '〜',
+            trendCount: (n, game, w, l) => `${n}${game ? '試合' : '件'}・${w}勝${l}敗`, colCount: '回数', colWL: '勝敗', wl: (w, l) => `${w}勝${l}敗`,
+            hist: { dd: '与ダメ', k: 'キル', d: 'デス', dt: '被ダメ', du: 'バトル時間', rk: '順位' },
+            histTitle: { dd: '与ダメージの分布', k: 'キルの分布', d: 'デスの分布', dt: '被ダメージの分布', du: 'バトル時間の分布', rk: '順位の分布' },
+            histCap: '1試合ごと', histNeed: '分布を出すにはバトルが足りません', histTip: (range, n, p) => `${range}\n${n}試合（${p}%）`, avg: '平均', median: '中央値', max: '最大', games: (n) => `${n}試合`,
+            hours: 'プレイ時間帯', tz: '時刻: ', tzJapan: '日本時間', tzDevice: 'この端末の時刻', hourMark: '時', battleCount: 'バトル数',
+            heatCell: (dow, h, n, rate) => `${dow}曜 ${h}時台\n${n}戦・勝率 ${rate}`, few: '少', many: '多', rateHigh: '勝率 高', rateLow: '低（3戦未満は色なし）',
+            mostActive: '最もプレイした時間帯は', mostActiveAt: (dow, h, n) => `<b>${dow}曜 ${h}時台</b>（${n}戦）`, bestRate: '勝率が高いのは', bestRateAt: (from, to, rate) => `<b>${from}〜${to}時</b>（${rate}%）`,
+            viewCard: 'カード', viewTable: '表', openResults: 'リザルトを開く', cardsLoading: 'バトルを読み込み中...', cardsCap: (n, game) => `${n}${game ? '試合' : '件'}`,
+            featHl: 'ハイライト', featHlLead: '得意・苦手なキャラやマップが、条件を変えるたびにすぐ分かります。', ctaHl: 'ログインしてすべて見る',
+            featTrend: 'スタッツの推移と分布', featTrendLead: '勝率やキルデス比、与ダメージが、日ごと・週ごとにどう変わってきたかをグラフで追えます。', ctaTrend: 'ログインして推移を見る',
             fType: '種別', fPeriod: '期間', fPicks: '条件', fMore: '詳細条件', fResult: '結果', fFormat: '形式', fDow: '曜日', fValues: '数値', fUnit: '集計',
             periods: [['all', 'すべて'], [7, '7日'], [30, '30日'], [90, '90日'], [365, '1年']],
             results: ['勝ち', '引き分け', '負け'], mvpOnly: '★ MVPのみ',
@@ -52,6 +73,23 @@
         en: {
             dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], dowName: (d) => d, hourName: (h) => `${h}:00`,
             types: ['Trophy', 'Ranked', 'Friendly', 'Other'], other: 'Other', unknownMap: 'Unknown map', typeOther: '–',
+            dateTo: '–', seasonPick: 'Pick a season',
+            durRange: (a, b) => `Battle time ${a}–${b} s`, rkmax: (input) => `Place ≤ ${input}`, trRange: (a, b) => `Trophies ${a}–${b}`, ban: 'Ban: ',
+            highlights: 'Highlights', highlightsCap: 'Among those with enough battles',
+            hl: { brawler: 'Best brawler', mapGood: 'Best map', mapBad: 'Toughest map', oppGood: 'Easiest enemy brawler', oppBad: 'Toughest enemy brawler', mate: 'Best teammate' },
+            hlSub: (rate, w, l) => `Win rate ${rate} (${w}W ${l}L)`,
+            trend: 'Trend', metrics: { wr: 'Win rate', kd: 'K/D', dd: 'Damage', dt: 'Taken', he: 'Healing', du: 'Battle time', tc: 'Trophies' },
+            day: 'Day', week: 'Week', chart: 'Chart', table: 'Table', trendNeed: 'Not enough battles to show a trend', from: '–',
+            trendCount: (n, game, w, l) => `${n} ${game ? 'games' : 'battles'}, ${w}W ${l}L`, colCount: 'Battles', colWL: 'W / L', wl: (w, l) => `${w}W ${l}L`,
+            hist: { dd: 'Damage', k: 'Kills', d: 'Deaths', dt: 'Taken', du: 'Battle time', rk: 'Place' },
+            histTitle: { dd: 'Damage dealt', k: 'Kills', d: 'Deaths', dt: 'Damage taken', du: 'Battle time', rk: 'Place' },
+            histCap: 'Distribution per game', histNeed: 'Not enough battles to show a distribution', histTip: (range, n, p) => `${range}\n${n} games (${p}%)`, avg: 'Average', median: 'Median', max: 'Max', games: (n) => `${n} games`,
+            hours: 'Play times', tz: 'Time zone: ', tzJapan: 'Japan Standard Time', tzDevice: 'this device', hourMark: 'h', battleCount: 'Battles',
+            heatCell: (dow, h, n, rate) => `${dow} ${h}:00\n${n} battles, win rate ${rate}`, few: 'Fewer', many: 'More', rateHigh: 'Win rate: high', rateLow: 'low (no color under 3 battles)',
+            mostActive: 'Most active:', mostActiveAt: (dow, h, n) => `<b>${dow} ${h}:00</b> (${n} battles)`, bestRate: 'Best win rate:', bestRateAt: (from, to, rate) => `<b>${from}:00–${to}:00</b> (${rate}%)`,
+            viewCard: 'Cards', viewTable: 'Table', openResults: 'Open results', cardsLoading: 'Loading battles...', cardsCap: (n, game) => `${n} ${game ? 'games' : 'battles'}`,
+            featHl: 'Highlights', featHlLead: 'Your best and toughest brawlers and maps update the moment you change a filter.', ctaHl: 'Log in to see them all',
+            featTrend: 'Trends and distributions', featTrendLead: 'Follow how your win rate, K/D and damage have changed by day or by week.', ctaTrend: 'Log in to see trends',
             fType: 'Type', fPeriod: 'Period', fPicks: 'Filters', fMore: 'More filters', fResult: 'Result', fFormat: 'Format', fDow: 'Day', fValues: 'Values', fUnit: 'Count',
             periods: [['all', 'All'], [7, '7d'], [30, '30d'], [90, '90d'], [365, '1y']],
             results: ['Win', 'Draw', 'Loss'], mvpOnly: '★ MVP only',
@@ -106,19 +144,30 @@
         const topSlot = root.querySelector('[data-bxa-slot="top"]'), bottomSlot = root.querySelector('[data-bxa-slot="bottom"]');
         const filtersEl = document.getElementById('battleAnalysisFilters');
         if (filtersEl) filtersEl.dataset.lang = lang;
-        let names = { brawlers: {}, modes: {}, maps: {} }, players = [], statsSince = 0, capped = 0;
+        let names = { brawlers: {}, modes: {}, maps: {} }, players = [], seasons = [], statsSince = 0, capped = 0;
         let ROWS = [], setCount = 0;
         let after = [];
+        const charts = [];
+        const cardCache = new Map();  // カード表示: 読み込んだページの HTML
+        let cardLoadId = 0;
         const me = { root, pop: null, closePop, fitWbars };
         current = me;
 
         const prefs = readJson(PREF_KEY, {});
-        const newF = () => ({ types: new Set(), period: 'all', brawler: new Set(), mode: new Set(), map: new Set(), mate: new Set(), tbr: new Set(), obr: new Set(), res: new Set(), fmt: new Set(), dow: new Set(), mvp: false, kmin: null, ddmin: null, unit: 'set' });
+        const newF = () => {
+            const F = { types: new Set(), period: 'all', from: '', to: '', season: '', brawler: new Set(), mode: new Set(), map: new Set(), mate: new Set(), tbr: new Set(), obr: new Set(), ban: new Set(),
+                res: new Set(), fmt: new Set(), dow: new Set(), mvp: false, unit: 'set' };
+            for (const key of NUM_KEYS) F[key] = null;
+            return F;
+        };
         const S = {
             F: newF(), moreOpen: false, curRows: [],
             pv: { dim: prefs.pvDim || 'brawler', sort: 'n', dir: -1, min: 3, more: false },
-            bt: { sort: 't', dir: -1, page: 0, open: new Set() },
+            bt: { sort: 't', dir: -1, page: 0, open: new Set(), view: prefs.aBtView === 'card' ? 'card' : 'table' },
+            trend: Object.assign({ metric: 'wr', bucket: null, view: 'chart' }, prefs.aTrend || {}),
+            hist: prefs.aHist || 'dd', heatMode: prefs.heatMode === 'wr' ? 'wr' : 'n',
         };
+        const savePref = (values) => writeJson(PREF_KEY, Object.assign(readJson(PREF_KEY, {}), values));
 
         // ---------- 小物 ----------
         const bname = (id) => (names.brawlers[id] ? names.brawlers[id][0] : String(id));
@@ -172,6 +221,32 @@
             });
         }
         const runAfter = () => { const run = after; after = []; run.forEach((f) => f()); };
+        function chartTheme() {
+            const cs = getComputedStyle(topSlot);
+            const v = (n) => cs.getPropertyValue(n).trim();
+            return { card: v('--bx-card') || '#fff', mut: v('--color-777') || '#777', grid: v('--color-eee') || '#eee', accent: v('--bx-accent') || '#5b7fd6', ink: v('--color-111') };
+        }
+        function baseOptions(th) {
+            return {
+                responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(28,28,28,.94)', titleColor: '#fff', bodyColor: '#fff', padding: 8, cornerRadius: 9, titleFont: { size: 12 }, bodyFont: { size: 12 }, displayColors: false } },
+                scales: {
+                    x: { grid: { display: false }, border: { color: th.grid }, ticks: { color: th.mut, font: { size: 10.5 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+                    y: { grid: { color: th.grid }, border: { display: false }, ticks: { color: th.mut, font: { size: 10.5 }, maxTicksLimit: 6 } },
+                },
+            };
+        }
+        function mountChart(id, build) {
+            after.push(() => {
+                const el = root.querySelector('#' + id);
+                if (!el || !window.Chart) return;
+                Chart.defaults.font.family = CHART_FONT;
+                charts.push(new Chart(el, build(chartTheme())));
+            });
+        }
+        const destroyCharts = (within) => { for (let i = charts.length - 1; i >= 0; i--) if (!within || within.contains(charts[i].canvas)) { charts[i].destroy(); charts.splice(i, 1); } };
+        const dayLabel = (day) => { const d = new Date(day * 86400000); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+        const dayIndex = (text) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text || ''); return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000 : null; };
 
         // ---------- データ ----------
         function fmtOf(r) {
@@ -258,19 +333,26 @@
             obr: { key: (r) => r.ob, name: bname, img: bimg, f: 'obr' },
             dow: { key: (r) => r.dow, name: (d) => T.dowName(T.dow[d]), f: 'dow' },
             hour: { key: (r) => r.hr, name: T.hourName },
-            ban: { key: (r) => r.bn, name: bname, img: bimg },
+            ban: { key: (r) => r.bn, name: bname, img: bimg, f: 'ban' },
         };
-        const PICKS = ['brawler', 'mode', 'map', 'mate', 'tbr', 'obr'];
+        const PICKS = ['brawler', 'mode', 'map', 'mate', 'tbr', 'obr', 'ban'];
+        // 種別と期間（プルダウンの候補は、ここまで絞ったものから出す）。日付を指定しているときは、この端末の日付で区切る
         function typeRows() {
-            const F = S.F, from = F.period === 'all' ? null : Date.now() / 1000 - Number(F.period) * 86400;
-            return ROWS.filter((r) => (!F.types.size || F.types.has(r.ty)) && (from == null || r.t >= from));
+            const F = S.F, dayFrom = dayIndex(F.from), dayTo = dayIndex(F.to), custom = dayFrom != null || dayTo != null;
+            const from = custom || F.period === 'all' ? null : Date.now() / 1000 - Number(F.period) * 86400;
+            return ROWS.filter((r) => (!F.types.size || F.types.has(r.ty)) && (from == null || r.t >= from) && (dayFrom == null || r.day >= dayFrom) && (dayTo == null || r.day <= dayTo));
         }
         function analysisRows() {
             const F = S.F, game = F.unit === 'game';
             const has = (set, arr) => { for (const x of arr) if (set.has(x)) return true; return false; };
             return markHeads(typeRows().filter((r) => (!F.brawler.size || F.brawler.has(r.b)) && (!F.mode.size || F.mode.has(r.m)) && (!F.map.size || F.map.has(r.e))
                 && (!F.res.size || F.res.has(game ? r.r : r.sr)) && (!F.mvp || r.ssp) && (!F.mate.size || has(F.mate, r.tm)) && (!F.tbr.size || has(F.tbr, r.tb)) && (!F.obr.size || has(F.obr, r.ob))
-                && (!F.fmt.size || F.fmt.has(r.fmt)) && (!F.dow.size || F.dow.has(r.dow)) && (F.kmin == null || (r.k != null && r.k >= F.kmin)) && (F.ddmin == null || (r.dd != null && r.dd >= F.ddmin))));
+                && (!F.fmt.size || F.fmt.has(r.fmt)) && (!F.dow.size || F.dow.has(r.dow)) && (F.kmin == null || (r.k != null && r.k >= F.kmin)) && (F.ddmin == null || (r.dd != null && r.dd >= F.ddmin))
+                && (!F.ban.size || F.ban.has(r.bn))
+                && ((F.dumin == null && F.dumax == null) || (r.du > 0 && (F.dumin == null || r.du >= F.dumin) && (F.dumax == null || r.du <= F.dumax)))
+                && (F.rkmax == null || (r.rk != null && r.rk <= F.rkmax))
+                // トロフィーは、キャラのトロフィーが入っているバトル（ガチバトル・フレンドバトル以外）だけが対象
+                && ((F.trmin == null && F.trmax == null) || (r.ty !== 1 && r.ty !== 2 && r.tr != null && r.tr >= 0 && (F.trmin == null || r.tr >= F.trmin) && (F.trmax == null || r.tr <= F.trmax)))));
         }
         function renderFilters(rows) {
             if (!filtersEl) return;
@@ -279,29 +361,40 @@
             const selected = [];
             for (const dim of PICKS) for (const id of F[dim]) {
                 const d = DIMS[dim], img = d.img && d.img(id);
-                selected.push(`<span class="bx-chip bx-chip--sel">${img ? `<img src="${img}" alt="" onerror="this.remove()">` : ''}${dim === 'tbr' ? T.mate : dim === 'obr' ? T.opp : ''}${esc(d.name(id))}<button type="button" data-fdel="${dim}:${esc(id)}" aria-label="${T.remove}">×</button></span>`);
+                selected.push(`<span class="bx-chip bx-chip--sel">${img ? `<img src="${img}" alt="" onerror="this.remove()">` : ''}${dim === 'tbr' ? T.mate : dim === 'obr' ? T.opp : dim === 'ban' ? T.ban : ''}${esc(d.name(id))}<button type="button" data-fdel="${dim}:${esc(id)}" aria-label="${T.remove}">×</button></span>`);
             }
-            const any = selected.length || F.types.size || F.res.size || F.fmt.size || F.dow.size || F.mvp || F.kmin != null || F.ddmin != null || F.period !== 'all';
+            const custom = !!(F.from || F.to);
+            const any = selected.length || F.types.size || F.res.size || F.fmt.size || F.dow.size || F.mvp || NUM_KEYS.some((key) => F[key] != null) || F.period !== 'all' || custom;
             const fmts = [...new Set(typeRows().map((r) => r.fmt))];
             for (const k of F.fmt) if (!fmts.includes(k)) fmts.push(k);
-            const numInput = (key, step) => `<input type="number" min="0"${step ? ` step="${step}"` : ''} class="bxf-num" data-fnum="${key}" value="${F[key] == null ? '' : F[key]}" placeholder="0" inputmode="numeric">`;
+            const numInput = (key, step) => `<input type="number" min="0"${step ? ` step="${step}"` : ''} class="bxf-num" data-fnum="${key}" value="${F[key] == null ? '' : F[key]}" placeholder="${key.endsWith('max') ? '' : '0'}" inputmode="numeric">`;
+            const dateInput = (key) => `<input type="date" class="bxf-date" data-fdate="${key}" value="${esc(F[key])}">`;
+            const seasonSelect = seasons.length ? `<select class="bxf-select" data-fseason><option value="">${T.seasonPick}</option>${seasons.map(([number, label]) => `<option value="${number}"${String(F.season) === String(number) ? ' selected' : ''}>${esc(label)}</option>`).join('')}</select>` : '';
             const shown = rows.filter((r) => game || r.head).length;
+            // 描き直しで入力中の欄からフォーカスが外れないよう、どの欄にいたかを覚えておく
+            const active = document.activeElement && filtersEl.contains(document.activeElement) ? document.activeElement : null;
+            const focusKey = active && (active.dataset.fnum ? `[data-fnum="${active.dataset.fnum}"]` : active.dataset.fdate ? `[data-fdate="${active.dataset.fdate}"]` : null);
             filtersEl.innerHTML = `
                 <div class="bxf-row"><span class="bxf-label">${T.fType}</span>${T.types.map((l, i) => chip('types', i, l, F.types.has(i))).join('')}</div>
-                <div class="bxf-row"><span class="bxf-label">${T.fPeriod}</span>${T.periods.map(([v, l]) => chip('period', v, l, String(F.period) === String(v))).join('')}</div>
+                <div class="bxf-row"><span class="bxf-label">${T.fPeriod}</span>${T.periods.map(([v, l]) => chip('period', v, l, !custom && String(F.period) === String(v))).join('')}
+                    <span class="bxf-dates">${dateInput('from')}<span>${T.dateTo}</span>${dateInput('to')}</span>${seasonSelect}</div>
                 <div class="bxf-row"><span class="bxf-label">${T.fPicks}</span>${PICKS.map((dim) => `<button type="button" class="bx-chip bx-chip--pick" data-pick="${dim}">${T.dims[dim]}${F[dim].size ? `<b>${F[dim].size}</b>` : ''}</button>`).join('')}
                     <button type="button" class="bx-chip${S.moreOpen ? ' is-on' : ''}" data-act="fmore" aria-expanded="${S.moreOpen}">${T.fMore}</button></div>
                 <div class="bxf-more${S.moreOpen ? ' is-open' : ''}"><div>
                     <div class="bxf-row"><span class="bxf-label">${T.fResult}</span>${T.results.map((l, v) => chip('res', v, l, F.res.has(v))).join('')}${chip('mvp', 1, T.mvpOnly, F.mvp)}</div>
                     <div class="bxf-row"><span class="bxf-label">${T.fFormat}</span>${fmts.map((k) => chip('fmt', k, fmtName(k), F.fmt.has(k))).join('')}</div>
                     <div class="bxf-row"><span class="bxf-label">${T.fDow}</span>${[1, 2, 3, 4, 5, 6, 0].map((d) => chip('dow', d, T.dow[d], F.dow.has(d))).join('')}</div>
-                    <div class="bxf-row"><span class="bxf-label">${T.fValues}</span><label class="bxf-numlabel">${T.kmin(numInput('kmin'))}</label><label class="bxf-numlabel">${T.ddmin(numInput('ddmin', 1000))}</label></div>
+                    <div class="bxf-row"><span class="bxf-label">${T.fValues}</span><label class="bxf-numlabel">${T.kmin(numInput('kmin'))}</label><label class="bxf-numlabel">${T.ddmin(numInput('ddmin', 1000))}</label>
+                        <span class="bxf-numlabel">${T.durRange(numInput('dumin', 10), numInput('dumax', 10))}</span></div>
+                    <div class="bxf-row"><span class="bxf-label"></span><label class="bxf-numlabel">${T.rkmax(numInput('rkmax'))}</label><span class="bxf-numlabel">${T.trRange(numInput('trmin', 50), numInput('trmax', 50))}</span></div>
                 </div></div>
                 ${selected.length ? `<div class="bxf-row">${selected.join('')}</div>` : ''}
                 <div class="bxf-row bxf-foot"><span class="bxf-label">${T.fUnit}</span>${seg('unit', F.unit, [['set', T.unitSet], ['game', T.unitGame]])}
                     ${any ? `<button type="button" class="bxf-clear" data-act="fclear">${T.clear}</button>` : ''}
                     <span class="bxf-count">${T.count(nf(shown), nf(game ? ROWS.length : setCount), game)}</span></div>
                 ${capped ? `<p class="bxf-note">${T.capped(nf(capped))}</p>` : ''}`;
+            const again = focusKey && filtersEl.querySelector(focusKey);
+            if (again) again.focus({ preventScroll: true });
         }
 
         // ---------- 選択のポップアップ（キャラ・モード・マップ・味方など） ----------
@@ -384,6 +477,136 @@
             return card('summary', 'bx-span2', T.summary, T.lastBattles(nf(a.n), unit === 'game'), '', `<div class="bx-tiles bx-tiles--dense">${tiles.join('')}</div>${statsNote(rows, a)}`, true);
         }
 
+        // ---------- ハイライト ----------
+        const HL_DIM = { brawler: 'brawler', mapGood: 'map', mapBad: 'map', oppGood: 'obr', oppBad: 'obr', mate: 'mate' };
+        function hlItem(kind, name, img, w, l) {
+            return `<div class="bx-hlitem">${img ? `<img src="${img}" alt="" loading="lazy" onerror="this.remove()">` : ''}<div><span class="bx-hlitem__label">${T.hl[kind]}</span><span class="bx-hlitem__name">${esc(name)}</span><span class="bx-hlitem__sub">${T.hlSub(pc(w + l ? w / (w + l) * 100 : null), nf(w), nf(l))}</span></div></div>`;
+        }
+        function cardHighlights(rows) {
+            const unit = S.F.unit, F = S.F, minN = Math.max(5, Math.round(rows.length * 0.01));
+            // 候補が2つ以上あるときだけ出す。1つだけ選んで絞り込んでいる項目そのもの（そのキャラ・その相手など）は候補から外す
+            const cands = (dim) => { const fixed = F[dim].size === 1 ? F[dim] : null; return [...groupBy(rows, DIMS[dim].key, unit).entries()].filter((x) => x[1].n >= minN && wr(x[1]) != null && !(fixed && fixed.has(x[0]))); };
+            const best = (dim, dir) => { const list = cands(dim); return list.length >= 2 ? list.sort((a, b) => dir * (wr(b[1]) - wr(a[1])) || b[1].n - a[1].n)[0] : null; };
+            const item = (kind, x) => { if (!x) return ''; const d = DIMS[HL_DIM[kind]]; return hlItem(kind, d.name(x[0]), d.img && d.img(x[0]), x[1].w, x[1].l); };
+            // 得意と苦手が同じものになるときは、苦手のほうを出さない
+            const pair = (dim, good, bad) => { const g = best(dim, 1), b = best(dim, -1); return [item(good, g), g && b && g[0] !== b[0] ? item(bad, b) : '']; };
+            const items = [item('brawler', best('brawler', 1)), ...pair('map', 'mapGood', 'mapBad'), ...pair('obr', 'oppGood', 'oppBad'), item('mate', best('mate', 1))].filter(Boolean);
+            return items.length ? card('hl', 'bx-span2', T.highlights, T.highlightsCap, '', `<div class="bx-hl">${items.join('')}</div>`, true) : '';
+        }
+
+        // ---------- 推移 ----------
+        const METRICS = {
+            wr: { val: (a) => wr(a), fmt: (v) => v.toFixed(1) + '%' },
+            kd: { val: (a) => (a.sn && a.dth ? a.k / a.dth : null), fmt: (v) => v.toFixed(2) },
+            dd: { val: (a) => (a.sn ? a.dd / a.sn : null), fmt: (v) => shortText(v) },
+            dt: { val: (a) => (a.sn ? a.dt / a.sn : null), fmt: (v) => shortText(v) },
+            he: { val: (a) => (a.sn ? a.he / a.sn : null), fmt: (v) => shortText(v) },
+            du: { val: (a) => (a.dn ? a.du / a.dn : null), fmt: (v) => dur(v) },
+            tc: { val: (a) => a.tc, fmt: (v) => signed(v) },
+        };
+        function trendChart(id, labels, values, metric, tooltip) {
+            const M = METRICS[metric];
+            mountChart(id, (th) => {
+                const o = baseOptions(th);
+                o.scales.y.ticks.callback = (v) => M.fmt(v);
+                if (metric === 'wr') { o.scales.y.min = 0; o.scales.y.max = 100; o.scales.y.grid.color = (c) => (c.tick.value === 50 ? th.mut : th.grid); }
+                if (metric === 'tc') o.scales.y.grid.color = (c) => (c.tick.value === 0 ? th.mut : th.grid);
+                if (tooltip) o.plugins.tooltip.callbacks = tooltip; else o.plugins.tooltip.enabled = false;
+                return { type: 'line', data: { labels, datasets: [{ data: values, borderColor: th.accent, backgroundColor: th.accent + '1c', fill: metric !== 'tc', borderWidth: 2, pointRadius: values.length > 45 ? 0 : 2.5, pointBackgroundColor: th.accent, pointHoverRadius: 4, tension: 0.2 }] }, options: o };
+            });
+            return `<div class="bx-chart bx-chart--tall"><canvas id="${id}"></canvas></div>`;
+        }
+        function cardTrend(rows) {
+            const V = S.trend, M = METRICS[V.metric] ? V.metric : 'wr', unit = S.F.unit, game = unit === 'game';
+            // 選んでいないうちは、期間が長ければ週ごとにする
+            const auto = rows.length && rows[rows.length - 1].day - rows[0].day > 150 ? 'week' : 'day';
+            const bucket = V.bucket || auto, step = bucket === 'week' ? 7 : 1;
+            const pts = [...groupBy(rows, (r) => Math.floor(r.day / step), unit).entries()].sort((a, b) => a[0] - b[0]).map(([k, a]) => ({ day: k * step, a, v: METRICS[M].val(a) })).filter((x) => x.v != null);
+            const label = (x) => dayLabel(x.day) + (step === 7 ? T.from : '');
+            let body;
+            if (pts.length < 2) body = `<div class="bx-empty">${T.trendNeed}</div>`;
+            else if (V.view === 'table') {
+                body = `<div class="bx-tablewrap" style="max-height:240px;overflow-y:auto"><table class="bx-table bx-table--plain"><thead><tr><th>${step === 7 ? T.week : T.day}</th><th>${T.metrics[M]}</th><th>${T.colCount}</th><th>${T.colWL}</th></tr></thead><tbody>${pts.slice().reverse().map((x) => `<tr><td>${label(x)}</td><td>${METRICS[M].fmt(x.v)}</td><td>${nf(x.a.n)}</td><td>${T.wl(x.a.w, x.a.l)}</td></tr>`).join('')}</tbody></table></div>`;
+            } else {
+                body = trendChart('bxaTrend', pts.map(label), pts.map((x) => x.v), M, { title: (it) => label(pts[it[0].dataIndex]), label: (it) => `${T.metrics[M]} ${METRICS[M].fmt(it.parsed.y)}`, afterLabel: (it) => { const a = pts[it.dataIndex].a; return T.trendCount(nf(a.n), game, a.w, a.l); } });
+            }
+            const tools = `<div class="bx-pvtools">${seg('trendMetric', M, Object.keys(METRICS).map((k) => [k, T.metrics[k]]))}${seg('trendBucket', bucket, [['day', T.day], ['week', T.week]])}${seg('trendView', V.view, [['chart', T.chart], ['table', T.table]])}</div>`;
+            return card('trend', 'bx-span2', T.trend, '', tools, body, true);
+        }
+
+        // ---------- 分布（1試合ごと） ----------
+        const HIST = { dd: [(r) => r.dd, (v) => shortText(v)], k: [(r) => r.k, (v) => String(Math.round(v))], d: [(r) => r.d, (v) => String(Math.round(v))], dt: [(r) => r.dt, (v) => shortText(v)], du: [(r) => (r.du > 0 ? r.du : null), (v) => dur(v)], rk: [(r) => r.rk, (v) => T.place(Math.round(v))] };
+        function cardHist(rows) {
+            const key = HIST[S.hist] ? S.hist : 'dd', [get, fmt] = HIST[key];
+            const vals = rows.map(get).filter((v) => v != null).sort((a, b) => a - b);
+            let body;
+            if (vals.length < 5) body = `<div class="bx-empty">${T.histNeed}</div>`;
+            else {
+                // 極端に大きい値で棒がつぶれないよう、上位1%は最後の区間にまとめる
+                const lo = vals[0], hi = vals[Math.min(vals.length - 1, Math.floor(vals.length * 0.99))];
+                const discrete = (key === 'k' || key === 'd' || key === 'rk') && hi - lo <= 24;
+                const nb = discrete ? Math.max(1, hi - lo + 1) : 14, w = discrete ? 1 : (hi - lo) / nb || 1;
+                const bins = new Array(nb).fill(0);
+                for (const v of vals) bins[Math.min(nb - 1, Math.max(0, Math.floor((v - lo) / w)))]++;
+                const max = Math.max(...bins), mid = vals[Math.floor(vals.length / 2)], avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+                body = `<div class="bx-hist">${bins.map((n, i) => `<i style="height:${n / max * 100}%"${tipAttr(T.histTip(discrete ? fmt(lo + i) : fmt(lo + i * w) + T.from + fmt(lo + (i + 1) * w), nf(n), (n / vals.length * 100).toFixed(1)))}></i>`).join('')}</div>
+                    <div class="bx-histaxis"><span>${fmt(lo)}</span><span>${fmt(lo + (hi - lo) / 2)}</span><span>${fmt(hi)}${discrete ? '' : T.from}</span></div>
+                    <div class="bx-facts"><span>${T.avg} <b>${key === 'k' || key === 'd' || key === 'rk' ? avg.toFixed(1) : fmt(avg)}</b></span><span>${T.median} <b>${fmt(mid)}</b></span><span>${T.max} <b>${fmt(vals[vals.length - 1])}</b></span><span>${T.games(nf(vals.length))}</span></div>`;
+            }
+            return card('hist', '', T.histTitle[key], T.histCap, `<div class="bx-pvtools">${seg('hist', key, Object.keys(HIST).map((k) => [k, T.hist[k]]))}</div>`, body, true);
+        }
+
+        // ---------- プレイ時間帯 ----------
+        function tzLabel() {
+            try {
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (tz === 'Asia/Tokyo') return T.tzJapan;
+                const part = new Intl.DateTimeFormat(lang, { timeZoneName: 'long' }).formatToParts(new Date()).find((x) => x.type === 'timeZoneName');
+                return part ? part.value : tz;
+            } catch (e) { return T.tzDevice; }
+        }
+        function cardHours(rows) {
+            const game = S.F.unit === 'game';
+            const cells = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ n: 0, w: 0, l: 0 })));
+            let max = 0;
+            for (const r of rows) {
+                if (!game && !r.head) continue;
+                const c = cells[r.dow][r.hr], res = game ? r.r : r.sr;
+                c.n++;
+                if (res === 0) c.w++; else if (res === 2) c.l++;
+                if (c.n > max) max = c.n;
+            }
+            let html = '<div class="bx-heat"><span></span>';
+            for (let h = 0; h < 24; h++) html += `<span class="bx-heat__h">${h % 3 === 0 ? h + (h === 21 ? `<small>${T.hourMark}</small>` : '') : ''}</span>`;
+            let best = null;
+            for (const d of [1, 2, 3, 4, 5, 6, 0]) {
+                html += `<span class="bx-heat__d">${T.dow[d]}</span>`;
+                for (let h = 0; h < 24; h++) {
+                    const c = cells[d][h];
+                    if (!c.n) { html += '<span class="bx-heat__c"></span>'; continue; }
+                    if (!best || c.n > best.n) best = { n: c.n, d, h };
+                    const rate = c.w + c.l ? c.w / (c.w + c.l) : null;
+                    let bg;
+                    if (S.heatMode === 'wr') {
+                        if (rate == null || c.n < 3) bg = 'var(--bx-track)';
+                        else { const t = Math.min(1, Math.abs(rate - 0.5) * 2.6); bg = `color-mix(in srgb, ${rate >= 0.5 ? 'var(--bx-win)' : 'var(--bx-lose)'} ${Math.round(12 + t * 88)}%, var(--bx-track))`; }
+                    } else bg = `rgba(91,127,214,${(0.14 + 0.86 * c.n / max).toFixed(3)})`;
+                    html += `<span class="bx-heat__c" style="background:${bg}"${tipAttr(T.heatCell(T.dow[d], h, c.n, rate == null ? '—' : (rate * 100).toFixed(1) + '%'))}></span>`;
+                }
+            }
+            html += '</div>';
+            // 時間帯ごとの勝率（3時間ずつ）
+            const slots = Array.from({ length: 8 }, () => ({ n: 0, w: 0, l: 0 }));
+            for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) { const slot = slots[Math.floor(h / 3)], c = cells[d][h]; slot.n += c.n; slot.w += c.w; slot.l += c.l; }
+            const totalN = slots.reduce((x, slot) => x + slot.n, 0);
+            const good = slots.map((slot, i) => ({ i, n: slot.n, rate: slot.w + slot.l ? slot.w / (slot.w + slot.l) * 100 : null })).filter((slot) => slot.rate != null && slot.n >= Math.max(5, totalN * 0.04)).sort((a, b) => b.rate - a.rate)[0];
+            const legend = S.heatMode === 'wr'
+                ? `<div class="bx-heatlegend">${T.rateHigh}<i style="background:var(--bx-win)"></i><i style="background:color-mix(in srgb,var(--bx-win) 40%,var(--bx-track))"></i><i style="background:var(--bx-track)"></i><i style="background:color-mix(in srgb,var(--bx-lose) 40%,var(--bx-track))"></i><i style="background:var(--bx-lose)"></i>${T.rateLow}</div>`
+                : `<div class="bx-heatlegend">${T.few}<i style="background:rgba(91,127,214,.14)"></i><i style="background:rgba(91,127,214,.4)"></i><i style="background:rgba(91,127,214,.7)"></i><i style="background:rgba(91,127,214,1)"></i>${T.many}</div>`;
+            const facts = `<div class="bx-facts bx-facts--col">${best ? `<span>${T.mostActive} ${T.mostActiveAt(T.dow[best.d], best.h, nf(best.n))}</span>` : ''}${good ? `<span>${T.bestRate} ${T.bestRateAt(good.i * 3, good.i * 3 + 3, good.rate.toFixed(1))}</span>` : ''}</div>`;
+            return card('hours', '', T.hours, `${T.tz}${esc(tzLabel())}`, seg('heatMode', S.heatMode, [['n', T.battleCount], ['wr', T.winRate]]), html + legend + facts, true);
+        }
+
         // ---------- 内訳（切り口を選ぶ表） ----------
         const PV_COLS = [
             ['n', (a) => a.n], ['wr', (a) => wr(a)], ['sp', (a) => (a.mg ? a.sp / a.mg * 100 : null)], ['k', (a) => (a.sn ? a.k / a.sn : null)], ['d', (a) => (a.sn ? a.dth / a.sn : null)],
@@ -454,10 +677,14 @@
             }
             return items;
         }
-        function battleTable(items, B, limit) {
+        // 並べ替えて、表示するページのぶんを取り出す
+        function pageItems(items, B, limit) {
             const col = BT_COLS.find((c) => c[0] === B.sort) || BT_COLS[0];
             const sorted = items.slice().sort((a, b) => { const x = col[1](a), y = col[1](b); if (x == null && y == null) return b.t - a.t; if (x == null) return 1; if (y == null) return -1; return B.dir * (x - y) || b.t - a.t; });
-            const list = sorted.slice(B.page * limit, B.page * limit + limit);
+            return sorted.slice(B.page * limit, B.page * limit + limit);
+        }
+        function battleTable(items, B, limit) {
+            const list = pageItems(items, B, limit);
             const head = `<tr>${BT_COLS.map(([k, , left]) => `<th data-btsort="${k}" class="${left ? 'is-l ' : ''}${B.sort === k ? 'is-sort' + (B.dir > 0 ? ' is-asc' : '') : ''}">${T.bt[k]}${k === 'r' ? '<small class="bx-thnote"><span class="bx-star">★</span>: MVP</small>' : ''}</th>`).join('')}</tr>`;
             const num = (v, f) => (v == null ? '<td class="is-mut">—</td>' : `<td>${f ? f(v) : nf(v)}</td>`);
             const delta = (v) => `<b class="${v > 0 ? 'bx-pos' : 'bx-neg'}">(${signed(v)})</b>`;
@@ -495,13 +722,47 @@
             const B = S.bt, game = S.F.unit === 'game', items = battleItems(rows, S.F.unit), pages = Math.max(1, Math.ceil(items.length / PER_PAGE));
             if (B.page >= pages) B.page = pages - 1;
             const pager = pages > 1 ? `<div class="bx-pager"><button type="button" data-act="btprev"${B.page ? '' : ' disabled'}>${T.prev}</button><span>${nf(B.page + 1)} / ${nf(pages)}</span><button type="button" data-act="btnext"${B.page < pages - 1 ? '' : ' disabled'}>${T.next}</button></div>` : '';
-            return card('battles', 'bx-span2', T.battles, T.battlesCap(nf(items.length), game), '', battleTable(items, B, PER_PAGE) + pager, false);
+            const tools = seg('btView', B.view, [['card', T.viewCard], ['table', T.viewTable]]);
+            if (B.view === 'card') {
+                // カードは、表示するページのぶんだけサーバーから HTML で受け取る（通常のタブと同じカード）
+                const list = pageItems(items, B, PER_PAGE);
+                after.push(() => loadCards(list));
+                return card('battles', 'bx-span2', T.battles, T.cardsCap(nf(items.length), game), tools, `<div class="bxa-cards" data-lang="${lang}" data-img-base="${esc(IMG)}"><div class="bx-loading"><span class="player-shell__spinner"></span><span>${T.cardsLoading}</span></div></div>${pager}`, false);
+            }
+            return card('battles', 'bx-span2', T.battles, T.battlesCap(nf(items.length), game), tools, battleTable(items, B, PER_PAGE) + pager, false);
+        }
+        function loadCards(list) {
+            const box = root.querySelector('.bxa-cards');
+            if (!box) return;
+            const game = S.F.unit === 'game';
+            // セットごとに「試合の時刻を . でつないだもの[:終わりのポイント[:1つ前のポイント]]」。ポイントは表と同じ値をカードにも出すために渡す
+            const key = list.map((it) => (it.games ? it.games.map((g) => g.t).join('.') : String(it.t)) + (!game && it.ty === 1 && it.srs ? `:${it.srs}${it.srsPrev ? ':' + it.srsPrev : ''}` : '')).join(',');
+            const loadId = ++cardLoadId;
+            const show = (html) => {
+                if (loadId !== cardLoadId || !document.body.contains(box)) return;
+                box.innerHTML = `<div class="bcr-tools bxa-cardtools"><button type="button" class="bcr-all" role="switch" aria-checked="false"><span>${T.openResults}</span><span class="bcr-all__track"></span></button></div>${html}`;
+                if (typeof window.initBattleResults === 'function') window.initBattleResults(box);
+            };
+            const fail = (html) => { if (loadId === cardLoadId && document.body.contains(box)) box.innerHTML = `<div class="bx-empty">${html}</div>`; };
+            if (cardCache.has(key)) { show(cardCache.get(key)); return; }
+            gatedFetch(`${root.dataset.cardsSrc}?sets=${encodeURIComponent(key)}`).then((res) => {
+                if (res.status === 401) { fail(`${T.needLogin} <a class="bx-maplink" href="${esc(root.dataset.login)}">${T.login}</a>`); return null; }
+                if (res.status === 429) { fail(T.rate); return null; }
+                if (!res.ok) throw new Error(String(res.status));
+                return res.text();
+            }).then((html) => {
+                if (html == null) return;
+                if (cardCache.size >= CARD_CACHE_MAX) cardCache.delete(cardCache.keys().next().value);
+                cardCache.set(key, html);
+                show(html);
+            }).catch(() => fail(T.loadError));
         }
 
         // ---------- 描画 ----------
-        const CARD_FN = { pivot: cardPivot, battles: cardBattles };
+        const CARD_FN = { pivot: cardPivot, battles: cardBattles, trend: cardTrend, hist: cardHist, hours: cardHours };
         function render() {
             after = [];
+            destroyCharts();
             closePop();
             const rows = analysisRows();
             S.curRows = rows;
@@ -511,19 +772,21 @@
                 bottomSlot.innerHTML = '';
                 return;
             }
-            topSlot.innerHTML = cardSummary(rows) + cardPivot(rows);
+            topSlot.innerHTML = cardSummary(rows) + cardHighlights(rows) + cardTrend(rows) + cardPivot(rows) + cardHist(rows) + cardHours(rows);
             bottomSlot.innerHTML = cardBattles(rows);
             runAfter();
         }
-        // カード1枚だけ描き直す
+        // カード1枚だけ描き直す（ほかのカードのグラフは動かさない）
         function rerenderCard(key) {
             const el = root.querySelector(`[data-card="${key}"]`);
             if (!el || !CARD_FN[key]) { render(); return; }
+            destroyCharts(el);
             after = [];
             el.outerHTML = CARD_FN[key](S.curRows);
             runAfter();
         }
         function showMessage(html) {
+            destroyCharts();
             topSlot.innerHTML = `<div class="bx-empty bx-span2">${html}</div>`;
             bottomSlot.innerHTML = '';
             if (filtersEl) filtersEl.innerHTML = '';
@@ -546,18 +809,29 @@
             const demoChips = `<div class="bx-demo-chips"><span class="bx-chip is-on">${T.types[1]}</span><span class="bx-chip is-on">${T.demo30}</span>${brawlers.slice(0, 3).map(([id]) => `<span class="bx-chip bx-chip--sel"><img src="${bimg(id)}" alt="">${esc(bname(id))}</span>`).join('')}
                 <span class="bx-chip bx-chip--pick">${T.dims.map}</span><span class="bx-chip bx-chip--pick">${T.dims.mate}</span><span class="bx-chip bx-chip--pick">${T.dims.obr}</span><span class="bx-chip">${T.mvpOnly}</span></div>`;
             let top = hero + feat('bx-span2', T.featFilter, T.featFilterLead, demoChips);
+            const hl = (preview.highlights || []).map(([kind, id, w, l]) => {
+                const dim = HL_DIM[kind];
+                return dim === 'mate' ? hlItem(kind, id, null, w, l) : hlItem(kind, DIMS[dim].name(id), DIMS[dim].img(id), w, l);
+            });
+            if (hl.length) top += feat('bx-span2', T.featHl, T.featHlLead, `<div class="bx-lock" style="--h:150px;--keep:52%"><div class="bx-lock__body"><div class="bx-hl">${hl.join('')}</div></div>${lockCta(T.ctaHl)}</div>`);
             if (brawlers.length) top += feat(opponents.length ? '' : 'bx-span2', T.featPivot, T.featPivotLead, `<div class="bx-lock" style="--h:250px;--keep:48%"><div class="bx-lock__body">${pivotHtml('brawler', brawlers, 'n', -1, false)}</div>${lockCta(T.ctaPivot(nf(preview.brawlerCount)))}</div>`);
             if (opponents.length) top += feat('', T.featOpp, T.featOppLead, `<div class="bx-lock" style="--h:250px;--keep:40%"><div class="bx-lock__body">${pivotHtml('obr', opponents, 'wr', 1, false)}</div>${lockCta(T.ctaOpp)}</div>`);
+            // 推移の見本は、週ごとの勝率
+            const weeks = (preview.trend || []).filter((x) => x[1] + x[2] > 0);
+            const hasTrend = weeks.length >= 3;
+            // 半分の幅の箱が偶数個なら、推移は横いっぱいにする（右が空かないように）
+            if (hasTrend) top += feat((brawlers.length ? 1 : 0) + (opponents.length ? 1 : 0) === 1 ? '' : 'bx-span2', T.featTrend, T.featTrendLead, `<div class="bx-lock" style="--h:230px;--keep:55%"><div class="bx-lock__body">${trendChart('bxaGateTrend', weeks.map((x) => dayLabel(x[0] / 86400)), weeks.map((x) => x[1] / (x[1] + x[2]) * 100), 'wr', null)}</div>${lockCta(T.ctaTrend)}</div>`);
             topSlot.innerHTML = top;
             const table = battleTable(battleItems(tableRows, 'set'), { sort: 't', dir: -1, page: 0, open: new Set() }, 6);
             bottomSlot.innerHTML = feat('bx-span2', T.featTable, T.featTableLead, `<div class="bx-lock" style="--h:230px;--keep:45%"><div class="bx-lock__body">${table}</div>${lockCta(T.ctaTable)}</div>`)
                 + `<div class="bx-hero bx-hero--slim bx-span2"><div class="bx-hero__text"><p class="bx-hero__lead">${T.heroMore}</p></div><div class="bx-hero__cta">${cta}</div></div>`;
+            runAfter();
         }
 
         // ---------- 操作 ----------
         function toggleFilterValue(group, raw) {
             const F = S.F;
-            if (group === 'period') F.period = raw;
+            if (group === 'period') { F.period = raw; F.from = ''; F.to = ''; F.season = ''; }
             else if (group === 'mvp') F.mvp = !F.mvp;
             else { const v = parseId(raw); if (F[group].has(v)) F[group].delete(v); else F[group].add(v); }
             S.bt.page = 0;
@@ -588,18 +862,36 @@
                 }
             });
             filtersEl.addEventListener('change', (e) => {
-                const key = e.target.dataset.fnum;
-                if (!key) return;
-                const value = e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0);
-                S.F[key] = value; S.bt.page = 0;
-                render();
+                const t = e.target, F = S.F;
+                if (t.dataset.fnum) F[t.dataset.fnum] = t.value === '' ? null : Math.max(0, Number(t.value) || 0);
+                else if (t.dataset.fdate) { F[t.dataset.fdate] = dayIndex(t.value) == null ? '' : t.value; F.season = ''; }
+                else if (t.dataset.fseason !== undefined) {
+                    // シーズンを選ぶと、その期間が日付に入る
+                    const season = seasons.find((x) => String(x[0]) === t.value);
+                    F.season = season ? season[0] : ''; F.from = season ? season[2] : ''; F.to = season ? season[3] : '';
+                } else return;
+                S.bt.page = 0;
+                // 次の欄へ移った直後に描き直すと、移った先の欄が置き換わってしまうので、フォーカスが移ってから描き直す
+                setTimeout(render, 0);
             });
         }
         root.addEventListener('click', (e) => {
             if (root.dataset.mode !== 'full') return;
             const segBtn = e.target.closest('.bx-seg button');
             if (segBtn) {
-                if (segBtn.parentElement.dataset.seg === 'pvDim') { S.pv.dim = segBtn.dataset.v; S.pv.more = false; writeJson(PREF_KEY, Object.assign(readJson(PREF_KEY, {}), { pvDim: S.pv.dim })); rerenderCard('pivot'); }
+                const name = segBtn.parentElement.dataset.seg, v = segBtn.dataset.v;
+                if (name === 'pvDim') { S.pv.dim = v; S.pv.more = false; savePref({ pvDim: v }); rerenderCard('pivot'); }
+                else if (name === 'trendMetric' || name === 'trendBucket' || name === 'trendView') { S.trend[{ trendMetric: 'metric', trendBucket: 'bucket', trendView: 'view' }[name]] = v; savePref({ aTrend: S.trend }); rerenderCard('trend'); }
+                else if (name === 'hist') { S.hist = v; savePref({ aHist: v }); rerenderCard('hist'); }
+                else if (name === 'heatMode') { S.heatMode = v; savePref({ heatMode: v }); rerenderCard('hours'); }
+                else if (name === 'btView') { S.bt.view = v; savePref({ aBtView: v }); rerenderCard('battles'); }
+                return;
+            }
+            // カード表示のキャラを押したら、そのキャラを条件に足す（通常のタブへは移動しない）
+            const brawlerLink = e.target.closest('.bxa-cards a.battle-card__brawler-filter-link');
+            if (brawlerLink) {
+                const id = Number(new URL(brawlerLink.href, location.href).searchParams.get('brawler_id'));
+                if (id) { e.preventDefault(); S.F.brawler.add(id); S.bt.page = 0; render(); if (filtersEl) filtersEl.scrollIntoView({ block: 'nearest' }); }
                 return;
             }
             const act = e.target.closest('[data-act]');
@@ -611,7 +903,7 @@
                     act.setAttribute('aria-expanded', String(!nowClosed));
                     if (nowClosed) closed.add(cardEl.dataset.card); else closed.delete(cardEl.dataset.card);
                     writeJson(CLOSED_KEY, [...closed]);
-                    if (!nowClosed) setTimeout(fitWbars, 220);
+                    if (!nowClosed) setTimeout(() => { charts.forEach((c) => { if (cardEl.contains(c.canvas)) c.resize(); }); fitWbars(); }, 220);
                 } else if (a === 'pvmore') { S.pv.more = !S.pv.more; rerenderCard('pivot'); }
                 else if (a === 'btprev' || a === 'btnext') {
                     S.bt.page += a === 'btnext' ? 1 : -1;
@@ -647,14 +939,14 @@
 
         // ---------- 開始 ----------
         function load() {
-            fetch(root.dataset.src, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then((res) => {
+            gatedFetch(root.dataset.src).then((res) => {
                 if (res.status === 401) { showMessage(`${T.needLogin} <a class="bx-maplink" href="${esc(root.dataset.login)}">${T.login}</a>`); return null; }
                 if (res.status === 429) { showMessage(T.rate); return null; }
                 if (!res.ok) throw new Error(String(res.status));
                 return res.json();
             }).then((P) => {
                 if (!P || !document.body.contains(root)) return;
-                names = P.names; players = P.players || []; statsSince = P.statsSince || 0; capped = P.capped ? P.cap : 0;
+                names = P.names; players = P.players || []; seasons = P.seasons || []; statsSince = P.statsSince || 0; capped = P.capped ? P.cap : 0;
                 ROWS = buildRows(P);
                 setCount = ROWS.length ? ROWS[ROWS.length - 1].sid + 1 : 0;
                 if (!ROWS.length) { showMessage(T.empty); return; }

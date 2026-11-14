@@ -30,6 +30,7 @@
          data-mode="{{ 'full' if current_user else 'gate' }}"
          data-player-name="{{ player.name }}"
          data-src="{{ url_for('get_player_battle_analysis_data', lang=lang, tag=player.tag[1:]) }}"
+         data-cards-src="{{ url_for('get_player_battle_analysis_cards', lang=lang, tag=player.tag[1:]) }}"
          data-login="/{{ lang }}/login?next={{ analysis_return_path | urlencode }}"
          data-register="{{ url_for('register_page', lang=lang) }}">
         <div class="battle-log-summary__container bx">
