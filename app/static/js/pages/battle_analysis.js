@@ -259,7 +259,7 @@
             for (let i = 0; i < n; i++) {
                 const d = new Date(c.t[i] * 1000);
                 const r = {
-                    t: c.t[i], ty: c.ty[i], m: c.m[i] || 0, e: c.e[i] || null, r: c.r[i], sr: c.sr[i], sid: c.sid[i], rk: c.rk[i], sp: c.sp[i], mv: c.mv[i], b: c.b[i],
+                    t: c.t[i], ty: c.ty[i], m: c.m[i] || 0, e: c.e[i] || null, r: c.r[i], sr: c.sr[i], sid: c.sid[i], rk: c.rk[i], sp: c.sp[i], mv: c.mv[i], b: c.b[i], bs: (c.bs && c.bs[i]) || (c.b[i] ? [c.b[i]] : []),
                     tr: c.tr[i], tc: c.tc[i], rs: c.rs[i], ts: c.ts[i], nt: c.nt[i], du: c.du[i], k: c.k[i], d: c.d[i], dd: c.dd[i], he: c.he[i], dt: c.dt[i], bn: c.bn[i],
                     tm: c.tm[i], tb: c.tb[i], ob: c.ob[i],
                     day: Math.floor((c.t[i] - d.getTimezoneOffset() * 60) / 86400), dow: d.getDay(), hr: d.getHours(),
@@ -324,7 +324,7 @@
 
         // ---------- 絞り込み ----------
         const DIMS = {
-            brawler: { key: (r) => r.b, name: bname, img: bimg, f: 'brawler' },
+            brawler: { key: (r) => r.bs, name: bname, img: bimg, f: 'brawler' },  // デュエルは使ったキャラそれぞれに数える
             mode: { key: (r) => r.m, name: mname, img: micon, f: 'mode' },
             map: { key: (r) => r.e, name: mapname, img: (id) => micon(mapMode(id)), f: 'map' },
             fmt: { key: (r) => r.fmt, name: fmtName, f: 'fmt' },
@@ -345,7 +345,7 @@
         function analysisRows() {
             const F = S.F, game = F.unit === 'game';
             const has = (set, arr) => { for (const x of arr) if (set.has(x)) return true; return false; };
-            return markHeads(typeRows().filter((r) => (!F.brawler.size || F.brawler.has(r.b)) && (!F.mode.size || F.mode.has(r.m)) && (!F.map.size || F.map.has(r.e))
+            return markHeads(typeRows().filter((r) => (!F.brawler.size || has(F.brawler, r.bs)) && (!F.mode.size || F.mode.has(r.m)) && (!F.map.size || F.map.has(r.e))
                 && (!F.res.size || F.res.has(game ? r.r : r.sr)) && (!F.mvp || r.ssp) && (!F.mate.size || has(F.mate, r.tm)) && (!F.tbr.size || has(F.tbr, r.tb)) && (!F.obr.size || has(F.obr, r.ob))
                 && (!F.fmt.size || F.fmt.has(r.fmt)) && (!F.dow.size || F.dow.has(r.dow)) && (F.kmin == null || (r.k != null && r.k >= F.kmin)) && (F.ddmin == null || (r.dd != null && r.dd >= F.ddmin))
                 && (!F.ban.size || F.ban.has(r.bn))
@@ -395,6 +395,49 @@
                 ${capped ? `<p class="bxf-note">${T.capped(nf(capped))}</p>` : ''}`;
             const again = focusKey && filtersEl.querySelector(focusKey);
             if (again) again.focus({ preventScroll: true });
+        }
+
+        // ---------- 条件を URL に入れる（共有・再読み込みで同じ条件に戻れるように） ----------
+        const URL_SETS = { ty: 'types', br: 'brawler', mo: 'mode', mp: 'map', tb: 'tbr', ob: 'obr', bn: 'ban', rs: 'res', fm: 'fmt', dw: 'dow' };
+        function writeUrl() {
+            const F = S.F, q = new URLSearchParams();
+            q.set('tab', 'analysis');
+            for (const [param, key] of Object.entries(URL_SETS)) if (F[key].size) q.set(param, [...F[key]].join('.'));
+            // 味方のプレイヤーは名前で入れる（番号は読み込みのたびに変わりうるため）
+            for (const index of F.mate) if (players[index]) q.append('mt', players[index]);
+            if (F.from) q.set('df', F.from);
+            if (F.to) q.set('dt', F.to);
+            if (!F.from && !F.to && F.period !== 'all') q.set('pd', F.period);
+            if (F.mvp) q.set('mvp', '1');
+            for (const key of NUM_KEYS) if (F[key] != null) q.set(key, F[key]);
+            if (F.unit === 'game') q.set('un', 'game');
+            const url = `${location.pathname}?${q.toString()}`;
+            if (url === location.pathname + location.search) return;
+            try { history.replaceState(history.state, '', url); } catch (e) { /* URL を書き換えられなくても、絞り込みはできる */ }
+        }
+        function readUrl() {
+            const q = new URLSearchParams(location.search), F = S.F;
+            const limits = { ty: 3, rs: 2, dw: 6 };
+            for (const [param, key] of Object.entries(URL_SETS)) {
+                for (const raw of (q.get(param) || '').split('.')) {
+                    if (!raw) continue;
+                    if (param === 'fm') { if (/^[a-z0-9]{2,5}$/.test(raw)) F.fmt.add(raw); continue; }
+                    const value = Number(raw);
+                    if (!Number.isInteger(value) || value < 0 || (limits[param] != null && value > limits[param])) continue;
+                    F[key].add(value);
+                }
+            }
+            for (const name of q.getAll('mt')) { const index = players.indexOf(name); if (index >= 0) F.mate.add(index); }
+            if (dayIndex(q.get('df')) != null) F.from = q.get('df');
+            if (dayIndex(q.get('dt')) != null) F.to = q.get('dt');
+            const season = seasons.find((x) => x[2] === F.from && x[3] === F.to);
+            if (season) F.season = season[0];
+            if (!F.from && !F.to && ['7', '30', '90', '365'].includes(q.get('pd'))) F.period = q.get('pd');
+            F.mvp = q.get('mvp') === '1';
+            for (const key of NUM_KEYS) { const raw = q.get(key), value = Number(raw); if (raw != null && raw !== '' && isFinite(value) && value >= 0) F[key] = value; }
+            if (q.get('un') === 'game') F.unit = 'game';
+            // 詳細条件が入っているときは、初めから開いておく
+            if (F.res.size || F.fmt.size || F.dow.size || F.mvp || NUM_KEYS.some((key) => F[key] != null)) S.moreOpen = true;
         }
 
         // ---------- 選択のポップアップ（キャラ・モード・マップ・味方など） ----------
@@ -703,7 +746,10 @@
             const cells = (r, sub) => {
                 const star = !sub && r.star, modeIcon = micon(r.m);
                 return `<td class="is-l"><span class="bx-rescell"><span class="bx-res bx-res--${r.r}">${T.res[r.r]}</span><span class="bx-resx">${r.score ? r.score : r.rk ? T.place(r.rk) : ''}</span><span class="bx-star"${star ? ' title="MVP"' : ''}>${star ? '★' : ''}</span></span></td>
-                <td class="is-l"><span class="bx-cellname">${r.b ? `<img src="${bimg(r.b)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span>${r.b ? esc(bname(r.b)) : '—'}</span></span></td>
+                <td class="is-l">${r.bs.length > 1
+                    // デュエルは使ったキャラを並べる（名前は吹き出しで）
+                    ? `<span class="bx-cellicons">${r.bs.map((id) => `<img src="${bimg(id)}" alt="${esc(bname(id))}" loading="lazy"${tipAttr(bname(id))}>`).join('')}</span>`
+                    : `<span class="bx-cellname">${r.b ? `<img src="${bimg(r.b)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span>${r.b ? esc(bname(r.b)) : '—'}</span></span>`}</td>
                 <td class="is-l bx-tro">${sub ? '' : trophy(r)}</td>
                 <td class="is-l">${TYPE_ICON[r.ty] ? `<img class="bx-tyicon" src="${IMG}/${TYPE_ICON[r.ty]}" alt="${T.types[r.ty]}"${tipAttr(T.types[r.ty])}>` : `<span class="bx-tyother"${tipAttr(T.types[3])}>${T.typeOther}</span>`}</td>
                 <td class="is-l"><span class="bx-cellname bx-cellname--mode">${modeIcon ? `<img src="${modeIcon}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span>${esc(mname(r.m))}</span></span></td>
@@ -767,6 +813,7 @@
             const rows = analysisRows();
             S.curRows = rows;
             renderFilters(rows);
+            writeUrl();
             if (!rows.length) {
                 topSlot.innerHTML = `<div class="bx-empty bx-span2">${T.noMatch}</div>`;
                 bottomSlot.innerHTML = '';
@@ -796,7 +843,9 @@
         function renderGate(preview) {
             names = preview.names;
             statsSince = preview.statsSince || 0;
-            const loginUrl = esc(root.dataset.login), registerUrl = esc(root.dataset.register);
+            // ログイン後は、いま開いている URL（共有された条件つきのものなら、その条件のまま）へ戻る
+            const here = /(^|[?&])tab=analysis(&|$)/.test(location.search) ? location.pathname + location.search : null;
+            const loginUrl = esc(here ? `/${lang}/login?next=${encodeURIComponent(here)}` : root.dataset.login), registerUrl = esc(root.dataset.register);
             const entries = (list) => list.map((x) => [x[0], toAgg(x, 1)]);
             const brawlers = entries(preview.brawlers || []), opponents = entries(preview.opponents || []);
             const tableRows = markHeads(buildRows(preview.table));
@@ -950,6 +999,7 @@
                 ROWS = buildRows(P);
                 setCount = ROWS.length ? ROWS[ROWS.length - 1].sid + 1 : 0;
                 if (!ROWS.length) { showMessage(T.empty); return; }
+                readUrl();
                 if (setCount < 60) S.pv.min = 1;  // バトルが少ないうちは、内訳の「◯回以上」で何も出なくなるので下げておく
                 render();
             }).catch(() => {

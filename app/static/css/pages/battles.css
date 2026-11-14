@@ -1428,3 +1428,5 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bxa-cards { min-height: 120px; }
 .bxa-cardtools { display: flex; justify-content: flex-end; margin-bottom: 6px; }
 .bxa-cards .battle-card-grid { margin-top: 0; }
+.bx-cellicons { display: inline-flex; gap: 3px; vertical-align: middle; }
+.bx-cellicons img { width: 24px; height: 24px; border-radius: 6px; object-fit: contain; }

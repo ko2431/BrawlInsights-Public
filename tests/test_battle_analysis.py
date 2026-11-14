@@ -48,7 +48,8 @@ def test_battle_types_and_mvp_flag():
     cols = _columns(rows)["cols"]
     assert cols["ty"] == [0, 0, 2, 3, 0]      # 古い順: デュエル・バトルロイヤル（トロフィー）・フレンド・マップなし（その他）・トロフィー
     assert cols["mv"] == [0, 0, 1, 1, 1]      # デュエルとバトルロイヤルにはMVPが無い
-    assert cols["b"][0] == 16000002           # デュエルは1体目
+    assert cols["b"][0] == 16000002 and cols["bs"][0] == [16000002, 16000003]  # デュエルは使ったキャラを全部
+    assert cols["bs"][1:] == [None, None, None, None]                         # 1体のバトルには入れない
 
 
 def test_teammates_keep_only_recurring_players_without_tags():

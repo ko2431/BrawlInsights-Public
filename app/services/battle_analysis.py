@@ -14,7 +14,7 @@ from app.core.cache import get_redis
 from app.core.logger import logger
 from app.services.battle_history import (
     AGG_FIELDS, MIN_PLAYER_TAG_LENGTH, RANKED_RANK_MIN_SCORES, SET_BATTLE_TYPES, BattleSet,
-    _PAGE_QUERY, _add_set, _has_mvp, _loads, _mode_color, _new_agg, group_into_sets, load_brawler_names,
+    _PAGE_QUERY, _add_set, _has_mvp, _loads, _mode_color, _new_agg, _own_brawler_ids, group_into_sets, load_brawler_names,
 )
 from app.services.battle_result_view import STATS_SINCE
 from app.services.brawl_service import Battle, ensure_catalog
