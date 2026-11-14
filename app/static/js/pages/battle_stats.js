@@ -107,6 +107,9 @@
     document.addEventListener('focusout', hideTip);
     window.addEventListener('scroll', hideTip, { passive: true });
 
+    // 詳細分析タブ（battle_analysis.js）と共通で使う小物
+    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson };
+
     let current = null;  // いま表示しているカード（画面幅が変わったときの詰め直し用）
     window.addEventListener('resize', () => { if (current && document.body.contains(current.root)) current.fitWbars(); });
 

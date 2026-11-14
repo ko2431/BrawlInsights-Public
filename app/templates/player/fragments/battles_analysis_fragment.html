@@ -1,0 +1,82 @@
+{# バトル履歴の「詳細分析」タブ。中身は static/js/pages/battle_analysis.js が描く。
+   ログイン中: 枠だけを返し、データは get_player_battle_analysis_data から読む。
+   未ログイン: 画面に見せるぶんの集計（analysis_preview）だけを埋め込み、ログイン・アカウント作成を案内する。 #}
+{% from "player/includes/player_identity.html" import player_identity with context %}
+{% from "player/includes/tracking_card.html" import tracking_card with context %}
+<div class="player-page__container battles-page__container" data-lang="{{ lang }}" data-img-base="{{ url_for('static', path='/images') }}">
+
+    {# ヘッダー・ブックマーク・タブはシェル側にある。ここでは最新の値のヘッダーを渡し、シェルのものと差し替える #}
+    <div data-shell-slot="player-identity">
+        {{ player_identity(player.tag, {"name": player.name, "icon_path": player_icon_path, "club_tag": player.club_tag, "club_name": player.club_name}) }}
+    </div>
+
+    {# 外部APIが落ちているときのお知らせ。シェルのサブタブより上の欄へ移す #}
+    <div data-shell-slot="api-notice">
+        {% if not player.meowapi_success %}
+        <div class="player-external-api-notice" role="status">
+            <p class="player-external-api-notice__text">{% if lang == "ja" %}現在外部APIがダウンしているため、一部の情報は更新・表示されない場合があります。{% else %}Some information may not be updated or displayed because the external API is currently down.{% endif %}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {# 絞り込み。サブタブの下（シェルの枠の中）へ移す。未ログイン・バトルなしのときは出さない #}
+    {% if current_user and has_battles %}
+    <div data-shell-slot="battle-filters"><div id="battleAnalysisFilters" class="bx-filters"></div></div>
+    {% endif %}
+
+    {% if has_battles %}
+    <div id="battleAnalysisRoot"
+         data-lang="{{ lang }}" data-img-base="{{ url_for('static', path='/images') }}"
+         data-mode="{{ 'full' if current_user else 'gate' }}"
+         data-player-name="{{ player.name }}"
+         data-src="{{ url_for('get_player_battle_analysis_data', lang=lang, tag=player.tag[1:]) }}"
+         data-login="/{{ lang }}/login?next={{ analysis_return_path | urlencode }}"
+         data-register="{{ url_for('register_page', lang=lang) }}">
+        <div class="battle-log-summary__container bx">
+            {# --- 保存済みのバトルが少ないプレイヤーへの案内（全タブ） --- #}
+            {% if show_new_player_notice %}
+            <div class="bx-notice">
+                <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="">
+                <div>
+                    <b>{% if lang == "ja" %}バトル履歴はこれから蓄積されていきます{% else %}The battle log will build up from here{% endif %}</b>
+                    <p>{% if lang == "ja" %}このプレイヤーは Brawl Insights で初めて閲覧されたばかりのため、現在表示できるのは直近の{{ notice_battle_count }}件までです。これ以降のバトルは自動で保存され、グラフや成績もバトルを重ねるごとに充実していきます。{% else %}This player has only just been viewed on Brawl Insights for the first time, so only the last {{ notice_battle_count }} battles can be shown for now. Battles from here on are saved automatically, and the charts and stats fill out as more battles are played.{% endif %}</p>
+                </div>
+            </div>
+            {% endif %}
+            <div class="bx-grid" data-bxa-slot="top">
+                <div class="bx-loading bx-span2"><span class="player-shell__spinner"></span><span>{% if lang == "ja" %}バトルを読み込み中...{% else %}Loading battles...{% endif %}</span></div>
+            </div>
+        </div>
+
+        {# バナー広告 #}
+        <div style="margin: 0 5%">
+        {% include "components/ad_banner.html" %}
+        </div>
+
+        <div class="battle-log-summary__container bx">
+            <div class="bx-grid" data-bxa-slot="bottom"></div>
+        </div>
+        {% if analysis_preview %}
+        <script type="application/json" id="battleAnalysisPreview">{{ analysis_preview | tojson }}</script>
+        {% endif %}
+    </div>
+    {% else %}
+        <p class="battle-log-no-data">
+            {% if lang == "ja" %}このプレイヤーのバトル履歴は、まだ保存されていません。<br>閲覧できるバトル履歴の範囲は、初めてBrawl Insightsでこのプレイヤーが閲覧された日からとなります。{% else %}No battles have been saved for this player yet.<br>Battle logs that can be viewed are from the date this player was first viewed in Brawl Insights.{% endif %}
+        </p>
+        <div class="battle-log-no-data__tracking">{{ tracking_card(player) }}</div>
+    {% endif %}
+</div>
+<script>
+    (function () {
+        var init = function () {
+            var root = document.getElementById('battleAnalysisRoot');
+            if (root && typeof window.initBattleAnalysis === 'function') window.initBattleAnalysis(root);
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init, { once: true });
+        } else {
+            init();
+        }
+    })();
+</script>

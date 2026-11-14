@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse, Response
+import asyncio
 import asyncpg
+import gzip
 import math
 import datetime
+import orjson
 import time
 import uuid
 from typing import Annotated, Any, Optional
@@ -19,6 +22,7 @@ from app.services.brawl_service import get_player, get_player_from_db, get_playe
 from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.battle_result_view import attach_battle_results
 from app.services.battle_history import NEW_PLAYER_NOTICE_MAX, build_stats, count_saved_battles, scan_battles
+from app.services import battle_analysis
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
 from app.services.user_service import User, _current_token_claim_date, try_claim_tutorial_mission
@@ -48,7 +52,7 @@ async def get_current_active_user(request: Request) -> User:
     return user
 
 
-BATTLE_LOG_TABS = ("all", "trophy", "powerleague", "friendly")
+BATTLE_LOG_TABS = ("all", "trophy", "powerleague", "friendly", "analysis")
 
 
 def _blank_query_to_none(value: object) -> object:
@@ -588,6 +592,8 @@ async def get_player_battles_fragment(
     if is_auto_activate: await player.activate_automatic_acquisition(activate_time=player.auto_activate_time, keep_cache=True)
 
     tab = _normalize_battles_tab(tab)
+    if tab == "analysis":
+        return await _battles_analysis_fragment(request, lang, player, db)
     selected_brawler_id = brawler_id
     filter_unknown_mode = mode_id == 0
     selected_mode_id = None if filter_unknown_mode or mode_id is None else mode_id
@@ -660,6 +666,57 @@ async def get_player_battles_fragment(
         "current_user": current_login_user,
     }
     return templates.TemplateResponse("player/fragments/battles_fragment.html", context)
+
+
+async def _battles_analysis_fragment(request: Request, lang: str, player: Any, db: asyncpg.Connection):
+    """バトル履歴の「詳細分析」タブ。ログイン中は枠だけを返し、データは get_player_battle_analysis_data から読む。
+
+    未ログインには、画面に見せるぶんの集計だけを埋め込んで、ログイン・アカウント作成を案内する。
+    """
+    current_login_user: Optional[User] = getattr(request.state, "current_user", None)
+    add_log_info(request, f"プレイヤー(battles fragment・詳細分析): {player.name} - {player.tag}")
+    if current_login_user:
+        try:
+            await current_login_user.add_to_viewed_accounts(player.tag, db)
+        except Exception as e:
+            logger.error(f"閲覧履歴追加エラー: {e}", exc_info=True)
+        if player.tag == current_login_user.main_account:
+            await try_claim_tutorial_mission(current_login_user, db, "view_main_profile")
+
+    # [この部分は公開用リポジトリでは非公開にされています]
+
+    context = {
+        "request": request,
+        "lang": lang,
+        "player": player,
+        "player_icon_path": "/" + get_icon_path(player.icon_id),
+        "current_tab": "analysis",
+        "has_battles": saved_battle_count > 0,
+        "show_new_player_notice": 0 < saved_battle_count <= NEW_PLAYER_NOTICE_MAX,
+        "notice_battle_count": notice_battle_count or saved_battle_count,
+        "analysis_preview": preview,
+        "analysis_return_path": f"/{lang}/player/battles/{player.tag[1:]}?tab=analysis",
+        "current_page": "home",
+        "current_user": current_login_user,
+    }
+    return templates.TemplateResponse("player/fragments/battles_analysis_fragment.html", context)
+
+
+# 詳細分析タブのデータ（ログイン必須）。1人ぶんのバトルを1試合1行の数値データで返し、絞り込みと集計はブラウザで行う
+@api_router.get("/{tag}/battles/analysis-data", name="get_player_battle_analysis_data")
+async def get_player_battle_analysis_data(
+    request: Request,
+    lang: str,
+    tag: str,
+    db: asyncpg.Connection = Depends(get_shared_db),
+):
+    formatted_tag = format_tag(tag)
+    if not confirm_tag(formatted_tag):
+        raise HTTPException(status_code=400, detail="Invalid player tag format.")
+    current_login_user: Optional[User] = getattr(request.state, "current_user", None)
+    if not current_login_user:
+        return JSONResponse({"error": "login"}, status_code=status.HTTP_401_UNAUTHORIZED)
+    # [この部分は公開用リポジトリでは非公開にされています]
 
 
 # 推移グラフフラグメント

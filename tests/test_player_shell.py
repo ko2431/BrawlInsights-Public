@@ -74,10 +74,13 @@ async def test_battles_shell_sub_tabs_keep_filters(client: AsyncClient, known_pl
         for href, tab in re.findall(r'<a href="([^"]+)"\s+class="sub-tab-nav__link[^"]*"\s+data-shell-sub-tab="([a-z]+)"', html)
     )
     # 読めない日付(before=bad)はフラグメントと同じく引き継がない
-    assert hrefs == {
+    expected = {
         tab: f"/en/player/battles/PCJJPRP?tab={tab}&brawler_id=16000000&mode_id=0&after=2026-01-01"
         for tab in ("all", "trophy", "powerleague", "friendly")
     }
+    # 詳細分析タブは自前の絞り込みを持つので、ほかのタブの絞り込みは引き継がない
+    expected["analysis"] = "/en/player/battles/PCJJPRP?tab=analysis"
+    assert hrefs == expected
     assert re.search(r'data-shell-sub-tab="trophy" aria-current="page"', html)
     assert 'data-shell-slot-target="battle-filters"' in html
     assert 'data-shell-slot-target="api-notice"' in html

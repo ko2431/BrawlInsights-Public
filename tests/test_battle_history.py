@@ -192,6 +192,12 @@ def test_mvp_rate_counts_only_battles_that_have_an_mvp():
         bh._add_set(agg, bh.BattleSet([row], None))
     named = dict(zip(bh.AGG_FIELDS, agg))
     assert (named["g"], named["mg"], named["sp"]) == (5, 2, 1)
+    # セットではMVPは1回だけ選ばれる（最後の試合に付く）。3試合のセットでも分母は1
+    agg = bh._new_agg()
+    bh._add_set(agg, _sets([_row(0, star=True), _row(3), _row(6)])[0])
+    bh._add_set(agg, _sets([_row(100, opps='["q"]'), _row(103, opps='["q"]')])[0])
+    named = dict(zip(bh.AGG_FIELDS, agg))
+    assert (named["n"], named["g"], named["mg"], named["sp"]) == (2, 5, 2, 1)
 
 
 def test_ban_data_counts_per_set():
