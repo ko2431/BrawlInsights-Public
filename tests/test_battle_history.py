@@ -1,4 +1,5 @@
 """バトル履歴ページの読み込みと集計（app/services/battle_history.py）。DB を使わない部分。"""
+import asyncio
 import datetime
 
 from app.services import battle_history as bh
@@ -125,18 +126,72 @@ def test_ranked_rank_borders_match_battle_rank():
             assert rank_of(probe) == rank - 1
 
 
+class _LogDb:
+    """player_logs の読み出しだけに答える DB の代わり。"""
+
+    def __init__(self, logs=()):
+        self.logs = [{"date": date, "ranked_current_score": score} for date, score in logs]
+
+    async def fetch(self, query, *params):
+        assert "player_logs" in query
+        return self.logs
+
+
+def _ranked(sets, logs=(), **kwargs):
+    kwargs.setdefault("after", None)
+    kwargs.setdefault("until", None)
+    return asyncio.run(bh._ranked_data(_LogDb(logs), "#TAG", sets, **kwargs))
+
+
+def _ranked_set(minutes_ago, score, rank=10):
+    row = _row(minutes_ago, score=score, opps=f'["o{minutes_ago}"]')
+    row["trophies"] = rank
+    return bh.BattleSet([row], None)
+
+
 def test_ranked_data_prefers_scores_and_falls_back_to_ranks():
-    def ranked_set(minutes_ago, score, rank=10):
-        row = _row(minutes_ago, score=score, opps=f'["o{minutes_ago}"]')
-        row["trophies"] = rank
-        return bh.BattleSet([row], None)
-    with_scores = [ranked_set(0, 5200), ranked_set(60, None), ranked_set(120, 5100)]
-    data = bh._ranked_data(with_scores, show_trend=True, show_current=True)
+    with_scores = [_ranked_set(0, 5200), _ranked_set(60, None), _ranked_set(120, 5100)]
+    data = _ranked(with_scores, show_trend=True, show_current=True)
     assert data["mode"] == "score" and [p[1] for p in data["points"]] == [5100, 5200] and data["current"][1] == 5200
-    one_score = [ranked_set(0, 5200, rank=14), ranked_set(60, None, rank=13)]
-    data = bh._ranked_data(one_score, show_trend=True, show_current=False)
+    one_score = [_ranked_set(0, 5200, rank=14), _ranked_set(60, None, rank=13)]
+    data = _ranked(one_score, show_trend=True, show_current=False)
     assert data["mode"] == "rank" and [p[1] for p in data["points"]] == [13, 14] and "current" not in data
-    assert "mode" not in bh._ranked_data(with_scores, show_trend=False, show_current=False)
+    assert "mode" not in _ranked(with_scores, show_trend=False, show_current=False)
+
+
+def test_ranked_data_uses_daily_logs_for_changes_without_battles():
+    # 最後のバトルは40日前（7000）。その後はプレイしていないが、シーズンの切り替わりで下がった値が日ごとの記録に残っている
+    old = 40 * 24 * 60
+    sets = [_ranked_set(old, 7000), _ranked_set(old + 60, 6950)]
+    day = NOW.date()
+    logs = [(day - datetime.timedelta(days=40), 7000), (day - datetime.timedelta(days=30), 7000), (day - datetime.timedelta(days=20), 7000),
+            (day - datetime.timedelta(days=10), 5500), (day, 5500)]
+    data = _ranked(sets, logs, show_trend=True, show_current=True)
+    # 同じ値が続く途中の記録（30日前）は省かれ、下がる直前（20日前）と下がった後は残る
+    assert [p[1] for p in data["points"]] == [6950, 7000, 7000, 5500, 5500]
+    assert data["current"][1] == 5500
+    times = [p[0] for p in data["points"]]
+    assert times == sorted(times) and times[-1] <= int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    assert all(data["points"][0][0] < start < data["points"][-1][0] for start in data["seasons"])
+
+
+def test_season_starts_are_third_thursdays_inside_the_range():
+    utc = datetime.timezone.utc
+    first = int(datetime.datetime(2026, 9, 1, tzinfo=utc).timestamp())
+    last = int(datetime.datetime(2026, 11, 14, tzinfo=utc).timestamp())
+    starts = [datetime.datetime.fromtimestamp(t, utc) for t in bh._season_starts(first, last)]
+    assert starts == [datetime.datetime(2026, 9, 17, 8, tzinfo=utc), datetime.datetime(2026, 10, 15, 8, tzinfo=utc)]
+
+
+def test_mvp_rate_counts_only_battles_that_have_an_mvp():
+    agg = bh._new_agg()
+    for row in (_row(0, battle_type="ranked", star=True), _row(40, battle_type="ranked", opps='["q"]'),
+                _row(80, battle_type="ranked", rank=3, num_of_teams=10, team_size=1, battle_mode="soloShowdown"),
+                _row(120, battle_type="ranked", team_size=1, battle_mode="duels"),
+                _row(160, battle_type="ranked", num_of_teams=3, team_size=1, battle_mode="lastStand")):
+        bh._add_set(agg, bh.BattleSet([row], None))
+    named = dict(zip(bh.AGG_FIELDS, agg))
+    assert (named["g"], named["mg"], named["sp"]) == (5, 2, 1)
 
 
 def test_ban_data_counts_per_set():

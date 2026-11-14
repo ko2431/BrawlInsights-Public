@@ -4,7 +4,7 @@
     'use strict';
 
     // 集計1つぶんの並び（app/services/battle_history.py の AGG_FIELDS と同じ順）
-    const AGG = ['n', 'w', 'd', 'l', 'sp', 'sn', 'k', 'dth', 'dd', 'he', 'dt', 'dn', 'du', 'tc', 'g'];
+    const AGG = ['n', 'w', 'd', 'l', 'sp', 'sn', 'k', 'dth', 'dd', 'he', 'dt', 'dn', 'du', 'tc', 'g', 'mg'];
     const CLOSED_KEY = 'bi_battles_blocks_closed';   // 折りたたんでいるカードの種類
     const PREF_KEY = 'bi_battles_block_views';       // 各カードで選んでいる表示（円グラフ・13週など）
     const CHART_FONT = "-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Segoe UI', 'Yu Gothic UI', 'Meiryo', Roboto, 'Noto Sans JP', sans-serif";
@@ -40,7 +40,7 @@
             trophyBy: 'キャラ別のトロフィー増減', trophyByCap: '増えた5キャラ・減った5キャラ', trophyByTop: '変動の大きい10キャラ', trophyByTip: (g, v) => `${g}戦で ${v}`,
             empty: 'バトルがありません',
             leagues: ['ブロンズ', 'シルバー', 'ゴールド', 'ダイヤモンド', 'エリート', 'レジェンド', 'マスター', 'プロ'],
-            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
+            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', seasonLines: '縦の線: シーズンの始まり', pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
             modesMaps: 'モード・マップ別の成績', picksCap: 'マップの右はよく使ったキャラ', graph: 'グラフ', byMode: 'モード別', byMap: 'マップ別',
             modeRates: 'モードごとの勝率', mapRates: 'マップごとの勝率（モード別）', radarTip: (rate, n) => `勝率 ${rate}%（${n}回）`, pickTip: (name, n) => `${name}: ${n}回`,
             radarNeedModes: 'レーダーを出すには、3つ以上のモードのバトルが必要です', radarNeedMaps: 'レーダーを出すには、同じモードで3つ以上のマップのバトルが必要です',
@@ -68,7 +68,7 @@
             trophyBy: 'Trophy change by brawler', trophyByCap: 'Top 5 gains and losses', trophyByTop: '10 biggest changes', trophyByTip: (g, v) => `${v} in ${g} battles`,
             empty: 'No battles',
             leagues: ['Bronze', 'Silver', 'Gold', 'Diamond', 'Mythic', 'Legendary', 'Masters', 'Pro'],
-            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', pointsTip: (v, rank) => `${v} points (${rank})`,
+            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', seasonLines: 'Vertical lines: season start', pointsTip: (v, rank) => `${v} points (${rank})`,
             modesMaps: 'Modes and maps', picksCap: 'Most-picked brawlers are shown beside each map', graph: 'Chart', byMode: 'By mode', byMap: 'By map',
             modeRates: 'Win rate by mode', mapRates: 'Win rate by map, per mode', radarTip: (rate, n) => `Win rate ${rate}% (${n})`, pickTip: (name, n) => `${name}: ${n}`,
             radarNeedModes: 'The radar chart needs battles in at least 3 modes', radarNeedMaps: 'The radar chart needs battles on at least 3 maps of one mode',
@@ -251,7 +251,8 @@
                 const score = D.ranked.current[1], rank = Math.max(1, rankOf(score));
                 tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.currentPoints}</span><span class="bx-tile__value bx-tile__value--icon"><img src="${IMG}/ranked_icons/${rank}.png" alt="">${nf(score)}</span><span class="bx-tile__sub">${rankName(rank)}</span></div>`);
             }
-            tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.mvpRate}</span><span class="bx-tile__value">${a.n ? (a.sp / a.n * 100).toFixed(1) : '—'}<small>%</small></span><span class="bx-tile__sub">${nf(a.sp)}${T.times}</span></div>`);
+            // MVP率は、MVPが選ばれるバトルだけを分母にする（バトルロイヤル系・デュエルは数えない）。1つも無ければ項目ごと出さない
+            if (a.mg) tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.mvpRate}</span><span class="bx-tile__value">${(a.sp / a.mg * 100).toFixed(1)}<small>%</small></span><span class="bx-tile__sub">${nf(a.sp)}${T.times}</span></div>`);
             if (a.sn) {
                 tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.avgKD}</span><span class="bx-tile__value"><span class="bx-nw">${f1(a.k / a.sn)}<small>${T.killsUnit}</small></span> <span class="bx-nw">${SL}${f1(a.dth / a.sn)}<small>${T.deathsUnit}</small></span></span><span class="bx-tile__sub">${T.kdRatio} ${a.dth ? f2(a.k / a.dth) : '—'}</span></div>`);
                 tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.avgDamage}</span><span class="bx-tile__value">${short(a.dd / a.sn)}</span><span class="bx-tile__sub">${T.damageTaken} ${shortText(a.dt / a.sn)}</span></div>`);
@@ -387,9 +388,42 @@
                 },
             };
             const ticks = byRank ? null : rankTicks(lo, hi);
+            // 横軸: シーズンの始まりに薄い縦線を引き、ラベルもそこを優先する
+            const x0 = pts[0].x, x1 = pts[pts.length - 1].x;
+            const seasons = (rk.seasons || []).map((t) => t * 1000).filter((x) => x > x0 && x < x1);
+            const xLabel = (v, index, list) => {
+                const d = new Date(v), prev = index > 0 ? new Date(list[index - 1].value) : null;
+                return (!prev || prev.getFullYear() !== d.getFullYear() ? `${d.getFullYear()}/` : '') + `${d.getMonth() + 1}/${d.getDate()}`;
+            };
+            const xTicks = (axis) => {
+                const span = x1 - x0, room = Math.max(2, Math.floor(axis.width / 64));
+                if (seasons.length >= 2) {
+                    // 多いときは新しいほうから数えて等間隔に残す
+                    const step = Math.ceil(seasons.length / room);
+                    axis.ticks = seasons.filter((_, i) => (seasons.length - 1 - i) % step === 0).map((value) => ({ value }));
+                } else {
+                    // シーズンをまたがない短い期間: 自動の目盛りに、シーズンの始まりがあれば足す
+                    const auto = axis.ticks.map((tick) => tick.value).filter((v) => seasons.every((sx) => Math.abs(sx - v) > span * 0.12));
+                    axis.ticks = [...auto, ...seasons].sort((a, b) => a - b).map((value) => ({ value }));
+                }
+            };
+            const seasonLines = {
+                id: 'seasonLines',
+                beforeDatasetsDraw(chart) {
+                    if (!seasons.length) return;
+                    const { ctx, chartArea: area, scales: { x } } = chart, th = chartTheme();
+                    ctx.save();
+                    ctx.strokeStyle = th.mut; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    for (const sx of seasons) { const px = Math.round(x.getPixelForValue(sx)) + 0.5; ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); }
+                    ctx.stroke();
+                    ctx.restore();
+                },
+            };
             mountChart('bxRanked', (th) => {
                 const o = baseOptions(th);
-                o.scales.x.type = 'linear'; o.scales.x.ticks.callback = (v) => ymd(v / 1000); o.scales.x.min = pts[0].x; o.scales.x.max = pts[pts.length - 1].x;
+                o.scales.x.type = 'linear'; o.scales.x.ticks.callback = xLabel; o.scales.x.min = x0; o.scales.x.max = x1;
+                o.scales.x.afterBuildTicks = xTicks; o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxTicksLimit = 40;
                 o.scales.y.min = lo; o.scales.y.max = hi;
                 o.scales.y.grid.color = th.mut + '55';
                 if (byRank) {
@@ -407,11 +441,11 @@
                     o.scales.y.ticks.maxTicksLimit = 30;
                     o.plugins.tooltip.callbacks = { title: (it) => ymdFull(it[0].parsed.x / 1000), label: (it) => T.pointsTip(nf(it.parsed.y), rankName(Math.max(1, rankOf(it.parsed.y)))) };
                 }
-                return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: byRank ? 0 : 0.15, stepped: byRank }] }, options: o, plugins: [bands] };
+                return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0, stepped: byRank }] }, options: o, plugins: [bands, seasonLines] };
             });
             const first = pts[0].y, last = pts[pts.length - 1].y;
             const cap = byRank ? `${rankName(first)} → ${rankName(last)}` : `${nf(first)} → ${nf(last)}（${signed(last - first)}）`;
-            return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, '', '<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>');
+            return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, '', `<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>${seasons.length ? `<div class="bx-heatlegend">${T.seasonLines}</div>` : ''}`);
         }
 
         // ---------- ガチバトル: モード・マップ別の成績（マップごとによく使ったキャラ。グラフは勝率のレーダー） ----------

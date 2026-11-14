@@ -12,7 +12,7 @@ import orjson
 
 from app.services.battle_result_view import STATS_SINCE
 from app.services.brawl_service import Battle, _BATTLE_SEARCH_COLUMNS, _same_members, ensure_catalog
-from app.utils.utils import REMOVED_BRAWLERS, removed_brawler_name
+from app.utils.utils import REMOVED_BRAWLERS, calc_ranked_season, get_ranked_season_period, removed_brawler_name
 from app.services.map_mode_catalog import (
     get_map_by_en, get_map_by_id, get_mode_by_id, get_mode_by_slug, mode_icon_candidates, resolve_map_filter_label, resolve_mode_filter_label,
 )
@@ -83,8 +83,8 @@ async def count_saved_battles(db: asyncpg.Connection, tag: str, limit: int = NEW
 # ===== 集計（カードに出すデータ） =====
 
 # 集計1つぶんの並び。JS（battle_stats.js）の AGG と同じ順にする
-AGG_FIELDS = ("n", "w", "d", "l", "sp", "sn", "k", "dth", "dd", "he", "dt", "dn", "du", "tc", "g")
-_N, _W, _D, _L, _SP, _SN, _K, _DTH, _DD, _HE, _DT, _DN, _DU, _TC, _G = range(len(AGG_FIELDS))
+AGG_FIELDS = ("n", "w", "d", "l", "sp", "sn", "k", "dth", "dd", "he", "dt", "dn", "du", "tc", "g", "mg")
+_N, _W, _D, _L, _SP, _SN, _K, _DTH, _DD, _HE, _DT, _DN, _DU, _TC, _G, _MG = range(len(AGG_FIELDS))
 _RESULT_INDEX = {"w": _W, "d": _D, "l": _L}
 
 
