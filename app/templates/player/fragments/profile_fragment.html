@@ -1789,7 +1789,7 @@
     </div>
 
     {# --- キャラクターセクション --- #}
-    <section class="brawler-section" id="brawler-list-anchor" x-data="{ open: true }">
+    <section class="brawler-section" id="brawler-list-anchor" x-data="{ open: true, allOpen: false }" @set-all-brawler-cards.window="allOpen = $event.detail.open">
         <h2 class="section-title" @click="open = !open">
             <span>{% if lang == "ja" %}キャラクター{% else %}Brawlers{% endif %} ({{ player.unlocked_brawlers }}/{{ num_of_available_brawlers }})</span>
             <span class="section-toggle-icon" x-text="open ? '△' : '▽'"></span>
@@ -1797,11 +1797,13 @@
         <div x-show="open" x-transition>
         <div class="info-block table-description"> {# テーブルではないが説明文なので流用 #}
             <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-            <p class="info-block__text">{% if lang == "ja" %}各キャラクターをタップすると、<b>装備中のスキン</b>や<b>アクセサリー</b>などの詳細を確認できます。各キャラクターの<b>最大連勝数</b>および<b>現在連勝数</b>を見るには、並び順を<b>最大連勝数順</b>または<b>現在連勝数順</b>にしてください。{% if player.brawlers and player.brawlers[0].mastery is not none %}各キャラクターの旧マスタリーを見るには、並び順を<b>旧マスタリー順</b>にしてください。{% endif %}{% if platform == 'web' %}<span class="brawler-grid-shift-hint"><b>Shift⇧</b>を押しながらカードをクリックすることで、全カードの一括開閉ができます。</span>{% endif %}{% else %}Tap each Brawler card to see more details of <b>equipped skins</b> and <b>accessories</b>. To see the <b>max win streak</b> and <b>current win streak</b> of each brawler, sort by <b>Max Win Streak</b> or <b>Current Win Streak</b>.{% if player.brawlers and player.brawlers[0].mastery is not none %} To see the mastery of each brawler, sort by <b>Old Mastery</b>.{% endif %}{% if platform == 'web' %}<span class="brawler-grid-shift-hint"> <b>Shift+Click</b> to expand/collapse all cards.</span>{% endif %}{% endif %}</p>
+            <p class="info-block__text">{% if lang == "ja" %}各キャラクターをタップすると、<b>装備中のスキン</b>や<b>アクセサリー</b>などの詳細を確認できます。各キャラクターの<b>最大連勝数</b>および<b>現在連勝数</b>を見るには、並び順を<b>最大連勝数順</b>または<b>現在連勝数順</b>にしてください。{% if player.brawlers and player.brawlers[0].mastery is not none %}各キャラクターの旧マスタリーを見るには、並び順を<b>旧マスタリー順</b>にしてください。{% endif %}{% else %}Tap each Brawler card to see more details of <b>equipped skins</b> and <b>accessories</b>. To see the <b>max win streak</b> and <b>current win streak</b> of each brawler, sort by <b>Max Win Streak</b> or <b>Current Win Streak</b>.{% if player.brawlers and player.brawlers[0].mastery is not none %} To see the mastery of each brawler, sort by <b>Old Mastery</b>.{% endif %}{% endif %}</p>
         </div>
 
         {# --- 並び替えオプション --- #}
-        <div class="sort-options">
+        <div class="sort-options sort-options--with-switch">
+            {# 全カードの一括開閉。カードの Shift + クリックと同じイベントを流す（スイッチの向きもそこで揃う） #}
+            <button type="button" class="bcr-all" role="switch" :aria-checked="allOpen ? 'true' : 'false'" aria-checked="false" @click="$dispatch('set-all-brawler-cards', { open: !allOpen })"><span>{% if lang == "ja" %}詳細を開く{% else %}Open details{% endif %}</span><span class="bcr-all__track"></span></button>
             <form method="get" action="#brawler-list-anchor" id="sortForm"> {# actionにアンカーを追加 #}
                 <label for="sortSelect" class="sort-options__label">{% if lang == "ja" %}並び替え{% else %}Sort{% endif %}:</label>
                 <select name="sort" id="sortSelect" class="sort-options__select" onchange="this.form.submit()">

@@ -485,21 +485,31 @@
     background-color: #333;
     color: #ddd;
 }
-/* Shift一括開閉ヒント: スマホ・タブレットでは非表示 */
-.brawler-grid-shift-hint {
-    display: none;
+/* 並び替えの左に「詳細を開く」スイッチを並べる */
+.sort-options--with-switch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px 10px;
 }
-@media (min-width: 840px) {
-    .brawler-grid-shift-hint {
-        display: inline;
-    }
-}
+
+/* --- 一括開閉のスイッチ（バトル履歴の「リザルトを開く」・キャラクターの「詳細を開く」で共用） --- */
+.bcr-all { display: inline-flex; align-items: center; gap: 6px; height: 28px; margin: 0; padding: 0 7px 0 10px; border: 1px solid var(--color-ddd); border-radius: 9px; background: var(--bg-main); color: var(--color-444); font: inherit; font-size: 13px; font-weight: bold; line-height: 1; white-space: nowrap; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; -webkit-tap-highlight-color: transparent; }
+.dark .bcr-all { border-color: #3a3a3a; }
+.bcr-all:hover { background: var(--bg-f0f0f0); color: var(--color-222); }
+.bcr-all:active { transform: scale(.96); }
+.bcr-all__track { position: relative; width: 28px; height: 16px; border-radius: 999px; background: var(--color-ccc); transition: background-color .18s ease; }
+.bcr-all__track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .18s ease; }
+.bcr-all[aria-checked="true"] .bcr-all__track { background: #2f9e62; }
+.bcr-all[aria-checked="true"] .bcr-all__track::after { transform: translateX(12px); }
 
 @media (max-width: 539px){
     .sort-options{
         margin-top: 7px;
         margin-bottom: 10px;
     }
+    .bcr-all { height: 24px; padding: 0 6px 0 8px; font-size: 12px; }
 }
 
 /* --- キャラクターグリッド --- */
