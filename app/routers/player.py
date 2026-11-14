@@ -21,7 +21,7 @@ from app.db.db import get_shared_db, run_quick_db_lookup
 from app.services.brawl_service import get_player, get_player_from_db, get_player_for_tracking_extension, calc_num_of_available_brawlers, get_club_name, search_players_fast, get_player_log_trends, PlayerStatsPageData, add_auto_tracking_time, extend_battle_log_retention, get_max_accessory_counts, get_skin_catalog_stats, get_all_skins, get_all_titles, collect_battle_mode_map_filter_options, get_brawler, get_player_header_from_db
 from app.services.map_mode_catalog import get_map_by_id, mode_sort_key, resolve_map_filter_label, resolve_mode_filter_label
 from app.services.battle_result_view import attach_battle_results
-from app.services.battle_history import NEW_PLAYER_NOTICE_MAX, build_stats, count_saved_battles, scan_battles
+from app.services.battle_history import NEW_PLAYER_NOTICE_MAX, RANKED_RANK_MIN_SCORES, build_stats, count_saved_battles, scan_battles
 from app.services import battle_analysis
 from app.services.rating_service import build_player_rating_data
 from app.core.cache import get_cache, get_redis, set_cache
@@ -750,6 +750,18 @@ async def get_player_battle_analysis_cards(
     return response
 
 
+# 推移グラフタブのグラフで使う系列（get_player_log_trends の列。static/js/pages/player_trends.js の定義と対応）
+TREND_SERIES_KEYS = (
+    "highest_trophies", "current_trophies", "average_highest_trophies", "average_current_trophies",
+    "ranked_current_score", "ranked_highest_score", "total_prestige_level",
+    "unlocked_brawlers", "max_power_brawlers", "prestige_1_brawlers", "prestige_2_brawlers", "prestige_3_brawlers", "average_power",
+    "gadgets", "star_powers", "gears", "hyper_charges", "buffies",
+    "average_gadgets", "average_star_powers", "average_gears", "average_hyper_charges", "average_buffies",
+    "play_time", "team_victories", "solo_victories", "duo_victories", "owned_skin_count",
+    "record_points", "fame_points", "max_winstreak", "total_mastery", "average_mastery",
+)
+
+
 # 推移グラフフラグメント
 @api_router.get("/{tag}/stats", name="get_player_stats_fragment")
 async def get_player_stats_fragment(
@@ -782,28 +794,9 @@ async def get_player_stats_fragment(
             status_code=500
         )
 
-    # 期間パラメータを解釈
-    period_days_for_query: int | None = None
-    if period == "all":
-        period_days_for_query = None
-    elif period.endswith("d"):
-        try:
-            period_days_for_query = int(period[:-1])
-        except ValueError:
-            period_days_for_query = 30
-            period = "30d"
-    elif period.endswith("y"):
-        try:
-            period_days_for_query = int(period[:-1]) * 365
-        except ValueError:
-            period_days_for_query = 30
-            period = "30d"
-    else:
-        period_days_for_query = 30
-        period = "30d"
-
+    # 記録は全期間を1回で返し、期間の切り替えはブラウザで行う（period は古い URL のために受け取るだけ）
     try:
-        player_stats_data: PlayerStatsPageData = await get_player_log_trends(db, player.tag, period_days_for_query)
+        player_stats_data: PlayerStatsPageData = await get_player_log_trends(db, player.tag, None)
     except DataBaseError as e:
         logger.error(f"プレイヤー({player.tag})の統計推移データ取得中にエラー: {e}", exc_info=True)
         player_stats_data = {"log_trends": None, "oldest_log_date": None, "latest_log_date": None, "total_log_days": 0}
@@ -817,90 +810,22 @@ async def get_player_stats_fragment(
     icon_path_rel = get_icon_path(player.icon_id)
     add_log_info(request, f"プレイヤー(stats fragment): {player.name} - {player.tag}")
 
-    # 期間選択メニューの選択肢を生成
-    available_periods_options = []
-    actual_total_days = 0
-
-    if player_stats_data["oldest_log_date"]:
-        try:
-            oldest_date_obj = datetime.date.fromisoformat(player_stats_data["oldest_log_date"])
-            today = datetime.datetime.now(datetime.timezone.utc).date()
-            actual_total_days = (today - oldest_date_obj).days + 1
-            if actual_total_days < 0: actual_total_days = 0
-        except ValueError:
-            actual_total_days = 0
-
-    def format_all_period_label(total_days: int, lang: str, is_default: bool) -> str:
-        years = total_days // 365
-        days_remaining = total_days % 365
-        default_suffix_ja = " (デフォルト)" if is_default else ""
-        default_suffix_en = " (Default)" if is_default else ""
-        if lang == "ja":
-            if years > 0 and days_remaining > 0:
-                return f"全期間 (過去{years}年{days_remaining}日){default_suffix_ja}"
-            elif years > 0:
-                return f"全期間 (過去{years}年){default_suffix_ja}"
-            else:
-                return f"全期間 (過去{days_remaining}日){default_suffix_ja}"
-        else:
-            if years > 0 and days_remaining > 0:
-                return f"All Time ({years}y {days_remaining}d){default_suffix_en}"
-            elif years > 0:
-                return f"All Time ({years}y){default_suffix_en}"
-            else:
-                return f"All Time ({days_remaining}d){default_suffix_en}"
-
-    is_default_for_all = actual_total_days < 30 and actual_total_days > 0
-    period_definitions_master = []
-
-    if actual_total_days > 1:
-        period_definitions_master.append(
-            (f"{actual_total_days}d", f"過去{actual_total_days}日", f"Last {actual_total_days} Days", actual_total_days, is_default_for_all)
-        )
-
-    fixed_periods_config = [
-        (30, "30d", "過去30日", "Last 30 Days"),
-        (90, "90d", "過去90日", "Last 90 Days"),
-        (180, "180d", "過去180日", "Last 180 Days"),
-        (365, "1y", "過去1年", "Last 1 Year"),
-    ]
-    for i in range(2, 6):
-        fixed_periods_config.append((365 * i, f"{i}y", f"過去{i}年", f"Last {i} Years"))
-
-    for days, val, label_ja, label_en in fixed_periods_config:
-        if actual_total_days >= days:
-            is_default = (days == 30 and actual_total_days >= 30)
-            label_ja_final = label_ja + (" (デフォルト)" if is_default and not is_default_for_all else "")
-            label_en_final = label_en + (" (Default)" if is_default and not is_default_for_all else "")
-            period_definitions_master.append((val, label_ja_final, label_en_final, days, is_default))
-
-    is_all_period_default = actual_total_days < 30
-    all_label_ja = format_all_period_label(actual_total_days, "ja", is_all_period_default)
-    all_label_en = format_all_period_label(actual_total_days, "en", is_all_period_default)
-    period_definitions_master.append(("all", all_label_ja, all_label_en, actual_total_days, is_all_period_default))
-
-    unique_options_dict = {}
-    for val, l_ja, l_en, d, is_def in sorted(period_definitions_master, key=lambda x: (x[3], len(x[0]))):
-        if d not in unique_options_dict or (val != "all" and len(val) < len(unique_options_dict[d][0])):
-            unique_options_dict[d] = (val, l_ja, l_en, d, is_def)
-        elif val == "all" and d not in unique_options_dict:
-            unique_options_dict[d] = (val, l_ja, l_en, d, is_def)
-
-    temp_options_from_dict = []
-    for _val, _l_ja, _l_en, _d, _is_def in unique_options_dict.values():
-        temp_options_from_dict.append((_val, _l_ja, _l_en, _d))
-    available_periods_options = sorted(temp_options_from_dict, key=lambda x: x[3])
-
-    current_period_is_valid = any(opt[0] == period for opt in available_periods_options)
-    if not current_period_is_valid or not available_periods_options:
-        if actual_total_days >= 30 and any(opt[0] == "30d" for opt in available_periods_options):
-            period = "30d"
-        elif actual_total_days > 0 and any(opt[0] == f"{actual_total_days}d" for opt in available_periods_options):
-            period = f"{actual_total_days}d"
-        elif available_periods_options:
-            period = available_periods_options[0][0]
-        else:
-            period = "all"
+    # グラフ用のデータ。使う系列だけを渡す
+    trends_payload = None
+    log_trends = player_stats_data["log_trends"]
+    if log_trends and log_trends["dates"]:
+        oldest = log_trends["dates"][0]
+        trends_payload = {
+            "dates": log_trends["dates"],
+            "series": {key: log_trends[key] for key in TREND_SERIES_KEYS},
+            "today": datetime.datetime.now(datetime.timezone.utc).date().isoformat(),
+            "rankMin": list(RANKED_RANK_MIN_SCORES),
+            # ガチバトルのシーズン（新しい順）。記録より前に終わったものは出さない
+            "seasons": [
+                [season["number"], season["display_ja"] if lang == "ja" else season["display_en"], season["start_date"], season["end_date"]]
+                for season in get_ranked_seasons_for_filter() if season["end_date"] >= oldest
+            ],
+        }
 
     current_login_user: Optional[User] = getattr(request.state, "current_user", None)
     if current_login_user:
@@ -918,8 +843,7 @@ async def get_player_stats_fragment(
         "player_icon_path": "/" + icon_path_rel,
         "current_page": "home",
         "player_stats_data": player_stats_data,
-        "current_period": period,
-        "available_periods": available_periods_options,
+        "trends_payload": trends_payload,
         "current_user": current_login_user,
     }
     return templates.TemplateResponse("player/fragments/stats_fragment.html", context)

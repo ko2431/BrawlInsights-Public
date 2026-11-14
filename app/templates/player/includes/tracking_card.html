@@ -1,10 +1,11 @@
 {# /app/templates/player/includes/tracking_card.html #}
 {#^ プレイヤー自動追跡とバトル履歴の保存期間のカード。プロフィールとバトル履歴(各サブタブ)の基本データの下に置く。
    動きは static/js/player_tracking.js(playerTrackingCard)。ゲージは目盛りの区間ごとに伸縮させ、数分〜365日・4ヶ月〜10年を1本で見せる。
-   延長はカード内のパネルで期間と支払い方法を選び、ページを読み込み直さずにその場で反映する #}
+   延長はカード内のパネルで期間と支払い方法を選び、ページを読み込み直さずにその場で反映する。
+   show_retention=false で自動追跡の段だけにする(推移グラフタブ) #}
 {% from "components/help_tip.html" import help_tip with context %}
 
-{% macro tracking_card(player) %}
+{% macro tracking_card(player, show_retention=true) %}
 {%- set ja = lang == "ja" -%}
 {%- set remaining = tracking_remaining_seconds(player) -%}
 {%- set auto_hours = ((player.auto_activate_time.total_seconds() // 3600) | int) if player.auto_activate_time else 0 -%}
@@ -131,6 +132,7 @@
         </div>
     </div>
 
+    {% if show_retention %}
     {# --- バトル履歴の保存期間 --- #}
     <div class="ptc__sec ptc__sec--ret">
         <div class="ptc__head">
@@ -205,6 +207,8 @@
         </div>
     </div>
 
-    <a class="ptc__help-link" href="{{ url_for('automatic_acquisition', lang=lang) }}">{{ "自動追跡と保存期間について" if ja else "About auto-tracking and storage" }} ›</a>
+    {% endif %}
+
+    <a class="ptc__help-link" href="{{ url_for('automatic_acquisition', lang=lang) }}">{% if show_retention %}{{ "自動追跡と保存期間について" if ja else "About auto-tracking and storage" }}{% else %}{{ "自動追跡について" if ja else "About auto-tracking" }}{% endif %} ›</a>
 </div>
 {% endmacro %}

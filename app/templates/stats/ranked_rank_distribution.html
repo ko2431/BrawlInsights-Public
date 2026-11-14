@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 
 {% block title %}{% if lang == "ja" %}【ブロスタ】ガチバトルランク分布{% else %}Ranked Rank Distribution{% endif %} - Brawl Insights{% endblock %}
-{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトル最高スコア・現在スコアの分布を確認できます。{% else %}View the distribution of Brawl Stars Ranked highest and current scores, with top %, rating grades, and in-game ranks.{% endif %}{% endblock %}
+{% block og_description %}{% if lang == "ja" %}ブロスタのガチバトル最高ポイント・現在ポイントの分布を確認できます。{% else %}View the distribution of Brawl Stars Ranked highest and current points, with top %, rating grades, and in-game ranks.{% endif %}{% endblock %}
 
 {% block head_extra %}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/stats.css') }}?v={{ app_version }}">
@@ -28,9 +28,9 @@
     <div class="info-block ranked-dist-page__info">
         <p class="info-block__text">
             {% if lang == "ja" %}
-            多くのアクティブなプレイヤーデータから算出した、ガチバトルスコアの分布です。アクティブでないプレイヤーは含まれないため、ゲーム内で遭遇する分布に近い、<b>ややレベルの高い評価</b>になっています。
+            多くのアクティブなプレイヤーデータから算出した、ガチバトルポイントの分布です。アクティブでないプレイヤーは含まれないため、ゲーム内で遭遇する分布に近い、<b>ややレベルの高い評価</b>になっています。
             {% else %}
-            This is the distribution of Ranked scores calculated from many active players. Inactive players are excluded, so it tends to be slightly higher and closer to the distribution you'll encounter in-game.
+            This is the distribution of Ranked points calculated from many active players. Inactive players are excluded, so it tends to be slightly higher and closer to the distribution you'll encounter in-game.
             {% endif %}
         </p>
     </div>

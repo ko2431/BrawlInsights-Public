@@ -1,6 +1,8 @@
 {# /app/templates/player/stats.html - シェルページ #}
 {% extends "base.html" %}
-{% set shell_fragment_url = url_for('get_player_stats_fragment', lang=lang, tag=tag[1:]) ~ '?period=' ~ (current_period | urlencode) %}
+{# 期間はブラウザで切り替えるので、フラグメントには渡さない（URL の period・from・to は player_trends.js が読む） #}
+{# url_for は URL オブジェクトを返すので、先読み(tojson)のために文字列にしておく #}
+{% set shell_fragment_url = url_for('get_player_stats_fragment', lang=lang, tag=tag[1:]) | string %}
 
 {% block title %}{% if player_header %}{{ player_header.name }} ({{ tag }}){% else %}{{ tag }}{% endif %} {% if lang == "ja" %}推移グラフ{% else %}Trends{% endif %} - Brawl Insights{% endblock %}
 {% block og_description %}{% if lang == "ja" %}{{ tag }} のブロスタの統計データです。{% else %}{{ tag }} Brawl Stars statistics.{% endif %}{% endblock %}
@@ -10,9 +12,10 @@
     {% include "components/shell_prefetch.html" %}
     {# プレイヤーページ固有のCSSを読み込む #}
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/player.css') }}?v={{ app_version }}">
+    {# グラフのカード・期間の箱はバトル履歴と同じ見た目(.bx-*)を使う #}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/battles.css') }}?v={{ app_version }}">
     {# Chart.jsはシェル側で読む（フラグメント内の外部scriptは実行しない）。defer で描画を止めず、フラグメントの差し込みは data-shell-lib の読み込みを待ってから行う #}
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" data-shell-lib></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" data-shell-lib></script>
 {% endblock %}
 
 {% block content %}
@@ -61,5 +64,10 @@
 {% endblock %}
 {% block scripts %}
 {% include "player/includes/bookmark_script.html" %}
+<script src="{{ url_for('static', path='/js/help_tip.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', path='/js/player_tracking.js') }}?v={{ app_version }}"></script>
+{# グラフの共通の部品(BattleStatsKit)は battle_stats.js にある #}
+<script src="{{ url_for('static', path='/js/pages/battle_stats.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', path='/js/pages/player_trends.js') }}?v={{ app_version }}"></script>
 <script src="{{ url_for('static', path='/js/shell_fragment_loader.js') }}?v={{ app_version }}"></script>
 {% endblock %}

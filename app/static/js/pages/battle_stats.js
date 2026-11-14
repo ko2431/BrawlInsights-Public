@@ -107,8 +107,127 @@
     document.addEventListener('focusout', hideTip);
     window.addEventListener('scroll', hideTip, { passive: true });
 
+    // ---------- グラフの共通の部品（推移グラフタブの player_trends.js でも使う） ----------
+    function themeOf(root) {
+        const cs = getComputedStyle(root);
+        const v = (n) => cs.getPropertyValue(n).trim();
+        return { card: v('--bx-card') || '#fff', mut: v('--color-777') || '#777', grid: v('--color-eee') || '#eee', win: v('--bx-win'), lose: v('--bx-lose'), accent: v('--bx-accent'), ink: v('--color-111') };
+    }
+    function baseOptions(th) {
+        return {
+            responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(28,28,28,.94)', titleColor: '#fff', bodyColor: '#fff', padding: 8, cornerRadius: 9, titleFont: { size: 12 }, bodyFont: { size: 12 }, displayColors: false } },
+            scales: {
+                x: { grid: { display: false }, border: { color: th.grid }, ticks: { color: th.mut, font: { size: 10.5 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+                y: { grid: { color: th.grid }, border: { display: false }, ticks: { color: th.mut, font: { size: 10.5 }, maxTicksLimit: 6 } },
+            },
+        };
+    }
+    // ガチバトルのランク（1〜22）。rankMin は各ランクの下限のポイント
+    function rankTools(rankMin, leagues) {
+        const leagueIndex = (rank) => Math.min(7, Math.floor((Math.max(1, rank) - 1) / 3));
+        return {
+            leagueIndex,
+            rankOf: (score) => { let r = 0; for (let i = 1; i < rankMin.length; i++) if (score >= rankMin[i]) r = i; return r; },
+            rankName: (rank) => (rank >= 22 ? leagues[7] : `${leagues[leagueIndex(rank)]} ${ROMAN[(rank - 1) % 3]}`),
+        };
+    }
+    // 補助線の位置。範囲に入るランクの境目の数を見て、細かさを決める
+    function rankTicks(rankMin, lo, hi) {
+        const inRange = (list) => list.filter((v) => v >= lo && v <= hi);
+        const subs = inRange(rankMin.slice(1)), leagues = inRange([1, 4, 7, 10, 13, 16, 19, 22].map((r) => rankMin[r]));
+        if (subs.length > 9 && leagues.length >= 2) return leagues;   // 広い範囲: 帯（ブロンズ・シルバー…）の境目だけ
+        if (subs.length >= 3) return subs;                              // ふつう: ランクの境目すべて
+        // 狭い範囲: 境目に、きりのいい値を足す
+        const span = hi - lo, step = [25, 50, 100, 250, 500].find((s) => span / s <= 6) || 500;
+        const out = new Set(subs);
+        for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) if (!subs.some((s) => Math.abs(s - v) < step * 0.45)) out.add(v);
+        return [...out].sort((a, b) => a - b);
+    }
+    // ガチバトルのポイント（無ければランク）の推移のグラフ。背景にランクの帯、シーズンの始まりに薄い縦線。
+    // pts は {x: ミリ秒, y} の古い順。extra は一緒に描く線（最高ポイントなど）で、縦の範囲にも入れる
+    function rankedTrendConfig({ th, pts, byRank, rankMin, leagues, seasons, tipTitle, tipLabel, extra, utc }) {
+        const { leagueIndex, rankName } = rankTools(rankMin, leagues);
+        const extras = extra || [];
+        const ys = pts.map((p) => p.y).concat(...extras.map((ds) => ds.data.map((p) => p.y))), dataLo = Math.min(...ys), dataHi = Math.max(...ys);
+        const pad = byRank ? 0.5 : Math.max(30, (dataHi - dataLo) * 0.08);
+        const lo = byRank ? Math.max(0.5, dataLo - pad) : Math.max(0, Math.floor(dataLo - pad)), hi = byRank ? Math.min(22.5, dataHi + pad) : Math.ceil(dataHi + pad);
+        // 背景にランクの帯の色を薄く敷き、右端にランクの名前を出す
+        const bands = {
+            id: 'rankBands',
+            beforeDatasetsDraw(chart) {
+                const { ctx, chartArea: area, scales: { y } } = chart;
+                ctx.save();
+                ctx.beginPath(); ctx.rect(area.left, area.top, area.width, area.height); ctx.clip();
+                for (let rank = 1; rank <= 22; rank++) {
+                    const from = byRank ? rank - 0.5 : rankMin[rank], to = byRank ? rank + 0.5 : rank < 22 ? rankMin[rank + 1] : Infinity;
+                    if (to <= lo || from >= hi) continue;
+                    const top = y.getPixelForValue(Math.min(to, hi)), bottom = y.getPixelForValue(Math.max(from, lo));
+                    ctx.globalAlpha = 0.09 + ((rank - 1) % 3) * 0.035;
+                    ctx.fillStyle = LEAGUE_COLORS[leagueIndex(rank)];
+                    ctx.fillRect(area.left, top, area.width, bottom - top);
+                    if (!byRank && bottom - top >= 18) { ctx.globalAlpha = 0.8; ctx.font = `600 11px ${CHART_FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(rankName(rank), area.right - 6, (top + bottom) / 2); }
+                }
+                ctx.restore();
+            },
+        };
+        const ticks = byRank ? null : rankTicks(rankMin, lo, hi);
+        // 横軸: シーズンの始まりに薄い縦線を引き、ラベルもそこを優先する
+        const x0 = pts[0].x, x1 = pts[pts.length - 1].x;
+        const part = (d) => (utc ? [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()] : [d.getFullYear(), d.getMonth() + 1, d.getDate()]);
+        const xLabel = (v, index, list) => {
+            const d = part(new Date(v)), prev = index > 0 ? part(new Date(list[index - 1].value)) : null;
+            return (!prev || prev[0] !== d[0] ? `${d[0]}/` : '') + `${d[1]}/${d[2]}`;
+        };
+        const xTicks = (axis) => {
+            const span = x1 - x0, room = Math.max(2, Math.floor(axis.width / 64));
+            if (seasons.length >= 2) {
+                // 多いときは新しいほうから数えて等間隔に残す
+                const step = Math.ceil(seasons.length / room);
+                axis.ticks = seasons.filter((_, i) => (seasons.length - 1 - i) % step === 0).map((value) => ({ value }));
+            } else {
+                // シーズンをまたがない短い期間: 自動の目盛りに、シーズンの始まりがあれば足す
+                const auto = axis.ticks.map((tick) => tick.value).filter((v) => seasons.every((sx) => Math.abs(sx - v) > span * 0.12));
+                axis.ticks = [...auto, ...seasons].sort((a, b) => a - b).map((value) => ({ value }));
+            }
+        };
+        const seasonLines = {
+            id: 'seasonLines',
+            beforeDatasetsDraw(chart) {
+                if (!seasons.length) return;
+                const { ctx, chartArea: area, scales: { x } } = chart;
+                ctx.save();
+                ctx.strokeStyle = th.mut; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (const sx of seasons) { const px = Math.round(x.getPixelForValue(sx)) + 0.5; ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); }
+                ctx.stroke();
+                ctx.restore();
+            },
+        };
+        const o = baseOptions(th);
+        o.scales.x.type = 'linear'; o.scales.x.ticks.callback = xLabel; o.scales.x.min = x0; o.scales.x.max = x1;
+        o.scales.x.afterBuildTicks = xTicks; o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxTicksLimit = 40;
+        o.scales.y.min = lo; o.scales.y.max = hi;
+        o.scales.y.grid.color = th.mut + '55';
+        o.plugins.tooltip.callbacks = { title: (it) => tipTitle(it[0].parsed.x), label: (it) => tipLabel(it.parsed.y, it.dataset, it) };
+        if (byRank) {
+            // 目盛りはランクごと。範囲が広いときは、帯の初めのランク（Ⅰ）だけ
+            const shown = [];
+            for (let rank = Math.ceil(lo); rank <= Math.floor(hi); rank++) if (hi - lo <= 9 || (rank - 1) % 3 === 0) shown.push(rank);
+            o.scales.y.afterBuildTicks = (axis) => { axis.ticks = shown.map((value) => ({ value })); };
+            o.scales.y.ticks.maxTicksLimit = 23;
+            o.scales.y.ticks.callback = (v) => rankName(v);
+            o.scales.y.grid.display = false;
+        } else {
+            o.scales.y.afterBuildTicks = (axis) => { axis.ticks = ticks.map((value) => ({ value })); };
+            o.scales.y.ticks.callback = (v) => nf(v);
+            o.scales.y.ticks.maxTicksLimit = 30;
+        }
+        return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0, stepped: byRank }, ...extras] }, options: o, plugins: [bands, seasonLines] };
+    }
+
     // 詳細分析タブ（battle_analysis.js）と共通で使う小物
-    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson };
+    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
 
     let current = null;  // いま表示しているカード（画面幅が変わったときの詰め直し用）
     window.addEventListener('resize', () => { if (current && document.body.contains(current.root)) current.fitWbars(); });
@@ -152,9 +271,7 @@
         const shortText = (n) => short(n).replace(/<[^>]+>/g, '');
         // ガチバトルのランク。境目のポイントはサーバーから届く（Battle.ranked_rank_after と同じ）
         const RANK_MIN = (D.ranked && D.ranked.rankMin) || [];
-        const rankOf = (score) => { let r = 0; for (let i = 1; i < RANK_MIN.length; i++) if (score >= RANK_MIN[i]) r = i; return r; };
-        const leagueIndex = (rank) => Math.min(7, Math.floor((Math.max(1, rank) - 1) / 3));
-        const rankName = (rank) => (rank >= 22 ? T.leagues[7] : `${T.leagues[leagueIndex(rank)]} ${ROMAN[(rank - 1) % 3]}`);
+        const { rankOf, leagueIndex, rankName } = rankTools(RANK_MIN, T.leagues);
         const ymd = (t) => { const d = new Date(t * 1000); return `${d.getMonth() + 1}/${d.getDate()}`; };
         const ymdFull = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
@@ -175,21 +292,7 @@
                 <button type="button" class="bx-card__toggle" data-act="fold" aria-expanded="${!closed}"><h3 class="bx-card__title">${title}</h3><span class="bx-chev"></span></button>
                 ${cap ? `<span class="bx-card__cap">${cap}</span>` : ''}${tools ? `<div class="bx-card__tools">${tools}</div>` : ''}</div><div class="bx-card__fold"><div>${body}</div></div></section>`;
         }
-        function chartTheme() {
-            const cs = getComputedStyle(root);
-            const v = (n) => cs.getPropertyValue(n).trim();
-            return { card: v('--bx-card') || '#fff', mut: v('--color-777') || '#777', grid: v('--color-eee') || '#eee', win: v('--bx-win'), lose: v('--bx-lose'), accent: v('--bx-accent'), ink: v('--color-111') };
-        }
-        function baseOptions(th) {
-            return {
-                responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(28,28,28,.94)', titleColor: '#fff', bodyColor: '#fff', padding: 8, cornerRadius: 9, titleFont: { size: 12 }, bodyFont: { size: 12 }, displayColors: false } },
-                scales: {
-                    x: { grid: { display: false }, border: { color: th.grid }, ticks: { color: th.mut, font: { size: 10.5 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
-                    y: { grid: { color: th.grid }, border: { display: false }, ticks: { color: th.mut, font: { size: 10.5 }, maxTicksLimit: 6 } },
-                },
-            };
-        }
+        const chartTheme = () => themeOf(root);
         function mountChart(id, build) {
             after.push(() => {
                 const el = root.querySelector('#' + id);
@@ -352,100 +455,17 @@
         }
 
         // ---------- ガチバトル: ポイント（無ければランク）の推移 ----------
-        // 補助線の位置。範囲に入るランクの境目の数を見て、細かさを決める
-        function rankTicks(lo, hi) {
-            const inRange = (list) => list.filter((v) => v >= lo && v <= hi);
-            const subs = inRange(RANK_MIN.slice(1)), leagues = inRange([1, 4, 7, 10, 13, 16, 19, 22].map((r) => RANK_MIN[r]));
-            if (subs.length > 9 && leagues.length >= 2) return leagues;   // 広い範囲: 帯（ブロンズ・シルバー…）の境目だけ
-            if (subs.length >= 3) return subs;                              // ふつう: ランクの境目すべて
-            // 狭い範囲: 境目に、きりのいい値を足す
-            const span = hi - lo, step = [25, 50, 100, 250, 500].find((s) => span / s <= 6) || 500;
-            const out = new Set(subs);
-            for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) if (!subs.some((s) => Math.abs(s - v) < step * 0.45)) out.add(v);
-            return [...out].sort((a, b) => a - b);
-        }
         function cardRankedTrend() {
             const rk = D.ranked;
             if (!rk || !rk.points || rk.points.length < 2) return '';
             const pts = rk.points.map(([t, y]) => ({ x: t * 1000, y })), byRank = rk.mode === 'rank';
-            const ys = pts.map((p) => p.y), dataLo = Math.min(...ys), dataHi = Math.max(...ys);
-            const pad = byRank ? 0.5 : Math.max(30, (dataHi - dataLo) * 0.08);
-            const lo = byRank ? Math.max(0.5, dataLo - pad) : Math.max(0, Math.floor(dataLo - pad)), hi = byRank ? Math.min(22.5, dataHi + pad) : Math.ceil(dataHi + pad);
-            // 背景にランクの帯の色を薄く敷き、右端にランクの名前を出す
-            const bands = {
-                id: 'rankBands',
-                beforeDatasetsDraw(chart) {
-                    const { ctx, chartArea: area, scales: { y } } = chart;
-                    ctx.save();
-                    ctx.beginPath(); ctx.rect(area.left, area.top, area.width, area.height); ctx.clip();
-                    for (let rank = 1; rank <= 22; rank++) {
-                        const from = byRank ? rank - 0.5 : RANK_MIN[rank], to = byRank ? rank + 0.5 : rank < 22 ? RANK_MIN[rank + 1] : Infinity;
-                        if (to <= lo || from >= hi) continue;
-                        const top = y.getPixelForValue(Math.min(to, hi)), bottom = y.getPixelForValue(Math.max(from, lo));
-                        ctx.globalAlpha = 0.09 + ((rank - 1) % 3) * 0.035;
-                        ctx.fillStyle = LEAGUE_COLORS[leagueIndex(rank)];
-                        ctx.fillRect(area.left, top, area.width, bottom - top);
-                        if (!byRank && bottom - top >= 18) { ctx.globalAlpha = 0.8; ctx.font = `600 11px ${CHART_FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(rankName(rank), area.right - 6, (top + bottom) / 2); }
-                    }
-                    ctx.restore();
-                },
-            };
-            const ticks = byRank ? null : rankTicks(lo, hi);
-            // 横軸: シーズンの始まりに薄い縦線を引き、ラベルもそこを優先する
             const x0 = pts[0].x, x1 = pts[pts.length - 1].x;
             const seasons = (rk.seasons || []).map((t) => t * 1000).filter((x) => x > x0 && x < x1);
-            const xLabel = (v, index, list) => {
-                const d = new Date(v), prev = index > 0 ? new Date(list[index - 1].value) : null;
-                return (!prev || prev.getFullYear() !== d.getFullYear() ? `${d.getFullYear()}/` : '') + `${d.getMonth() + 1}/${d.getDate()}`;
-            };
-            const xTicks = (axis) => {
-                const span = x1 - x0, room = Math.max(2, Math.floor(axis.width / 64));
-                if (seasons.length >= 2) {
-                    // 多いときは新しいほうから数えて等間隔に残す
-                    const step = Math.ceil(seasons.length / room);
-                    axis.ticks = seasons.filter((_, i) => (seasons.length - 1 - i) % step === 0).map((value) => ({ value }));
-                } else {
-                    // シーズンをまたがない短い期間: 自動の目盛りに、シーズンの始まりがあれば足す
-                    const auto = axis.ticks.map((tick) => tick.value).filter((v) => seasons.every((sx) => Math.abs(sx - v) > span * 0.12));
-                    axis.ticks = [...auto, ...seasons].sort((a, b) => a - b).map((value) => ({ value }));
-                }
-            };
-            const seasonLines = {
-                id: 'seasonLines',
-                beforeDatasetsDraw(chart) {
-                    if (!seasons.length) return;
-                    const { ctx, chartArea: area, scales: { x } } = chart, th = chartTheme();
-                    ctx.save();
-                    ctx.strokeStyle = th.mut; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    for (const sx of seasons) { const px = Math.round(x.getPixelForValue(sx)) + 0.5; ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); }
-                    ctx.stroke();
-                    ctx.restore();
-                },
-            };
-            mountChart('bxRanked', (th) => {
-                const o = baseOptions(th);
-                o.scales.x.type = 'linear'; o.scales.x.ticks.callback = xLabel; o.scales.x.min = x0; o.scales.x.max = x1;
-                o.scales.x.afterBuildTicks = xTicks; o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxTicksLimit = 40;
-                o.scales.y.min = lo; o.scales.y.max = hi;
-                o.scales.y.grid.color = th.mut + '55';
-                if (byRank) {
-                    // 目盛りはランクごと。範囲が広いときは、帯の初めのランク（Ⅰ）だけ
-                    const shown = [];
-                    for (let rank = Math.ceil(lo); rank <= Math.floor(hi); rank++) if (hi - lo <= 9 || (rank - 1) % 3 === 0) shown.push(rank);
-                    o.scales.y.afterBuildTicks = (axis) => { axis.ticks = shown.map((value) => ({ value })); };
-                    o.scales.y.ticks.maxTicksLimit = 23;
-                    o.scales.y.ticks.callback = (v) => rankName(v);
-                    o.scales.y.grid.display = false;
-                    o.plugins.tooltip.callbacks = { title: (it) => ymdFull(it[0].parsed.x / 1000), label: (it) => rankName(it.parsed.y) };
-                } else {
-                    o.scales.y.afterBuildTicks = (axis) => { axis.ticks = ticks.map((value) => ({ value })); };
-                    o.scales.y.ticks.callback = (v) => nf(v);
-                    o.scales.y.ticks.maxTicksLimit = 30;
-                    o.plugins.tooltip.callbacks = { title: (it) => ymdFull(it[0].parsed.x / 1000), label: (it) => T.pointsTip(nf(it.parsed.y), rankName(Math.max(1, rankOf(it.parsed.y)))) };
-                }
-                return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0, stepped: byRank }] }, options: o, plugins: [bands, seasonLines] };
-            });
+            mountChart('bxRanked', (th) => rankedTrendConfig({
+                th, pts, byRank, rankMin: RANK_MIN, leagues: T.leagues, seasons,
+                tipTitle: (x) => ymdFull(x / 1000),
+                tipLabel: (y) => (byRank ? rankName(y) : T.pointsTip(nf(y), rankName(Math.max(1, rankOf(y))))),
+            }));
             const first = pts[0].y, last = pts[pts.length - 1].y;
             const cap = byRank ? `${rankName(first)} → ${rankName(last)}` : `${nf(first)} → ${nf(last)}（${signed(last - first)}）`;
             return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, '', `<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>${seasons.length ? `<div class="bx-heatlegend">${T.seasonLines}</div>` : ''}`);

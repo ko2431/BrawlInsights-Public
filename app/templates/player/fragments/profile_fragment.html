@@ -264,7 +264,7 @@
                         <tr>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル最高スコア{% else %}Ranked Highest Score{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル最高ポイント{% else %}Ranked Highest Points{% endif %}</span>
                                     <a href="{{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) }}#ranked-score-trend">
                                         <div class="stats-table-link-button">
                                             {% if lang == "ja" %}推移 ＞{% else %}Trend ＞{% endif %}
@@ -286,7 +286,7 @@
                         <tr x-show="showAllBasicStats" x-cloak>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}シーズン内最高スコア{% else %}Season Highest Score{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}シーズン内最高ポイント{% else %}Season Highest Points{% endif %}</span>
                                     <a href="{{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) }}#ranked-score-trend">
                                         <div class="stats-table-link-button">
                                             {% if lang == "ja" %}推移 ＞{% else %}Trend ＞{% endif %}
@@ -308,7 +308,7 @@
                         <tr>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル現在スコア{% else %}Ranked Current Score{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル現在ポイント{% else %}Ranked Current Points{% endif %}</span>
                                     <a href="{{ url_for('get_player_stats', lang=lang, tag=player.tag[1:]) }}#ranked-score-trend">
                                         <div class="stats-table-link-button">
                                             {% if lang == "ja" %}推移 ＞{% else %}Trend ＞{% endif %}
@@ -879,7 +879,7 @@
                         <tr>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル最高スコア{% else %}Ranked Highest Score{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル最高ポイント{% else %}Ranked Highest Points{% endif %}</span>
                                     <div class="stats-table-rating-value-box">
                                         {% if player.acc_ranked_highest_rank in valid_image_ranks %}
                                         <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}" alt="Ranked Highest Rank" class="stats-table-rating-value-icon">
@@ -895,7 +895,7 @@
                         <tr>
                             <td>
                                 <div class="stats-table-label-container">
-                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル現在スコア{% else %}Ranked Current Score{% endif %}</span>
+                                    <span class="stats-table-label">{% if lang == "ja" %}ガチバトル現在ポイント{% else %}Ranked Current Points{% endif %}</span>
                                     <div class="stats-table-rating-value-box">
                                         {% if player.acc_ranked_current_rank in valid_image_ranks %}
                                         <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_current_rank|string + '.png') }}" alt="Ranked Current Rank" class="stats-table-rating-value-icon">

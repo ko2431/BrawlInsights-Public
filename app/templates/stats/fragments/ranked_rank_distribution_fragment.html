@@ -3,20 +3,20 @@
      x-data='rankedDistPage({{ distribution | tojson }}, {{ (player_snapshot.metrics if player_snapshot and player_snapshot.available else {}) | tojson }}, {{ (player_snapshot.available if player_snapshot else False) | tojson }}, {{ has_user | tojson }}, {{ url_for("distribution_main_account", lang=lang) | string | tojson }}, {{ (player_account_options or []) | tojson }})'>
 
     {# 指標タブ: 最高 / 現在 #}
-    <div class="ranked-dist-tabs" role="tablist" aria-label="{% if lang == 'ja' %}スコア種別{% else %}Score type{% endif %}">
+    <div class="ranked-dist-tabs" role="tablist" aria-label="{% if lang == 'ja' %}ポイント種別{% else %}Points type{% endif %}">
         <button type="button" class="ranked-dist-tabs__btn"
                 :class="{ 'ranked-dist-tabs__btn--active': metric === 'highest' }"
                 @click="metric = 'highest'"
                 role="tab"
                 :aria-selected="metric === 'highest'">
-            {% if lang == "ja" %}最高スコア{% else %}Highest Score{% endif %}
+            {% if lang == "ja" %}最高ポイント{% else %}Highest Points{% endif %}
         </button>
         <button type="button" class="ranked-dist-tabs__btn"
                 :class="{ 'ranked-dist-tabs__btn--active': metric === 'current' }"
                 @click="metric = 'current'"
                 role="tab"
                 :aria-selected="metric === 'current'">
-            {% if lang == "ja" %}現在スコア{% else %}Current Score{% endif %}
+            {% if lang == "ja" %}現在ポイント{% else %}Current Points{% endif %}
         </button>
     </div>
 
