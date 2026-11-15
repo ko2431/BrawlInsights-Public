@@ -35,6 +35,7 @@
     cursor: default;
     flex: 1;
     min-width: 0;
+    line-height: 1.25;
 }
 /* --- バトル履歴選択UIコンテナ --- */
 .battle-log-filters__container {
