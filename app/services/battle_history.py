@@ -3,6 +3,7 @@
 そのプレイヤーの全バトルを毎回読むが、集計に要る列だけにして、1行をオブジェクトにしない。
 バトルカードに出す分（1ページぶん）だけ、全部の列を主キーで読んで Battle にする。
 """
+import bisect
 import datetime
 from types import SimpleNamespace
 from typing import Any

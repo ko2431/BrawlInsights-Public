@@ -175,6 +175,35 @@ def test_ranked_data_uses_daily_logs_for_changes_without_battles():
     assert all(data["points"][0][0] < start < data["points"][-1][0] for start in data["seasons"])
 
 
+def test_ranked_points_carry_set_positions_for_the_per_set_axis():
+    # 3セット（古い順に 0, 1, 2）。2番目はポイントが分からない
+    sets = [_ranked_set(0, 5200), _ranked_set(60, None), _ranked_set(120, 5100)]
+    data = _ranked(sets, show_trend=True, show_current=True)
+    assert [p[2] for p in data["points"]] == [0, 2] and data["current"] == [data["points"][-1][0], 5200]
+
+
+def test_ranked_log_points_are_placed_between_sets_only_when_the_value_changes():
+    old = 40 * 24 * 60
+    sets = [_ranked_set(old, 7000), _ranked_set(old + 60, 6950)]
+    day = NOW.date()
+    logs = [(day - datetime.timedelta(days=40), 7000), (day - datetime.timedelta(days=20), 7000),
+            (day - datetime.timedelta(days=10), 5500), (day - datetime.timedelta(days=5), 5400), (day, 5400)]
+    data = _ranked(sets, logs, show_trend=True, show_current=True)
+    assert [p[1] for p in data["points"]] == [6950, 7000, 7000, 5500, 5400, 5400]
+    # 値の変わらない記録の点はセット順には出さず、変わった2点はセットと同じく1つずつ場所を取る
+    assert [p[2] for p in data["points"]] == [0, 1, None, 2, 3, None]
+    assert len(data["seasonsSeq"]) == len(data["seasons"]) and all(1 < x < 3 for x in data["seasonsSeq"])
+
+
+def test_ranked_log_points_before_the_first_set_are_left_out_of_the_per_set_axis():
+    sets = [_ranked_set(0, 5200), _ranked_set(60, 5100)]
+    day = NOW.date()
+    logs = [(day - datetime.timedelta(days=30), 4000), (day - datetime.timedelta(days=20), 4500), (day - datetime.timedelta(days=10), 4500)]
+    data = _ranked(sets, logs, show_trend=True, show_current=True)
+    assert [p[1] for p in data["points"]] == [4000, 4500, 4500, 5100, 5200]
+    assert [p[2] for p in data["points"]] == [None, None, None, 0, 1]
+
+
 def test_season_starts_are_third_thursdays_inside_the_range():
     utc = datetime.timezone.utc
     first = int(datetime.datetime(2026, 9, 1, tzinfo=utc).timestamp())

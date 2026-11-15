@@ -27,7 +27,7 @@
             avgKD: `平均キル${SL}デス`, kills: 'キル', deaths: 'デス', killsUnit: 'キル', deathsUnit: 'デス', kdRatio: 'キルデス比', avgDamage: '平均与ダメージ', damageTaken: '被ダメージ',
             avgTime: '平均バトル時間', totalTime: '合計', hoursUnit: '時間', minutesUnit: '分',
             noteHead: 'キル / デス・与ダメージ・バトル時間は、', noteOld: '2026年11月アップデート以降の', noteMode: 'バトルロイヤルなど一部のモードを除く', noteTail: (n) => `バトル（${n}試合）が対象です。`, noteJoin: '、',
-            daily: '日ごとの勝敗', weekly: '週ごとの勝敗', d14: '14日', d30: '30日', w13: '13週', keyWin: '勝利（上）', keyLose: '敗北（下）',
+            daily: '日ごとの勝敗', weekly: '週ごとの勝敗', d14: '14日', d30: '30日', w13: '13週', daysN: (n) => `${n}日`, weeksN: (n) => `${n}週`, rangeTo: '〜', keyWin: '勝利（上）', keyLose: '敗北（下）',
             hours: 'プレイ時間帯', tz: '時刻: ', tzJapan: '日本時間', tzDevice: 'この端末の時刻', hourMark: '時', battleCount: 'バトル数',
             heatCell: (dow, h, n, rate) => `${dow}曜 ${h}時台\n${n}戦・勝率 ${rate}`, few: '少', many: '多', rateHigh: '勝率 高', rateLow: '低（3戦未満は色なし）',
             mostActive: '最もプレイした時間帯は', mostActiveAt: (dow, h, n) => `<b>${dow}曜 ${h}時台</b>（${n}戦）`, bestRate: '勝率が高いのは', bestRateAt: (from, to, rate) => `<b>${from}〜${to}時</b>（${rate}%）`,
@@ -40,7 +40,7 @@
             trophyBy: 'キャラ別のトロフィー増減', trophyByCap: '増えた5キャラ・減った5キャラ', trophyByTop: '変動の大きい10キャラ', trophyByTip: (g, v) => `${g}戦で ${v}`,
             empty: 'バトルがありません',
             leagues: ['ブロンズ', 'シルバー', 'ゴールド', 'ダイヤモンド', 'エリート', 'レジェンド', 'マスター', 'プロ'],
-            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', seasonLines: '縦の線: シーズンの始まり', pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
+            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', seasonLines: '縦の線: シーズンの始まり', axisTime: '日時', axisSeq: 'セット順', pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
             modesMaps: 'モード・マップ別の成績', picksCap: 'マップの右はよく使ったキャラ', graph: 'グラフ', byMode: 'モード別', byMap: 'マップ別',
             modeRates: 'モードごとの勝率', mapRates: 'マップごとの勝率（モード別）', radarTip: (rate, n) => `勝率 ${rate}%（${n}回）`, pickTip: (name, n) => `${name}: ${n}回`,
             radarNeedModes: 'レーダーを出すには、3つ以上のモードのバトルが必要です', radarNeedMaps: 'レーダーを出すには、同じモードで3つ以上のマップのバトルが必要です',
@@ -55,7 +55,7 @@
             avgKD: `Avg. kills${SL}deaths`, kills: 'K', deaths: 'D', killsUnit: '', deathsUnit: '', kdRatio: 'K/D ratio', avgDamage: 'Avg. damage dealt', damageTaken: 'Taken',
             avgTime: 'Avg. battle time', totalTime: 'Total', hoursUnit: 'h', minutesUnit: 'm',
             noteHead: 'Kills / deaths, damage and battle time are based on ', noteOld: 'battles since the November 2026 update', noteMode: 'battles in modes that have stats (Showdown and a few other modes are not included)', noteBoth: 'battles since the November 2026 update in modes that have stats (Showdown and a few other modes are not included)', noteTail: (n) => `: ${n} battles.`, noteJoin: '',
-            daily: 'Daily results', weekly: 'Weekly results', d14: '14d', d30: '30d', w13: '13w', keyWin: 'Wins (up)', keyLose: 'Losses (down)',
+            daily: 'Daily results', weekly: 'Weekly results', d14: '14d', d30: '30d', w13: '13w', daysN: (n) => `${n}d`, weeksN: (n) => `${n}w`, rangeTo: ' – ', keyWin: 'Wins (up)', keyLose: 'Losses (down)',
             hours: 'Play times', tz: 'Time zone: ', tzJapan: 'Japan Standard Time', tzDevice: 'this device', hourMark: 'h', battleCount: 'Battles',
             heatCell: (dow, h, n, rate) => `${dow} ${h}:00\n${n} battles, win rate ${rate}`, few: 'Fewer', many: 'More', rateHigh: 'Win rate: high', rateLow: 'low (no color under 3 battles)',
             mostActive: 'Most active:', mostActiveAt: (dow, h, n) => `<b>${dow} ${h}:00</b> (${n} battles)`, bestRate: 'Best win rate:', bestRateAt: (from, to, rate) => `<b>${from}:00–${to}:00</b> (${rate}%)`,
@@ -68,7 +68,7 @@
             trophyBy: 'Trophy change by brawler', trophyByCap: 'Top 5 gains and losses', trophyByTop: '10 biggest changes', trophyByTip: (g, v) => `${v} in ${g} battles`,
             empty: 'No battles',
             leagues: ['Bronze', 'Silver', 'Gold', 'Diamond', 'Mythic', 'Legendary', 'Masters', 'Pro'],
-            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', seasonLines: 'Vertical lines: season start', pointsTip: (v, rank) => `${v} points (${rank})`,
+            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', seasonLines: 'Vertical lines: season start', axisTime: 'Time', axisSeq: 'By set', pointsTip: (v, rank) => `${v} points (${rank})`,
             modesMaps: 'Modes and maps', picksCap: 'Most-picked brawlers are shown beside each map', graph: 'Chart', byMode: 'By mode', byMap: 'By map',
             modeRates: 'Win rate by mode', mapRates: 'Win rate by map, per mode', radarTip: (rate, n) => `Win rate ${rate}% (${n})`, pickTip: (name, n) => `${name}: ${n}`,
             radarNeedModes: 'The radar chart needs battles in at least 3 modes', radarNeedMaps: 'The radar chart needs battles on at least 3 maps of one mode',
@@ -146,7 +146,8 @@
     }
     // ガチバトルのポイント（無ければランク）の推移のグラフ。背景にランクの帯、シーズンの始まりに薄い縦線。
     // pts は {x: ミリ秒, y} の古い順。extra は一緒に描く線（最高ポイントなど）で、縦の範囲にも入れる
-    function rankedTrendConfig({ th, pts, byRank, rankMin, leagues, seasons, tipTitle, tipLabel, extra, utc }) {
+    // seq: 横軸をセット順にする。このとき pts の x はセットの順番で、t に時刻（ミリ秒）を入れる。seasons もセット順の位置で渡す
+    function rankedTrendConfig({ th, pts, byRank, rankMin, leagues, seasons, tipTitle, tipLabel, extra, utc, seq }) {
         const { leagueIndex, rankName } = rankTools(rankMin, leagues);
         const extras = extra || [];
         const ys = pts.map((p) => p.y).concat(...extras.map((ds) => ds.data.map((p) => p.y))), dataLo = Math.min(...ys), dataHi = Math.max(...ys);
@@ -179,7 +180,25 @@
             const d = part(new Date(v)), prev = index > 0 ? part(new Date(list[index - 1].value)) : null;
             return (!prev || prev[0] !== d[0] ? `${d[0]}/` : '') + `${d[1]}/${d[2]}`;
         };
+        // セット順: 目盛りは各日の初めのセットに置き、その日付を出す。右から順に、幅に収まるぶんだけ残す
+        const timeAt = seq ? new Map(pts.map((p) => [p.x, p.t])) : null;
+        const seqLabel = (v, index, list) => {
+            const t = timeAt.get(v);
+            if (t == null) return '';
+            const d = part(new Date(t)), prevT = index > 0 ? timeAt.get(list[index - 1].value) : null, prev = prevT != null ? part(new Date(prevT)) : null;
+            return (!prev || prev[0] !== d[0] ? `${d[0]}/` : '') + `${d[1]}/${d[2]}`;
+        };
+        const seqTicks = (axis) => {
+            const room = Math.max(2, Math.floor(axis.width / 64)), gap = (x1 - x0) / room;
+            const firsts = [];
+            let prevKey = null;
+            for (const p of pts) { const key = part(new Date(p.t)).join('-'); if (key !== prevKey) firsts.push(p.x); prevKey = key; }
+            const out = [];
+            for (let i = firsts.length - 1; i >= 0; i--) if (!out.length || out[0] - firsts[i] >= gap) out.unshift(firsts[i]);
+            axis.ticks = out.map((value) => ({ value }));
+        };
         const xTicks = (axis) => {
+            if (seq) { seqTicks(axis); return; }
             const span = x1 - x0, room = Math.max(2, Math.floor(axis.width / 64));
             if (seasons.length >= 2) {
                 // 多いときは新しいほうから数えて等間隔に残す
@@ -205,11 +224,11 @@
             },
         };
         const o = baseOptions(th);
-        o.scales.x.type = 'linear'; o.scales.x.ticks.callback = xLabel; o.scales.x.min = x0; o.scales.x.max = x1;
+        o.scales.x.type = 'linear'; o.scales.x.ticks.callback = seq ? seqLabel : xLabel; o.scales.x.min = x0; o.scales.x.max = x1;
         o.scales.x.afterBuildTicks = xTicks; o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxTicksLimit = 40;
         o.scales.y.min = lo; o.scales.y.max = hi;
         o.scales.y.grid.color = th.mut + '55';
-        o.plugins.tooltip.callbacks = { title: (it) => tipTitle(it[0].parsed.x), label: (it) => tipLabel(it.parsed.y, it.dataset, it) };
+        o.plugins.tooltip.callbacks = { title: (it) => tipTitle(seq ? it[0].raw.t : it[0].parsed.x), label: (it) => tipLabel(it.parsed.y, it.dataset, it) };
         if (byRank) {
             // 目盛りはランクごと。範囲が広いときは、帯の初めのランク（Ⅰ）だけ
             const shown = [];
@@ -249,7 +268,7 @@
         let after = [];
 
         // 選んでいる表示。別のプレイヤーを開いても引き継ぐ
-        const S = Object.assign({ dailyRange: 30, heatMode: 'n', bsort: 'n', bview: 'list', msort: 'n', mview: 'list', matesort: 'n', mateview: 'list', mgraph: 'mode', banview: 'list' }, readJson(PREF_KEY, {}));
+        const S = Object.assign({ rankedAxis: 'time', dailyRange: 30, heatMode: 'n', bsort: 'n', bview: 'list', msort: 'n', mview: 'list', matesort: 'n', mateview: 'list', mgraph: 'mode', banview: 'list' }, readJson(PREF_KEY, {}));
         const V = { bmore: false, mmore: false, matemore: false, mopen: new Set() };  // この表示の間だけの状態
         const savePrefs = () => writeJson(PREF_KEY, Object.assign(readJson(PREF_KEY, {}), S));
 
@@ -370,17 +389,27 @@
 
         // ---------- 日ごとの勝敗 ----------
         function cardDaily() {
-            const range = Number(S.dailyRange) || 30, weekly = range > 45;
             const dayOf = (date) => Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+            const dayOfIso = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : null; };
             const today = dayOf(new Date());
+            // 期間を指定しているときは、その終わりの日までで区切り、初めの日より前は出さない
+            const [fromIso, toIso] = D.period || [];
+            const toDay = dayOfIso(toIso), fromDay = dayOfIso(fromIso);
+            const end = toDay != null && toDay < today ? toDay : today;
+            const periodDays = fromDay != null && fromDay <= end ? end - fromDay + 1 : Infinity;
+            const chosen = Number(S.dailyRange) || 30, range = Math.min(chosen, periodDays), weekly = range > 45;
             const step = weekly ? 7 : 1, count = Math.ceil(range / step);
-            const bins = Array.from({ length: count }, (_, i) => ({ day: today - (count - 1 - i) * step, w: 0, l: 0, d: 0 }));
+            const start = end - range + 1;
+            const bins = Array.from({ length: count }, (_, i) => ({ day: end - (count - 1 - i) * step, w: 0, l: 0, d: 0 }));
             for (const [hour, w, d, l] of D.recent) {
-                const idx = count - 1 - Math.floor((today - dayOf(new Date(hour * 3600000))) / step);
+                const day = dayOf(new Date(hour * 3600000));
+                if (day < start || day > end) continue;
+                const idx = count - 1 - Math.floor((end - day) / step);
                 if (idx < 0 || idx >= count) continue;
                 bins[idx].w += w; bins[idx].d += d; bins[idx].l += l;
             }
-            const label = (day) => { const d = new Date(day * 86400000); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+            const thisYear = new Date().getFullYear();
+            const label = (day, withYear) => { const d = new Date(day * 86400000); return `${withYear && d.getUTCFullYear() !== thisYear ? d.getUTCFullYear() + '/' : ''}${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
             const dow = (day) => T.dow[(new Date(day * 86400000).getUTCDay() + 6) % 7];
             mountChart('bxDaily', (th) => {
                 const o = baseOptions(th);
@@ -389,7 +418,7 @@
                 o.scales.y.ticks.precision = 0;
                 o.scales.y.grid.color = (c) => (c.tick.value === 0 ? th.mut : th.grid);
                 o.plugins.tooltip.callbacks = {
-                    title: (items) => { const b = bins[items[0].dataIndex]; return weekly ? `${label(b.day - 6)}–${label(b.day)}` : `${label(b.day)} (${dow(b.day)})`; },
+                    title: (items) => { const b = bins[items[0].dataIndex]; return weekly ? `${label(Math.max(start, b.day - 6))}–${label(b.day)}` : `${label(b.day)} (${dow(b.day)})`; },
                     label: () => null,
                     afterBody: (items) => { const b = bins[items[0].dataIndex]; return [T.wdl(b.w, b.d, b.l), `${T.winRate} ${b.w + b.l ? (b.w / (b.w + b.l) * 100).toFixed(1) + '%' : '—'}`]; },
                 };
@@ -398,8 +427,17 @@
                     { data: bins.map((b) => b.w), backgroundColor: th.win, borderRadius: { topLeft: 4, topRight: 4 }, maxBarThickness: 16, borderSkipped: 'bottom' },
                     { data: bins.map((b) => -b.l), backgroundColor: th.lose, borderRadius: { bottomLeft: 4, bottomRight: 4 }, maxBarThickness: 16, borderSkipped: 'bottom' }] }, options: o };
             });
-            const tools = seg('dailyRange', range, [[14, T.d14], [30, T.d30], [91, T.w13]]);
-            return card('daily', '', weekly ? T.weekly : T.daily, '', tools, `<div><span class="bx-key" style="--c:var(--bx-win)">${T.keyWin}</span><span class="bx-key" style="--c:var(--bx-lose)">${T.keyLose}</span></div><div class="bx-chart"><canvas id="bxDaily"></canvas></div>`);
+            // 期間より短い選択肢だけを並べ、最後に期間の全体（「◯日」「◯週」）を置く。期間が14日以下なら切り替えは出さない
+            const opts = [[14, T.d14], [30, T.d30], [91, T.w13]];
+            let choices = opts;
+            if (periodDays < 91) {
+                const whole = opts.find(([v]) => v >= periodDays);
+                choices = opts.filter(([v]) => v < periodDays).concat([[whole[0], periodDays > 45 ? T.weeksN(Math.ceil(periodDays / 7)) : T.daysN(periodDays)]]);
+            }
+            const shownValue = chosen >= periodDays ? choices[choices.length - 1][0] : chosen;
+            const tools = choices.length > 1 ? seg('dailyRange', shownValue, choices) : '';
+            const cap = end < today ? `${label(start, true)}${T.rangeTo}${label(end, true)}` : '';
+            return card('daily', '', weekly ? T.weekly : T.daily, cap, tools, `<div><span class="bx-key" style="--c:var(--bx-win)">${T.keyWin}</span><span class="bx-key" style="--c:var(--bx-lose)">${T.keyLose}</span></div><div class="bx-chart"><canvas id="bxDaily"></canvas></div>`);
         }
 
         // ---------- プレイ時間帯 ----------
@@ -458,17 +496,22 @@
         function cardRankedTrend() {
             const rk = D.ranked;
             if (!rk || !rk.points || rk.points.length < 2) return '';
-            const pts = rk.points.map(([t, y]) => ({ x: t * 1000, y })), byRank = rk.mode === 'rank';
+            const byRank = rk.mode === 'rank';
+            // 横軸: 日時（実際の時間の間隔）か、セット順（1セットずつ等間隔）。記録だけの点はセット順では値が変わったところだけ
+            const seqPts = rk.points.filter((p) => p[2] != null).map(([t, y, i]) => ({ x: i, y, t: t * 1000 }));
+            const canSeq = seqPts.length >= 2, seq = canSeq && S.rankedAxis === 'seq';
+            const pts = seq ? seqPts : rk.points.map(([t, y]) => ({ x: t * 1000, y }));
             const x0 = pts[0].x, x1 = pts[pts.length - 1].x;
-            const seasons = (rk.seasons || []).map((t) => t * 1000).filter((x) => x > x0 && x < x1);
+            const seasons = (seq ? (rk.seasonsSeq || []) : (rk.seasons || []).map((t) => t * 1000)).filter((x) => x > x0 && x < x1);
             mountChart('bxRanked', (th) => rankedTrendConfig({
-                th, pts, byRank, rankMin: RANK_MIN, leagues: T.leagues, seasons,
+                th, pts, byRank, rankMin: RANK_MIN, leagues: T.leagues, seasons, seq,
                 tipTitle: (x) => ymdFull(x / 1000),
                 tipLabel: (y) => (byRank ? rankName(y) : T.pointsTip(nf(y), rankName(Math.max(1, rankOf(y))))),
             }));
             const first = pts[0].y, last = pts[pts.length - 1].y;
             const cap = byRank ? `${rankName(first)} → ${rankName(last)}` : `${nf(first)} → ${nf(last)}（${signed(last - first)}）`;
-            return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, '', `<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>${seasons.length ? `<div class="bx-heatlegend">${T.seasonLines}</div>` : ''}`);
+            const tools = canSeq ? seg('rankedAxis', seq ? 'seq' : 'time', [['time', T.axisTime], ['seq', T.axisSeq]]) : '';
+            return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, tools, `<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>${seasons.length ? `<div class="bx-heatlegend">${T.seasonLines}</div>` : ''}`);
         }
 
         // ---------- ガチバトル: モード・マップ別の成績（マップごとによく使ったキャラ。グラフは勝率のレーダー） ----------
@@ -636,7 +679,7 @@
         }
 
         // ---------- 描画 ----------
-        const CARD_FN = { daily: cardDaily, hours: cardHours, brawlers: cardBrawlers, modes: cardModes, mates: cardMates, bans: cardBans };
+        const CARD_FN = { ranked: cardRankedTrend, daily: cardDaily, hours: cardHours, brawlers: cardBrawlers, modes: cardModes, mates: cardMates, bans: cardBans };
         const runAfter = () => { const run = after; after = []; run.forEach((f) => f()); };
         function render() {
             const summarySlot = root.querySelector('[data-bx-slot="summary"]'), cardsSlot = root.querySelector('[data-bx-slot="cards"]');
@@ -669,7 +712,7 @@
             runAfter();
         }
 
-        const SEG_CARD = { dailyRange: 'daily', heatMode: 'hours', bsort: 'brawlers', bview: 'brawlers', msort: 'modes', mview: 'modes', mgraph: 'modes', matesort: 'mates', mateview: 'mates', banview: 'bans' };
+        const SEG_CARD = { rankedAxis: 'ranked', dailyRange: 'daily', heatMode: 'hours', bsort: 'brawlers', bview: 'brawlers', msort: 'modes', mview: 'modes', mgraph: 'modes', matesort: 'mates', mateview: 'mates', banview: 'bans' };
         root.addEventListener('click', (e) => {
             const segBtn = e.target.closest('.bx-seg button');
             if (segBtn && root.contains(segBtn)) {
