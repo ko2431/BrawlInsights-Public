@@ -1261,3 +1261,4 @@ async def extend_player_retention(
         "tokens": current_user.tokens,
         "elixirs": current_user.auto_track_elixirs or 0,
     })
+

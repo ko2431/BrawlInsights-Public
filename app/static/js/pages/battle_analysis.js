@@ -560,7 +560,7 @@
                 if (metric === 'wr') { o.scales.y.min = 0; o.scales.y.max = 100; o.scales.y.grid.color = (c) => (c.tick.value === 50 ? th.mut : th.grid); }
                 if (metric === 'tc') o.scales.y.grid.color = (c) => (c.tick.value === 0 ? th.mut : th.grid);
                 if (tooltip) o.plugins.tooltip.callbacks = tooltip; else o.plugins.tooltip.enabled = false;
-                return { type: 'line', data: { labels, datasets: [{ data: values, borderColor: th.accent, backgroundColor: th.accent + '1c', fill: metric !== 'tc', borderWidth: 2, pointRadius: values.length > 45 ? 0 : 2.5, pointBackgroundColor: th.accent, pointHoverRadius: 4, tension: 0.2 }] }, options: o };
+                return { type: 'line', data: { labels, datasets: [{ data: values, borderColor: th.accent, backgroundColor: th.accent + '1c', fill: metric !== 'tc', borderWidth: 2, pointRadius: K.spacedDots(0), pointBackgroundColor: th.accent, pointBorderWidth: 0, pointHoverRadius: K.DOT_HOVER, tension: 0.2 }] }, options: o };
             });
             return `<div class="bx-chart bx-chart--tall"><canvas id="${id}"></canvas></div>`;
         }

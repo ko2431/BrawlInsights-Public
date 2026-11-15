@@ -123,6 +123,35 @@
             },
         };
     }
+    // 折れ線の点。点と点の平均の間隔（px）で大きさを決め、詰まっていれば出さない（同じ線の中は同じ大きさ）。
+    // 画面の幅や期間で間隔が変わると、大きさも変わる。base は間隔に関係なく出す点の大きさ（数値か、点ごとの関数）
+    const DOT_STEPS = [[12, 3], [6, 2]];  // [間隔がこれ以上なら, この半径]
+    function dotSize(chart, datasetIndex) {
+        const area = chart.chartArea, meta = chart.getDatasetMeta(datasetIndex), scale = meta && chart.scales[meta.xAxisID];
+        if (!area || !scale) return 0;
+        const n = chart.data.datasets[datasetIndex].data.length;
+        const key = `${area.width}|${scale.min}|${scale.max}|${n}`;
+        const cache = chart.$biDots || (chart.$biDots = {});
+        if (cache[datasetIndex] && cache[datasetIndex].key === key) return cache[datasetIndex].r;
+        let count = 0;
+        for (let i = 0; i < n; i++) {
+            const p = meta.controller.getParsed(i);
+            if (p && p.y != null && !isNaN(p.y) && p.x >= scale.min && p.x <= scale.max) count++;
+        }
+        const gap = count > 1 ? area.width / (count - 1) : Infinity;
+        const step = DOT_STEPS.find(([min]) => gap >= min);
+        cache[datasetIndex] = { key, r: step ? step[1] : 0 };
+        return cache[datasetIndex].r;
+    }
+    function spacedDots(base) {
+        return (ctx) => {
+            const own = typeof base === 'function' ? base(ctx) : (base || 0);
+            if (ctx.type !== 'data' || !ctx.parsed || ctx.parsed.y == null) return own;
+            return Math.max(own, dotSize(ctx.chart, ctx.datasetIndex));
+        };
+    }
+    const DOT_HOVER = 4.5;
+
     // ガチバトルのランク（1〜22）。rankMin は各ランクの下限のポイント
     function rankTools(rankMin, leagues) {
         const leagueIndex = (rank) => Math.min(7, Math.floor((Math.max(1, rank) - 1) / 3));
@@ -242,11 +271,11 @@
             o.scales.y.ticks.callback = (v) => nf(v);
             o.scales.y.ticks.maxTicksLimit = 30;
         }
-        return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0, stepped: byRank }, ...extras] }, options: o, plugins: [bands, seasonLines] };
+        return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: spacedDots(0), pointBackgroundColor: th.ink, pointBorderWidth: 0, pointHoverRadius: DOT_HOVER, tension: 0, stepped: byRank }, ...extras] }, options: o, plugins: [bands, seasonLines] };
     }
 
     // 詳細分析タブ（battle_analysis.js）と共通で使う小物
-    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
+    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, spacedDots, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
 
     let current = null;  // いま表示しているカード（画面幅が変わったときの詰め直し用）
     window.addEventListener('resize', () => { if (current && document.body.contains(current.root)) current.fitWbars(); });
@@ -656,7 +685,7 @@
                 o.plugins.tooltip.callbacks = abs
                     ? { title: (it) => ymdFull(it[0].parsed.x / 1000), label: (it) => `${nf(it.parsed.y)} ${T.trophyUnit}` }
                     : { title: (it) => ymd(it[0].parsed.x / 1000), label: (it) => T.trophySumTip(signed(it.parsed.y)) };
-                return { type: 'line', data: { datasets: [{ data: pts, borderColor: '#e0a100', backgroundColor: 'rgba(224,161,0,.12)', fill: abs ? true : 'origin', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.15 }] }, options: o };
+                return { type: 'line', data: { datasets: [{ data: pts, borderColor: '#e0a100', backgroundColor: 'rgba(224,161,0,.12)', fill: abs ? true : 'origin', borderWidth: 2, pointRadius: spacedDots(0), pointBackgroundColor: '#e0a100', pointBorderWidth: 0, pointHoverRadius: DOT_HOVER, tension: 0.15 }] }, options: o };
             });
             const body = '<div class="bx-chart bx-chart--tall"><canvas id="bxTrophy"></canvas></div>';
             if (abs) {

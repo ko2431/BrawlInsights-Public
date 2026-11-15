@@ -207,7 +207,7 @@
         function buildCard(def, i0, i1, after) {
             const th = Kit.themeOf(root), colors = palette();
             const xs = X.slice(i0, i1 + 1), x0 = xs[0], x1 = xs[xs.length - 1];
-            // 前後の記録が離れていて、線にならない点（単独の点）は、点として描く
+            // 前後の記録が離れていて、線にならない点（単独の点）は、点の間隔が詰まっていても点として描く
             const lonely = xs.map((x, i) => (i === 0 || x - xs[i - 1] >= GAP_DAYS * DAY) && (i === xs.length - 1 || xs[i + 1] - x >= GAP_DAYS * DAY));
             const pointRadius = (ctx) => (lonely[ctx.dataIndex] ? 2.5 : 0);
             const off = hidden[def.key] || (hidden[def.key] = new Set());
@@ -273,7 +273,7 @@
                 const datasets = series.map(([k, ja, en, color]) => ({
                     label: li ? en : ja, data: xs.map((x, i) => ({ x, y: D.series[k][i0 + i] })), hidden: off.has(k),
                     borderColor: colors[color], backgroundColor: colors[color], pointBackgroundColor: colors[color], pointBorderWidth: 0,
-                    borderWidth: 2, pointRadius, pointHoverRadius: 4, tension: 0, spanGaps: GAP_DAYS * DAY - 1,
+                    borderWidth: 2, pointRadius: Kit.spacedDots(pointRadius), pointHoverRadius: Kit.DOT_HOVER, tension: 0, spanGaps: GAP_DAYS * DAY - 1,
                 }));
                 mount(def.key, { type: 'line', data: { datasets }, options: o });
             });
