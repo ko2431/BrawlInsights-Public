@@ -307,7 +307,7 @@
                             {% elif battle.page_ranked_score_change %}
                                 {% set tip_delta = battle.page_ranked_score_change %}
                                 <span class="bcr-tip__chg">
-                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + ([battle.page_ranked_rank_before, 22] | min)|string + '.png') }}" alt="" loading="lazy">{{ "{:,}".format(battle.page_ranked_score_before) }}<i>→</i><img src="{{ url_for('static', path='/images/ranked_icons/' + ([battle.ranked_rank_after, 22] | min)|string + '.png') }}" alt="" loading="lazy">{{ "{:,}".format(battle.ranked_score_after) }}
+                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + ([battle.page_ranked_rank_before, 22] | min)|string + '.png') }}?v=2" alt="" loading="lazy">{{ "{:,}".format(battle.page_ranked_score_before) }}<i>→</i><img src="{{ url_for('static', path='/images/ranked_icons/' + ([battle.ranked_rank_after, 22] | min)|string + '.png') }}?v=2" alt="" loading="lazy">{{ "{:,}".format(battle.ranked_score_after) }}
                                     <span class="bcr-tip__delta--{{ 'up' if tip_delta > 0 else 'down' }}">({{ '+' if tip_delta > 0 else '' }}{{ tip_delta }})</span>
                                 </span>
                             {% endif %}

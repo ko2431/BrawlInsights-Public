@@ -13,8 +13,8 @@
     const RARITY = { 1: '#4dc2c8', 2: '#58cc54', 3: '#6196e0', 4: '#c75ceb', 5: '#e15555', 6: '#d2c448', 7: '#dfad66' };  // スキンのレア度の色（player.css の --sr-accent）と同じ
     const PALETTE = ['#5b7fd6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6', '#e34948', '#4cc9f0', '#8bc34a', '#b07cd8', '#d98e5f', '#5fd8b0'];
     const SL = '<i class="bx-sl">/</i>';
-    // ガチバトルのランクの帯（3ランクずつ。最後はプロ）の色
-    const LEAGUE_COLORS = ['#c8824a', '#9aa9bd', '#e3b01f', '#3fb6ea', '#a45cf0', '#e5484d', '#f08a24', '#2bb673'];
+    // ガチバトルのランクの帯（3ランクずつ。最後はプロ）の色。プロは黒だが、ダークモードで沈まないよう文字色（th.ink）を使う
+    const LEAGUE_COLORS = ['#c8824a', '#9aa9bd', '#e3b01f', '#3fb6ea', '#a45cf0', '#e5484d', '#4cb81c', null];
     const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ'];
 
     const TEXT = {
@@ -164,7 +164,7 @@
                     if (to <= lo || from >= hi) continue;
                     const top = y.getPixelForValue(Math.min(to, hi)), bottom = y.getPixelForValue(Math.max(from, lo));
                     ctx.globalAlpha = 0.09 + ((rank - 1) % 3) * 0.035;
-                    ctx.fillStyle = LEAGUE_COLORS[leagueIndex(rank)];
+                    ctx.fillStyle = LEAGUE_COLORS[leagueIndex(rank)] || th.ink || '#111';
                     ctx.fillRect(area.left, top, area.width, bottom - top);
                     if (!byRank && bottom - top >= 18) { ctx.globalAlpha = 0.8; ctx.font = `600 11px ${CHART_FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(rankName(rank), area.right - 6, (top + bottom) / 2); }
                 }
@@ -355,7 +355,7 @@
             }
             if (D.ranked && D.ranked.current) {
                 const score = D.ranked.current[1], rank = Math.max(1, rankOf(score));
-                tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.currentPoints}</span><span class="bx-tile__value bx-tile__value--icon"><img src="${IMG}/ranked_icons/${rank}.png" alt="">${nf(score)}</span><span class="bx-tile__sub">${rankName(rank)}</span></div>`);
+                tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.currentPoints}</span><span class="bx-tile__value bx-tile__value--icon"><img src="${IMG}/ranked_icons/${rank}.png?v=2" alt="">${nf(score)}</span><span class="bx-tile__sub">${rankName(rank)}</span></div>`);
             }
             // MVP率は、MVPが選ばれるバトルだけを分母にする（バトルロイヤル系・デュエルは数えない）。1つも無ければ項目ごと出さない
             if (a.mg) tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.mvpRate}</span><span class="bx-tile__value">${(a.sp / a.mg * 100).toFixed(1)}<small>%</small></span><span class="bx-tile__sub">${nf(a.sp)}${T.times}</span></div>`);

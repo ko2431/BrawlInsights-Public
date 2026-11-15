@@ -740,7 +740,7 @@
             const delta = (v) => `<b class="${v > 0 ? 'bx-pos' : 'bx-neg'}">(${signed(v)})</b>`;
             const trophy = (r) => {
                 if (r.ty === 1) {
-                    const icon = r.tr >= 1 && r.tr <= 22 ? `<img src="${IMG}/ranked_icons/${r.tr}.png" alt="">` : '';
+                    const icon = r.tr >= 1 && r.tr <= 22 ? `<img src="${IMG}/ranked_icons/${r.tr}.png?v=2" alt="">` : '';
                     if (r.rsDiff != null) return `${icon}${nf(r.srsPrev)} → ${nf(r.srs)} ${delta(r.rsDiff)}`;
                     if (r.srs) return `${icon}${nf(r.srs)}`;  // 前のセットのポイントが記録されていないときは、終了時のポイントだけ
                     return icon || '<span class="is-mut">—</span>';

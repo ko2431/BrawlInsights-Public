@@ -275,7 +275,7 @@
                             <td>
                                 <div class="td-content-flex">
                                     {% if player.acc_ranked_highest_rank in valid_image_ranks %}
-                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat icon--stat-ranked">
+                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}?v=2" alt="ガチバトルランク" class="icon--stat icon--stat-ranked">
                                     {% endif %}
                                     {{ '{:,}'.format(player.ranked_highest_score) }}
                                 </div>
@@ -297,7 +297,7 @@
                             <td>
                                 <div class="td-content-flex">
                                     {% if player.acc_ranked_season_highest_rank in valid_image_ranks %}
-                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_season_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat icon--stat-ranked">
+                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_season_highest_rank|string + '.png') }}?v=2" alt="ガチバトルランク" class="icon--stat icon--stat-ranked">
                                     {% endif %}
                                     {{ '{:,}'.format(player.ranked_season_highest_score) }}
                                 </div>
@@ -319,7 +319,7 @@
                             <td>
                                 <div class="td-content-flex">
                                     {% if player.acc_ranked_current_rank in valid_image_ranks %}
-                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_current_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat icon--stat-ranked">
+                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_current_rank|string + '.png') }}?v=2" alt="ガチバトルランク" class="icon--stat icon--stat-ranked">
                                     {% endif %}
                                     {{ '{:,}'.format(player.ranked_current_score) }}
                                 </div>
@@ -882,7 +882,7 @@
                                     <span class="stats-table-label">{% if lang == "ja" %}ガチバトル最高ポイント{% else %}Ranked Highest Points{% endif %}</span>
                                     <div class="stats-table-rating-value-box">
                                         {% if player.acc_ranked_highest_rank in valid_image_ranks %}
-                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}" alt="Ranked Highest Rank" class="stats-table-rating-value-icon">
+                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}?v=2" alt="Ranked Highest Rank" class="stats-table-rating-value-icon">
                                         {% endif %}
                                         <span class="stats-table-rating-value-text">{{ '{:,}'.format(player.ranked_highest_score) }}</span>
                                     </div>
@@ -898,7 +898,7 @@
                                     <span class="stats-table-label">{% if lang == "ja" %}ガチバトル現在ポイント{% else %}Ranked Current Points{% endif %}</span>
                                     <div class="stats-table-rating-value-box">
                                         {% if player.acc_ranked_current_rank in valid_image_ranks %}
-                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_current_rank|string + '.png') }}" alt="Ranked Current Rank" class="stats-table-rating-value-icon">
+                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_current_rank|string + '.png') }}?v=2" alt="Ranked Current Rank" class="stats-table-rating-value-icon">
                                         {% endif %}
                                         <span class="stats-table-rating-value-text">{{ '{:,}'.format(player.ranked_current_score) }}</span>
                                     </div>
@@ -1367,7 +1367,7 @@
                                         <td style="min-width: 70px;">
                                             <div class="td-content-flex stats-value-nowrap">
                                                 {% set icon_num = frame_icons[frame_id] %}
-                                                <img src="{{ url_for('static', path='/images/ranked_icons/' + icon_num|string + '.png') }}" alt="Rank Icon" class="icon--stat icon--stat-ranked">
+                                                <img src="{{ url_for('static', path='/images/ranked_icons/' + icon_num|string + '.png') }}?v=2" alt="Rank Icon" class="icon--stat icon--stat-ranked">
                                                 {{ stars + 1 }}{% if lang == "ja" %}回{% else %} time{{ 's' if stars + 1 > 1 else '' }}{% endif %}
                                             </div>
                                         </td>

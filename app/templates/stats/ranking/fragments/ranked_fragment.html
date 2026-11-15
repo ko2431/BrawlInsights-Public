@@ -56,7 +56,7 @@
                             </div>
                             <div style="display: flex; flex: 1;"></div>
                             <div class="ranking-list__item-value">
-                                <img src="{{ url_for('static', path='/images/ranked_icons/' + player.ranked_rank|string + '.png') }}" alt="ガチバトルランク" class="ranking-list__item-ranked-icon" {% if player.ranked_rank == 22 %}style="height: 18px;"{% endif %}>
+                                <img src="{{ url_for('static', path='/images/ranked_icons/' + player.ranked_rank|string + '.png') }}?v=2" alt="ガチバトルランク" class="ranking-list__item-ranked-icon" {% if player.ranked_rank == 22 %}style="height: 18px;"{% endif %}>
                                 <p class="ranking-list__item-score">{{ "{:,}".format(player.ranked_score) }}</p>
                             </div>
                         </div>
@@ -77,7 +77,7 @@
                             </div>
                             <div style="display: flex; flex: 1;"></div>
                             <div class="ranking-list__item-value">
-                                <img src="{{ url_for('static', path='/images/ranked_icons/' + player.ranked_rank|string + '.png') }}" alt="ガチバトルランク" class="ranking-list__item-ranked-icon" {% if player.ranked_rank == 22 %}style="height: 18px;"{% endif %}>
+                                <img src="{{ url_for('static', path='/images/ranked_icons/' + player.ranked_rank|string + '.png') }}?v=2" alt="ガチバトルランク" class="ranking-list__item-ranked-icon" {% if player.ranked_rank == 22 %}style="height: 18px;"{% endif %}>
                                 <p class="ranking-list__item-score">{{ "{:,}".format(player.ranked_score) }}</p>
                             </div>
                         </div>

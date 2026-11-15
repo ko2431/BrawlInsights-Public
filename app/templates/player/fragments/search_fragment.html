@@ -115,7 +115,7 @@
                         </div>
                         <div class="brawler-card__trophy-row player-card__ranked-row">
                             {% if player["acc_ranked_highest_rank"] %}
-                            <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}" alt="ガチバトルランク" class="icon--stat icon--stat-ranked icon--stat-ranked--search-result {% if player.acc_ranked_highest_rank == 22 %}icon--stat-ranked--search-result--pro{% endif %}" {% if player.acc_ranked_highest_rank == 22 %}style="margin-bottom: 0;"{% endif %}>
+                            <img src="{{ url_for('static', path='/images/ranked_icons/' + player.acc_ranked_highest_rank|string + '.png') }}?v=2" alt="ガチバトルランク" class="icon--stat icon--stat-ranked icon--stat-ranked--search-result {% if player.acc_ranked_highest_rank == 22 %}icon--stat-ranked--search-result--pro{% endif %}" {% if player.acc_ranked_highest_rank == 22 %}style="margin-bottom: 0;"{% endif %}>
                             <span class="brawler-card__trophy-text">{{ '{:,}'.format(player["ranked_highest_score"]) if player["ranked_highest_score"] else "未取得" if lang == "ja" else "Unknown" }}</span>
                             {% else %}
                             <img src="{{ url_for('static', path='/images/ui/ranked.png') }}" alt="ガチバトルランク" class="player-card__ranked-unknown-icon">

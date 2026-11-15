@@ -275,8 +275,18 @@ th {
 .ranked-dist-row--diamond { background-color: rgba(70, 190, 230, 0.36); }
 .ranked-dist-row--mythic { background-color: rgba(160, 90, 230, 0.34); }
 .ranked-dist-row--legendary { background-color: rgba(235, 70, 70, 0.34); }
-.ranked-dist-row--masters { background-color: rgba(245, 210, 40, 0.42); }
-.ranked-dist-row--pro { background-color: rgba(150, 220, 50, 0.40); }
+.ranked-dist-row--masters { background-color: rgba(110, 205, 40, 0.40); }
+/* プロは黒。文字は白に反転し、ダークモードでは背景に沈まないよう枠を明るくする */
+.ranked-dist-row--pro { background-color: rgba(22, 22, 22, 0.88); }
+.dark .ranked-dist-row--pro {
+    background-color: rgba(0, 0, 0, 0.62);
+    border-color: rgba(255, 255, 255, 0.24);
+}
+.ranked-dist-row--pro .ranked-dist-row__percent-label { color: #eee; }
+.ranked-dist-row--pro .ranked-dist-row__percent,
+.ranked-dist-row--pro .ranked-dist-row__rank-name,
+.ranked-dist-row--pro .ranked-dist-row__score,
+.ranked-dist-row--pro .player-dist-row__value { color: #fff; }
 
 .ranked-dist-mine-check {
     display: flex;

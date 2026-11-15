@@ -129,7 +129,7 @@ function rankedDistPage(distribution, playerMetrics, hasMainAccount, hasUser, re
         22: 'Pro'
     }{% endif %};
     const lang = {{ lang | tojson }};
-    const iconTemplate = "{{ url_for('static', path='/images/ranked_icons/1.png') }}";
+    const iconTemplate = "{{ url_for('static', path='/images/ranked_icons/1.png') }}?v=2";
     const metricKeyBySlot = { highest: 'ranked_highest_score', current: 'ranked_current_score' };
     return {
         distribution,

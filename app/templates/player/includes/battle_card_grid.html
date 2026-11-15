@@ -130,20 +130,20 @@
                                 {% if ranked_score_ns.change %}
                                 <div class="battle-card__main-block-center__trophy-change-block battle-card__main-block-center__trophy-change-block-{{ battle.result }} battle-card__main-block-center__score-change-block">
                                     <div class="battle-card__main-block-center__trophy-change-block__before battle-card__main-block-center__score-change-block__before">
-                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + (ranked_score_ns.rank_before|string if ranked_score_ns.rank_before <= 22 else '22' ) + '.png') }}"
+                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + (ranked_score_ns.rank_before|string if ranked_score_ns.rank_before <= 22 else '22' ) + '.png') }}?v=2"
                                             alt="ガチバトルランク" class="battle-card__main-block-center__icon-ranked__before" loading="lazy">
                                         {{ ranked_score_ns.before }}
                                     </div>
                                     <div class="battle-card__main-block-center__trophy-change-block__arrow battle-card__main-block-center__score-change-block__arrow">▼</div>
                                     <div class="battle-card__main-block-center__trophy-change-block__after battle-card__main-block-center__score-change-block__after">
-                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + (ranked_score_ns.rank_after|string if ranked_score_ns.rank_after <= 22 else '22' ) + '.png') }}"
+                                        <img src="{{ url_for('static', path='/images/ranked_icons/' + (ranked_score_ns.rank_after|string if ranked_score_ns.rank_after <= 22 else '22' ) + '.png') }}?v=2"
                                             alt="ガチバトルランク" class="battle-card__main-block-center__icon-ranked__after" loading="lazy">
                                         {{ ranked_score_ns.after }}
                                     </div>
                                 </div>
                                 {# E. ガチバトルバトル前ランク #}
                                 {% else %}
-                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + (battle.trophies|string if battle.trophies <= 22 else '22' ) + '.png') }}"
+                                    <img src="{{ url_for('static', path='/images/ranked_icons/' + (battle.trophies|string if battle.trophies <= 22 else '22' ) + '.png') }}?v=2"
                                         alt="ガチバトルランク"
                                         class="battle-card__main-block-center__icon battle-card__main-block-center__icon-ranked" loading="lazy">
                                 {% endif %}

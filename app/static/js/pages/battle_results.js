@@ -139,7 +139,7 @@
             const star = game.sp === slot ? `<img src="${IMG}/ui/starplayer.png" alt="${T.mvp}" class="bcr-pl__star">` : '';
             const bot = isBot(player[P_TAG]) ? `<span class="bcr-pl__bot">${T.bot}</span>` : '';
             const sub = [];
-            if (view.t === 'soloRanked' && player[P_TROPHIES] > 0) sub.push(`<img src="${IMG}/ranked_icons/${Math.min(player[P_TROPHIES], 22)}.png" alt="" class="bcr-pl__rank">`);
+            if (view.t === 'soloRanked' && player[P_TROPHIES] > 0) sub.push(`<img src="${IMG}/ranked_icons/${Math.min(player[P_TROPHIES], 22)}.png?v=2" alt="" class="bcr-pl__rank">`);
             if (view.t === 'ranked' && player[P_TROPHIES] != null) sub.push(`<span><img src="${IMG}/ui/trophy.png" alt="">${fmtNum(player[P_TROPHIES])}</span>`);
             if (player[P_BAN]) {
                 const banName = esc(names[player[P_BAN]] || '');
