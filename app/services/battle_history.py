@@ -26,6 +26,8 @@ TREND_MAX_POINTS = 600
 RECENT_DAYS = 93  # 日ごと・週ごとの勝敗に使う範囲（13週 + 端数）
 MIN_PLAYER_TAG_LENGTH = 5  # "#" を含む。これより短いタグはボット
 BAN_LIST_LIMIT = 30
+HIGHLIGHT_MIN_COUNT = 5     # ハイライトの候補にする回数の下限
+HIGHLIGHT_MIN_SHARE = 0.01  # 全体の件数のこの割合より少ないものは候補にしない
 # ガチバトルのランク（1〜22）の下限のポイント。先頭（0番目）はランクなし。Battle.ranked_rank_after と同じ境目
 RANKED_RANK_MIN_SCORES = (0, 1, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6750, 7500, 8250, 9250, 10250, 11250)
 
@@ -98,5 +100,5 @@ def _new_agg() -> list[int]:
 
 __all__ = [
     "AGG_FIELDS", "BattleScan", "BattleSet", "ITEMS_PER_PAGE", "NEW_PLAYER_NOTICE_MAX",
-    "build_stats", "count_saved_battles", "group_into_sets", "scan_battles",
+    "build_stats", "count_saved_battles", "group_into_sets", "highlight_min_count", "pick_highlights", "scan_battles",
 ]

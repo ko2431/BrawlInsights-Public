@@ -23,8 +23,6 @@
             dateTo: '〜', seasonPick: 'ガチバトルシーズン',
             durRange: (a, b) => `バトル時間 ${a}〜${b} 秒`, rkmax: (input) => `順位 ${input} 位以内`, trRange: (a, b) => `トロフィー ${a}〜${b}`, ban: 'BAN: ',
             highlights: 'ハイライト', highlightsCap: '一定の回数以上のものから',
-            hl: { brawler: '勝率の高いキャラ', mapGood: '得意なマップ', mapBad: '苦手なマップ', oppGood: '得意な相手キャラ', oppBad: '苦手な相手キャラ', mate: '相性のいい味方' },
-            hlSub: (rate, w, l) => `勝率 ${rate}（${w}勝${l}敗）`,
             trend: '推移', metrics: { wr: '勝率', kd: 'キルデス比', dd: '与ダメ', dt: '被ダメ', he: '回復', du: 'バトル時間', tc: 'トロフィー増減' },
             day: '日', week: '週', chart: 'グラフ', table: '表', trendNeed: '推移を出すにはバトルが足りません', from: '〜',
             trendCount: (n, game, w, l) => `${n}${game ? '試合' : '件'}・${w}勝${l}敗`, colCount: '回数', colWL: '勝敗', wl: (w, l) => `${w}勝${l}敗`,
@@ -76,8 +74,6 @@
             dateTo: '–', seasonPick: 'Ranked season',
             durRange: (a, b) => `Battle time ${a}–${b} s`, rkmax: (input) => `Place ≤ ${input}`, trRange: (a, b) => `Trophies ${a}–${b}`, ban: 'Ban: ',
             highlights: 'Highlights', highlightsCap: 'Among those with enough battles',
-            hl: { brawler: 'Best brawler', mapGood: 'Best map', mapBad: 'Toughest map', oppGood: 'Easiest enemy brawler', oppBad: 'Toughest enemy brawler', mate: 'Best teammate' },
-            hlSub: (rate, w, l) => `Win rate ${rate} (${w}W ${l}L)`,
             trend: 'Trend', metrics: { wr: 'Win rate', kd: 'K/D', dd: 'Damage', dt: 'Taken', he: 'Healing', du: 'Battle time', tc: 'Trophies' },
             day: 'Day', week: 'Week', chart: 'Chart', table: 'Table', trendNeed: 'Not enough battles to show a trend', from: '–',
             trendCount: (n, game, w, l) => `${n} ${game ? 'games' : 'battles'}, ${w}W ${l}L`, colCount: 'Battles', colWL: 'W / L', wl: (w, l) => `${w}W ${l}L`,
@@ -310,7 +306,8 @@
             for (const r of rows) {
                 let ks = keyFn(r);
                 if (ks == null) continue;
-                if (!Array.isArray(ks)) ks = [ks];
+                // 同じものが複数入っていても（バトルロイヤルで敵に同じキャラが2人など）、1バトルで1回だけ数える
+                ks = Array.isArray(ks) ? new Set(ks) : [ks];
                 for (const k of ks) { if (k == null) continue; let a = m.get(k); if (!a) { a = A(); m.set(k, a); } add(a, r, unit); }
             }
             return m;
@@ -527,11 +524,13 @@
 
         // ---------- ハイライト ----------
         const HL_DIM = { brawler: 'brawler', mapGood: 'map', mapBad: 'map', oppGood: 'obr', oppBad: 'obr', mate: 'mate' };
-        function hlItem(kind, name, img, w, l) {
-            return `<div class="bx-hlitem">${img ? `<img src="${img}" alt="" loading="lazy" onerror="this.remove()">` : ''}<div><span class="bx-hlitem__label">${T.hl[kind]}</span><span class="bx-hlitem__name">${esc(name)}</span><span class="bx-hlitem__sub">${T.hlSub(pc(w + l ? w / (w + l) * 100 : null), nf(w), nf(l))}</span></div></div>`;
-        }
+        const hlItem = (kind, name, img, w, l) => K.hlItem(lang, kind, name, img, w, l);
         function cardHighlights(rows) {
-            const unit = S.F.unit, F = S.F, minN = Math.max(5, Math.round(rows.length * 0.01));
+            // 回数の下限は、数える単位（セット単位ならセット数、試合単位なら試合数）の1%。通常のタブ（battle_history.highlight_min_count）と同じ
+            const unit = S.F.unit, F = S.F;
+            let units = 0;
+            for (const r of rows) if (unit === 'game' || r.head) units++;
+            const minN = Math.max(5, Math.round(units * 0.01));
             // 候補が2つ以上あるときだけ出す。1つだけ選んで絞り込んでいる項目そのもの（そのキャラ・その相手など）は候補から外す
             const cands = (dim) => { const fixed = F[dim].size === 1 ? F[dim] : null; return [...groupBy(rows, DIMS[dim].key, unit).entries()].filter((x) => x[1].n >= minN && wr(x[1]) != null && !(fixed && fixed.has(x[0]))); };
             const best = (dim, dir) => { const list = cands(dim); return list.length >= 2 ? list.sort((a, b) => dir * (wr(b[1]) - wr(a[1])) || b[1].n - a[1].n)[0] : null; };

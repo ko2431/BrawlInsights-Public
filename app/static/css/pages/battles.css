@@ -1415,13 +1415,25 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-card[data-card="battles"] { scroll-margin-top: 64px; }
 
 /* --- 詳細分析: ハイライト・分布 --- */
-.bx-hl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+/* ハイライト。勝敗の数は勝率の下の行に回し、1項目の幅を詰めて横に並べる（PC 幅なら6項目が1行に収まる） */
+.bx-hl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .bx-hlitem { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px 10px; border: 1px solid var(--color-eee); border-radius: 12px; background: var(--bg-f8f8f8); }
 .bx-hlitem img { flex: none; width: 38px; height: 38px; border-radius: 10px; object-fit: contain; background: var(--bx-track); }
-.bx-hlitem__label { display: block; font-size: 11px; color: var(--bx-mut); }
+.bx-hlitem__label { display: block; font-size: 11px; color: var(--bx-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bx-hlitem__name { display: block; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-111); }
 .bx-hlitem__sub { display: block; font-size: 11.5px; color: var(--color-555); white-space: nowrap; }
+.bx-hlitem__sub > span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.bx-hlitem__wl { font-size: 10.5px; color: var(--bx-mut); }
+.bx-hlitem__wl i { display: none; }
 .bx-hlitem > div { min-width: 0; }
+/* スマホ幅: 2列にして、画像と余白を小さくする */
+@media (max-width: 539px) {
+    .bx-hl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .bx-hlitem { gap: 7px; padding: 7px 8px; border-radius: 11px; }
+    .bx-hlitem img { width: 30px; height: 30px; border-radius: 8px; }
+    .bx-hlitem__label { font-size: 10.5px; }
+    .bx-hlitem__name { font-size: 13.5px; }
+}
 .bx-hist { display: flex; align-items: flex-end; gap: 2px; height: 130px; padding-top: 6px; }
 .bx-hist i { flex: 1; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--bx-accent); transition: height .3s ease, opacity .1s ease; }
 .bx-hist i:hover { opacity: .75; }

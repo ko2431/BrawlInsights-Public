@@ -38,6 +38,9 @@ def test_member_order_does_not_matter_but_different_members_split():
     assert [len(s.rows) for s in _sets(same)] == [2]
     other = [_row(0), _row(3, opps='["x","y","w"]')]
     assert [len(s.rows) for s in _sets(other)] == [1, 1]
+    other_brawlers = [_row(0), _row(3, opp_brawlers="[3,4,6]")]
+    assert [len(s.rows) for s in _sets(other_brawlers)] == [1, 1]
+    assert "opponent_brawlers" in bh._MEMBER_COLUMNS  # 読み込みの列を変えても、セットの判定からは外さない
 
 
 def test_set_breaks_on_map_brawler_type_and_time():
@@ -238,3 +241,42 @@ def test_ban_data_counts_per_set():
     data = bh._ban_data(sets)
     assert data["n"] == 2 and data["mine"] == [(7, 2)] and data["opp"][0] in ((1, 2), (9, 2)) and dict(data["team"]) == {4: 1}
     assert bh._ban_data([banned(0, None, None, None)]) is None
+
+
+def _agg(n, w, l):
+    agg = bh._new_agg()
+    agg[0], agg[1], agg[3] = n, w, l
+    return agg
+
+
+def test_pick_highlights_needs_two_candidates_and_skips_the_same_worst():
+    groups = [
+        ("brawler", None, {1: _agg(10, 8, 2), 2: _agg(10, 5, 5), 3: _agg(4, 4, 0)}),  # 3 は回数が足りない
+        ("mapGood", "mapBad", {7: _agg(6, 3, 3), 8: _agg(6, 1, 5)}),
+        ("oppGood", "oppBad", {9: _agg(20, 10, 10)}),                                 # 候補が1つだけ
+        ("mate", None, {"#AAAAA": _agg(5, 0, 0), "#BBBBB": _agg(5, 3, 2), "#CCCCC": _agg(5, 2, 3)}),  # 引き分けだけのものは外す
+    ]
+    assert bh.pick_highlights(groups, 5) == [["brawler", 1, 8, 2], ["mapGood", 7, 3, 3], ["mapBad", 8, 1, 5], ["mate", "#BBBBB", 3, 2]]
+    # 勝率が同じなら、よいほうも悪いほうも回数の多いものを選ぶ。どちらも同じものになるときは悪いほうを出さない
+    tie = [("mapGood", "mapBad", {1: _agg(5, 5, 0), 2: _agg(9, 9, 0)})]
+    assert bh.pick_highlights(tie, 5) == [["mapGood", 2, 9, 0]]
+    assert bh.highlight_min_count(100) == 5 and bh.highlight_min_count(1000) == 10
+
+
+class _MateDb:
+    async def fetch(self, query, *params):
+        return [{"teammate_tags": '["#AAAAA","#BBBBB"]', "teammate_names": '["Alice","Bob"]', "opponent_tags": None, "opponent_names": None}]
+
+
+def test_highlights_for_normal_tabs_leave_out_the_filtered_brawler_and_map():
+    rows = [_row(i * 40, result="l" if i in (0, 2, 4, 3) else "w", opp_brawlers="[16000003]" if i % 2 else "[16000004]") for i in range(12)]
+    sets = _sets(rows)
+    by_brawler = {16000001: _agg(12, 8, 4), 16000002: _agg(6, 1, 5)}
+    by_map = {(48000005, 15000001): _agg(12, 8, 4), (48000005, 15000002): _agg(6, 5, 1)}
+    data = asyncio.run(bh._highlights(_MateDb(), "#ME000", sets, by_brawler, by_map, None, None))
+    kinds = {item[0]: item for item in data}
+    assert kinds["brawler"][1] == 16000001 and kinds["mapGood"][1] == [48000005, 15000002]
+    assert {kinds["oppGood"][1], kinds["oppBad"][1]} == {16000003, 16000004}
+    assert kinds["mate"][1][1] in ("Alice", "Bob")  # 味方はタグと名前
+    filtered = asyncio.run(bh._highlights(_MateDb(), "#ME000", sets, by_brawler, by_map, 16000001, 15000002))
+    assert not any(item[0] in ("brawler", "mapGood", "mapBad") for item in filtered)  # 残る候補が1つだけになる

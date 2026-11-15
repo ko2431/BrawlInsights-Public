@@ -44,6 +44,9 @@
             modesMaps: 'モード・マップ別の成績', picksCap: 'マップの右はよく使ったキャラ', graph: 'グラフ', byMode: 'モード別', byMap: 'マップ別',
             modeRates: 'モードごとの勝率', mapRates: 'マップごとの勝率（モード別）', radarTip: (rate, n) => `勝率 ${rate}%（${n}回）`, pickTip: (name, n) => `${name}: ${n}回`,
             radarNeedModes: 'レーダーを出すには、3つ以上のモードのバトルが必要です', radarNeedMaps: 'レーダーを出すには、同じモードで3つ以上のマップのバトルが必要です',
+            highlights: 'ハイライト', highlightsCap: '一定の回数以上のものから',
+            hl: { brawler: '勝率の高いキャラ', mapGood: '得意なマップ', mapBad: '苦手なマップ', oppGood: '得意な相手キャラ', oppBad: '苦手な相手キャラ', mate: '相性のいい味方' },
+            hlRate: (rate) => `勝率 ${rate}`, hlWL: (w, l) => `${w}勝${l}敗`, hlOpen: '（', hlClose: '）',
             bans: 'BAN', bansCap: (n) => `BANのある${n}セット`, banMine: '自分がBANしたキャラ', banOpp: '敵チームにBANされたキャラ', banTeam: '味方がBANしたキャラ', banTip: (name, n, p) => `${name}\n${n}回（${p}%）`,
         },
         en: {
@@ -72,6 +75,9 @@
             modesMaps: 'Modes and maps', picksCap: 'Most-picked brawlers are shown beside each map', graph: 'Chart', byMode: 'By mode', byMap: 'By map',
             modeRates: 'Win rate by mode', mapRates: 'Win rate by map, per mode', radarTip: (rate, n) => `Win rate ${rate}% (${n})`, pickTip: (name, n) => `${name}: ${n}`,
             radarNeedModes: 'The radar chart needs battles in at least 3 modes', radarNeedMaps: 'The radar chart needs battles on at least 3 maps of one mode',
+            highlights: 'Highlights', highlightsCap: 'Among those with enough battles',
+            hl: { brawler: 'Best brawler', mapGood: 'Best map', mapBad: 'Toughest map', oppGood: 'Easiest enemy', oppBad: 'Toughest enemy', mate: 'Best teammate' },
+            hlRate: (rate) => `Win rate ${rate}`, hlWL: (w, l) => `${w}W ${l}L`, hlOpen: ' (', hlClose: ')',
             bans: 'Bans', bansCap: (n) => `${n} sets with bans`, banMine: 'Banned by you', banOpp: 'Banned by opponents', banTeam: 'Banned by teammates', banTip: (name, n, p) => `${name}\n${n} (${p}%)`,
         },
     };
@@ -314,8 +320,15 @@
         return { type: 'line', data: { datasets: [{ data: pts, borderColor: th.ink, borderWidth: 2, pointRadius: spacedDots(0), pointBackgroundColor: th.ink, pointBorderWidth: 0, pointHoverRadius: DOT_HOVER, tension: 0, stepped: byRank }, ...extras] }, options: o, plugins: [bands, seasonLines] };
     }
 
+    // ハイライトの1項目。スマホ幅では、勝敗の数を勝率の下の行に回して2列に収める（battles.css の .bx-hl）
+    function hlItem(lang, kind, name, img, w, l) {
+        const T = TEXT[lang];
+        return `<div class="bx-hlitem">${img ? `<img src="${img}" alt="" loading="lazy" onerror="this.remove()">` : ''}<div><span class="bx-hlitem__label">${T.hl[kind]}</span><span class="bx-hlitem__name">${esc(name)}</span>
+            <span class="bx-hlitem__sub"><span>${T.hlRate(pc(w + l ? w / (w + l) * 100 : null))}</span><span class="bx-hlitem__wl"><i>${T.hlOpen}</i>${T.hlWL(nf(w), nf(l))}<i>${T.hlClose}</i></span></span></div></div>`;
+    }
+
     // 詳細分析タブ（battle_analysis.js）と共通で使う小物
-    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, timeAxis, spacedDots, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
+    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, timeAxis, spacedDots, hlItem, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
 
     let current = null;  // いま表示しているカード（画面幅が変わったときの詰め直し用）
     window.addEventListener('resize', () => { if (current && document.body.contains(current.root)) current.fitWbars(); });
@@ -454,6 +467,16 @@
             if (a.dn) tiles.push(`<div class="bx-tile"><span class="bx-tile__label">${T.avgTime}</span><span class="bx-tile__value">${dur(a.du / a.dn)}</span><span class="bx-tile__sub">${T.totalTime} ${a.du >= 3600 ? nf(a.du / 3600) + T.hoursUnit : nf(a.du / 60) + T.minutesUnit}</span></div>`);
             if (tiles.length % 2 === 0) tiles[tiles.length - 1] = tiles[tiles.length - 1].replace('class="bx-tile"', 'class="bx-tile bx-tile--wide"');
             return card('summary', '', T.summary, T.lastBattles(nf(a.n), unitWord), '', `<div class="bx-tiles">${tiles.join('')}</div>${statsNote()}`);
+        }
+
+        // ---------- ハイライト（詳細分析タブと同じ選び方。選ぶのはサーバー） ----------
+        function cardHighlights() {
+            const items = (D.highlights || []).map(([kind, key, w, l]) => {
+                if (kind === 'mapGood' || kind === 'mapBad') return hlItem(lang, kind, mapname(key[1]), micon(key[0]), w, l);
+                if (kind === 'mate') return hlItem(lang, kind, key[1], null, w, l);
+                return hlItem(lang, kind, bname(key), bimg(key), w, l);
+            });
+            return items.length ? card('hl', 'bx-span2', T.highlights, T.highlightsCap, '', `<div class="bx-hl">${items.join('')}</div>`) : '';
         }
 
         // ---------- 日ごとの勝敗 ----------
@@ -756,7 +779,7 @@
             summarySlot.innerHTML = cardSummary();
             const filtered = root.dataset.brawlerFilter === '1';
             const ranked = D.tab === 'powerleague';
-            let html = '';
+            let html = cardHighlights();
             if (D.tab === 'trophy') html += cardTrophyTrend();
             if (ranked) html += cardRankedTrend();
             html += cardDaily() + cardHours();
