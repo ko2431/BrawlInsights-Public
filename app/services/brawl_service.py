@@ -1757,6 +1757,9 @@ class Player:
         self.exp_points: int | None = None
         self.total_prestige_level: int | None = None
         self.last_battle_at: datetime.datetime | None = None
+        # 今回の取得でAPIから届いたバトルの数と、そのうち新しく保存した数（取得していない・キャッシュから作ったときは None）。プレイヤーアップデートの集計に使う
+        self.fetched_battle_count: int | None = None
+        self.new_battle_count: int | None = None
         self.prestige_1_brawlers: int | None = None  # prestigeLevel>=1 のキャラ数
         self.prestige_2_brawlers: int | None = None  # prestigeLevel>=2 のキャラ数
         self.prestige_3_brawlers: int | None = None  # prestigeLevel>=3 のキャラ数

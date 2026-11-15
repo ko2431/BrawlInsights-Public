@@ -87,10 +87,12 @@ async def player_update_task_loop(ctx=None) -> None:
                         message=f"0/{len(tags)}人",
                     )
                 brawlstarsapierror_count = 0
+                # [この部分は公開用リポジトリでは非公開にされています]
                 
                 for index, tag in enumerate(tags, start=1):
                     # [この部分は公開用リポジトリでは非公開にされています]
 
+                # [この部分は公開用リポジトリでは非公開にされています]
                 logger.info(f"プレイヤーアップデート処理(1ループ)が完了しました（{(time.monotonic() - loop_started_at) / 60:.0f}分）。次のループに進みます。")
                 await asyncio.sleep(1)
                 
