@@ -2671,6 +2671,37 @@
     border-color: #111;
 }
 
+/* トロフィー増減表のサブタブ: 9モードが1行に収まらない幅では 5 + 4 の2行にする。
+   2行だとタブの下辺を1本の線につなげられないため、角丸のボタン型にして各行を全幅で並べる */
+@media (max-width: 1079px) {
+    .trophy-table-tab__container .sub-tab-nav {
+        border-bottom: none;
+        margin-bottom: 6px;
+    }
+    .trophy-table-tab__container .sub-tab-nav__list {
+        display: grid;
+        grid-template-columns: repeat(20, minmax(0, 1fr));
+        gap: 4px;
+    }
+    .trophy-table-tab__container .sub-tab-nav__item {
+        grid-column: span 4;
+        margin-right: 0;
+        min-width: 0;
+    }
+    .trophy-table-tab__container .sub-tab-nav__item:nth-child(n+6) {
+        grid-column: span 5;
+    }
+    .trophy-table-tab__container .sub-tab-nav__link {
+        height: 100%;
+        box-sizing: border-box;
+        border-bottom: 1px solid var(--color-ddd);
+        border-radius: 10px;
+    }
+    .trophy-table-tab__container .sub-tab-nav__link--active {
+        bottom: 0;
+    }
+}
+
 .map-rotation-slot-tab {
     display: flex;
     flex-wrap: wrap;
@@ -3057,6 +3088,42 @@
 .dark .trophy-table td.trophy-rank {
     background-color: #1f1f1f;
 }
+/* トロフィー増減表: セル内で改行させず、収まらないときは表ごと横スクロールする。
+   角丸と外枠はスクロールの枠に持たせ、トロフィー帯の列は左端に固定する */
+.trophy-table__scroll {
+    margin-top: 15px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--color-ddd);
+    border-radius: 10px;
+}
+.trophy-table__scroll .trophy-table {
+    margin-top: 0;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.trophy-table__scroll .trophy-table th,
+.trophy-table__scroll .trophy-table td {
+    padding: 2px 3px;
+}
+.trophy-table__scroll .trophy-table th:first-child,
+.trophy-table__scroll .trophy-table td.trophy-rank {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    padding: 2px 6px;
+    border-right: 1px solid var(--color-ddd);
+}
+/* 固定列の右罫線と二重にならないよう、2列目の左罫線は消す (x-for の template を挟む) */
+.trophy-table__scroll .trophy-table th:first-child + th,
+.trophy-table__scroll .trophy-table td.trophy-rank + template + td {
+    border-left: none;
+}
+
 .cell-win { background-color: #e6ffe6; color: #006400; font-weight: bold; }
 .cell-loss { background-color: #ffe6e6; color: #c82333; font-weight: bold; }
 .cell-draw { background-color: #e6f7ff; color: #005a8d; font-weight: bold; }

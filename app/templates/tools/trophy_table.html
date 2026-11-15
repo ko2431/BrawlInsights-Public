@@ -10,6 +10,18 @@
 {% endblock %}
 
 {% block content %}
+{# ゲームモードの定義。ranks は順位の数（0 は勝利・敗北の2列） #}
+{% set trophy_modes = [
+    {'key': 'normal', 'ja': '通常', 'en': 'Normal', 'icon_path': '/images/mode_icons/3v3.png', 'ranks': 0},
+    {'key': 'duels', 'ja': 'デュエル', 'en': 'Duels', 'slug': 'duels', 'ranks': 0},
+    {'key': 'arena', 'ja': 'アリーナ', 'en': 'Arena', 'slug': 'brawlArena', 'ranks': 0},
+    {'key': 'solo', 'ja': 'ソロ', 'en': 'Solo', 'slug': 'soloShowdown', 'ranks': 10},
+    {'key': 'duo', 'ja': 'デュオ', 'en': 'Duo', 'slug': 'duoShowdown', 'ranks': 5},
+    {'key': 'trio', 'ja': 'トリオ', 'en': 'Trio', 'slug': 'trioShowdown', 'ranks': 4},
+    {'key': 'megaSolo', 'ja': 'メガソロ', 'en': 'MEGA Solo', 'mode_id': 48000075, 'ranks': 20},
+    {'key': 'megaDuo', 'ja': 'メガデュオ', 'en': 'MEGA Duo', 'mode_id': 48000086, 'ranks': 10},
+    {'key': 'hideSeek', 'ja': 'かくれんぼ', 'en': 'H&S', 'mode_id': 48000083, 'ranks': 4},
+] %}
 <div class="tools-page__container" x-data="trophyTable()" @keydown.window="handleKeydown($event)">
     {# 戻るボタン #}
     {% if platform != "web" %}
@@ -25,45 +37,21 @@
 
     {# サブタブ #}
     <div class="trophy-table-tab__container">
-        {# サブタブ (ゲームモード区分選択) #}
+        {# サブタブ (ゲームモード区分選択)。スマホ幅では2行に折り返す #}
         <nav class="sub-tab-nav">
             <ul class="sub-tab-nav__list">
+                {% for m in trophy_modes %}
                 <li class="sub-tab-nav__item">
-                    <a href="#" @click.prevent="selectedMode = 'normal'" :class="{'sub-tab-nav__link--active': selectedMode === 'normal'}" class="sub-tab-nav__link">
-                        <img src="{{ url_for('static', path='/images/mode_icons/3v3.png') }}" alt="通常" class="sub-tab-nav__icon">
-                        <span class="sub-tab-nav__text">{% if lang == "ja" %}通常{% else %}Normal{% endif %}</span>
+                    <a href="#" @click.prevent="selectedMode = '{{ m.key }}'" :class="{'sub-tab-nav__link--active': selectedMode === '{{ m.key }}'}" class="sub-tab-nav__link">
+                        {% if m.icon_path %}
+                        <img src="{{ url_for('static', path=m.icon_path) }}" alt="{{ m.ja if lang == 'ja' else m.en }}" class="sub-tab-nav__icon">
+                        {% else %}
+                        {{ mode_icon_img(mode_id=m.mode_id, slug=m.slug, class='sub-tab-nav__icon', alt=(m.ja if lang == 'ja' else m.en)) }}
+                        {% endif %}
+                        <span class="sub-tab-nav__text">{{ m.ja if lang == "ja" else m.en }}</span>
                     </a>
                 </li>
-                <li class="sub-tab-nav__item">
-                    <a href="#" @click.prevent="selectedMode = 'duels'" :class="{'sub-tab-nav__link--active': selectedMode === 'duels'}" class="sub-tab-nav__link">
-                        {{ mode_icon_img(slug='duels', class='sub-tab-nav__icon', alt='デュエル') }}
-                        <span class="sub-tab-nav__text">{% if lang == "ja" %}デュエル{% else %}Duels{% endif %}</span>
-                    </a>
-                </li>
-                <li class="sub-tab-nav__item">
-                    <a href="#" @click.prevent="selectedMode = 'arena'" :class="{'sub-tab-nav__link--active': selectedMode === 'arena'}" class="sub-tab-nav__link">
-                        {{ mode_icon_img(slug='brawlArena', class='sub-tab-nav__icon', alt='アリーナ') }}
-                        <span class="sub-tab-nav__text">{% if lang == "ja" %}アリーナ{% else %}Arena{% endif %}</span>
-                    </a>
-                </li>
-                <li class="sub-tab-nav__item">
-                    <a href="#" @click.prevent="selectedMode = 'solo'" :class="{'sub-tab-nav__link--active': selectedMode === 'solo'}" class="sub-tab-nav__link">
-                        {{ mode_icon_img(slug='soloShowdown', class='sub-tab-nav__icon', alt='ソロ') }}
-                        <span class="sub-tab-nav__text">{% if lang == "ja" %}ソロ{% else %}Solo{% endif %}</span>
-                    </a>
-                </li>
-                <li class="sub-tab-nav__item">
-                    <a href="#" @click.prevent="selectedMode = 'duo'" :class="{'sub-tab-nav__link--active': selectedMode === 'duo'}" class="sub-tab-nav__link">
-                        {{ mode_icon_img(slug='duoShowdown', class='sub-tab-nav__icon', alt='デュオ') }}
-                        <span class="sub-tab-nav__text">{% if lang == "ja" %}デュオ{% else %}Duo{% endif %}</span>
-                    </a>
-                </li>
-                <li class="sub-tab-nav__item">
-                    <a href="#" @click.prevent="selectedMode = 'trio'" :class="{'sub-tab-nav__link--active': selectedMode === 'trio'}" class="sub-tab-nav__link">
-                        {{ mode_icon_img(slug='trioShowdown', class='sub-tab-nav__icon', alt='トリオ') }}
-                        <span class="sub-tab-nav__text">{% if lang == "ja" %}トリオ{% else %}Trio{% endif %}</span>
-                    </a>
-                </li>
+                {% endfor %}
             </ul>
         </nav>
         {# 連勝数選択 #}
@@ -99,159 +87,54 @@
         </nav>
     </div>
 
-    {# トロフィー増減表 #}
+    {# トロフィー増減表。列が多いモードは改行させずに横スクロールさせる #}
     <div x-cloak>
-        <div x-show="selectedMode === 'normal'">
-            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
-            <table class="trophy-table">
-                <thead>
-                    <tr>
-                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
-                        <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
-                        <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="row in normalData" :key="row.range">
+        {% for m in trophy_modes %}
+        <div x-show="selectedMode === '{{ m.key }}'">
+            <p class="tools-page__description" style="margin-top: 10px;">
+                {%- if lang == "ja" -%}
+                    ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。
+                    {%- if m.key == 'duels' %}1体あたりのトロフィー増減は、この表の約3分の1となります。{% endif %}
+                {%- else -%}
+                    Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.
+                    {%- if m.key == 'duels' %} The trophy change per brawler is about 1/3 of this table.{% endif %}
+                {%- endif -%}
+            </p>
+            <div class="trophy-table__scroll">
+                <table class="trophy-table">
+                    <thead>
                         <tr>
-                            <td class="trophy-rank" x-text="row.range"></td>
-                            <template x-for="(baseChange, index) in row.changes">
-                                <td :class="getChangeClass(baseChange, index, 'normal', row.range)">
-                                    <span x-text="getFinalChange(baseChange, index, 'normal', row.range)"></span>
-                                </td>
-                            </template>
+                            <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
+                            {% if m.ranks %}
+                            {% for i in range(1, m.ranks + 1) %}<th>#{{ i }}</th>{% endfor %}
+                            {% else %}
+                            <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
+                            <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
+                            {% endif %}
                         </tr>
-                    </template>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <template x-for="row in modeData.{{ m.key }}" :key="row.range">
+                            <tr>
+                                <td class="trophy-rank" x-text="row.range"></td>
+                                <template x-for="(baseChange, index) in row.changes">
+                                    <td :class="getChangeClass(baseChange, index, '{{ m.key }}', row.range)">
+                                        <span x-text="getFinalChange(baseChange, index, '{{ m.key }}', row.range)"></span>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
         </div>
-
-        <div x-show="selectedMode === 'duels'">
-            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。1体あたりのトロフィー増減は、この表の約3分の1となります。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above. The trophy change per brawler is about 1/3 of this table.{% endif %}</p>
-            <table class="trophy-table">
-                <thead>
-                    <tr>
-                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
-                        <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
-                        <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="row in duelsData" :key="row.range">
-                        <tr>
-                            <td class="trophy-rank" x-text="row.range"></td>
-                            <template x-for="(baseChange, index) in row.changes">
-                                <td :class="getChangeClass(baseChange, index, 'duels', row.range)">
-                                    <span x-text="getFinalChange(baseChange, index, 'duels', row.range)"></span>
-                                </td>
-                            </template>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-
-        <div x-show="selectedMode === 'arena'">
-            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
-            <table class="trophy-table">
-                <thead>
-                    <tr>
-                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
-                        <th>{% if lang == "ja" %}勝利{% else %}Win{% endif %}</th>
-                        <th>{% if lang == "ja" %}敗北{% else %}Loss{% endif %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="row in arenaData" :key="row.range">
-                        <tr>
-                            <td class="trophy-rank" x-text="row.range"></td>
-                            <template x-for="(baseChange, index) in row.changes">
-                                <td :class="getChangeClass(baseChange, index, 'arena', row.range)">
-                                    <span x-text="getFinalChange(baseChange, index, 'arena', row.range)"></span>
-                                </td>
-                            </template>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-        
-        <div x-show="selectedMode === 'solo'">
-            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
-             <table class="trophy-table">
-                <thead>
-                    <tr>
-                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
-                        <th>#1</th><th>#2</th><th>#3</th><th>#4</th><th>#5</th>
-                        <th>#6</th><th>#7</th><th>#8</th><th>#9</th><th>#10</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="row in soloData" :key="row.range">
-                        <tr>
-                            <td class="trophy-rank" x-text="row.range"></td>
-                            <template x-for="(baseChange, index) in row.changes">
-                                <td :class="getChangeClass(baseChange, index, 'solo', row.range)">
-                                    <span x-text="getFinalChange(baseChange, index, 'solo', row.range)"></span>
-                                </td>
-                            </template>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-
-        <div x-show="selectedMode === 'duo'">
-            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
-             <table class="trophy-table">
-                <thead>
-                    <tr>
-                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
-                        <th>#1</th><th>#2</th><th>#3</th><th>#4</th><th>#5</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="row in duoData" :key="row.range">
-                        <tr>
-                            <td class="trophy-rank" x-text="row.range"></td>
-                            <template x-for="(baseChange, index) in row.changes">
-                                <td :class="getChangeClass(baseChange, index, 'duo', row.range)">
-                                    <span x-text="getFinalChange(baseChange, index, 'duo', row.range)"></span>
-                                </td>
-                            </template>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-
-        <div x-show="selectedMode === 'trio'">
-            <p class="tools-page__description" style="margin-top: 10px;">{% if lang == "ja" %}ブロスタのトロフィー増減表です。上のメニューからゲームモードと適用する連勝ボーナス数を選択できます。{% else %}Brawl Stars Trophy Change Table. You can select the game mode and win streak bonus from the menu above.{% endif %}</p>
-            <table class="trophy-table">
-                <thead>
-                    <tr>
-                        <th>{% if lang == "ja" %}トロフィー帯{% else %}Trophy Range{% endif %}</th>
-                        <th>#1</th><th>#2</th><th>#3</th><th>#4</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="row in trioData" :key="row.range">
-                        <tr>
-                            <td class="trophy-rank" x-text="row.range"></td>
-                            <template x-for="(baseChange, index) in row.changes">
-                                <td :class="getChangeClass(baseChange, index, 'trio', row.range)">
-                                    <span x-text="getFinalChange(baseChange, index, 'trio', row.range)"></span>
-                                </td>
-                            </template>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
+        {% endfor %}
     </div>
 
     {#^ フッターテキスト #}
     <p class="info-block__text block" style="margin-top: 10px;">
+        {# かくれんぼは1,000未満のデータがないため、1行目に注記を出す #}
+        <span x-show="selectedMode === 'hideSeek'" x-cloak>{% if lang == "ja" %}トロフィー帯1,000〜の増減データのみ掲載しています。{% else %}Only data for trophy ranges of 1,000 and above is listed.{% endif %}{% if platform == "web" %}<br>{% endif %}</span>
         {% if lang == "ja" %}
             {% if platform == "web" %}PCの場合、キーボードの←→キーを押すことでゲームモードの切り替え、数字キーを押すことで適用する連勝ボーナス数の切り替え（[-]キーで<b>なし</b>、[2]〜[9]キーで<b>2〜9</b>、[0]キーで<b>10</b>、[1]キーで<b>11+</b>）ができます。{% endif %}
         {% else %}
@@ -284,164 +167,209 @@
                 winStreakBonus: 0, // 0:なし, 1-10: 連勝ボーナス+1〜+10
                 isTrophyRushEnabled: false,
 
-                // 増減データ
-                normalData: [
-                    { range: '0 - 49', changes: [10, 0] },
-                    { range: '50 - 299', changes: [10, -1] },
-                    { range: '300 - 599', changes: [10, -2] },
-                    { range: '600 - 799', changes: [10, -3] },
-                    { range: '800 - 999', changes: [10, -4] },
-                    { range: '1000 - 1099', changes: [10, -5] },
-                    { range: '1100 - 1199', changes: [10, -6] },
-                    { range: '1200 - 1299', changes: [10, -7] },
-                    { range: '1300 - 1499', changes: [10, -8] },
-                    { range: '1500 - 1799', changes: [10, -9] },
-                    { range: '1800 - 1999', changes: [10, -10] },
-                    { range: '2000 - 2499', changes: [8, -10] },
-                    { range: '2500 - 2799', changes: [6, -10] },
-                    { range: '2800 - 2999', changes: [4, -10] },
-                    { range: '3000 - 3099', changes: [2, -10] },
-                    { range: '3100 - 3999', changes: [1, -10] },
-                    { range: '4000 -', changes: [1, -15] }
-                ],
-                duelsData: [
-                    { range: '0 - 49', changes: [12, -1] },
-                    { range: '50 - 799', changes: [12, -3] },
-                    { range: '800 - 1199', changes: [12, -6] },
-                    { range: '1200 - 1799', changes: [12, -9] },
-                    { range: '1800 - 1999', changes: [12, -12] },
-                    { range: '2000 - 2499', changes: [9, -12] },
-                    { range: '2500 - 2999', changes: [6, -12] },
-                    { range: '3000 - 3999', changes: [3, -12] },
-                    { range: '4000 -', changes: [3, -15] }
-                ],
-                soloData: [
-                    { range: '0 - 49', changes: [13, 10, 10, 8, 6, 5, 5, 5, 5, 5] },
-                    { range: '50 - 99', changes: [13, 10, 9, 7, 5 ,4, 3, 2, 1, -1] },
-                    { range: '100 - 199', changes: [13, 10, 9, 7, 4, 3, 2, 1, 0, -1] },
-                    { range: '200 - 299', changes: [13, 10, 8, 5, 3, 2, 1, -1, -1, -1] },
-                    { range: '300 - 499', changes: [13, 10, 8, 5, 3, 2, 1, -1, -2, -2] },
-                    { range: '500 - 599', changes: [13, 10, 8, 5, 2, 1, -1, -1, -2, -2] },
-                    { range: '600 - 799', changes: [13, 10, 8, 5, 2, 1, -2, -2, -3, -4] },
-                    { range: '800 - 999', changes: [13, 10, 8, 5, 2, 1, -2, -3, -4, -5] },
-                    { range: '1000 - 1099', changes: [13, 10, 8, 5, 1, -2, -3, -4, -5, -6] },
-                    { range: '1100 - 1199', changes: [13, 10, 8, 5, 1, -2, -3, -4, -5, -7] },
-                    { range: '1200 - 1299', changes: [13, 10, 8, 5, 1, -2, -4, -5, -6, -8] },
-                    { range: '1300 - 1499', changes: [13, 10, 8, 5, 1, -2, -4, -6, -7, -10] },
-                    { range: '1500 - 1799', changes: [13, 10, 8, 5, 0, -3, -5, -6, -8, -11] },
-                    { range: '1800 - 1999', changes: [13, 10, 8, 5, 0, -3, -5, -7, -9, -12] },
-                    { range: '2000 - 2499', changes: [10, 8, 6, 4, -2, -3, -5, -7, -9, -12] },
-                    { range: '2500 - 2599', changes: [8, 6, 5, 3, -2, -3, -5, -7, -9, -12] },
-                    { range: '2600 - 2699', changes: [8, 6, 5, 2, -2, -3, -5, -7, -9, -12] },
-                    { range: '2700 - 2799', changes: [8, 6, 5, 1, -2, -3, -5, -7, -9, -12] },
-                    { range: '2800 - 2999', changes: [5, 4, 3, 0, -2, -3, -5, -7, -9, -12] },
-                    { range: '3000 - 3099', changes: [4, 3, 2, 0, -2, -3, -5, -7, -9, -12] },
-                    { range: '3100 - 3999', changes: [3, 2, 1, -1, -2, -3, -5, -7, -9, -12] },
-                    { range: '4000 -', changes: [2, 1, 0, -2, -3, -5, -8, -11, -14, -18] }
-                ],
-                duoData: [
-                    { range: '0 - 49', changes: [12, 6, 5, 5, 5] },
-                    { range: '50 - 99', changes: [12, 6, 4, 2, -1] },
-                    { range: '100 - 199', changes: [12, 6, 3, 1, -1] },
-                    { range: '200 - 299', changes: [12, 6, 2, -1, -1] },
-                    { range: '300 - 599', changes: [12, 6, 2, -1, -2] },
-                    { range: '600 - 799', changes: [12, 6, 2, -2, -3] },
-                    { range: '800 - 999', changes: [12, 6, 2, -2, -4] },
-                    { range: '1000 - 1099', changes: [12, 6, -1, -3, -5] },
-                    { range: '1100 - 1199', changes: [12, 6, -1, -4, -6] },
-                    { range: '1200 - 1299', changes: [12, 6, -1, -4, -7] },
-                    { range: '1300 - 1499', changes: [12, 6, -2, -5, -8] },
-                    { range: '1500 - 1799', changes: [12, 6, -2, -5, -9] },
-                    { range: '1800 - 1999', changes: [12, 6, -2, -6, -10] },
-                    { range: '2000 - 2299', changes: [10, 5, -2, -6, -10] },
-                    { range: '2300 - 2399', changes: [10, 4, -2, -6, -10] },
-                    { range: '2400 - 2499', changes: [10, 3, -2, -6, -10] },
-                    { range: '2500 - 2799', changes: [7, 2, -2, -6, -10] },
-                    { range: '2800 - 2999', changes: [5, 1, -2, -6, -10] },
-                    { range: '3000 - 3099', changes: [3, 1, -2, -6, -10] },
-                    { range: '3100 - 3999', changes: [2, 1, -2, -6, -10] },
-                    { range: '4000 -', changes: [2, 0, -3, -9, -15] }
-                ],
-                trioData: [
-                    { range: '0 - 49', changes: [12, 5, 5, 5] },
-                    { range: '50 - 99', changes: [11, 5, 4, -1] },
-                    { range: '100 - 199', changes: [11, 5, 3, -1] },
-                    { range: '200 - 299', changes: [11, 5, 2, -1] },
-                    { range: '300 - 499', changes: [11, 5, 2, -2] },
-                    { range: '500 - 599', changes: [11, 5, 1, -2] },
-                    { range: '600 - 799', changes: [11, 5, 1, -3] },
-                    { range: '800 - 999', changes: [11, 5, 1, -4] },
-                    { range: '1000 - 1099', changes: [11, 5, 0, -6] },
-                    { range: '1100 - 1199', changes: [11, 5, 0, -7] },
-                    { range: '1200 - 1299', changes: [11, 5, 0, -8] },
-                    { range: '1300 - 1499', changes: [11, 5, 0, -9] },
-                    { range: '1500 - 1799', changes: [11, 5, -5, -10] },
-                    { range: '1800 - 1999', changes: [11, 5, -5, -11] },
-                    { range: '2000 - 2199', changes: [9, 4, -5, -11] },
-                    { range: '2200 - 2299', changes: [9, 3, -5, -11] },
-                    { range: '2300 - 2399', changes: [9, 2, -5, -11] },
-                    { range: '2400 - 2499', changes: [9, 1, -5, -11] },
-                    { range: '2500 - 2799', changes: [7, 0, -5, -11] },
-                    { range: '2800 - 2999', changes: [4, 0, -5, -11] },
-                    { range: '3000 - 3099', changes: [3, 0, -5, -11] },
-                    { range: '3100 - 3999', changes: [2, 0, -5, -11] },
-                    { range: '4000 -', changes: [1, 0, -8, -17] }
-                ],
-                arenaData: [
-                    { range: '0 - 49', changes: [15, 0] },
-                    { range: '50 - 299', changes: [15, -1] },
-                    { range: '300 - 599', changes: [15, -2] },
-                    { range: '600 - 799', changes: [15, -4] },
-                    { range: '800 - 999', changes: [15, -5] },
-                    { range: '1000 - 1099', changes: [15, -6] },
-                    { range: '1100 - 1199', changes: [15, -7] },
-                    { range: '1200 - 1299', changes: [15, -8] },
-                    { range: '1300 - 1499', changes: [15, -10] },
-                    { range: '1500 - 1799', changes: [15, -11] },
-                    { range: '1800 - 1999', changes: [15, -12] },
-                    { range: '2000 - 2499', changes: [12, -12] },
-                    { range: '2500 - 2799', changes: [9, -12] },
-                    { range: '2800 - 2999', changes: [6, -12] },
-                    { range: '3000 - 3099', changes: [3, -12] },
-                    { range: '3100 - 3999', changes: [2, -20] },
-                    { range: '4000 -', changes: [2, -30] }
-                ],
-                
-                // 最終的なトロフィー増減を計算する
-                getFinalChange(baseChange, rankIndex, mode, range) {
-                    let bonus = 0;
+                // 増減データ (キーはテンプレートの trophy_modes の key と合わせる)
+                modeData: {
+                    normal: [
+                        { range: '0 - 49', changes: [10, 0] },
+                        { range: '50 - 299', changes: [10, -1] },
+                        { range: '300 - 599', changes: [10, -2] },
+                        { range: '600 - 799', changes: [10, -3] },
+                        { range: '800 - 999', changes: [10, -4] },
+                        { range: '1000 - 1099', changes: [10, -5] },
+                        { range: '1100 - 1199', changes: [10, -6] },
+                        { range: '1200 - 1299', changes: [10, -7] },
+                        { range: '1300 - 1499', changes: [10, -8] },
+                        { range: '1500 - 1799', changes: [10, -9] },
+                        { range: '1800 - 1999', changes: [10, -10] },
+                        { range: '2000 - 2499', changes: [8, -10] },
+                        { range: '2500 - 2799', changes: [6, -10] },
+                        { range: '2800 - 2999', changes: [4, -10] },
+                        { range: '3000 - 3099', changes: [2, -10] },
+                        { range: '3100 - 3999', changes: [1, -10] },
+                        { range: '4000 -', changes: [1, -15] }
+                    ],
+                    duels: [
+                        { range: '0 - 49', changes: [12, -1] },
+                        { range: '50 - 799', changes: [12, -3] },
+                        { range: '800 - 1199', changes: [12, -6] },
+                        { range: '1200 - 1799', changes: [12, -9] },
+                        { range: '1800 - 1999', changes: [12, -12] },
+                        { range: '2000 - 2499', changes: [9, -12] },
+                        { range: '2500 - 2999', changes: [6, -12] },
+                        { range: '3000 - 3999', changes: [3, -12] },
+                        { range: '4000 -', changes: [3, -15] }
+                    ],
+                    arena: [
+                        { range: '0 - 49', changes: [15, 0] },
+                        { range: '50 - 299', changes: [15, -1] },
+                        { range: '300 - 599', changes: [15, -2] },
+                        { range: '600 - 799', changes: [15, -4] },
+                        { range: '800 - 999', changes: [15, -5] },
+                        { range: '1000 - 1099', changes: [15, -6] },
+                        { range: '1100 - 1199', changes: [15, -7] },
+                        { range: '1200 - 1299', changes: [15, -8] },
+                        { range: '1300 - 1499', changes: [15, -10] },
+                        { range: '1500 - 1799', changes: [15, -11] },
+                        { range: '1800 - 1999', changes: [15, -12] },
+                        { range: '2000 - 2499', changes: [12, -12] },
+                        { range: '2500 - 2799', changes: [9, -12] },
+                        { range: '2800 - 2999', changes: [6, -12] },
+                        { range: '3000 - 3099', changes: [3, -12] },
+                        { range: '3100 - 3999', changes: [2, -20] },
+                        { range: '4000 -', changes: [2, -30] }
+                    ],
+                    solo: [
+                        { range: '0 - 49', changes: [13, 10, 10, 8, 6, 5, 5, 5, 5, 5] },
+                        { range: '50 - 99', changes: [13, 10, 9, 7, 5, 4, 3, 2, 1, -1] },
+                        { range: '100 - 199', changes: [13, 10, 9, 7, 4, 3, 2, 1, 0, -1] },
+                        { range: '200 - 299', changes: [13, 10, 8, 5, 3, 2, 1, -1, -1, -1] },
+                        { range: '300 - 499', changes: [13, 10, 8, 5, 3, 2, 1, -1, -2, -2] },
+                        { range: '500 - 599', changes: [13, 10, 8, 5, 2, 1, -1, -1, -2, -2] },
+                        { range: '600 - 799', changes: [13, 10, 8, 5, 2, 1, -2, -2, -3, -4] },
+                        { range: '800 - 999', changes: [13, 10, 8, 5, 2, 1, -2, -3, -4, -5] },
+                        { range: '1000 - 1099', changes: [13, 10, 8, 5, 1, -2, -3, -4, -5, -6] },
+                        { range: '1100 - 1199', changes: [13, 10, 8, 5, 1, -2, -3, -4, -5, -7] },
+                        { range: '1200 - 1299', changes: [13, 10, 8, 5, 1, -2, -4, -5, -6, -8] },
+                        { range: '1300 - 1499', changes: [13, 10, 8, 5, 1, -2, -4, -6, -7, -10] },
+                        { range: '1500 - 1799', changes: [13, 10, 8, 5, 0, -3, -5, -6, -8, -11] },
+                        { range: '1800 - 1999', changes: [13, 10, 8, 5, 0, -3, -5, -7, -9, -12] },
+                        { range: '2000 - 2499', changes: [10, 8, 6, 4, -2, -3, -5, -7, -9, -12] },
+                        { range: '2500 - 2599', changes: [8, 6, 5, 3, -2, -3, -5, -7, -9, -12] },
+                        { range: '2600 - 2699', changes: [8, 6, 5, 2, -2, -3, -5, -7, -9, -12] },
+                        { range: '2700 - 2799', changes: [8, 6, 5, 1, -2, -3, -5, -7, -9, -12] },
+                        { range: '2800 - 2999', changes: [5, 4, 3, 0, -2, -3, -5, -7, -9, -12] },
+                        { range: '3000 - 3099', changes: [4, 3, 2, 0, -2, -3, -5, -7, -9, -12] },
+                        { range: '3100 - 3999', changes: [3, 2, 1, -1, -2, -3, -5, -7, -9, -12] },
+                        { range: '4000 -', changes: [2, 1, 0, -2, -3, -5, -8, -11, -14, -18] }
+                    ],
+                    duo: [
+                        { range: '0 - 49', changes: [12, 6, 5, 5, 5] },
+                        { range: '50 - 99', changes: [12, 6, 4, 2, -1] },
+                        { range: '100 - 199', changes: [12, 6, 3, 1, -1] },
+                        { range: '200 - 299', changes: [12, 6, 2, -1, -1] },
+                        { range: '300 - 599', changes: [12, 6, 2, -1, -2] },
+                        { range: '600 - 799', changes: [12, 6, 2, -2, -3] },
+                        { range: '800 - 999', changes: [12, 6, 2, -2, -4] },
+                        { range: '1000 - 1099', changes: [12, 6, -1, -3, -5] },
+                        { range: '1100 - 1199', changes: [12, 6, -1, -4, -6] },
+                        { range: '1200 - 1299', changes: [12, 6, -1, -4, -7] },
+                        { range: '1300 - 1499', changes: [12, 6, -2, -5, -8] },
+                        { range: '1500 - 1799', changes: [12, 6, -2, -5, -9] },
+                        { range: '1800 - 1999', changes: [12, 6, -2, -6, -10] },
+                        { range: '2000 - 2299', changes: [10, 5, -2, -6, -10] },
+                        { range: '2300 - 2399', changes: [10, 4, -2, -6, -10] },
+                        { range: '2400 - 2499', changes: [10, 3, -2, -6, -10] },
+                        { range: '2500 - 2799', changes: [7, 2, -2, -6, -10] },
+                        { range: '2800 - 2999', changes: [5, 1, -2, -6, -10] },
+                        { range: '3000 - 3099', changes: [3, 1, -2, -6, -10] },
+                        { range: '3100 - 3999', changes: [2, 1, -2, -6, -10] },
+                        { range: '4000 -', changes: [2, 0, -3, -9, -15] }
+                    ],
+                    trio: [
+                        { range: '0 - 49', changes: [12, 5, 5, 5] },
+                        { range: '50 - 99', changes: [11, 5, 4, -1] },
+                        { range: '100 - 199', changes: [11, 5, 3, -1] },
+                        { range: '200 - 299', changes: [11, 5, 2, -1] },
+                        { range: '300 - 499', changes: [11, 5, 2, -2] },
+                        { range: '500 - 599', changes: [11, 5, 1, -2] },
+                        { range: '600 - 799', changes: [11, 5, 1, -3] },
+                        { range: '800 - 999', changes: [11, 5, 1, -4] },
+                        { range: '1000 - 1099', changes: [11, 5, 0, -6] },
+                        { range: '1100 - 1199', changes: [11, 5, 0, -7] },
+                        { range: '1200 - 1299', changes: [11, 5, 0, -8] },
+                        { range: '1300 - 1499', changes: [11, 5, 0, -9] },
+                        { range: '1500 - 1799', changes: [11, 5, -5, -10] },
+                        { range: '1800 - 1999', changes: [11, 5, -5, -11] },
+                        { range: '2000 - 2199', changes: [9, 4, -5, -11] },
+                        { range: '2200 - 2299', changes: [9, 3, -5, -11] },
+                        { range: '2300 - 2399', changes: [9, 2, -5, -11] },
+                        { range: '2400 - 2499', changes: [9, 1, -5, -11] },
+                        { range: '2500 - 2799', changes: [7, 0, -5, -11] },
+                        { range: '2800 - 2999', changes: [4, 0, -5, -11] },
+                        { range: '3000 - 3099', changes: [3, 0, -5, -11] },
+                        { range: '3100 - 3999', changes: [2, 0, -5, -11] },
+                        { range: '4000 -', changes: [1, 0, -8, -17] }
+                    ],
+                    megaSolo: [
+                        { range: '0 - 199', changes: [15, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6] },
+                        { range: '200 - 499', changes: [15, 13, 11, 10, 9, 8, 7, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7] },
+                        { range: '500 - 999', changes: [15, 13, 11, 10, 9, 8, 7, 5, 4, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8] },
+                        { range: '1000 - 1099', changes: [15, 13, 11, 10, 9, 8, 7, 5, 3, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8, -9] },
+                        { range: '1100 - 1199', changes: [15, 13, 11, 10, 9, 8, 7, 5, 3, 1, 0, -1, -2, -3, -4, -5, -6, -7, -9, -10] },
+                        { range: '1200 - 1299', changes: [15, 13, 11, 10, 9, 8, 7, 5, 3, 1, 0, -1, -3, -4, -5, -6, -7, -8, -10, -11] },
+                        { range: '1300 - 1499', changes: [15, 13, 11, 10, 9, 8, 7, 5, 3, 1, 0, -1, -3, -4, -6, -7, -8, -9, -12, -13] },
+                        { range: '1500 - 1799', changes: [15, 13, 11, 10, 9, 8, 7, 5, 2, 0, -1, -2, -4, -5, -6, -7, -9, -10, -13, -14] },
+                        { range: '1800 - 1999', changes: [15, 13, 11, 10, 9, 8, 7, 5, 2, 0, -1, -2, -4, -5, -7, -8, -10, -11, -14, -15] },
+                        { range: '2000 - 2499', changes: [12, 10, 9, 8, 7, 6, 5, 4, 0, -2, -3, -4, -5, -6, -7, -8, -10, -11, -14, -15] },
+                        { range: '2500 - 2699', changes: [10, 8, 7, 6, 5, 4, 3, 2, 0, -2, -3, -4, -5, -6, -7, -8, -10, -11, -14, -15] },
+                        { range: '2700 - 2799', changes: [10, 8, 7, 6, 5, 4, 3, 1, 0, -2, -3, -4, -5, -6, -7, -8, -10, -11, -14, -15] },
+                        { range: '2800 - 2999', changes: [7, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -14, -15] },
+                        { range: '3000 - 3099', changes: [6, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -14, -15] },
+                        { range: '3100 - 3999', changes: [5, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15] },
+                        { range: '4000 -', changes: [4, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -15, -16, -20, -21] }
+                    ],
+                    megaDuo: [
+                        { range: '0 - 49', changes: [15, 10, 9, 8, 6, 5, 4, 3, 2, 1] },
+                        { range: '50 - 99', changes: [15, 10, 9, 7, 5, 4, 3, 2, 1, -1] },
+                        { range: '100 - 199', changes: [15, 10, 9, 7, 4, 3, 2, 1, 0, -1] },
+                        { range: '200 - 499', changes: [15, 10, 8, 5, 3, 2, 1, -1, -2, -3] },
+                        { range: '500 - 599', changes: [15, 10, 8, 5, 2, 1, -1, -2, -3, -4] },
+                        { range: '600 - 999', changes: [15, 10, 8, 5, 2, 1, -2, -3, -4, -5] },
+                        { range: '1000 - 1099', changes: [15, 10, 8, 5, 1, -2, -3, -4, -5, -6] },
+                        { range: '1100 - 1199', changes: [15, 10, 8, 5, 1, -2, -3, -4, -5, -7] },
+                        { range: '1200 - 1299', changes: [15, 10, 8, 5, 1, -2, -4, -5, -6, -8] },
+                        { range: '1300 - 1499', changes: [15, 10, 8, 5, 1, -2, -4, -6, -7, -10] },
+                        { range: '1500 - 1799', changes: [15, 10, 8, 5, 0, -3, -5, -6, -8, -11] },
+                        { range: '1800 - 1999', changes: [15, 10, 8, 5, 0, -3, -5, -7, -9, -12] },
+                        { range: '2000 - 2499', changes: [12, 8, 6, 4, -2, -3, -5, -7, -9, -12] },
+                        { range: '2500 - 2599', changes: [10, 6, 5, 3, -2, -3, -5, -7, -9, -12] },
+                        { range: '2600 - 2699', changes: [10, 6, 5, 2, -2, -3, -5, -7, -9, -12] },
+                        { range: '2700 - 2799', changes: [10, 6, 5, 1, -2, -3, -5, -7, -9, -12] },
+                        { range: '2800 - 2999', changes: [7, 4, 3, 0, -2, -3, -5, -7, -9, -12] },
+                        { range: '3000 - 3099', changes: [6, 3, 2, 0, -2, -3, -5, -7, -9, -12] },
+                        { range: '3100 - 3999', changes: [5, 2, 1, -1, -2, -3, -5, -7, -9, -12] },
+                        { range: '4000 -', changes: [4, 1, 0, -2, -3, -5, -8, -11, -14, -18] }
+                    ],
+                    hideSeek: [
+                        { range: '1000 - 1499', changes: [15, 7, 0, -7] },
+                        { range: '1500 - 1999', changes: [15, 7, 0, -8] },
+                        { range: '2000 - 2499', changes: [13, 5, -3, -11] },
+                        { range: '2500 - 2799', changes: [11, 4, -4, -12] },
+                        { range: '2800 - 2999', changes: [7, 2, -4, -12] },
+                        { range: '3000 - 3099', changes: [5, 1, -5, -13] },
+                        { range: '3100 - 3999', changes: [3, 0, -5, -13] },
+                        { range: '4000 -', changes: [3, -1, -8, -18] }
+                    ]
+                },
+
+                // 連勝ボーナスが加算される順位の数 (この順位まで勝利扱い)
+                winStreakRanks: {
+                    normal: 1, duels: 1, arena: 1, // 勝利のみ
+                    solo: 4, duo: 2, trio: 2,
+                    megaSolo: 8, megaDuo: 4, hideSeek: 1
+                },
+
+                // 連勝ボーナス・トロフィーラッシュを反映した増減の値
+                calcChange(baseChange, rankIndex, mode, range) {
                     const adjustedBaseChange = this.isTrophyRushEnabled && baseChange > 0 ? baseChange * 2 : baseChange;
                     // トロフィーが2000以上の場合はボーナス適用なし
                     const startTrophy = parseInt(range.split(' - ')[0]);
-                    
-                    // 連勝ボーナス対象の順位か判定
-                    if (this.winStreakBonus > 0 && startTrophy < 2000) {
-                        if (mode === 'solo' && rankIndex < 4) { // ソロは4位まで
-                            bonus = this.winStreakBonus;
-                        }
-                        if ((mode === 'normal' || mode === 'duels' || mode === 'arena') && rankIndex === 0) { // 通常/デュエル/アリーナは勝利(0番目)のみ
-                             bonus = this.winStreakBonus;
-                        }
-                         if ((mode === 'duo' || mode === 'trio') && rankIndex < 2) { // デュオ/トリオは2位まで
-                             bonus = this.winStreakBonus;
-                        }
+                    let bonus = 0;
+                    if (this.winStreakBonus > 0 && startTrophy < 2000 && rankIndex < (this.winStreakRanks[mode] || 0)) {
+                        bonus = this.winStreakBonus;
                     }
-                    const finalChange = adjustedBaseChange + bonus;
+                    return adjustedBaseChange + bonus;
+                },
+
+                // 最終的なトロフィー増減を計算する
+                getFinalChange(baseChange, rankIndex, mode, range) {
+                    const finalChange = this.calcChange(baseChange, rankIndex, mode, range);
                     return finalChange > 0 ? `+${finalChange}` : finalChange;
                 },
 
                 // 増減に応じてCSSクラスを返す
                 getChangeClass(baseChange, rankIndex, mode, range) {
-                    let bonus = 0;
-                    const adjustedBaseChange = this.isTrophyRushEnabled && baseChange > 0 ? baseChange * 2 : baseChange;
-                    const startTrophy = parseInt(range.split(' - ')[0]);
-
-                    if (this.winStreakBonus > 0 && startTrophy < 2000) {
-                        if (mode === 'solo' && rankIndex < 4) bonus = this.winStreakBonus;
-                        if ((mode === 'normal' || mode === 'duels' || mode === 'arena') && rankIndex === 0) bonus = this.winStreakBonus;
-                        if ((mode === 'duo' || mode === 'trio') && rankIndex < 2) bonus = this.winStreakBonus;
-                    }
-                    const finalChange = adjustedBaseChange + bonus;
+                    const finalChange = this.calcChange(baseChange, rankIndex, mode, range);
                     if (finalChange > 0) return 'cell-win';
                     if (finalChange < 0) return 'cell-loss';
                     return 'cell-draw';
@@ -451,7 +379,7 @@
                     // 入力フォームなどにフォーカスがある場合は無視
                     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
 
-                    const modes = ['normal', 'duels', 'arena', 'solo', 'duo', 'trio'];
+                    const modes = Object.keys(this.modeData);
                     
                     if (e.key === 'ArrowRight') {
                         const currentIndex = modes.indexOf(this.selectedMode);
