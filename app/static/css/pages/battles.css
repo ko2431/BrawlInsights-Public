@@ -1369,6 +1369,8 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-maplink:hover { text-decoration-color: currentColor; }
 .bx-table--battle .bx-chev, .bx-table--battle .bx-chevpad { display: inline-block; width: 6px; height: 6px; margin: 0 8px 2px 2px; }
 .bx-table--battle .bx-chev { transform: rotate(-45deg); }
+.bx-table--battle.is-nochev .bx-chevpad { display: none; }
+.bx-table--battle.is-nomvp .bx-rescell { grid-template-columns: 24px 26px; }
 /* 日時: PC幅は1列（年・時刻つき）。スマホ幅は今年の年を省き、時刻を隣の列に分けてその列だけを左に固定する */
 .bx-table--battle .bx-tm { display: none; }
 @media (max-width: 539px) {

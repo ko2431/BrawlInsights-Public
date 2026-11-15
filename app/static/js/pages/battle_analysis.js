@@ -733,7 +733,9 @@
         }
         function battleTable(items, B, limit) {
             const list = pageItems(items, B, limit);
-            const head = `<tr>${BT_COLS.map(([k, , left]) => `<th data-btsort="${k}" class="${left ? 'is-l ' : ''}${B.sort === k ? 'is-sort' + (B.dir > 0 ? ' is-asc' : '') : ''}">${T.bt[k]}${k === 'r' ? '<small class="bx-thnote"><span class="bx-star">★</span>: MVP</small>' : ''}</th>${k === 't' ? '<th data-btsort="t" class="bx-tm"></th>' : ''}`).join('')}</tr>`;
+            // このページにセット（開閉の矢印）や MVP が選ばれるバトルがなければ、その場所を詰める（MVP はサマリーの MVP率と同じ考え方）
+            const hasSets = list.some((r) => r.games), hasMvp = list.some((r) => r.mv || (r.games && r.games.some((g) => g.mv)));
+            const head = `<tr>${BT_COLS.map(([k, , left]) => `<th data-btsort="${k}" class="${left ? 'is-l ' : ''}${B.sort === k ? 'is-sort' + (B.dir > 0 ? ' is-asc' : '') : ''}">${T.bt[k]}${k === 'r' && hasMvp ? '<small class="bx-thnote"><span class="bx-star">★</span>: MVP</small>' : ''}</th>${k === 't' ? '<th data-btsort="t" class="bx-tm"></th>' : ''}`).join('')}</tr>`;
             const num = (v, f) => (v == null ? '<td class="is-mut">—</td>' : `<td>${f ? f(v) : nf(v)}</td>`);
             const delta = (v) => `<b class="${v > 0 ? 'bx-pos' : 'bx-neg'}">(${signed(v)})</b>`;
             const trophy = (r) => {
@@ -750,7 +752,7 @@
             // MVP の★: セット単位ではセットの行にだけ（開いた試合の行には付けない）、試合単位ではそのセットの全部の試合に付ける
             const cells = (r, sub) => {
                 const star = !sub && r.star, modeIcon = micon(r.m);
-                return `<td class="is-l"><span class="bx-rescell"><span class="bx-res bx-res--${r.r}">${T.res[r.r]}</span><span class="bx-resx">${r.score ? r.score : r.rk ? T.place(r.rk) : ''}</span><span class="bx-star"${star ? ' title="MVP"' : ''}>${star ? '★' : ''}</span></span></td>
+                return `<td class="is-l"><span class="bx-rescell"><span class="bx-res bx-res--${r.r}">${T.res[r.r]}</span><span class="bx-resx">${r.score ? r.score : r.rk ? T.place(r.rk) : ''}</span>${hasMvp ? `<span class="bx-star"${star ? ' title="MVP"' : ''}>${star ? '★' : ''}</span>` : ''}</span></td>
                 <td class="is-l">${r.bs.length > 1
                     // デュエルは使ったキャラを並べる（名前は吹き出しで）
                     ? `<span class="bx-cellicons">${r.bs.map((id) => `<img src="${bimg(id)}" alt="${esc(bname(id))}" loading="lazy"${tipAttr(bname(id))}>`).join('')}</span>`
@@ -767,7 +769,7 @@
                 if (!open) return main;
                 return main + r.games.map((g, n) => `<tr class="bx-subrow"><td class="is-l"><span class="bx-chevpad"></span>${T.gameNo(n + 1)}<span class="bx-dthm"> ${hm(g.t)}</span></td><td class="is-l bx-tm">${hm(g.t)}</td>${cells({ ...g, score: null }, true)}</tr>`).join('');
             }).join('');
-            return `<div class="bx-tablewrap"><table class="bx-table bx-table--battle"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+            return `<div class="bx-tablewrap"><table class="bx-table bx-table--battle${hasSets ? '' : ' is-nochev'}${hasMvp ? '' : ' is-nomvp'}"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
         }
         function cardBattles(rows) {
             const B = S.bt, game = S.F.unit === 'game', items = battleItems(rows, S.F.unit), pages = Math.max(1, Math.ceil(items.length / PER_PAGE));
