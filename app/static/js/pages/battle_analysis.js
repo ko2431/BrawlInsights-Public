@@ -177,8 +177,13 @@
         const mapname = (id) => (names.maps[id] ? names.maps[id][0] : T.unknownMap);
         const mapMode = (id) => (names.maps[id] ? names.maps[id][1] : 0);
         const fmtName = (key) => (T.fmt[key] ? T.fmt[key] : T.fmtVs(key.charAt(0)));
-        const ymdFull = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
         const hm = (t) => { const d = new Date(t * 1000); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
+        // バトルの表の日時。スマホ幅では今年の年を省き、時刻は隣の列（左に固定する列）に出す（CSS で切り替える）
+        const thisYear = new Date().getFullYear();
+        const ymdFull = (t) => {
+            const d = new Date(t * 1000), y = d.getFullYear();
+            return `<span class="bx-dty${y === thisYear ? ' is-cur' : ''}">${y}/</span>${d.getMonth() + 1}/${d.getDate()}<span class="bx-dthm"> ${hm(t)}</span>`;
+        };
         function short(n) {
             if (n == null || isNaN(n)) return '—';
             const a = Math.abs(n);
@@ -728,7 +733,7 @@
         }
         function battleTable(items, B, limit) {
             const list = pageItems(items, B, limit);
-            const head = `<tr>${BT_COLS.map(([k, , left]) => `<th data-btsort="${k}" class="${left ? 'is-l ' : ''}${B.sort === k ? 'is-sort' + (B.dir > 0 ? ' is-asc' : '') : ''}">${T.bt[k]}${k === 'r' ? '<small class="bx-thnote"><span class="bx-star">★</span>: MVP</small>' : ''}</th>`).join('')}</tr>`;
+            const head = `<tr>${BT_COLS.map(([k, , left]) => `<th data-btsort="${k}" class="${left ? 'is-l ' : ''}${B.sort === k ? 'is-sort' + (B.dir > 0 ? ' is-asc' : '') : ''}">${T.bt[k]}${k === 'r' ? '<small class="bx-thnote"><span class="bx-star">★</span>: MVP</small>' : ''}</th>${k === 't' ? '<th data-btsort="t" class="bx-tm"></th>' : ''}`).join('')}</tr>`;
             const num = (v, f) => (v == null ? '<td class="is-mut">—</td>' : `<td>${f ? f(v) : nf(v)}</td>`);
             const delta = (v) => `<b class="${v > 0 ? 'bx-pos' : 'bx-neg'}">(${signed(v)})</b>`;
             const trophy = (r) => {
@@ -758,9 +763,9 @@
             };
             const body = list.map((r) => {
                 const open = r.games && B.open.has(r.sid);
-                const main = `<tr${r.games ? ` class="bx-setrow${open ? ' is-open' : ''}" data-btopen="${r.sid}"` : ''}><td class="is-l">${r.games ? '<span class="bx-chev"></span>' : '<span class="bx-chevpad"></span>'}${ymdFull(r.t)}</td>${cells(r, false)}</tr>`;
+                const main = `<tr${r.games ? ` class="bx-setrow${open ? ' is-open' : ''}" data-btopen="${r.sid}"` : ''}><td class="is-l">${r.games ? '<span class="bx-chev"></span>' : '<span class="bx-chevpad"></span>'}${ymdFull(r.t)}</td><td class="is-l bx-tm">${hm(r.t)}</td>${cells(r, false)}</tr>`;
                 if (!open) return main;
-                return main + r.games.map((g, n) => `<tr class="bx-subrow"><td class="is-l"><span class="bx-chevpad"></span>${T.gameNo(n + 1)} ${hm(g.t)}</td>${cells({ ...g, score: null }, true)}</tr>`).join('');
+                return main + r.games.map((g, n) => `<tr class="bx-subrow"><td class="is-l"><span class="bx-chevpad"></span>${T.gameNo(n + 1)}<span class="bx-dthm"> ${hm(g.t)}</span></td><td class="is-l bx-tm">${hm(g.t)}</td>${cells({ ...g, score: null }, true)}</tr>`).join('');
             }).join('');
             return `<div class="bx-tablewrap"><table class="bx-table bx-table--battle"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
         }

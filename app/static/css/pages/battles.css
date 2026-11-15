@@ -1329,7 +1329,10 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-opt em { margin-left: auto; font-style: normal; font-size: 11px; color: var(--bx-mut); }
 .bxf-note { margin: 0; font-size: 11.5px; line-height: 1.3; color: var(--bx-mut); }
 .bxf-numlabel { font-size: 12.5px; color: var(--color-333); }
-@media (max-width: 539px) { .bxf-count { margin-left: 0; width: 100%; text-align: right; } }
+@media (max-width: 539px) {
+    .bxf-count { margin-left: 0; width: 100%; text-align: right; }
+    .ptr-filters .bxf-count { margin-left: auto; width: auto; } /* 推移グラフ: 期間のボタンの行の右端に入るなら同じ行に置く */
+}
 
 /* --- 表（内訳・バトル） --- */
 .bx-tablewrap { overflow-x: auto; border: 1px solid var(--color-eee); border-radius: 12px; -webkit-overflow-scrolling: touch; }
@@ -1345,7 +1348,7 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-table tbody tr:hover td { background: var(--bg-f8f8f8); }
 .bx-table .bx-cellname { display: flex; align-items: center; gap: 6px; max-width: 190px; font-weight: 600; }
 .bx-table .bx-cellname img { flex: none; width: 24px; height: 24px; border-radius: 6px; object-fit: contain; }
-.bx-table .bx-cellname span { overflow: hidden; text-overflow: ellipsis; }
+.bx-table .bx-cellname span { overflow: hidden; text-overflow: ellipsis; min-width: 3.2em; } /* 列が詰められても3文字ほどは見えるように */
 .bx-table .bx-cellbar { display: inline-flex; align-items: center; gap: 6px; }
 .bx-table .bx-cellbar i { display: block; height: 8px; border-radius: 0 4px 4px 0; background: var(--bx-accent); }
 .bx-table .bx-cellwr { display: inline-flex; align-items: center; gap: 6px; width: 112px; }
@@ -1366,6 +1369,15 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-maplink:hover { text-decoration-color: currentColor; }
 .bx-table--battle .bx-chev, .bx-table--battle .bx-chevpad { display: inline-block; width: 6px; height: 6px; margin: 0 8px 2px 2px; }
 .bx-table--battle .bx-chev { transform: rotate(-45deg); }
+/* 日時: PC幅は1列（年・時刻つき）。スマホ幅は今年の年を省き、時刻を隣の列に分けてその列だけを左に固定する */
+.bx-table--battle .bx-tm { display: none; }
+@media (max-width: 539px) {
+    .bx-table--battle th:first-child, .bx-table--battle td:first-child { position: static; padding-right: 2px; }
+    .bx-table--battle .bx-dty.is-cur, .bx-table--battle .bx-dthm { display: none; }
+    .bx-table--battle .bx-tm { display: table-cell; position: sticky; left: 0; z-index: 1; padding-left: 4px; background: var(--bx-card); }
+    .bx-table--battle th.bx-tm { background: var(--bg-f8f8f8); }
+    .bx-table--battle tbody tr:hover td.bx-tm, .bx-table--battle .bx-subrow td.bx-tm { background: var(--bg-f8f8f8); }
+}
 .bx-setrow { cursor: pointer; }
 .bx-setrow.is-open .bx-chev { transform: rotate(45deg); }
 .bx-subrow td, .bx-table tbody tr.bx-subrow:hover td { background: var(--bg-f8f8f8); color: var(--color-555); font-size: 12px; }
@@ -1422,7 +1434,7 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-table--plain th { cursor: default; }
 .bxa-cards { min-height: 120px; }
 .bxa-cardtools { display: flex; justify-content: flex-end; margin-bottom: 6px; }
-.bxa-cards .battle-card-grid { margin-top: 0; }
+.bxa-cards .battle-card-grid { width: 100%; margin: 0; }
 .bx-cellicons { display: inline-flex; gap: 3px; vertical-align: middle; }
 .bx-cellicons img { width: 24px; height: 24px; border-radius: 6px; object-fit: contain; }
 
