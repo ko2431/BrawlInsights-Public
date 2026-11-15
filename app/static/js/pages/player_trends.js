@@ -23,7 +23,7 @@
             recorded: (from, to, n) => `記録のある期間: ${from}〜${to}（${n}日ぶん）。日付の区切りは日本時間の9時です。`,
             emptyRange: 'この期間の記録はありません', noData: 'この期間に表示できるデータはありません',
             seasonLines: '縦の線: ガチバトルシーズンの始まり', rankedCurrent: '現在ポイント', rankedBest: '最高ポイント',
-            accessoryNote: 'ハイパーチャージとバフィーの記録は、2026年3月からです。', hours: '時間',
+            accessoryNote: 'ハイパーチャージとバフィーの記録は、2026年3月からです。', hours: '時間', paren: (v) => `（${v}）`,
         },
         en: {
             period: 'Period', quick: { 30: '30d', 60: '60d', 90: '90d', 180: '180d', 365: '1y', all: 'All time' },
@@ -32,7 +32,7 @@
             recorded: (from, to, n) => `Records: ${from} – ${to} (${n} ${n === 1 ? 'day' : 'days'}). Days are counted in UTC.`,
             emptyRange: 'No records in this period', noData: 'No data to show for this period',
             seasonLines: 'Vertical lines: Ranked season start', rankedCurrent: 'Current points', rankedBest: 'Highest points',
-            accessoryNote: 'Hypercharge and Buffie records start in March 2026.', hours: 'h',
+            accessoryNote: 'Hypercharge and Buffie records start in March 2026.', hours: 'h', paren: (v) => ` (${v})`,
         },
     };
 
@@ -227,7 +227,7 @@
                     const cfg = Kit.rankedTrendConfig({
                         th, pts, byRank: false, rankMin: D.rankMin, leagues: Kit.LEAGUES[lang], seasons, utc: true,
                         tipTitle: dateTitle,
-                        tipLabel: (y, ds) => `${ds.label}: ${nf(y)}（${rankName(Math.max(1, rankOf(y)))}）`,
+                        tipLabel: (y, ds) => `${ds.label}: ${nf(y)}${T.paren(rankName(Math.max(1, rankOf(y))))}`,
                         extra: showBest ? [{ label: T.rankedBest, data: bestPts.filter((p) => p.x >= rx0 && p.x <= rx1), borderColor: th.mut, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, pointHoverRadius: 3, tension: 0 }] : [],
                     });
                     cfg.data.datasets[0].label = T.rankedCurrent;

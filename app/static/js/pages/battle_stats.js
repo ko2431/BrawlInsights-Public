@@ -40,7 +40,7 @@
             trophyBy: 'キャラ別のトロフィー増減', trophyByCap: '増えた5キャラ・減った5キャラ', trophyByTop: '変動の大きい10キャラ', trophyByTip: (g, v) => `${g}戦で ${v}`,
             empty: 'バトルがありません',
             leagues: ['ブロンズ', 'シルバー', 'ゴールド', 'ダイヤモンド', 'エリート', 'レジェンド', 'マスター', 'プロ'],
-            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', seasonLines: '縦の線: シーズンの始まり', axisTime: '日時', axisSeq: 'セット順', pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
+            currentPoints: '現在のポイント', rankedScore: 'ポイントの推移', rankedRank: 'ランクの推移', seasonLines: '縦の線: シーズンの始まり', axisTime: '日時', axisSeq: 'セット順', paren: (v) => `（${v}）`, pointsTip: (v, rank) => `${v} ポイント（${rank}）`,
             modesMaps: 'モード・マップ別の成績', picksCap: 'マップの右はよく使ったキャラ', graph: 'グラフ', byMode: 'モード別', byMap: 'マップ別',
             modeRates: 'モードごとの勝率', mapRates: 'マップごとの勝率（モード別）', radarTip: (rate, n) => `勝率 ${rate}%（${n}回）`, pickTip: (name, n) => `${name}: ${n}回`,
             radarNeedModes: 'レーダーを出すには、3つ以上のモードのバトルが必要です', radarNeedMaps: 'レーダーを出すには、同じモードで3つ以上のマップのバトルが必要です',
@@ -68,7 +68,7 @@
             trophyBy: 'Trophy change by brawler', trophyByCap: 'Top 5 gains and losses', trophyByTop: '10 biggest changes', trophyByTip: (g, v) => `${v} in ${g} battles`,
             empty: 'No battles',
             leagues: ['Bronze', 'Silver', 'Gold', 'Diamond', 'Mythic', 'Legendary', 'Masters', 'Pro'],
-            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', seasonLines: 'Vertical lines: season start', axisTime: 'Time', axisSeq: 'By set', pointsTip: (v, rank) => `${v} points (${rank})`,
+            currentPoints: 'Current points', rankedScore: 'Points over time', rankedRank: 'Rank over time', seasonLines: 'Vertical lines: season start', axisTime: 'Time', axisSeq: 'By set', paren: (v) => ` (${v})`, pointsTip: (v, rank) => `${v} points (${rank})`,
             modesMaps: 'Modes and maps', picksCap: 'Most-picked brawlers are shown beside each map', graph: 'Chart', byMode: 'By mode', byMap: 'By map',
             modeRates: 'Win rate by mode', mapRates: 'Win rate by map, per mode', radarTip: (rate, n) => `Win rate ${rate}% (${n})`, pickTip: (name, n) => `${name}: ${n}`,
             radarNeedModes: 'The radar chart needs battles in at least 3 modes', radarNeedMaps: 'The radar chart needs battles on at least 3 maps of one mode',
@@ -152,6 +152,57 @@
     }
     const DOT_HOVER = 4.5;
 
+    // 日時の横軸の目盛り。日の区切り（幅に合わせて1・2・7・14日おき、もっと長ければ月の初め）に置き、日付を出す。
+    // 2日に満たない範囲は、時刻の区切り（1・2・3・6・12時間おき）に置く。utc: 日の区切りを UTC にする（無ければ端末の時刻）
+    const DAY_MS = 86400000, HOUR_MS = 3600000;
+    function timeTicks(x0, x1, width, utc) {
+        const room = Math.max(2, Math.floor(width / 64)), span = x1 - x0, out = [];
+        const ymd = (t) => { const d = new Date(t); return utc ? [d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours()] : [d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]; };
+        const at = (y, m, d, h) => (utc ? Date.UTC(y, m, d, h || 0) : new Date(y, m, d, h || 0).getTime());
+        const [y, m, d, h] = ymd(x1);
+        if (span < 2 * DAY_MS) {
+            const step = [1, 2, 3, 6, 12].find((n) => span / (n * HOUR_MS) <= room) || 24;
+            for (let t = at(y, m, d, Math.floor(h / step) * step); t >= x0; t -= step * HOUR_MS) out.unshift(t);
+            return { ticks: out, hourly: true };
+        }
+        const step = [1, 2, 7, 14].find((n) => span / (n * DAY_MS) <= room);
+        if (step) {
+            for (let k = 0, t = at(y, m, d); t >= x0; k++, t = at(y, m, d - k * step)) out.unshift(t);
+        } else {
+            const months = [];
+            const [y0, m0] = ymd(x0);
+            for (let k = 1, t = at(y0, m0 + 1, 1); t <= x1; k++, t = at(y0, m0 + 1 + k, 1)) months.push(t);
+            const every = Math.ceil(months.length / room);
+            months.forEach((t, i) => { if ((months.length - 1 - i) % every === 0) out.push(t); });
+        }
+        return { ticks: out, hourly: false };
+    }
+    // 目盛りの文字。年が変わる所は年も、時刻の目盛りは日が変わる所（と最初）に日付も出す
+    function timeLabel(utc, hourly) {
+        const part = (t) => { const d = new Date(t); return utc ? [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes()] : [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()]; };
+        return (v, index, list) => {
+            const c = part(v), prev = index > 0 ? part(list[index - 1].value) : null;
+            const date = (!prev || prev[0] !== c[0] ? `${c[0]}/` : '') + `${c[1]}/${c[2]}`;
+            if (!hourly) return date;
+            const time = `${c[3]}:${String(c[4]).padStart(2, '0')}`;
+            return !prev || prev[2] !== c[2] || prev[1] !== c[1] ? `${date} ${time}` : time;
+        };
+    }
+    // 日時の横軸。marks（シーズンの始まりなど）は必ず目盛りにし、近すぎるふつうの目盛りは外す
+    function timeAxis(o, x0, x1, utc, marks) {
+        const span = x1 - x0, room = (w) => Math.max(2, Math.floor(w / 64));
+        let hourly = span < 2 * DAY_MS;
+        o.scales.x.type = 'linear'; o.scales.x.min = x0; o.scales.x.max = x1;
+        o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxTicksLimit = 40;
+        o.scales.x.afterBuildTicks = (axis) => {
+            const made = timeTicks(x0, x1, axis.width, utc), extra = marks || [];
+            hourly = made.hourly;
+            const near = span / room(axis.width) * 0.6;
+            axis.ticks = [...made.ticks.filter((v) => extra.every((mx) => Math.abs(mx - v) > near)), ...extra].sort((a, b) => a - b).map((value) => ({ value }));
+        };
+        o.scales.x.ticks.callback = (v, index, list) => timeLabel(utc, hourly)(v, index, list);
+    }
+
     // ガチバトルのランク（1〜22）。rankMin は各ランクの下限のポイント
     function rankTools(rankMin, leagues) {
         const leagueIndex = (rank) => Math.min(7, Math.floor((Math.max(1, rank) - 1) / 3));
@@ -205,10 +256,6 @@
         // 横軸: シーズンの始まりに薄い縦線を引き、ラベルもそこを優先する
         const x0 = pts[0].x, x1 = pts[pts.length - 1].x;
         const part = (d) => (utc ? [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()] : [d.getFullYear(), d.getMonth() + 1, d.getDate()]);
-        const xLabel = (v, index, list) => {
-            const d = part(new Date(v)), prev = index > 0 ? part(new Date(list[index - 1].value)) : null;
-            return (!prev || prev[0] !== d[0] ? `${d[0]}/` : '') + `${d[1]}/${d[2]}`;
-        };
         // セット順: 目盛りは各日の初めのセットに置き、その日付を出す。右から順に、幅に収まるぶんだけ残す
         const timeAt = seq ? new Map(pts.map((p) => [p.x, p.t])) : null;
         const seqLabel = (v, index, list) => {
@@ -226,18 +273,10 @@
             for (let i = firsts.length - 1; i >= 0; i--) if (!out.length || out[0] - firsts[i] >= gap) out.unshift(firsts[i]);
             axis.ticks = out.map((value) => ({ value }));
         };
-        const xTicks = (axis) => {
-            if (seq) { seqTicks(axis); return; }
-            const span = x1 - x0, room = Math.max(2, Math.floor(axis.width / 64));
-            if (seasons.length >= 2) {
-                // 多いときは新しいほうから数えて等間隔に残す
-                const step = Math.ceil(seasons.length / room);
-                axis.ticks = seasons.filter((_, i) => (seasons.length - 1 - i) % step === 0).map((value) => ({ value }));
-            } else {
-                // シーズンをまたがない短い期間: 自動の目盛りに、シーズンの始まりがあれば足す
-                const auto = axis.ticks.map((tick) => tick.value).filter((v) => seasons.every((sx) => Math.abs(sx - v) > span * 0.12));
-                axis.ticks = [...auto, ...seasons].sort((a, b) => a - b).map((value) => ({ value }));
-            }
+        // 日時: シーズンを2つ以上またぐときは、シーズンの始まりだけを目盛りにする（多いときは新しいほうから数えて等間隔に残す）
+        const seasonTicks = (axis) => {
+            const step = Math.ceil(seasons.length / Math.max(2, Math.floor(axis.width / 64)));
+            axis.ticks = seasons.filter((_, i) => (seasons.length - 1 - i) % step === 0).map((value) => ({ value }));
         };
         const seasonLines = {
             id: 'seasonLines',
@@ -253,8 +292,9 @@
             },
         };
         const o = baseOptions(th);
-        o.scales.x.type = 'linear'; o.scales.x.ticks.callback = seq ? seqLabel : xLabel; o.scales.x.min = x0; o.scales.x.max = x1;
-        o.scales.x.afterBuildTicks = xTicks; o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxTicksLimit = 40;
+        // シーズンをまたがない短い期間は、日（2日未満は時刻）の区切りの目盛りに、シーズンの始まりがあれば足す
+        timeAxis(o, x0, x1, utc, seasons);
+        if (seq) { o.scales.x.ticks.callback = seqLabel; o.scales.x.afterBuildTicks = seqTicks; } else if (seasons.length >= 2) { o.scales.x.ticks.callback = timeLabel(utc, false); o.scales.x.afterBuildTicks = seasonTicks; }
         o.scales.y.min = lo; o.scales.y.max = hi;
         o.scales.y.grid.color = th.mut + '55';
         o.plugins.tooltip.callbacks = { title: (it) => tipTitle(seq ? it[0].raw.t : it[0].parsed.x), label: (it) => tipLabel(it.parsed.y, it.dataset, it) };
@@ -275,7 +315,7 @@
     }
 
     // 詳細分析タブ（battle_analysis.js）と共通で使う小物
-    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, spacedDots, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
+    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, timeAxis, spacedDots, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
 
     let current = null;  // いま表示しているカード（画面幅が変わったときの詰め直し用）
     window.addEventListener('resize', () => { if (current && document.body.contains(current.root)) current.fitWbars(); });
@@ -538,7 +578,7 @@
                 tipLabel: (y) => (byRank ? rankName(y) : T.pointsTip(nf(y), rankName(Math.max(1, rankOf(y))))),
             }));
             const first = pts[0].y, last = pts[pts.length - 1].y;
-            const cap = byRank ? `${rankName(first)} → ${rankName(last)}` : `${nf(first)} → ${nf(last)}（${signed(last - first)}）`;
+            const cap = byRank ? `${rankName(first)} → ${rankName(last)}` : `${nf(first)} → ${nf(last)}${T.paren(signed(last - first))}`;
             const tools = canSeq ? seg('rankedAxis', seq ? 'seq' : 'time', [['time', T.axisTime], ['seq', T.axisSeq]]) : '';
             return card('ranked', 'bx-span2', byRank ? T.rankedRank : T.rankedScore, cap, tools, `<div class="bx-chart bx-chart--tall"><canvas id="bxRanked"></canvas></div>${seasons.length ? `<div class="bx-heatlegend">${T.seasonLines}</div>` : ''}`);
         }
@@ -679,7 +719,7 @@
             const pts = tr.points.map(([t, y]) => ({ x: t * 1000, y })), abs = tr.mode === 'abs';
             mountChart('bxTrophy', (th) => {
                 const o = baseOptions(th);
-                o.scales.x.type = 'linear'; o.scales.x.ticks.callback = (v) => ymd(v / 1000); o.scales.x.min = pts[0].x; o.scales.x.max = pts[pts.length - 1].x;
+                timeAxis(o, pts[0].x, pts[pts.length - 1].x, false);
                 o.scales.y.ticks.callback = (v) => (abs ? nf(v) : signed(v));
                 if (!abs) o.scales.y.grid.color = (c) => (c.tick.value === 0 ? th.mut : th.grid);
                 o.plugins.tooltip.callbacks = abs
