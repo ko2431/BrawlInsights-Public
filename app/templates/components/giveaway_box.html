@@ -84,7 +84,7 @@
     {% else %}
     <div class="gva__actions">
         {% set one_disabled = box.short_tokens > 0 %}
-        <button type="button" class="gva__btn{% if box.bulk >= 2 %} gva__btn--sub{% endif %}" @click="enter(1)" :disabled="busy"{% if one_disabled %} disabled{% endif %}>
+        <button type="button" class="gva__btn{% if box.bulk >= 2 %} gva__btn--sub{% endif %}" @click="enter(1)" :disabled="{{ 'true' if one_disabled else 'busy' }}"{% if one_disabled %} disabled{% endif %}>
             {{ "1口応募" if ja else "Enter once" }}<small>{{ box.entry_tokens }}{{ "トークン" if ja else " tokens" }}</small>
         </button>
         {% if box.bulk >= 2 %}
