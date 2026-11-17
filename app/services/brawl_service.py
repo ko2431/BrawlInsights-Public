@@ -1655,14 +1655,22 @@ class Battle:
 #* /---*---*---*---*---*---*---*---*/
 #* プレイヤー関連
 #* /---*---*---*---*---*---*---*---*/
-class _PlayerAPIRequests:
-    """プレイヤーの取得に使う外部APIを同時に呼び始め、結果は必要になった時点で受け取る。"""
+async def _ready(value: Any) -> Any:
+    return value
 
-    def __init__(self, tag: str) -> None:
+
+class _PlayerAPIRequests:
+    """プレイヤーの取得に使う外部APIを同時に呼び始め、結果は必要になった時点で受け取る。
+
+    extras=False のときは MeowAPI・BSInfo を呼ばない（裏の更新の段2。どちらも None を返す）。
+    battlelog を渡すと、公式APIのバトル履歴は呼ばずにそれを使う（裏の更新の段1で取った分）。
+    """
+
+    def __init__(self, tag: str, *, extras: bool = True, battlelog: dict | None = None) -> None:
         self.player = asyncio.create_task(official_api.get_player(tag))
-        self.battlelog = asyncio.create_task(official_api.get_battlelog(tag))
-        self.meow = asyncio.create_task(meowapi.get_player(tag=tag))
-        self.owned_skins = asyncio.create_task(bsinfoapi.get_player_owned_skins(tag=tag))
+        self.battlelog = asyncio.create_task(official_api.get_battlelog(tag) if battlelog is None else _ready(battlelog))
+        self.meow = asyncio.create_task(meowapi.get_player(tag=tag) if extras else _ready(None))
+        self.owned_skins = asyncio.create_task(bsinfoapi.get_player_owned_skins(tag=tag) if extras else _ready(None))
 
     async def discard(self) -> None:
         """使わなかった呼び出しを止め、結果と例外を回収する(未回収の警告を出さないため)。"""
@@ -1760,6 +1768,9 @@ class Player:
         # 今回の取得でAPIから届いたバトルの数と、そのうち新しく保存した数（取得していない・キャッシュから作ったときは None）。プレイヤーアップデートの集計に使う
         self.fetched_battle_count: int | None = None
         self.new_battle_count: int | None = None
+        self.fetched_battle_times: list[datetime.datetime] = []  # 今回届いたバトルの時刻（新しい順）
+        # 裏の更新の段2（MeowAPI・BSInfo を呼ばない）。それらの値と、キャラごとの行（マスタリー・所持スキン）は DB の値のままにする
+        self.extras_skipped: bool = False
         self.prestige_1_brawlers: int | None = None  # prestigeLevel>=1 のキャラ数
         self.prestige_2_brawlers: int | None = None  # prestigeLevel>=2 のキャラ数
         self.prestige_3_brawlers: int | None = None  # prestigeLevel>=3 のキャラ数
@@ -2039,6 +2050,16 @@ async def get_player(tag: str, db: asyncpg.Connection, use_long_cache: bool = Fa
         Player: プレイヤー情報
     """
     # [この部分は公開用リポジトリでは非公開にされています]
+
+
+async def refresh_player_in_background(tag: str, db: asyncpg.Connection, *, extras: bool, battlelog: dict) -> Player:
+    """裏の更新で、新しいバトルがあった人・MeowAPI・BSInfo を取る時期の人を取得して保存する（段2・段3）。
+
+    battlelog は段1で取った公式APIのバトル履歴（もう一度は呼ばない）。extras=False（段2）は公式APIだけで、
+    キャラごとの行などが揃わないため、閲覧用のキャッシュは書かない。段3はフルの取得なので、閲覧と同じくキャッシュも書く。
+    """
+    # [この部分は公開用リポジトリでは非公開にされています]
+
 
 async def get_player_from_db(tag: str, db: asyncpg.Connection) -> Player | None:
     """データベースからのみプレイヤーデータを取得する。Redisを用いた30分のキャッシュ機能(player:tag)を持つ。

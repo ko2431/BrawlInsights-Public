@@ -32,85 +32,9 @@ from app.utils.utils import parse_utc_datetime
 # pyrefly: ignore [missing-import]
 from tdigest import TDigest
 
-# [この部分は公開用リポジトリでは非公開にされています]
-
-def _remaining_interval(interval: float, started_at: float) -> float:
-    """1人あたりの間隔のうち、処理にかかった時間を除いた残りの秒数（処理が間隔を超えた場合は0）。"""
-    return max(0.0, interval - (time.monotonic() - started_at))
-
-async def player_update_task_loop(ctx=None) -> None:
-    """プレイヤーデータを定期的に更新するループタスク（内部で接続管理）"""
-    logger.info("プレイヤーアップデートタスクループを開始します。")
-    db: asyncpg.Connection | None = None # DB接続変数を初期化
-
-    try:
-        while True:
-            try:
-                logger.info("プレイヤーアップデート処理のループを開始します...")
-                # リストを初期化 (念のため)
-                tags_acquire_automatically = []
-                tags_not_acquire_automatically = []
-                tags_inactive = []
-                tags = []
-                
-                # まず、今回のループでアップデートするプレイヤーのリストを取得。取得するのは無効ではなく、閲覧されたことのあるプレイヤーのみ。3種類に分かれる。
-                async with get_db_connection_for_bg_task() as db: # ループ開始前に接続
-                    #* 自動追跡機能が有効なプレイヤー (level >= 30)
-                    # [この部分は公開用リポジトリでは非公開にされています]
-                    # ループごとのリスト内順番のばらつきを減らすため、現在トロフィー順に並び替え
-                    sorted_results = sorted(results, key=lambda x: x[1], reverse=True)
-                    # タグだけを取り出してリストに入れる
-                    tags_acquire_automatically = [row['tag'] for row in sorted_results]
-                    
-                    #* アクティブで、自動追跡機能が無効なプレイヤー (level = 20)
-                    # [この部分は公開用リポジトリでは非公開にされています]
-                    sorted_results = sorted(results, key=lambda x: x['current_trophies'], reverse=True)
-                    tags_not_acquire_automatically = [row['tag'] for row in sorted_results]
-                    
-                    #* 非アクティブで、自動追跡機能が無効なプレイヤー (level = 10)
-                    # [この部分は公開用リポジトリでは非公開にされています]
-                    sorted_results = sorted(results, key=lambda x: x['current_trophies'], reverse=True)
-                    tags_inactive = [row['tag'] for row in sorted_results]
-                
-                
-                tags = tags_acquire_automatically + tags_not_acquire_automatically + tags_inactive
-                # [この部分は公開用リポジトリでは非公開にされています]
-                loop_started_at = time.monotonic()
-                
-                logger.info(f"今回のプレイヤーアップデート処理では、{len(tags)}人のプレイヤーがアップデート対象です。1人あたりの間隔は処理時間を含めて{waiting_time:.2f}秒です。")
-                if ctx is not None:
-                    await ctx.set_progress(
-                        step="updating",
-                        current=0,
-                        total=len(tags),
-                        waiting_time_sec=round(waiting_time, 2),
-                        message=f"0/{len(tags)}人",
-                    )
-                brawlstarsapierror_count = 0
-                # [この部分は公開用リポジトリでは非公開にされています]
-                
-                for index, tag in enumerate(tags, start=1):
-                    # [この部分は公開用リポジトリでは非公開にされています]
-
-                # [この部分は公開用リポジトリでは非公開にされています]
-                logger.info(f"プレイヤーアップデート処理(1ループ)が完了しました（{(time.monotonic() - loop_started_at) / 60:.0f}分）。次のループに進みます。")
-                await asyncio.sleep(1)
-                
-            except asyncio.CancelledError:
-                logger.info("プレイヤーアップデートタスクループがキャンセルされました。")
-                raise
-            
-            except asyncpg.PostgresError as db_err:
-                logger.error(f"プレイヤーアップデートタスクループ DBエラー: {db_err}", exc_info=True)
-                # DBエラーによっては接続再確立を試みるなどの処理も考えられる
-                await asyncio.sleep(60) # 少し待って継続試行
-                
-            except Exception as e:
-                logger.error(f"プレイヤーアップデートタスクループで予期せぬエラー: {e}", exc_info=True)
-                await asyncio.sleep(60) # 少し待って継続試行
-                
-    finally:
-        logger.info("プレイヤーアップデートタスクループが終了しました。")
+# プレイヤーアップデートのループは player_update.py（worker.py はここから読み込む）
+from app.background_tasks.player_update import player_update_task_loop  # noqa: E402,F401
+from app.services.player_update_schedule import sync_with_levels as sync_update_schedule_with_levels  # noqa: E402
 
 
 async def update_usage_stats_task(db: asyncpg.Connection, ctx=None) -> None:

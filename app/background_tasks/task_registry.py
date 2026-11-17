@@ -36,8 +36,8 @@ def _build_tasks() -> dict[str, TaskDef]:
             once_per_day=False,
             allow_manual=False,
             needs_db=False,
-            schedule_ja="常時稼働（最大3,000人/ループ）",
-            description_ja="閲覧済みプレイヤーを last_updated_at 順に更新します。再起動後も未更新プレイヤーから継続します。",
+            schedule_ja="常時稼働（5分ごとの回。1時間の上限は環境変数 PLAYER_UPDATE_*_PER_HOUR）",
+            description_ja="自動追跡・アクティブの人は、次の確認の時刻（player_update_schedule）が来た順に、要るものだけ取得します。非アクティブの人は last_updated_at 順に更新します。",
             display_order=0,
         ),
         TaskDef(

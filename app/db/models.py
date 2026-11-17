@@ -327,6 +327,26 @@ class Player(Base):
     )
 
 
+class PlayerUpdateSchedule(Base):
+    """
+    裏の更新（ワーカー）で、次にいつバトル履歴を確認するかを、自動追跡・アクティブ（level 20以上）の人ごとに持つテーブル。
+    players に置くと、確認のたびに players の行（名前の全文検索などの索引が多い）を書き換えることになるため分けている。
+    players への外部キーは置かない（作るときに players の書き込みを止めないため）。level 20未満になった人・消えた人の行は、
+    更新のたびと毎日の降格処理で消す。
+    """
+    __tablename__ = 'player_update_schedule'
+
+    tag = Column(Text, primary_key=True)
+    next_update_at = Column(DateTime(timezone=True), nullable=False)  # この時刻を過ぎたら確認する
+    last_checked_at = Column(DateTime(timezone=True), nullable=True)  # 最後にバトル履歴を取った時刻（閲覧を含む）
+    extras_updated_at = Column(DateTime(timezone=True), nullable=True)  # 最後に MeowAPI・BSInfo を取った時刻（閲覧を含む）
+
+    __table_args__ = (
+        Index('idx_player_update_schedule_next_update_at', 'next_update_at'),
+        Index('idx_player_update_schedule_last_checked_at', 'last_checked_at'),  # アクティブの上限（7日）を過ぎた人を先に選ぶため
+    )
+
+
 class Club(Base):
     """
     クラブの情報を格納するテーブル。
