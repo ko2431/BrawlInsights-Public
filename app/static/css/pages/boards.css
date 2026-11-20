@@ -2282,10 +2282,12 @@ mark.general-board-search-hit {
 .bcb__detail { margin-left: auto; font-size: 11.5px; font-weight: bold; color: var(--color-555); }
 .bcb__pending { margin-left: 4px; padding: 1px 6px; border-radius: 999px; font-size: 10.5px; background: rgba(0, 0, 0, .07); }
 .dark .bcb__pending { background: rgba(255, 255, 255, .1); }
-.bcb__bar { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .08); overflow: hidden; }
+.bcb__bar { position: relative; height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .08); overflow: hidden; }
 .dark .bcb__bar { background: rgba(255, 255, 255, .1); }
 .bcb__bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ffb347, #ff7a8a); transition: width .4s ease; }
 .bcb__bar--max span { background: linear-gradient(90deg, #f7c948, #f39c12, #f7c948); }
+.bcb__lost { position: absolute; top: 0; bottom: 0; right: 0; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, .13) 0 2px, transparent 2px 5px); }
+.dark .bcb__lost { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .16) 0 2px, transparent 2px 5px); }
 
 .bcb__today { display: flex; align-items: center; gap: 6px; }
 .bcb__today-label { flex: none; font-size: 11.5px; font-weight: bold; color: var(--color-555); white-space: nowrap; }

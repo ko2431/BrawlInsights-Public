@@ -128,7 +128,8 @@
                 {% if mode == "counting" %}<span class="bcb__pending">{{ "集計中" if ja else "Counting" }}</span>
                 {% else %}<a href="{{ account_url }}" class="bcb__detail">{{ "内訳 ＞" if ja else "Breakdown >" }}</a>{% endif %}
             </div>
-            <div class="bcb__bar{% if entries >= max %} bcb__bar--max{% endif %}"><span style="width: {{ ((entries / max * 100) if max else 0) | round(1) }}%"></span></div>
+            {% set unreachable = reach is not none and max and reach < max %}
+            <div class="bcb__bar{% if entries >= max %} bcb__bar--max{% endif %}"><span style="width: {{ ((entries / max * 100) if max else 0) | round(1) }}%"></span>{% if unreachable %}<i class="bcb__lost" style="left: {{ (reach / max * 100) | round(1) }}%"></i>{% endif %}</div>
             {% endif %}
 
             {% if mode == "live" %}
