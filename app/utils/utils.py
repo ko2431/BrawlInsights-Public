@@ -561,6 +561,33 @@ def format_display_datetime(dt: datetime.datetime, lang: str = "ja") -> str:
         # 昨年以前の場合: YYYY-MM-DD HH:MM:SS
         return dt_jst.strftime('%Y-%m-%d %H:%M:%S')
 
+# スキン名関連
+# 英語名で大文字のまま残す単語（キャラ名の MAX や、コラボ・チーム名の略称）。既存のスキン名の書き方に合わせる
+SKIN_NAME_UPPER_WORDS = frozenset({
+    "MAX", "HMBLE", "DJ", "MC", "GT", "RJ", "PSG", "LDU", "UNO", "DIY", "CCTV", "RGB",
+})
+_ROMAN_NUMERAL_RE = re.compile(r"^(?=[IVX])X{0,3}(?:IX|IV|V?I{0,3})$")
+
+
+def format_skin_name_en(name: str | None) -> str:
+    """公式API・BSInfoの大文字のスキン名を、単語の先頭だけ大文字の表記にそろえる。
+
+    例: "STARR PATROL BIBI III" -> "Starr Patrol Bibi III", "BELLENSTEIN'S MONSTER" -> "Bellenstein's Monster",
+        "CRAZY RACCOON MAX" -> "Crazy Raccoon MAX"
+    """
+    if not name:
+        return ""
+    words: list[str] = []
+    for word in name.split():
+        upper = word.upper()
+        if upper in SKIN_NAME_UPPER_WORDS or _ROMAN_NUMERAL_RE.match(upper):
+            words.append(upper)
+            continue
+        # str.title() はアポストロフィの後ろも大文字にする（"Brawlentine'S"）ため、ハイフン区切りごとに先頭だけ大文字にする
+        words.append("-".join(part[:1].upper() + part[1:].lower() for part in word.split("-")))
+    return " ".join(words)
+
+
 # プレイヤーアイコン関連
 def get_icon_path(icon_id: int | None) -> str:
     if icon_id:

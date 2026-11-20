@@ -8,6 +8,7 @@ import asyncpg
 
 from app.core.cache import delete_cache, get_cache, set_cache
 from app.core.logger import logger
+from app.utils.utils import format_skin_name_en
 
 
 BSINFO_BASE_URL = "https://api.bsinfox.com/"

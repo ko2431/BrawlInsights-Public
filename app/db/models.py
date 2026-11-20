@@ -682,7 +682,7 @@ class Skin(Base):
 
     id = Column(Integer, primary_key=True)            # スキンID
     brawler_id = Column(Integer, ForeignKey('brawlers.id'), nullable=True)
-    en = Column(Text, nullable=True)                  # 英語名 (Title Case化、デフォルトスキンはNull)
+    en = Column(Text, nullable=True)                  # 英語名 (単語の先頭だけ大文字。ローマ数字・MAX等は大文字。デフォルトスキンはキャラ名)
     ja = Column(Text, nullable=True)                  # 日本語名 (BSInfo同期、未入力時のみ)
     rarity = Column(Integer, nullable=True)           # レアリティ (BSInfo同期、未入力時のみ。0はレアリティなし)
     is_limited = Column(Boolean, nullable=True)       # 限定スキンか (管理者が入力)
