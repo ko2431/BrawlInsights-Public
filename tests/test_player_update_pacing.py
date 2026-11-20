@@ -264,6 +264,11 @@ async def test_select_round_takes_overdue_active_players_first(monkeypatch):
         ("auto", "#AUTO"), ("active", "#OLD"), ("active", "#DUE1"), ("active", "#DUE2"), ("inactive", "#INACTIVE"),
     ]
     assert calls[0][1][1] == 10
+    # 自動追跡は、次の時刻が来た人に加えて、最後の確認から1時間を過ぎた人も選ぶ（6.5 の競合で長く待たされないため）
+    auto_query, auto_args = calls[0]
+    assert "s.next_update_at <= $1 OR s.last_checked_at <= $1 - $3::interval" in auto_query
+    assert "ORDER BY LEAST(s.next_update_at, s.last_checked_at + $3::interval)" in auto_query
+    assert auto_args[0] == NOW and auto_args[2] == schedule.AUTO_IDLE_INTERVAL
     # 上限を過ぎた人で枠が埋まれば、時刻の来た人は選ばない
     calls.clear()
 
