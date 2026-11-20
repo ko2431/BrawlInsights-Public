@@ -1431,7 +1431,7 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-hlitem__label--eye > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .bx-hleye { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 18px; margin: -3px -4px -3px 0; padding: 0; border: none; border-radius: 6px; background: none; color: var(--bx-mut); cursor: pointer; transition: background-color .15s ease, color .15s ease, transform .1s ease; }
 @media (hover: hover) { .bx-hleye:hover { background: var(--bx-track); color: var(--color-555); } }
-.bx-hleye:active { transform: scale(.88); }
+.bx-hleye:active { transform: scale(.94); }
 .bx-hleye svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .bx-hleye__off, .bx-hlitem--mate.is-masked .bx-hleye__on { display: none; }
 .bx-hlitem--mate.is-masked .bx-hleye__off { display: block; }

@@ -1,5 +1,6 @@
 {# /app/templates/auth/login.html #}
 {% extends "base.html" %}
+{% from "components/password_field.html" import password_field with context %}
 
 {% block title %}{% if lang == "ja" %}ログイン{% else %}Login{% endif %} - Brawl Insights{% endblock %}
 
@@ -27,7 +28,9 @@
         </div>
         <div class="form-group">
             <label for="password" class="form-label">{% if lang == "ja" %}パスワード{% else %}Password{% endif %}</label>
-            <input type="password" id="password" name="password" class="form-input" required>
+            {% call password_field() %}
+                <input type="password" :type="pwShown ? 'text' : 'password'" id="password" name="password" class="form-input" required>
+            {% endcall %}
         </div>
         <button type="submit" class="button button--primary auth-button">{% if lang == "ja" %}ログイン{% else %}Login{% endif %}</button>
     </form>

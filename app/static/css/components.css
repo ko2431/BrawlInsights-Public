@@ -1467,6 +1467,44 @@
     background: #34592e;
 }
 
+/* パスワード欄の表示/非表示ボタン（components/password_field.html。登録・ログイン・再設定・アカウント設定） */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.password-input-wrapper .form-input {
+    width: 100%;
+    padding-right: 40px; /* ボタンのぶん */
+}
+.password-toggle-button {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color-777);
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: background-color .15s ease, color .15s ease, transform .1s ease;
+}
+@media (hover: hover) {
+    .password-toggle-button:hover { background: rgba(0, 0, 0, .06); color: var(--color-333); }
+    .dark .password-toggle-button:hover { background: rgba(255, 255, 255, .08); }
+}
+.password-toggle-button:active { transform: translateY(-50%) scale(.94); }
+.password-toggle-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.password-toggle-button__hide,
+.password-toggle-button.is-shown .password-toggle-button__show { display: none; }
+.password-toggle-button.is-shown .password-toggle-button__hide { display: block; }
+
 /* 用語の説明（「?」と吹き出し。components/help_tip.html・js/help_tip.js）。共通は灰色、大会開催ツールだけ緑（tournaments.css） */
 .help-tip {
     display: inline-flex;

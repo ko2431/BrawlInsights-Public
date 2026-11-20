@@ -22,37 +22,7 @@
     font-weight: 400;
 }
 
-/* パスワードの表示/非表示ボタン */
-.password-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.password-input-wrapper .form-input {
-    padding-right: 40px; /* ボタンのスペース確保 */
-}
-.password-toggle-button {
-    position: absolute;
-    right: 1px;
-    top: 1px;
-    bottom: 1px;
-    width: 38px; /* ボタン幅 */
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.password-toggle-icon {
-    height: 20px; /* アイコンサイズ */
-    width: auto;
-    opacity: 0.6;
-}
-.password-toggle-button:hover .password-toggle-icon {
-    opacity: 1;
-}
+/* パスワードの表示/非表示ボタンは components.css（アカウント設定でも使うため） */
 
 
 .auth-button {

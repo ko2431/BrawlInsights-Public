@@ -1,5 +1,6 @@
 {# /app/templates/auth/register.html #}
 {% extends "base.html" %}
+{% from "components/password_field.html" import password_field with context %}
 
 {% block title %}{% if lang == "ja" %}アカウント作成{% else %}Create Account{% endif %} - Brawl Insights{% endblock %}
 
@@ -37,15 +38,12 @@
         {# --- パスワード --- #}
         <div class="form-group">
             <label for="password" class="form-label">{% if lang == "ja" %}パスワード (8～32文字、英数字のみ){% else %}Password (8-32 characters, alphanumeric only){% endif %}</label>
-            <div class="password-input-wrapper">
-                <input :type="showPass ? 'text' : 'password'" id="password" name="password" class="form-input" required
+            {% call password_field() %}
+                <input type="password" :type="pwShown ? 'text' : 'password'" id="password" name="password" class="form-input" required
                        minlength="8" maxlength="32" pattern="[a-zA-Z0-9]+"
                        x-model="formData.password"
                        @input="validatePass()">
-                <button type="button" @click="togglePassVisibility()" class="password-toggle-button">
-                    <img :src="showPass ? '{{ url_for('static', path='/images/ui/eye.png') }}' : '{{ url_for('static', path='/images/ui/eye.png') }}'" alt="Toggle visibility" class="password-toggle-icon">
-                </button>
-            </div>
+            {% endcall %}
             <div id="password-status" class="form-field-status" x-html="status.password">
                  {% if lang == "ja" %}8文字以上の英数字で入力してください{% else %}Please enter at least 8 alphanumeric characters{% endif %}
             </div>
@@ -54,9 +52,11 @@
         {# --- パスワード (再入力) --- #}
         <div class="form-group">
             <label for="password_confirm" class="form-label">{% if lang == "ja" %}パスワード (再入力){% else %}Password (Confirm){% endif %}</label>
-            <input :type="showPassConfirm ? 'text' : 'password'" id="password_confirm" name="password_confirm" class="form-input" required
-                   x-model="formData.passwordConfirm"
-                   @input="validatePassConfirm()">
+            {% call password_field() %}
+                <input type="password" :type="pwShown ? 'text' : 'password'" id="password_confirm" name="password_confirm" class="form-input" required
+                       x-model="formData.passwordConfirm"
+                       @input="validatePassConfirm()">
+            {% endcall %}
              <div id="password-confirm-status" class="form-field-status" x-html="status.passwordConfirm"></div>
         </div>
 
@@ -182,8 +182,6 @@
                 mainAccountTag: ''
             },
             currentLang: '{{ lang }}',
-            showPass: false,
-            showPassConfirm: false,
             isUsernameValid: false,
             isPasswordValid: false,
             isPasswordConfirmValid: false,
@@ -201,12 +199,6 @@
             isSubmitting: false,  // 送信中フラグ（連打による二重POST防止）
             serverErrorMessage: "{{ error_message | default('') }}", // FastAPIからのエラーメッセージ
 
-            togglePassVisibility() {
-                this.showPass = !this.showPass;
-            },
-            togglePassConfirmVisibility() {
-                this.showPassConfirm = !this.showPassConfirm;
-            },
 
             async validateUsername() {
                 const username = this.formData.username.trim();

@@ -1,6 +1,7 @@
 {# /app/templates/account_settings.html #}
 {% extends "base.html" %}
 {% from "components/player_icon.html" import player_icon_src with context %}
+{% from "components/password_field.html" import password_field with context %}
 
 {% block title %}{% if lang == "ja" %}アカウント{% else %}Account{% endif %} - Brawl Insights{% endblock %}
 
@@ -217,7 +218,9 @@
                             <p class="info-block__text" style="display: block;">{% if lang == "ja" %}変更するには、現在のパスワードを入力してください。{% else %}For security, please enter your current password.{% endif %}</p>
                             <div class="form-group">
                                 <label for="current_pass_for_pass" class="form-label">{% if lang == "ja" %}現在のパスワード{% else %}Current Password{% endif %}</label>
-                                <input type="password" id="current_pass_for_pass" name="current_pass_for_pass" class="form-input" x-model="formData.current_pass_for_pass_change" required>
+                                {% call password_field() %}
+                                    <input type="password" :type="pwShown ? 'text' : 'password'" id="current_pass_for_pass" name="current_pass_for_pass" class="form-input" x-model="formData.current_pass_for_pass_change" required>
+                                {% endcall %}
                                 <div class="form-field-status" x-html="status.current_pass_for_pass_change"></div>
                             </div>
                             <div class="form-actions">
@@ -230,12 +233,16 @@
                              <p class="info-block__text text-green-500" style="display: block;">{% if lang == "ja" %}現在のパスワードが確認されました。新しいパスワードを入力してください。{% else %}Current password verified. Please enter your new password.{% endif %}</p>
                             <div class="form-group">
                                 <label for="new_pass" class="form-label">{% if lang == "ja" %}新しいパスワード (8～32文字、英数字のみ){% else %}New Password (8-32 characters, alphanumeric only){% endif %}</label>
-                                <input type="password" id="new_pass" name="new_pass" class="form-input" x-model="formData.password_new" required minlength="8" maxlength="32" pattern="[a-zA-Z0-9]+" @input="validateNewPass()">
+                                {% call password_field() %}
+                                    <input type="password" :type="pwShown ? 'text' : 'password'" id="new_pass" name="new_pass" class="form-input" x-model="formData.password_new" required minlength="8" maxlength="32" pattern="[a-zA-Z0-9]+" @input="validateNewPass()">
+                                {% endcall %}
                                 <div class="form-field-status" x-html="status.password_new"></div>
                             </div>
                             <div class="form-group">
                                 <label for="new_pass_confirm" class="form-label">{% if lang == "ja" %}新しいパスワード (再入力){% else %}New Password (Confirm){% endif %}</label>
-                                <input type="password" id="new_pass_confirm" name="new_pass_confirm" class="form-input" x-model="formData.password_new_confirm" required @input="validateNewPassConfirm()">
+                                {% call password_field() %}
+                                    <input type="password" :type="pwShown ? 'text' : 'password'" id="new_pass_confirm" name="new_pass_confirm" class="form-input" x-model="formData.password_new_confirm" required @input="validateNewPassConfirm()">
+                                {% endcall %}
                                 <div class="form-field-status" x-html="status.password_new_confirm"></div>
                             </div>
                             <div class="form-actions">
@@ -260,7 +267,9 @@
                              <p class="info-block__text" style="display: block;">{% if lang == "ja" %}変更するには、現在のパスワードを入力してください。{% else %}For security, please enter your current password.{% endif %}</p>
                             <div class="form-group">
                                 <label for="current_pass_for_sq" class="form-label">{% if lang == "ja" %}現在のパスワード{% else %}Current Password{% endif %}</label>
-                                <input type="password" id="current_pass_for_sq" name="current_pass_for_sq" class="form-input" x-model="formData.current_pass_for_sq_change" required>
+                                {% call password_field() %}
+                                    <input type="password" :type="pwShown ? 'text' : 'password'" id="current_pass_for_sq" name="current_pass_for_sq" class="form-input" x-model="formData.current_pass_for_sq_change" required>
+                                {% endcall %}
                                 <div class="form-field-status" x-html="status.current_pass_for_sq_change"></div>
                             </div>
                              <div class="form-actions">
@@ -1422,7 +1431,9 @@
                 <form @submit.prevent="submitAccountDeletion()">
                     <div class="form-group" style="margin-top: 5px;">
                         <label for="delete_current_pass" class="form-label">{% if lang == "ja" %}現在のパスワード{% else %}Current Password{% endif %}</label>
-                        <input type="password" id="delete_current_pass" name="delete_current_pass" class="form-input" x-model="deleteFormData.currentPass" @input="validateDeletionForm()" required>
+                        {% call password_field() %}
+                            <input type="password" :type="pwShown ? 'text' : 'password'" id="delete_current_pass" name="delete_current_pass" class="form-input" x-model="deleteFormData.currentPass" @input="validateDeletionForm()" required>
+                        {% endcall %}
                         <div class="form-field-status" x-html="deleteStatus.currentPass"></div>
                     </div>
                     <div class="form-group">
