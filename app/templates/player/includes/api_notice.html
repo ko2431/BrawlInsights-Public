@@ -1,0 +1,39 @@
+{#^ プレイヤーページ(プロフィール・バトル履歴・詳細分析)の上に出す、データを取得できなかったときのお知らせ。
+   - MeowAPI を呼んで失敗したとき: 外部APIのダウン
+   - MeowAPI を呼んでいない(公式APIが失敗し、DBの値で表示している)とき:
+       無効なアカウント(公式APIが404)なら BAN・削除の可能性、それ以外はメンテナンスなど #}
+{% from "components/help_tip.html" import help_tip with context %}
+
+{#^ 本文の最後に「?」を付ける。最後の1語と「?」は改行させず、「?」だけが次の行に落ちないようにする。
+   英語は最後の空白のあと、日本語は最後の「ます。」をまとめる #}
+{% macro _notice_text(text, tip) -%}
+{%- set i = text.rfind(' ') -%}
+{%- set head = text[:i + 1] if i >= 0 else text[:-3] -%}
+<p class="player-external-api-notice__text">{{ head }}<span class="label-with-help__tail">{{ text[head|length:] }}{{ help_tip(tip) }}</span></p>
+{%- endmacro %}
+
+{% macro player_api_notice(player) %}
+{% set ja = lang == "ja" %}
+{% if not player.meowapi_called %}
+<div class="player-external-api-notice" role="status">
+    {% if player.is_invalid %}
+    {{ _notice_text(
+        "このプレイヤーはアカウントがBAN、または削除された可能性があります。最後に取得した時点の情報が表示されています。" if ja else "This player's account may have been banned or deleted. Showing the information from the last time it was fetched.",
+        "一時的なBANやエラーの場合は、解除・解消後にデータは再び更新されるようになります。" if ja else "If it's a temporary ban or an error, the data will start updating again once it's lifted or resolved."
+    ) }}
+    {% else %}
+    {{ _notice_text(
+        "現在ゲームのメンテナンス中などでデータを取得できないため、最後に取得した時点の情報が表示されています。" if ja else "Data can't be fetched right now, possibly due to game maintenance. Showing the information from the last time it was fetched.",
+        "メンテナンス等の終了後、データは再び更新されるようになります。" if ja else "The data will start updating again once the maintenance or other issue is over."
+    ) }}
+    {% endif %}
+</div>
+{% elif not player.meowapi_success %}
+<div class="player-external-api-notice" role="status">
+    {{ _notice_text(
+        "現在外部APIがダウンしているため、一部の情報は更新・表示されない場合があります。" if ja else "Some information may not be updated or displayed because the external API is currently down.",
+        "推定地域・キャッチフレーズ・バトルカード・最大連勝数・記録ポイント・名声ポイントなどは、前回取得した時点の値のままになります。初めて閲覧されたプレイヤーの場合は、これらのデータと「以前のステータス」セクションの内容は表示されなくなります。トロフィー・ガチバトルのポイント・バトル履歴などは通常どおり更新されます。" if ja else "Region, title, battle card, max win streak, record points, fame points, and similar items stay at their last fetched values. For players viewed for the first time, these items and the \"Legacy Stats\" section aren't shown. Trophies, ranked points, battle logs, and similar items update as usual."
+    ) }}
+</div>
+{% endif %}
+{% endmacro %}

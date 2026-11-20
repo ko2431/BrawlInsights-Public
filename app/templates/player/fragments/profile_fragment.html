@@ -1,6 +1,7 @@
 {% from "player/includes/player_identity.html" import player_identity with context %}
     {% from "components/help_tip.html" import help_tip with context %}
     {% from "player/includes/tracking_card.html" import tracking_card with context %}
+{% from "player/includes/api_notice.html" import player_api_notice with context %}
     {#^ ラベルの横に「?」を付ける。最後の1語と「?」は改行させず、「?」だけが次の行に落ちないようにする。
        英語は最後の空白のあと、日本語は tail（末尾の語）をまとめる #}
     {% macro label_with_help(label, tip, tail=none) -%}
@@ -14,11 +15,7 @@
         {{ player_identity(player.tag, {"name": player.name, "icon_path": player_icon_path, "club_tag": player.club_tag, "club_name": player.club_name}) }}
     </div>
 
-    {% if not player.meowapi_success %}
-    <div class="player-external-api-notice" role="status">
-        <p class="player-external-api-notice__text">{% if lang == "ja" %}現在外部APIがダウンしているため、一部の情報は更新・表示されない場合があります。{% else %}Some information may not be updated or displayed because the external API is currently down.{% endif %}</p>
-    </div>
-    {% endif %}
+    {{ player_api_notice(player) }}
 
     {# --- 統計情報コンテナ (基本データ、育成状況など) --- #}
     <div class="stats-container">

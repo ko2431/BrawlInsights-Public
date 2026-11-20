@@ -1308,7 +1308,7 @@
     flex-shrink: 0;
 }
 
-/* 外部APIダウン時のお知らせ（プロフィール・バトル履歴のみ表示） */
+/* データを取得できなかったときのお知らせ（外部APIのダウン・BANなど・メンテナンスなど。player/includes/api_notice.html） */
 .player-external-api-notice {
     width: 90%;
     max-width: 1194px;
@@ -1327,6 +1327,31 @@
 .dark .player-external-api-notice {
     border-color: #8b7355;
     background-color: #2d2812;
+    color: #e8d9a8;
+}
+/* 「?」は枠の色に合わせ、行の高さが変わらないよう少し小さくする */
+.player-external-api-notice .help-tip {
+    margin-left: 3px;
+}
+.player-external-api-notice .help-tip__btn {
+    width: 16px;
+    height: 16px;
+    background: rgba(201, 162, 39, 0.22);
+    color: #5c4a00;
+    transition: background-color 0.15s ease;
+}
+.player-external-api-notice .help-tip__btn[aria-expanded="true"],
+.player-external-api-notice .help-tip__btn:hover {
+    background: rgba(201, 162, 39, 0.4);
+    color: #5c4a00;
+}
+.dark .player-external-api-notice .help-tip__btn {
+    background: rgba(232, 217, 168, 0.16);
+    color: #e8d9a8;
+}
+.dark .player-external-api-notice .help-tip__btn[aria-expanded="true"],
+.dark .player-external-api-notice .help-tip__btn:hover {
+    background: rgba(232, 217, 168, 0.3);
     color: #e8d9a8;
 }
 @media (max-width: 539px) {

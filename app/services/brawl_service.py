@@ -1777,6 +1777,9 @@ class Player:
         self.remaining_time: datetime.timedelta | None = None
         # --- MeowAPI関連の追加項目。MeowAPIが利用できない場合はDBから入れるが、それもない場合はNoneとなる。 
         self.meowapi_success: bool = False
+        # MeowAPIを呼んだかどうか。DBから読んだプレイヤー(公式APIが落ちている・無効なアカウント)では False のまま。
+        # 「呼んで失敗した」ときだけ、外部APIのダウンのお知らせを出す
+        self.meowapi_called: bool = False
         self.winstreak_brawler: int | None = None
         self.max_winstreak: int | None = None
         self.acc_ranked_current_rank: int | None = None
@@ -1875,6 +1878,7 @@ class Player:
             "auto_activate_time": self.auto_activate_time.total_seconds() if self.auto_activate_time is not None else 0,
             "remaining_time": self.remaining_time.total_seconds() if self.remaining_time else None,
             "meowapi_success": self.meowapi_success,
+            "meowapi_called": self.meowapi_called,
             "winstreak_brawler": self.winstreak_brawler,
             "max_winstreak": self.max_winstreak,
             "acc_ranked_current_rank": self.acc_ranked_current_rank,
@@ -1969,6 +1973,8 @@ class Player:
         instance.auto_activate_time = datetime.timedelta(seconds=data.get("auto_activate_time"))
         instance.remaining_time = datetime.timedelta(seconds=data.get("remaining_time")) if data.get("remaining_time") else None
         instance.meowapi_success = data.get("meowapi_success", False)
+        # 項目を追加する前のキャッシュは、これまでどおり MeowAPI を呼んだものとして扱う(30分で入れ替わる)
+        instance.meowapi_called = data.get("meowapi_called", True)
         instance.winstreak_brawler = data.get("winstreak_brawler")
         instance.max_winstreak = data.get("max_winstreak")
         instance.acc_ranked_current_rank = data.get("acc_ranked_current_rank")

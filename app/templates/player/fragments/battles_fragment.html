@@ -1,6 +1,7 @@
 {% from "player/includes/player_identity.html" import player_identity with context %}
 {% from "macros/brawler_select.html" import brawler_optgroups with context %}
 {% from "player/includes/tracking_card.html" import tracking_card with context %}
+{% from "player/includes/api_notice.html" import player_api_notice with context %}
 {% from "player/includes/battle_gap_notice.html" import battle_gap_notice with context %}
 {% macro battle_brawler_filter_href(lang, tag, filter_query_without_brawler, brawler_id) -%}
 /{{ lang }}/player/battles/{{ tag }}?{{ (filter_query_without_brawler ~ "&") if filter_query_without_brawler else "" }}brawler_id={{ brawler_id }}
@@ -60,13 +61,9 @@
         {{ player_identity(player.tag, {"name": player.name, "icon_path": player_icon_path, "club_tag": player.club_tag, "club_name": player.club_name}) }}
     </div>
 
-    {# 外部APIが落ちているときのお知らせ。シェルのサブタブより上の欄へ移す #}
+    {# データを取得できなかったときのお知らせ(player/includes/api_notice.html)。シェルのサブタブより上の欄へ移す #}
     <div data-shell-slot="api-notice">
-        {% if not player.meowapi_success %}
-        <div class="player-external-api-notice" role="status">
-            <p class="player-external-api-notice__text">{% if lang == "ja" %}現在外部APIがダウンしているため、一部の情報は更新・表示されない場合があります。{% else %}Some information may not be updated or displayed because the external API is currently down.{% endif %}</p>
-        </div>
-        {% endif %}
+        {{ player_api_notice(player) }}
     </div>
 
     {# --- バトル履歴のフィルター。サブタブはシェルにあり、ここからシェルの枠の中へ移す --- #}
