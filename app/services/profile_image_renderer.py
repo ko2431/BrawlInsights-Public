@@ -276,8 +276,16 @@ def render_profile_image(job: ImageGenerationJobData, player: Player | None, ava
     filename = build_profile_image_filename(job)
     output_path = PROFILE_IMAGE_OUTPUT_DIR / filename
 
+    # 並べるマス数(所持キャラ＋未所持キャラ)。アンロック数の最大値より多いときも見切れないよう、多いほうで高さを決める
+    if player is not None:
+        owned_brawler_ids = {b.id for b in player.brawlers}
+        brawler_grid_count = len(player.brawlers) + sum(1 for b in available_brawlers if b.id not in owned_brawler_ids)
+    else:
+        brawler_grid_count = 0
+    brawler_grid_count = max(brawler_grid_count, num_of_available_brawlers)
+
     brawler_grid_columns = 5 if job.orientation == "portrait" else 10
-    brawler_grid_rows = (num_of_available_brawlers + brawler_grid_columns - 1) // brawler_grid_columns
+    brawler_grid_rows = (brawler_grid_count + brawler_grid_columns - 1) // brawler_grid_columns
 
     brawler_card_height = 80
     brawler_grid_gap = 7 if job.orientation == "portrait" else 8
@@ -309,7 +317,7 @@ def render_profile_image(job: ImageGenerationJobData, player: Player | None, ava
             # 特別なキャラカード高さを設定する
             brawler_card_height = 180
             brawler_grid_columns = 12
-            brawler_grid_rows = (num_of_available_brawlers + brawler_grid_columns - 1) // brawler_grid_columns
+            brawler_grid_rows = (brawler_grid_count + brawler_grid_columns - 1) // brawler_grid_columns
             size = get_profile_image_size(job.orientation, brawler_grid_rows, brawler_card_height, brawler_grid_gap, footer_height)
             image = _render_equipment_skins_image(job, player, available_brawlers, num_of_available_brawlers, max_accessory_counts, size)
         case _:

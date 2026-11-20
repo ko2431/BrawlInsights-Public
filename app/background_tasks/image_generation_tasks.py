@@ -7,7 +7,7 @@ from app.db.db import get_db_connection_for_bg_task
 from app.exceptions.custom_exceptions import BrawlStarsAPIError, DataBaseError
 from app.services.brawl_service import (
     get_player,
-    get_available_brawlers,
+    get_released_brawlers,
     calc_num_of_available_brawlers,
     get_max_accessory_counts,
     get_all_skins,
@@ -33,7 +33,8 @@ async def process_image_generation_job_once() -> bool:
             # 装備スキン一覧などは skin_cache 依存のため、Redisヒット時でも必ずロードする
             await get_all_skins(db)
             player = await get_player(job.player_tag, db, is_bg_task=True)
-            available_brawlers = await get_available_brawlers(db)
+            # 未リリースのキャラ(公式APIにデータだけあるキャラ)は画像に載せない
+            available_brawlers = await get_released_brawlers(db)
             num_of_available_brawlers = await calc_num_of_available_brawlers(db)
             max_accessory_counts = await get_max_accessory_counts(db)
             filename, public_result_path = render_profile_image(job, player, available_brawlers, num_of_available_brawlers, max_accessory_counts)

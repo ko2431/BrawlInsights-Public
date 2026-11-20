@@ -868,6 +868,56 @@ async def calc_num_of_available_brawlers(db: asyncpg.Connection) -> int:
             except Exception as unlock_err:
                 logger.warning(f"キャラクター数の計算ロック解放中にエラー: {unlock_err}")
 
+async def get_released_brawler_ids(db: asyncpg.Connection) -> set[int] | None:
+    """リリース済みのキャラクターのIDを取得する。10分間のキャッシュ。
+
+    公式APIのキャラ一覧やDBのキャラ一覧には、データだけ先に入っている未リリースのキャラも含まれるため、
+    1人以上のプレイヤーが所持しているキャラをリリース済みとみなす。
+
+    Args:
+        db (asyncpg.Connection): DBの接続。
+
+    Returns:
+        set[int] | None: リリース済みのキャラのID。取得に失敗した場合は None(呼び出し側は絞り込まずに使う)。
+    """
+    cache_key = "released_brawler_ids"
+    released_ids = await get_cache(cache_key)
+    if released_ids:
+        return set(released_ids)
+
+    try:
+        # idx_player_brawlers_brawler を使い、キャラごとに1件あるかだけを見る
+        rows = await db.fetch(
+            """
+            SELECT b.id
+            FROM brawlers b
+            WHERE EXISTS (SELECT 1 FROM player_brawlers pb WHERE pb.brawler_id = b.id)
+            """
+        )
+    except Exception as e:
+        logger.warning(f"リリース済みキャラクターの取得中にエラー。キャラを絞り込まずに使います: {e}")
+        return None
+    released_ids = [row["id"] for row in rows]
+    if not released_ids:
+        return None
+    await set_cache(key=cache_key, value=released_ids, ttl=600)
+    return set(released_ids)
+
+async def get_released_brawlers(db: asyncpg.Connection) -> list[Brawler]:
+    """リリース済みのキャラクターデータ一覧を取得する(get_available_brawlers から未リリースのキャラを除いたもの)。
+
+    Args:
+        db (asyncpg.Connection): DBの接続。
+
+    Returns:
+        list[Brawler]: Brawlerデータのリスト。絞り込みに失敗した場合は get_available_brawlers と同じ。
+    """
+    available_brawlers = await get_available_brawlers(db)
+    released_ids = await get_released_brawler_ids(db)
+    if released_ids is None:
+        return available_brawlers
+    return [b for b in available_brawlers if b.id in released_ids]
+
 async def add_new_brawlers(brawlstats_brawlers: list, db: asyncpg.Connection) -> None:
     """brawlstatsで取得したキャラクターのリストから、DBのbrawlersテーブルに入っていないものがあれば英語名とともに追加する。
 

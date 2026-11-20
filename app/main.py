@@ -38,7 +38,7 @@ from app.services import announcement_service
 from app.services.special_reward_link_service import get_public_home_banners
 from app.services import main_account_reward_service
 from app.services import reaction_rules, push_service
-from app.services.brawl_service import get_player_name, get_player_icon_from_db, get_player_summaries_from_db, get_club_name, get_club_badge_id_from_db
+from app.services.brawl_service import get_player_name, get_player_icon_from_db, get_player_summaries_from_db, get_club_name, get_club_badge_id_from_db, get_released_brawler_ids
 from app.services.notification_service import empty_board_notification_context, get_board_notification_context
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.exceptions.custom_exceptions import DataBaseError
@@ -339,11 +339,14 @@ async def sitemap(request: Request, db: asyncpg.Connection = Depends(get_shared_
 
     # [この部分は公開用リポジトリでは非公開にされています]
 
-    # キャラクター図鑑の個別ページを動的に追加
+    # キャラクター図鑑の個別ページを動的に追加(未リリースのキャラのページは載せない)
     try:
         brawler_rows = await db.fetch("SELECT id FROM brawlers ORDER BY id")
+        released_brawler_ids = await get_released_brawler_ids(db)
         for row in brawler_rows:
             bid = row["id"]
+            if released_brawler_ids is not None and bid not in released_brawler_ids:
+                continue
             static_paths.append(f"/ja/tools/brawler_guide/stats/{bid}")
             static_paths.append(f"/en/tools/brawler_guide/stats/{bid}")
     except Exception as e:

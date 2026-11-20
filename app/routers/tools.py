@@ -23,6 +23,7 @@ from app.db.db import get_shared_db, get_db_connection_for_bg_task
 from app.core.cache import get_cache, set_cache
 from app.services.player_account_service import build_player_account_options, get_player_accounts_brawler_data, resolve_user_player_tag
 from app.services.brawl_service import (Player, get_player, get_player_from_db, calc_num_of_available_brawlers, get_available_brawlers,
+                                        get_released_brawlers, get_released_brawler_ids,
                                         get_brawler_analysis, get_current_ranked_pool, resolve_ranked_filter, get_brawler,
                                         get_ban_suggestions, get_pick_suggestions, predict_win_rate,
                                         get_accessory_stats, get_max_accessory_counts, get_all_skins, get_all_pins, get_all_player_icons, get_all_accessories, get_all_sprays, get_all_buffies,
