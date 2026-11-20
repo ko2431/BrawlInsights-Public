@@ -7,6 +7,7 @@
     const AGG = ['n', 'w', 'd', 'l', 'sp', 'sn', 'k', 'dth', 'dd', 'he', 'dt', 'dn', 'du', 'tc', 'g', 'mg'];
     const CLOSED_KEY = 'bi_battles_blocks_closed';   // 折りたたんでいるカードの種類
     const PREF_KEY = 'bi_battles_block_views';       // 各カードで選んでいる表示（円グラフ・13週など）
+    const MATE_HIDDEN_KEY = 'bi_battles_hl_mate_hidden';  // ハイライトの「相性のいい味方」の名前を隠しているか（スクショで共有する用）
     const CHART_FONT = "-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Segoe UI', 'Yu Gothic UI', 'Meiryo', Roboto, 'Noto Sans JP', sans-serif";
     const FMT_COLORS = { '3v3': '#2a78d6', '5v5': '#9b5de5', solo: '#91e136', duo: '#4cc9f0', trio: '#5fd8b0', '2v2': '#f59e0b', '1v1': '#e5484d', '4v4': '#8d6e63', other: '#9a9a9a' };
     const FMT_DARK = new Set(['solo', 'duo', 'trio', '2v2']);  // 明るい色の上は濃い文字にする
@@ -46,7 +47,7 @@
             radarNeedModes: 'レーダーを出すには、3つ以上のモードのバトルが必要です', radarNeedMaps: 'レーダーを出すには、同じモードで3つ以上のマップのバトルが必要です',
             highlights: 'ハイライト', highlightsCap: '一定の回数以上のものから',
             hl: { brawler: '勝率の高いキャラ', mapGood: '得意なマップ', mapBad: '苦手なマップ', oppGood: '得意な相手キャラ', oppBad: '苦手な相手キャラ', mate: '相性のいい味方' },
-            hlRate: (rate) => `勝率 ${rate}`, hlWL: (w, l) => `${w}勝${l}敗`, hlOpen: '（', hlClose: '）',
+            hlRate: (rate) => `勝率 ${rate}`, hlWL: (w, l) => `${w}勝${l}敗`, hlOpen: '（', hlClose: '）', hlHideMate: '味方の名前を隠す', hlShowMate: '味方の名前を表示',
             bans: 'BAN', bansCap: (n) => `BANのある${n}セット`, banMine: '自分がBANしたキャラ', banOpp: '敵チームにBANされたキャラ', banTeam: '味方がBANしたキャラ', banTip: (name, n, p) => `${name}\n${n}回（${p}%）`,
         },
         en: {
@@ -77,7 +78,7 @@
             radarNeedModes: 'The radar chart needs battles in at least 3 modes', radarNeedMaps: 'The radar chart needs battles on at least 3 maps of one mode',
             highlights: 'Highlights', highlightsCap: 'Among those with enough battles',
             hl: { brawler: 'Best brawler', mapGood: 'Best map', mapBad: 'Toughest map', oppGood: 'Easiest enemy', oppBad: 'Toughest enemy', mate: 'Best teammate' },
-            hlRate: (rate) => `Win rate ${rate}`, hlWL: (w, l) => `${w}W ${l}L`, hlOpen: ' (', hlClose: ')',
+            hlRate: (rate) => `Win rate ${rate}`, hlWL: (w, l) => `${w}W ${l}L`, hlOpen: ' (', hlClose: ')', hlHideMate: 'Hide teammate name', hlShowMate: 'Show teammate name',
             bans: 'Bans', bansCap: (n) => `${n} sets with bans`, banMine: 'Banned by you', banOpp: 'Banned by opponents', banTeam: 'Banned by teammates', banTip: (name, n, p) => `${name}\n${n} (${p}%)`,
         },
     };
@@ -321,11 +322,33 @@
     }
 
     // ハイライトの1項目。スマホ幅では、勝敗の数を勝率の下の行に回して2列に収める（battles.css の .bx-hl）
+    // 味方は、目のボタンで名前を隠せる（ハイライトをスクショで共有するとき用）。隠した状態はこの端末で覚える
     function hlItem(lang, kind, name, img, w, l) {
         const T = TEXT[lang];
-        return `<div class="bx-hlitem">${img ? `<img src="${img}" alt="" loading="lazy" onerror="this.remove()">` : ''}<div><span class="bx-hlitem__label">${T.hl[kind]}</span><span class="bx-hlitem__name">${esc(name)}</span>
+        const mate = kind === 'mate', hidden = mate && readJson(MATE_HIDDEN_KEY, false) === true;
+        const label = mate
+            ? `<span class="bx-hlitem__label bx-hlitem__label--eye"><span>${T.hl[kind]}</span><button type="button" class="bx-hleye" aria-pressed="${hidden}" aria-label="${hidden ? T.hlShowMate : T.hlHideMate}" data-hide="${T.hlHideMate}" data-show="${T.hlShowMate}">${EYE_SVG}</button></span>`
+            : `<span class="bx-hlitem__label">${T.hl[kind]}</span>`;
+        const nameHtml = mate ? `<span class="bx-hlitem__real">${esc(name)}</span><span class="bx-hlitem__mask" aria-hidden="true">------</span>` : esc(name);
+        return `<div class="bx-hlitem${mate ? ' bx-hlitem--mate' : ''}${hidden ? ' is-masked' : ''}">${img ? `<img src="${img}" alt="" loading="lazy" onerror="this.remove()">` : ''}<div>${label}<span class="bx-hlitem__name">${nameHtml}</span>
             <span class="bx-hlitem__sub"><span>${T.hlRate(pc(w + l ? w / (w + l) * 100 : null))}</span><span class="bx-hlitem__wl"><i>${T.hlOpen}</i>${T.hlWL(nf(w), nf(l))}<i>${T.hlClose}</i></span></span></div></div>`;
     }
+
+    // 目のアイコン。開いた目・斜線入りの目を両方入れておき、隠しているかどうかで CSS で切り替える
+    const EYE_SVG = '<svg class="bx-hleye__on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+        + '<svg class="bx-hleye__off" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.9 5.2A9.6 9.6 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-2.6 3.6M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.4 9.4 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+    // 目のボタン。ページ内の「相性のいい味方」をまとめて切り替える（バトル履歴・詳細分析タブのどちらでも）
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.bx-hleye');
+        if (!btn) return;
+        const hidden = !btn.closest('.bx-hlitem').classList.contains('is-masked');
+        writeJson(MATE_HIDDEN_KEY, hidden);
+        document.querySelectorAll('.bx-hlitem--mate').forEach((item) => {
+            item.classList.toggle('is-masked', hidden);
+            const b = item.querySelector('.bx-hleye');
+            if (b) { b.setAttribute('aria-pressed', String(hidden)); b.setAttribute('aria-label', hidden ? b.dataset.show : b.dataset.hide); }
+        });
+    });
 
     // 詳細分析タブ（battle_analysis.js）と共通で使う小物
     window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, timeAxis, spacedDots, hlItem, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };

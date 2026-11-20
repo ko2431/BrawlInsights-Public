@@ -1426,6 +1426,19 @@ button.bx-row { width: 100%; border: 0; background: transparent; font: inherit; 
 .bx-hlitem__wl { font-size: 10.5px; color: var(--bx-mut); }
 .bx-hlitem__wl i { display: none; }
 .bx-hlitem > div { min-width: 0; }
+/* 「相性のいい味方」は見出しの右に目のボタンを置き、押すと名前を伏せ字にする（スクショで共有する用。battle_stats.js の hlItem） */
+.bx-hlitem__label--eye { display: flex; align-items: center; gap: 3px; }
+.bx-hlitem__label--eye > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.bx-hleye { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 18px; margin: -3px -4px -3px 0; padding: 0; border: none; border-radius: 6px; background: none; color: var(--bx-mut); cursor: pointer; transition: background-color .15s ease, color .15s ease, transform .1s ease; }
+@media (hover: hover) { .bx-hleye:hover { background: var(--bx-track); color: var(--color-555); } }
+.bx-hleye:active { transform: scale(.88); }
+.bx-hleye svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bx-hleye__off, .bx-hlitem--mate.is-masked .bx-hleye__on { display: none; }
+.bx-hlitem--mate.is-masked .bx-hleye__off { display: block; }
+.bx-hlitem__mask { display: none; letter-spacing: 1px; color: var(--bx-mut); }
+.bx-hlitem--mate.is-masked .bx-hlitem__real { display: none; }
+.bx-hlitem--mate.is-masked .bx-hlitem__mask { display: inline; animation: bxHlMaskIn .18s ease-out; }
+@keyframes bxHlMaskIn { from { opacity: 0; } to { opacity: 1; } }
 /* スマホ幅: 2列にして、画像と余白を小さくする */
 @media (max-width: 539px) {
     .bx-hl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
