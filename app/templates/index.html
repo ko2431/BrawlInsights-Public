@@ -146,14 +146,14 @@
                             {# input と label のクラス名を components.css に合わせる #}
                             <input type="checkbox" id="exactMatchPlayer" name="exactMatchPlayer" class="form-checkbox" {% if not current_user %}disabled style="cursor: not-allowed;"{% endif %}>
                             <label for="exactMatchPlayer" class="form-checkbox-label" {% if not current_user %}style="color: var(--color-888); cursor: not-allowed;"{% endif %}>
-                                {% if lang == "ja" %}完全一致する名前のみ検索{% else %}Search only exact name matches{% endif %}
+                                {% if lang == "ja" %}完全一致する名前のみ検索{% else %}Search only exact name matches{% endif %}{{ help_tip("チェックしない場合、プレイヤー名の一部だけでもヒットします。また、チェックしているかどうかにかかわらず英語の大文字と小文字は区別しません。" if lang == "ja" else "When unchecked, partial player name matches are also included. Searches are never case-sensitive, whether checked or not.") }}
                                 {% if not current_user %}{% if lang == "ja" %}（ログインすると利用可）{% else %} (Available upon login){% endif %}{% endif %}
                             </label>
                         </div>
                         <div class="form-checkbox-group" {% if not current_user %}onclick="alertLoginRequired()"{% endif %}>
                             <input type="checkbox" id="includeOldNames" name="includeOldNames" class="form-checkbox" {% if not current_user %}disabled style="cursor: not-allowed;"{% endif %}>
                             <label for="includeOldNames" class="form-checkbox-label" {% if not current_user %}style="color: var(--color-888); cursor: not-allowed;"{% endif %}>
-                                {% if lang == "ja" %}改名前の名前を含めて検索{% else %}Include previous names{% endif %}
+                                {% if lang == "ja" %}改名前の名前を含めて検索{% else %}Include previous names{% endif %}{{ help_tip("現在の名前だけではなく改名前の名前もヒット対象になります。ただし、Brawl Insights で初めて閲覧されるより前の名前では検索できないことがあります。" if lang == "ja" else "Previous player names are searched as well as current ones. However, names used before a player was first viewed on Brawl Insights may not be found.") }}
                                 {% if not current_user %}{% if lang == "ja" %}（ログインすると利用可）{% else %} (Available upon login){% endif %}{% endif %}
                             </label>
                         </div>
@@ -163,14 +163,6 @@
                         <div class="info-block__line">
                             <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
                             <p class="info-block__text">{% if lang == "ja" %}多くのプレイヤーを検索できますが、すべてのプレイヤーを検索できるわけではありません。検索できないプレイヤーは、一度でも<span class="tight"> Brawl</span> Insights<span class="tight"> で</span>閲覧されれば検索できるようになります。その他の仕様は<a href="{{ url_for('search_specification', lang=lang) }}", class="info-block__link">こちら</a>。{% else %}While you can search for many players, not all players are searchable by default. Players who have not been viewed on Brawl Insights before may not appear in search results. However, once they have been viewed even once, they will become searchable. Click <a href="{{ url_for('search_specification', lang=lang) }}", class="info-block__link">here</a> for other specifications.{% endif %}</p>
-                        </div>
-                        <div class="info-block__line">
-                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                            <p class="info-block__text">{% if lang == "ja" %}上にチェックマークを入れなければ、プレイヤー名の一部だけでもヒットします。また、英語の大文字と小文字は区別しません。{% else %}If the checkbox above is unchecked, partial player name matches will also appear in search results. Searches are not case-sensitive.{% endif %}</p>
-                        </div>
-                        <div class="info-block__line">
-                            <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                            <p class="info-block__text">{% if lang == "ja" %}下にチェックマークを入れると、現在の名前だけではなく改名前の名前もヒット対象になります。ただし、<span class="tight"> Brawl</span> Insights<span class="tight"> で</span>初めて閲覧されるより前の名前では検索できないことがあります。{% else %}If the checkbox below is checked, the search will include both the current and previous player names. However, names used before a player was first viewed on Brawl Insights may not be included in the results.{% endif %}</p>
                         </div>
                     </div>
                 </div>

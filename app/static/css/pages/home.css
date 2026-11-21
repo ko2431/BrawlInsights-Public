@@ -360,3 +360,11 @@
 
 /* x-cloak を使って初期表示のチラつきを防ぐ */
 [x-cloak] { display: none !important; }
+
+/* 検索のオプションの右の「?」 */
+.search-options .help-tip {
+    margin-left: 4px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
