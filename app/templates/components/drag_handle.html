@@ -6,7 +6,7 @@
 {%- set ja = lang == "ja" -%}
 {%- set cb = (", () => " ~ on_change) if on_change else "" -%}
 <button type="button" class="drag-handle" tabindex="-1"{% if show %} x-show="{{ show }}" x-cloak{% endif %}
-        @pointerdown="biDragSort.start($event, {{ list }}{{ cb }})" @click.prevent @contextmenu.prevent
+        @pointerdown="biDragSort.start($event, {{ list }}{{ cb }})" @mousedown.prevent @click.prevent @contextmenu.prevent
         aria-label="{{ 'ドラッグで並び替え' if ja else 'Drag to reorder' }}">
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg>
 </button>

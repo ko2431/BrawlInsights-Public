@@ -59,6 +59,10 @@
         row.classList.add('is-sorting');
         root.classList.add('is-drag-sorting');
         row.style.transition = 'none';
+        // Chrome は pointerdown を止めても文字の選択が始まるため、ドラッグ中は選択させない
+        const preventSelect = (e) => e.preventDefault();
+        document.addEventListener('selectstart', preventSelect);
+        try { window.getSelection().removeAllRanges(); } catch (e) { /* 無視 */ }
 
         function place() {
             const dy = clientY + window.scrollY - startPageY;
@@ -130,6 +134,7 @@
             window.removeEventListener('pointerup', onUp);
             window.removeEventListener('pointercancel', onUp);
             window.removeEventListener('blur', end);
+            document.removeEventListener('selectstart', preventSelect);
             root.classList.remove('is-drag-sorting');
             // 最後の入れ替えが DOM に出てから、つかんだ行を元の位置に収める
             requestAnimationFrame(() => {

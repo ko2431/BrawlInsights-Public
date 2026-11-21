@@ -19,6 +19,7 @@ from app.services.board_service import get_today_post_count_by_user
 from app.services.notification_service import get_notification_settings, update_notification_setting
 from app.services import push_rules, push_service
 from app.services import feedback_service
+from app.services import home_lists
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.utils.utils import format_tag, confirm_tag, get_remote_ip, get_icon_path
 from app.db.db import get_shared_db
@@ -625,9 +626,12 @@ async def update_bookmarks_endpoint(
     success = await current_user.update_saved_accounts(payload.updated_bookmarks, db)
 
     if success:
+        # ホームはリロードせずに更新する。外したブックマークは閲覧履歴に出るため、履歴も返す
         return JSONResponse({
             "success": True,
-            "message": "ブックマークを更新しました。" if current_user.lang == "ja" else "Bookmarks updated successfully."
+            "message": "ブックマークを更新しました。" if current_user.lang == "ja" else "Bookmarks updated successfully.",
+            "available_slots": home_lists.available_bookmark_slots(current_user),
+            "viewed_players": await home_lists.viewed_players_for_response(current_user, db),
         })
     else:
         return JSONResponse({
@@ -653,9 +657,11 @@ async def update_history_endpoint(
     success = await current_user.update_viewed_accounts(payload.updated_history, db)
 
     if success:
+        # ホームはリロードせずに更新する。消した分だけ、表示枠の外にあった履歴が繰り上がる
         return JSONResponse({
             "success": True,
-            "message": "閲覧履歴を更新しました。" if current_user.lang == "ja" else "Viewing history updated successfully."
+            "message": "閲覧履歴を更新しました。" if current_user.lang == "ja" else "Viewing history updated successfully.",
+            "viewed_players": await home_lists.viewed_players_for_response(current_user, db),
         })
     else:
         return JSONResponse({
@@ -758,9 +764,12 @@ async def update_club_bookmarks_endpoint(
     success = await current_user.update_saved_clubs(payload.updated_bookmarks, db)
 
     if success:
+        # ホームはリロードせずに更新する。外したブックマークは閲覧履歴に出るため、履歴も返す
         return JSONResponse({
             "success": True,
-            "message": "クラブブックマークを更新しました。" if current_user.lang == "ja" else "Club bookmarks updated successfully."
+            "message": "クラブブックマークを更新しました。" if current_user.lang == "ja" else "Club bookmarks updated successfully.",
+            "available_slots": home_lists.available_club_bookmark_slots(current_user),
+            "viewed_clubs": await home_lists.viewed_clubs_for_response(current_user, db),
         })
     else:
         return JSONResponse({
@@ -783,9 +792,11 @@ async def update_club_history_endpoint(
     success = await current_user.update_viewed_clubs(payload.updated_history, db)
 
     if success:
+        # ホームはリロードせずに更新する。消した分だけ、表示枠の外にあった履歴が繰り上がる
         return JSONResponse({
             "success": True,
-            "message": "クラブ閲覧履歴を更新しました。" if current_user.lang == "ja" else "Club viewing history updated successfully."
+            "message": "クラブ閲覧履歴を更新しました。" if current_user.lang == "ja" else "Club viewing history updated successfully.",
+            "viewed_clubs": await home_lists.viewed_clubs_for_response(current_user, db),
         })
     else:
         return JSONResponse({

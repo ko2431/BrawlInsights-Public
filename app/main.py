@@ -35,6 +35,7 @@ from app.core.page_integrity import integrity_router, IntegrityGateMiddleware
 from app.core.templating import templates
 from app.services.user_service import User, get_user
 from app.services import announcement_service
+from app.services import home_lists
 from app.services.special_reward_link_service import get_public_home_banners
 from app.services import main_account_reward_service
 from app.services import reaction_rules, push_service
@@ -147,7 +148,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Brawl Insights",
     description="ブロスタの戦績Webアプリ",
-    version="15.4.23",
+    version="15.4.24",
     lifespan=lifespan, # lifespan を指定
     docs_url=None,    # Swagger UI を無効化
     redoc_url=None    # ReDoc を無効化
@@ -880,22 +881,20 @@ async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depe
     sub_account_players_for_display = []
     can_extend_bookmark_slots = False # 将来の拡張用フラグ (今は常にFalse)
     viewed_players_for_display = []
-    actual_viewed_players_count = 0
     available_bookmark_slots = 0
     bookmarked_clubs_for_display = []
     can_extend_club_bookmark_slots = False
     viewed_clubs_for_display = []
-    actual_viewed_clubs_count = 0
     available_club_bookmark_slots = 0
     
     # 表示するブックマークの上限数 (最大25件とする)
-    bookmark_display_limit = 25 
+    bookmark_display_limit = home_lists.BOOKMARK_DISPLAY_LIMIT
     # 表示する閲覧履歴の上限数 (最大25件とする)
-    viewed_display_limit = 25
+    viewed_display_limit = home_lists.VIEWED_DISPLAY_LIMIT
     # クラブのブックマーク表示上限 (最大25件)
-    club_bookmark_display_limit = 25
+    club_bookmark_display_limit = home_lists.CLUB_BOOKMARK_DISPLAY_LIMIT
     # クラブの閲覧履歴表示上限 (最大25件)
-    club_viewed_display_limit = 25
+    club_viewed_display_limit = home_lists.CLUB_VIEWED_DISPLAY_LIMIT
     
     if current_login_user:
         # --- メインアカウントの情報を取得 ---
@@ -957,9 +956,7 @@ async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depe
         # 空きスロット数の計算 (ユーザー設定上限 - 現在のブックマーク数)
         # ただし、表示上の空きは (effective_bookmark_limit_for_user - 表示中のブックマーク数)
         # ここでは「実際にあといくつ追加できるか」を表示するため、ユーザー設定の上限を基準とする
-        available_bookmark_slots = current_login_user.saved_accounts_limit - len(current_login_user.saved_accounts)
-        if available_bookmark_slots < 0: # 念のため
-            available_bookmark_slots = 0
+        available_bookmark_slots = home_lists.available_bookmark_slots(current_login_user)
 
         # 拡張可能性の判定 (現在は未実装なので常にFalse)
         # 将来的に、例えば current_user.saved_accounts_limit がシステム上限(24)未満の場合に True にするなど
@@ -967,15 +964,8 @@ async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depe
             can_extend_bookmark_slots = True # 例：あとで広告視聴などの条件を追加する
 
         # 閲覧履歴表示用データの準備 ---
-        # メイン・サブアカウントとブックマークを除外した閲覧履歴タグリストを作成
-        filtered_viewed_tags = [
-            tag for tag in current_login_user.viewed_accounts 
-            if not current_login_user.is_own_player_tag(tag) and tag not in current_login_user.saved_accounts
-        ]
-        actual_viewed_players_count = len(filtered_viewed_tags)
-        
-        # Userオブジェクトの viewed_accounts_limit を参照(limitが0になっている場合はUser側のlimitを無視)
-        tags_to_fetch_names_viewed = filtered_viewed_tags[:(min(viewed_display_limit, current_login_user.viewed_accounts_limit if current_login_user.viewed_accounts_limit else viewed_display_limit))]
+        # メイン・サブアカウントとブックマークを除外し、表示する件数に絞る（保存のAPIと共通。services/home_lists.py）
+        tags_to_fetch_names_viewed = home_lists.visible_viewed_player_tags(current_login_user)
         
         for tag in tags_to_fetch_names_viewed:
             name = tag
@@ -1008,21 +998,13 @@ async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depe
                 logger.warning(f"ブックマークのクラブ情報取得中にエラー (タグ: {tag}): {e}")
             bookmarked_clubs_for_display.append({"tag": tag, "name": name, "badge_id": badge_id})
 
-        available_club_bookmark_slots = current_login_user.saved_clubs_limit - len(current_login_user.saved_clubs)
-        if available_club_bookmark_slots < 0:
-            available_club_bookmark_slots = 0
+        available_club_bookmark_slots = home_lists.available_club_bookmark_slots(current_login_user)
 
         if current_login_user.saved_clubs_limit < club_bookmark_display_limit:
             can_extend_club_bookmark_slots = True
 
         # クラブ閲覧履歴表示用データの準備 ---
-        filtered_viewed_club_tags = [
-            tag for tag in current_login_user.viewed_clubs
-            if tag not in current_login_user.saved_clubs
-        ]
-        actual_viewed_clubs_count = len(filtered_viewed_club_tags)
-
-        tags_to_fetch_names_viewed_clubs = filtered_viewed_club_tags[:(min(club_viewed_display_limit, current_login_user.viewed_clubs_limit if current_login_user.viewed_clubs_limit else club_viewed_display_limit))]
+        tags_to_fetch_names_viewed_clubs = home_lists.visible_viewed_club_tags(current_login_user)
 
         for tag in tags_to_fetch_names_viewed_clubs:
             name = tag
@@ -1066,14 +1048,12 @@ async def home(request: Request, lang: str, db: asyncpg.Connection | None = Depe
         "available_bookmark_slots": available_bookmark_slots,
         "can_extend_bookmark_slots": can_extend_bookmark_slots,
         "viewed_players": viewed_players_for_display,       # テンプレートでの変数名変更
-        "actual_viewed_players_count": actual_viewed_players_count, # フィルタリング後の実際の閲覧履歴数
         "bookmark_display_limit": bookmark_display_limit, # ブックマークの表示上限
         "viewed_display_limit": viewed_display_limit,      # 閲覧履歴の表示上限
         "bookmarked_clubs": bookmarked_clubs_for_display,
         "available_club_bookmark_slots": available_club_bookmark_slots,
         "can_extend_club_bookmark_slots": can_extend_club_bookmark_slots,
         "viewed_clubs": viewed_clubs_for_display,
-        "actual_viewed_clubs_count": actual_viewed_clubs_count,
         "club_bookmark_display_limit": club_bookmark_display_limit,
         "club_viewed_display_limit": club_viewed_display_limit
     }

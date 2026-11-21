@@ -301,7 +301,7 @@
             </div>
 
             {# 1-4. 閲覧履歴 #}
-            <div class="search-block" x-data="viewedHistoryEditor()">
+            <div class="search-block" x-data="viewedHistoryEditor()" @bi-viewed-players-updated.window="applyServerHistory($event.detail)">
                 {% if current_user %}
                     <div class="bookmark-section-title-container">
                         <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
@@ -328,7 +328,6 @@
                     <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
                 </div>
                 <div class="player-list">
-                    {% if viewed_players %}
                         <template x-for="(history, index) in editableHistory" :key="history.tag">
                             <div class="card player-list__item" :class="{ 'is-marked-for-deletion': history.isDeleting }" :data-tag="history.tag">
                                 <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
@@ -351,7 +350,7 @@
                             </div>
                         </template>
                         {# 履歴が表示上限未満で、かつDB上の閲覧履歴上限にも達していない場合 #}
-                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length < userLimit">
+                        <template x-if="!isEditing && editableHistory.length > 0 && editableHistory.length < displayLimit && editableHistory.length < userLimit">
                             <div class="card player-list__item player-list__item--empty">
                                 <div class="player-list__item-main">
                                     <p class="player-list__item--empty-text">{% if lang == "ja" %}さらに閲覧すると、履歴が追加されます{% else %}More history will be added as you browse{% endif %}</p>
@@ -359,7 +358,7 @@
                             </div>
                         </template>
                         {# 履歴が表示上限未満だが、DB上の閲覧履歴上限には達している場合 #}
-                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length >= userLimit && userLimit > 0">
+                        <template x-if="!isEditing && editableHistory.length > 0 && editableHistory.length < displayLimit && editableHistory.length >= userLimit && userLimit > 0">
                             <div class="card player-list__item player-list__item--extend">
                                 <button type="button" class="button player-list__item--extend-button button--secondary expand-slots-btn" data-target="history">
                                     {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
@@ -369,13 +368,12 @@
                                 </div>
                             </div>
                         </template>
-                    {% else %}
-                        <div class="card player-list__item player-list__item--empty">
+                        {# 0件のとき (保存後にブックマークから外した分が入ることもあるため、Alpine で切り替える) #}
+                        <div x-show="editableHistory.length === 0" class="card player-list__item player-list__item--empty"{% if viewed_players %} x-cloak{% endif %}>
                             <div class="player-list__item-main">
                                 <p class="player-list__item--empty-text">{% if lang == "ja" %}閲覧履歴はありません。プレイヤーページを閲覧すると、ここに履歴が追加されます。{% else %}No viewing history. History will be added here when you view player pages.{% endif %}</p>
                             </div>
                         </div>
-                    {% endif %}
                 </div>
                 {% else %}
                 <div class="not-logged-in-block">
@@ -541,7 +539,7 @@
             </div>
 
             {# 2-4. クラブ閲覧履歴 #}
-            <div class="search-block" x-data="clubViewedHistoryEditor()">
+            <div class="search-block" x-data="clubViewedHistoryEditor()" @bi-viewed-clubs-updated.window="applyServerHistory($event.detail)">
                 {% if current_user %}
                     <div class="bookmark-section-title-container">
                         <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
@@ -568,7 +566,6 @@
                     <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
                 </div>
                 <div class="player-list">
-                    {% if viewed_clubs %}
                         <template x-for="(history, index) in editableHistory" :key="history.tag">
                             <div class="card player-list__item" :class="{ 'is-marked-for-deletion': history.isDeleting }" :data-tag="history.tag">
                                 <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
@@ -591,14 +588,14 @@
                                 </div>
                             </div>
                         </template>
-                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length < userLimit">
+                        <template x-if="!isEditing && editableHistory.length > 0 && editableHistory.length < displayLimit && editableHistory.length < userLimit">
                             <div class="card player-list__item player-list__item--empty">
                                 <div class="player-list__item-main">
                                     <p class="player-list__item--empty-text">{% if lang == "ja" %}さらに閲覧すると、履歴が追加されます{% else %}More history will be added as you browse{% endif %}</p>
                                 </div>
                             </div>
                         </template>
-                        <template x-if="!isEditing && editableHistory.length < displayLimit && editableHistory.length >= userLimit && userLimit > 0">
+                        <template x-if="!isEditing && editableHistory.length > 0 && editableHistory.length < displayLimit && editableHistory.length >= userLimit && userLimit > 0">
                             <div class="card player-list__item player-list__item--extend">
                                 <button type="button" class="button player-list__item--extend-button button--secondary expand-slots-btn" data-target="club_history">
                                     {% if lang == "ja" %}拡張...{% else %}Expand...{% endif %}
@@ -608,13 +605,12 @@
                                 </div>
                             </div>
                         </template>
-                    {% else %}
-                        <div class="card player-list__item player-list__item--empty">
+                        {# 0件のとき (保存後にブックマークから外した分が入ることもあるため、Alpine で切り替える) #}
+                        <div x-show="editableHistory.length === 0" class="card player-list__item player-list__item--empty"{% if viewed_clubs %} x-cloak{% endif %}>
                             <div class="player-list__item-main">
                                 <p class="player-list__item--empty-text">{% if lang == "ja" %}閲覧履歴はありません。クラブページを閲覧すると、ここに履歴が追加されます。{% else %}No viewing history. History will be added here when you view club pages.{% endif %}</p>
                             </div>
                         </div>
-                    {% endif %}
                 </div>
                 {% else %}
                 <div class="not-logged-in-block">
@@ -898,8 +894,12 @@
             clubBookmarks: { isEditing: false, hasChanges: false },
             clubHistory: { isEditing: false, hasChanges: false }
         };
-        // 一時的に beforeunload 警告を抑止するフラグ（保存時のリロードで警告を出さないため）
-        let suppressBeforeUnload = false;
+        // 保存できたら、メッセージは出さずに静かに編集を終える（リロードはしない。一覧の中身は保存のAPIが返す最新のものに差し替える）
+        function finishHomeListSave(editor) {
+            editor.hasChanges = false;
+            editor.isEditing = false;
+            editor.serverMessage = '';
+        }
 
         function bookmarksEditor() {
             return {
@@ -1024,18 +1024,14 @@
                         this.serverSuccess = data.success;
 
                         if (data.success) {
-                            this.hasChanges = false;
-                            this.isEditing = false;
                             this.initialBookmarks = JSON.parse(JSON.stringify(this.editableBookmarks));
                             this.initialAccounts = JSON.parse(JSON.stringify(this.editableAccounts));
-                            suppressBeforeUnload = true;
-                            try {
-                                alpineGlobalStoreForUnload.bookmarks.hasChanges = false;
-                                alpineGlobalStoreForUnload.bookmarks.isEditing = false;
-                            } catch (e) {
-                                // silent fail
+                            if (typeof data.available_slots === 'number') this.availableSlots = data.available_slots;
+                            // ブックマークから外したプレイヤーは閲覧履歴に出るため、閲覧履歴も最新にする
+                            if (Array.isArray(data.viewed_players)) {
+                                window.dispatchEvent(new CustomEvent('bi-viewed-players-updated', { detail: data.viewed_players }));
                             }
-                            window.location.reload();
+                            finishHomeListSave(this);
                             return;
                         }
                     } catch (error) {
@@ -1049,94 +1045,93 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             // --- 拡張ボタンのイベントリスナー ---
-            const expandButtons = document.querySelectorAll('.expand-slots-btn');
+            // ボタンは x-if の中にあり、編集を開いて閉じるたびに作り直されるため、document で受ける
+            document.addEventListener('click', async (event) => {
+                const button = event.target.closest('.expand-slots-btn');
+                if (!button) return;
+                const target = button.dataset.target;
+                // ログインしているユーザーのトークン数をサーバーから直接取得
+                const userTokens = {{ current_user.tokens if current_user else 0 }};
+                const lang = '{{ lang }}';
 
-            expandButtons.forEach(button => {
-                button.addEventListener('click', async (event) => {
-                    const target = event.currentTarget.dataset.target;
-                    // ログインしているユーザーのトークン数をサーバーから直接取得
-                    const userTokens = {{ current_user.tokens if current_user else 0 }};
-                    const lang = '{{ lang }}';
+                const cost = 15;
+                let confirmMessage = '';
+                let successMessage = '';
+                const slotsToAdd = (target === 'bookmarks' || target === 'club_bookmarks') ? 2 : 3;
 
-                    const cost = 15;
-                    let confirmMessage = '';
-                    let successMessage = '';
-                    const slotsToAdd = (target === 'bookmarks' || target === 'club_bookmarks') ? 2 : 3;
-
-                    // --- メッセージ設定 ---
-                    if (target === 'bookmarks') {
-                        if (lang === 'ja') {
-                            confirmMessage = `15トークン消費して、プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しました。`;
-                        } else {
-                            confirmMessage = `Spend 15 tokens to expand bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `Expanded bookmark slots by ${slotsToAdd}.`;
-                        }
-                    } else if (target === 'history') {
-                        if (lang === 'ja') {
-                            confirmMessage = `15トークン消費して、プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
-                        } else {
-                            confirmMessage = `Spend 15 tokens to expand history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `Expanded history display slots by ${slotsToAdd}.`;
-                        }
-                    } else if (target === 'club_bookmarks') {
-                        if (lang === 'ja') {
-                            confirmMessage = `15トークン消費して、クラブのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `クラブのブックマーク枠を${slotsToAdd}枠拡張しました。`;
-                        } else {
-                            confirmMessage = `Spend 15 tokens to expand club bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `Expanded club bookmark slots by ${slotsToAdd}.`;
-                        }
-                    } else if (target === 'club_history') {
-                        if (lang === 'ja') {
-                            confirmMessage = `15トークン消費して、クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
-                        } else {
-                            confirmMessage = `Spend 15 tokens to expand club history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
-                            successMessage = `Expanded club history display slots by ${slotsToAdd}.`;
-                        }
+                // --- メッセージ設定 ---
+                if (target === 'bookmarks') {
+                    if (lang === 'ja') {
+                        confirmMessage = `15トークン消費して、プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `プレイヤーのブックマーク枠を${slotsToAdd}枠拡張しました。`;
+                    } else {
+                        confirmMessage = `Spend 15 tokens to expand bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `Expanded bookmark slots by ${slotsToAdd}.`;
                     }
+                } else if (target === 'history') {
+                    if (lang === 'ja') {
+                        confirmMessage = `15トークン消費して、プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `プレイヤーの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
+                    } else {
+                        confirmMessage = `Spend 15 tokens to expand history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `Expanded history display slots by ${slotsToAdd}.`;
+                    }
+                } else if (target === 'club_bookmarks') {
+                    if (lang === 'ja') {
+                        confirmMessage = `15トークン消費して、クラブのブックマーク枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `クラブのブックマーク枠を${slotsToAdd}枠拡張しました。`;
+                    } else {
+                        confirmMessage = `Spend 15 tokens to expand club bookmark slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `Expanded club bookmark slots by ${slotsToAdd}.`;
+                    }
+                } else if (target === 'club_history') {
+                    if (lang === 'ja') {
+                        confirmMessage = `15トークン消費して、クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しますか？\n(トークン数: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `クラブの閲覧履歴表示枠を${slotsToAdd}枠拡張しました。`;
+                    } else {
+                        confirmMessage = `Spend 15 tokens to expand club history display slots by ${slotsToAdd}?\n(Tokens: ${userTokens} → ${userTokens - cost})`;
+                        successMessage = `Expanded club history display slots by ${slotsToAdd}.`;
+                    }
+                }
 
-                    // --- トークン数チェック ---
-                    if (userTokens < cost) {
-                        let alertMessage = '';
-                        if (lang === 'ja') {
-                            alertMessage = `トークンが足りないため拡張できません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`;
+                // --- トークン数チェック ---
+                if (userTokens < cost) {
+                    let alertMessage = '';
+                    if (lang === 'ja') {
+                        alertMessage = `トークンが足りないため拡張できません。(現在所持: ${userTokens})\nトークンは、アカウントタブより広告を視聴したり、募集掲示板に投稿したりすることで獲得できます。`;
+                    } else {
+                        alertMessage = `Not enough tokens to expand. (Current: ${userTokens})\nFor details on how to get tokens, please check the Account tab.`;
+                    }
+                    alert(alertMessage);
+                    return;
+                }
+
+                // --- 確認ダイアログ ---
+                if (confirm(confirmMessage)) {
+                    try {
+                        const response = await fetch(`/${lang}/account/expand-slots`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ target: target })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok && result.success) {
+                            // 成功メッセージをサーバーからのものにする場合は result.message を使用
+                            alert(successMessage);
+                            window.location.reload(); // ページをリロードして変更を反映
                         } else {
-                            alertMessage = `Not enough tokens to expand. (Current: ${userTokens})\nFor details on how to get tokens, please check the Account tab.`;
+                            // 失敗時
+                            alert(result.message || (lang === 'ja' ? 'エラーが発生しました。' : 'An error occurred.'));
                         }
-                        alert(alertMessage);
-                        return;
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert(lang === 'ja' ? '通信中にエラーが発生しました。' : 'An error occurred during communication.');
                     }
-
-                    // --- 確認ダイアログ ---
-                    if (confirm(confirmMessage)) {
-                        try {
-                            const response = await fetch(`/${lang}/account/expand-slots`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ target: target })
-                            });
-
-                            const result = await response.json();
-
-                            if (response.ok && result.success) {
-                                // 成功メッセージをサーバーからのものにする場合は result.message を使用
-                                alert(successMessage);
-                                window.location.reload(); // ページをリロードして変更を反映
-                            } else {
-                                // 失敗時
-                                alert(result.message || (lang === 'ja' ? 'エラーが発生しました。' : 'An error occurred.'));
-                            }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            alert(lang === 'ja' ? '通信中にエラーが発生しました。' : 'An error occurred during communication.');
-                        }
-                    }
-                });
+                }
             });
         });
 
@@ -1161,6 +1156,13 @@
                 resetEditableHistory() {
                     this.editableHistory = JSON.parse(JSON.stringify(this.initialHistory)).map(h => ({ ...h, isDeleting: false }));
                     this.hasChanges = false;
+                },
+
+                // ブックマークを保存したあと、サーバーが返した最新の閲覧履歴に差し替える（編集中ならその編集は残す）
+                applyServerHistory(list) {
+                    if (!Array.isArray(list)) return;
+                    this.initialHistory = list;
+                    if (!this.isEditing) this.resetEditableHistory();
                 },
 
                 startEditing() {
@@ -1217,18 +1219,10 @@
                         this.serverSuccess = data.success;
 
                         if (data.success) {
-                            this.hasChanges = false;
-                            this.isEditing = false;
-                            this.initialHistory = JSON.parse(JSON.stringify(this.editableHistory));
-                            // beforeunload 警告が出ないようにグローバルストアと抑止フラグを先にクリアする
-                            suppressBeforeUnload = true;
-                            try {
-                                alpineGlobalStoreForUnload.history.hasChanges = false;
-                                alpineGlobalStoreForUnload.history.isEditing = false;
-                            } catch (e) {
-                                // silent fail: alpineGlobalStoreForUnload may be undefined in some contexts
-                            }
-                            window.location.reload();
+                            // 消した分だけ、表示枠の外にあった履歴が繰り上がるため、サーバーが返す一覧に差し替える
+                            this.initialHistory = Array.isArray(data.viewed_players) ? data.viewed_players : JSON.parse(JSON.stringify(this.editableHistory));
+                            finishHomeListSave(this);
+                            this.resetEditableHistory();
                             return;
                         }
                     } catch (error) {
@@ -1324,17 +1318,13 @@
                         this.serverSuccess = data.success;
 
                         if (data.success) {
-                            this.hasChanges = false;
-                            this.isEditing = false;
                             this.initialBookmarks = JSON.parse(JSON.stringify(this.editableBookmarks));
-                            suppressBeforeUnload = true;
-                            try {
-                                alpineGlobalStoreForUnload.clubBookmarks.hasChanges = false;
-                                alpineGlobalStoreForUnload.clubBookmarks.isEditing = false;
-                            } catch (e) {
-                                // silent fail
+                            if (typeof data.available_slots === 'number') this.availableSlots = data.available_slots;
+                            // ブックマークから外したクラブは閲覧履歴に出るため、閲覧履歴も最新にする
+                            if (Array.isArray(data.viewed_clubs)) {
+                                window.dispatchEvent(new CustomEvent('bi-viewed-clubs-updated', { detail: data.viewed_clubs }));
                             }
-                            window.location.reload();
+                            finishHomeListSave(this);
                             return;
                         }
                     } catch (error) {
@@ -1367,6 +1357,13 @@
                 resetEditableHistory() {
                     this.editableHistory = JSON.parse(JSON.stringify(this.initialHistory)).map(h => ({ ...h, isDeleting: false }));
                     this.hasChanges = false;
+                },
+
+                // ブックマークを保存したあと、サーバーが返した最新の閲覧履歴に差し替える（編集中ならその編集は残す）
+                applyServerHistory(list) {
+                    if (!Array.isArray(list)) return;
+                    this.initialHistory = list;
+                    if (!this.isEditing) this.resetEditableHistory();
                 },
 
                 startEditing() {
@@ -1423,17 +1420,10 @@
                         this.serverSuccess = data.success;
 
                         if (data.success) {
-                            this.hasChanges = false;
-                            this.isEditing = false;
-                            this.initialHistory = JSON.parse(JSON.stringify(this.editableHistory));
-                            suppressBeforeUnload = true;
-                            try {
-                                alpineGlobalStoreForUnload.clubHistory.hasChanges = false;
-                                alpineGlobalStoreForUnload.clubHistory.isEditing = false;
-                            } catch (e) {
-                                // silent fail
-                            }
-                            window.location.reload();
+                            // 消した分だけ、表示枠の外にあった履歴が繰り上がるため、サーバーが返す一覧に差し替える
+                            this.initialHistory = Array.isArray(data.viewed_clubs) ? data.viewed_clubs : JSON.parse(JSON.stringify(this.editableHistory));
+                            finishHomeListSave(this);
+                            this.resetEditableHistory();
                             return;
                         }
                     } catch (error) {
