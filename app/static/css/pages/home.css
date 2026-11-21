@@ -84,12 +84,16 @@
     display: block;
     width: 100%;
     height: auto;
-    margin: 5px auto 0 auto; /* 上マージン、左右中央揃え */
+    margin: 10px auto 0 auto; /* 上マージン、左右中央揃え */
     border-radius: 12px;
     border: 1px solid #eee;
 }
 .dark .guide-image {
     border-color: #333;
+}
+/* プレイヤータグの説明文は、ガイド画像を出さないとき (スマホ幅・ログイン中) だけ出す */
+.guide-text {
+    display: none;
 }
 
 /* --- 「このサイトについて」セクション --- */
@@ -355,6 +359,9 @@
 
     .guide-image-logged-in {
         display: none;
+    }
+    .guide-text-logged-in {
+        display: flex;
     }
 }
 

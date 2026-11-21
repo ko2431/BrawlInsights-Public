@@ -116,12 +116,12 @@
                         <input type="text" class="form-input search-form__input" placeholder="#XXXXXXX" id="playerTagSearchInput">
                         <button type="submit" class="button button--primary search-form__button">{% if lang == "ja" %}検索{% else %}GO{% endif %}</button>
                     </form>
-                    {# 説明文ブロック (components.css の info-block を使用) #}
-                    <div class="info-block">
+                    {# 説明文ブロック。下のガイド画像と同じ内容のため、画像を出さないとき (スマホ幅・ログイン中) だけ出す #}
+                    <div class="info-block guide-text{% if current_user %} guide-text-logged-in{% endif %}">
                         <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
                         <p class="info-block__text">{% if lang == "ja" %}プレイヤータグは、ゲーム内でプロフィールを開くとアイコンの下に小さく書いてある、「#」で始まるものです。{% else %}The player tag is the identifier that begins with a "#" and can be found beneath your icon when you open your profile in the game.{% endif %}</p>
                     </div>
-                    {# ガイド画像 #}
+                    {# ガイド画像 (スマホ幅・ログイン中は出さず、上の説明文にする) #}
                     <img src="{{ url_for('static', path='/images/ui/player_tag_guide_' + lang + '.png') }}" alt="プレイヤータグの説明画像" class="guide-image {% if current_user %}guide-image-logged-in{% endif %}">
                 </div>
             </div>
