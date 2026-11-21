@@ -239,43 +239,16 @@
     background-color: transparent;
 }
 
-/* 新しい並び替えボタンのスタイル */
-.bookmark-item-actions {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 4px; /* ボタン間の隙間 */
-    margin-left: 8px; /* 左側の要素との間隔 */
-    margin-right: 4px;
+/* 編集中の並び替えのつまみ (components/drag_handle.html) */
+.player-list__item .drag-handle {
+    margin-left: 4px;
 }
 
-.button-move {
-    background-color: var(--bg-f0f0f0); /* 薄いグレー */
-    color: var(--color-333); /* 黒色の矢印 */
-    border: 1px solid var(--color-ccc);
-    border-radius: 50%; /* 丸形 */
-    width: 20px;  /* ボタンの幅 */
-    height: 20px; /* ボタンの高さ */
-    font-size: 12px; /* 矢印のサイズ */
-    line-height: 1;
-    padding: 0;
+/* 見出しの右の「?」(閲覧履歴) */
+.block-title--with-help {
     display: flex;
-    justify-content: center;
     align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-.button-move:hover:not(:disabled) {
-    background-color: #e0e0e0;
-}
-.dark .button-move:hover:not(:disabled) {
-    background-color: #111;
-}
-.button-move:disabled {
-    background-color: var(--bg-f8f8f8);
-    color: var(--color-bbb);
-    border-color: var(--color-eee);
-    cursor: not-allowed;
+    gap: 6px;
 }
 
 /* 編集中の、メイン・サブアカウントとブックマークの区切り */

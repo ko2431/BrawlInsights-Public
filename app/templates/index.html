@@ -1,6 +1,8 @@
 {# /app/templates/index.html #}
 {% extends "base.html" %}
 {% from "components/player_icon.html" import player_icon_src with context %}
+{% from "components/help_tip.html" import help_tip with context %}
+{% from "components/drag_handle.html" import drag_handle with context %}
 
 {% block title %}{% if lang == "ja" %}ホーム{% else %}Home{% endif %} - Brawl Insights{% endblock %}
 {% block og_type %}website{% endblock %}
@@ -197,7 +199,7 @@
                 {# 編集モード時の情報ブロック #}
                 <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
                     <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}矢印ボタンで並び替え、赤いボタンで削除できます。メイン・サブアカウントは一番上に置いたものがメインとして設定され、登録・解除はアカウントタブで行えます。{% else %}Use the arrows to reorder and the red button to remove. The top main/sub account becomes your main account. Add or remove sub accounts in the Account tab.{% endif %}</p>
+                    <p class="info-block__text">{% if lang == "ja" %}ドラッグで並び替え、赤いボタンで削除できます。メイン・サブアカウントは一番上に置いたものがメインとして設定され、登録・解除はアカウントタブで行えます。{% else %}Drag to reorder and use the red button to remove. The top main/sub account becomes your main account. Add or remove sub accounts in the Account tab.{% endif %}</p>
                 </div>
                 <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
                     <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
@@ -205,10 +207,10 @@
 
 
                 {% if current_user %}
-                    <div class="player-list" id="bookmark-list-sortable"> {# SortableJS用のID #}
+                    <div class="player-list" id="bookmark-list-sortable">
                         {# メイン・サブアカウント (並び替えのみ可。一番上がメイン) #}
                         <template x-for="(account, index) in (isEditing ? editableAccounts : initialAccounts)" :key="'account-' + account.tag">
-                            <div class="card player-list__item" :class="{ 'is-main-account': index === 0 }" :data-tag="account.tag">
+                            <div class="card player-list__item" :class="{ 'is-main-account': index === 0 }" :data-tag="account.tag" data-sort-group="accounts">
                                 <div class="button player-list__item-index" :class="index === 0 ? 'button--primary' : 'button--sub-account'" style="font-size: 11.5px; font-weight: bold;">
                                     <span x-show="index === 0" style="margin-top: 1px;">{% if lang == "ja" %}メイン{% else %}MAIN{% endif %}</span>
                                     <span x-show="index > 0" class="sub-account-badge"><span class="sub-account-badge__label">{% if lang == "ja" %}サブ{% else %}SUB{% endif %}</span><span class="sub-account-badge__num" x-text="index"></span></span>
@@ -224,10 +226,7 @@
                                         <p class="player-list__item-tag" x-text="account.tag"></p>
                                     </a>
                                 </div>
-                                <div x-show="isEditing && editableAccounts.length > 1" class="bookmark-item-actions" x-cloak>
-                                    <button type="button" @click="moveAccount(index, -1)" :disabled="index === 0" class="button-move">↑</button>
-                                    <button type="button" @click="moveAccount(index, 1)" :disabled="index === editableAccounts.length - 1" class="button-move">↓</button>
-                                </div>
+                                {{ drag_handle("editableAccounts", "onReorder()", "isEditing && editableAccounts.length > 1") }}
                             </div>
                         </template>
 
@@ -238,7 +237,7 @@
 
                         {# ブックマークされたプレイヤーリスト (Alpine.jsでレンダリング) #}
                         <template x-for="(bookmark, index) in editableBookmarks" :key="bookmark.tag">
-                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': bookmark.isDeleting }" :data-tag="bookmark.tag">
+                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': bookmark.isDeleting }" :data-tag="bookmark.tag" data-sort-group="bookmarks">
                                 {# 通常表示時 (インデックス) #}
                                 <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
                                 {# 編集モード時 (削除ボタン) #}
@@ -260,11 +259,8 @@
                                     </a>
                                 </div>
 
-                                {# 並び替えボタン (ドラッグハンドルの代わりに) #}
-                                <div x-show="isEditing" class="bookmark-item-actions" x-cloak>
-                                    <button type="button" @click="moveBookmarkUp(index)" :disabled="index === 0" class="button-move">↑</button>
-                                    <button type="button" @click="moveBookmarkDown(index)" :disabled="index === editableBookmarks.length - 1" class="button-move">↓</button>
-                                </div>
+                                {# 並び替えのつまみ #}
+                                {{ drag_handle("editableBookmarks", "onReorder()", "isEditing && editableBookmarks.length > 1") }}
                             </div>
                         </template>
 
@@ -311,7 +307,7 @@
                         <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
                             <button type="button" @click="cancelEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
                         </div>
-                        <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}</h2>
+                        <h2 class="block-title block-title--with-help" style="margin: 0;">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}{{ help_tip("ブックマークしていないプレイヤーの閲覧履歴です。ブックマーク済みのプレイヤーはここには表示されません。" if lang == "ja" else "Players you've viewed but haven't bookmarked. Bookmarked players don't appear here.") }}</h2>
                         <div x-show="!isEditing" class="bookmark-button-block" style="right: 0;">
                             <button type="button" @click="startEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}編集{% else %}Edit{% endif %}</button>
                         </div>
@@ -324,10 +320,6 @@
                 {% endif %}
 
                 {% if current_user %}
-                <div x-show="!isEditing" class="info-block" style="padding-top: 0;">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}ブックマークしていないプレイヤーの閲覧履歴です。ブックマーク済みのプレイヤーはここには表示されません。{% else %}This is the viewing history of players who have not bookmarked. Bookmarked players will not be shown here.{% endif %}</p>
-                </div>
                 <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
                     <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
                     <p class="info-block__text">{% if lang == "ja" %}赤いボタンで履歴から削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
@@ -480,7 +472,7 @@
 
                 <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
                     <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}矢印ボタンで並び替え、赤いボタンで削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Press the arrow buttons to reorder, use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
+                    <p class="info-block__text">{% if lang == "ja" %}ドラッグで並び替え、赤いボタンで削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Drag to reorder and use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
                 </div>
                 <div x-show="isEditing && serverMessage" class="info-block" :class="{ 'success': serverSuccess, 'error': !serverSuccess }" style="margin-bottom: 10px; padding: 5px; border-radius: 4px;" x-cloak>
                     <p class="info-block__text" x-text="serverMessage" style="font-size: 13px;"></p>
@@ -489,7 +481,7 @@
                 {% if current_user %}
                     <div class="player-list">
                         <template x-for="(bookmark, index) in editableBookmarks" :key="bookmark.tag">
-                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': bookmark.isDeleting }" :data-tag="bookmark.tag">
+                            <div class="card player-list__item" :class="{ 'is-marked-for-deletion': bookmark.isDeleting }" :data-tag="bookmark.tag" data-sort-group="club-bookmarks">
                                 <div x-show="!isEditing" class="button player-list__item-index button--secondary" x-text="index + 1"></div>
                                 <div x-show="isEditing" class="button" style="margin: 0; padding: 0;" x-cloak>
                                     <button type="button" @click="confirmDeleteBookmark(index)" class="button button--danger player-list__item-index" style="font-size: 11.5px; font-weight: bold;">
@@ -510,10 +502,7 @@
                                     </a>
                                 </div>
 
-                                <div x-show="isEditing" class="bookmark-item-actions" x-cloak>
-                                    <button type="button" @click="moveBookmarkUp(index)" :disabled="index === 0" class="button-move">↑</button>
-                                    <button type="button" @click="moveBookmarkDown(index)" :disabled="index === editableBookmarks.length - 1" class="button-move">↓</button>
-                                </div>
+                                {{ drag_handle("editableBookmarks", "onReorder()", "isEditing && editableBookmarks.length > 1") }}
                             </div>
                         </template>
 
@@ -558,7 +547,7 @@
                         <div x-show="isEditing" class="bookmark-button-block" style="left: 0;" x-cloak>
                             <button type="button" @click="cancelEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}キャンセル{% else %}Cancel{% endif %}</button>
                         </div>
-                        <h2 class="block-title" style="margin: 0;">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}</h2>
+                        <h2 class="block-title block-title--with-help" style="margin: 0;">{% if lang == "ja" %}閲覧履歴{% else %}Viewing History{% endif %}{{ help_tip("ブックマークしていないクラブの閲覧履歴です。ブックマーク済みのクラブはここには表示されません。" if lang == "ja" else "Clubs you've viewed but haven't bookmarked. Bookmarked clubs don't appear here.") }}</h2>
                         <div x-show="!isEditing" class="bookmark-button-block" style="right: 0;">
                             <button type="button" @click="startEditing()" class="button button--secondary button--small bookmark-button">{% if lang == "ja" %}編集{% else %}Edit{% endif %}</button>
                         </div>
@@ -571,10 +560,6 @@
                 {% endif %}
 
                 {% if current_user %}
-                <div x-show="!isEditing" class="info-block" style="padding-top: 0;">
-                    <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
-                    <p class="info-block__text">{% if lang == "ja" %}ブックマークしていないクラブの閲覧履歴です。ブックマーク済みのクラブはここには表示されません。{% else %}This is the viewing history of clubs that are not bookmarked. Bookmarked clubs are not shown here.{% endif %}</p>
-                </div>
                 <div x-show="isEditing" class="info-block" style="padding-top: 0;" x-cloak>
                     <img src="{{ url_for('static', path='/images/ui/info.png') }}" alt="情報" class="info-block__icon">
                     <p class="info-block__text">{% if lang == "ja" %}赤いボタンで履歴から削除できます。変更を保存するには「保存」ボタンを押してください。{% else %}Use the red button to remove. Press "Save" to apply changes.{% endif %}</p>
@@ -738,6 +723,8 @@
 
 {% block scripts %}
     {{ super() }}
+    <script src="{{ url_for('static', path='/js/help_tip.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', path='/js/drag_sort.js') }}?v={{ app_version }}"></script>
     <script>
         // --- 現在の言語コードを取得 ---
         // window.location.pathname から取得するのが確実
@@ -930,7 +917,6 @@
                 userLimit: {{ current_user.saved_accounts_limit if current_user else 0 }},
                 availableSlots: {{ available_bookmark_slots if current_user else 0 }},
                 canExtend: {{ can_extend_bookmark_slots | lower if current_user else 'false' }},
-                // sortableInstance: null, // SortableJS関連削除
 
                 init() {
                     this.resetEditableBookmarks();
@@ -957,12 +943,8 @@
                     return this.editableBookmarks.map(b => b.tag).join(',') !== this.initialBookmarks.map(b => b.tag).join(',');
                 },
 
-                // メイン・サブアカウントの並び替え (ブックマークとは混ざらない)
-                moveAccount(index, delta) {
-                    const target = index + delta;
-                    if (target < 0 || target >= this.editableAccounts.length) return;
-                    const [item] = this.editableAccounts.splice(index, 1);
-                    this.editableAccounts.splice(target, 0, item);
+                // つまみのドラッグで並び替えたとき (js/drag_sort.js)。メイン・サブアカウントとブックマークは混ざらない
+                onReorder() {
                     this.hasChanges = this.accountsChanged || this.bookmarksChanged;
                 },
 
@@ -971,7 +953,6 @@
                     this.serverMessage = '';
                     this.hasChanges = false;
                     this.resetEditableBookmarks();
-                    // SortableJSの初期化は不要
                 },
 
                 cancelEditing() {
@@ -983,7 +964,6 @@
                     }
                     this.isEditing = false;
                     this.hasChanges = false;
-                    // SortableJSの破棄は不要
                     this.resetEditableBookmarks();
                 },
 
@@ -992,24 +972,6 @@
                     const confirmMsg = (this.currentLang === 'ja' ? `「${bookmarkToDelete.name}」をブックマークから削除しますか？\n(この変更は「保存」ボタンを押すまで適用されません)` : `Remove "${bookmarkToDelete.name}" from bookmarks?\n(This change will not be applied until you press "Save")`);
                     if (confirm(confirmMsg)) {
                         this.editableBookmarks.splice(index, 1);
-                        this.hasChanges = true;
-                    }
-                },
-
-                // 新しいメソッド: ブックマークを上に移動
-                moveBookmarkUp(index) {
-                    if (index > 0) { // 最初の要素でなければ
-                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
-                        this.editableBookmarks.splice(index - 1, 0, itemToMove);
-                        this.hasChanges = true;
-                    }
-                },
-
-                // 新しいメソッド: ブックマークを下に移動
-                moveBookmarkDown(index) {
-                    if (index < this.editableBookmarks.length - 1) { // 最後の要素でなければ
-                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
-                        this.editableBookmarks.splice(index + 1, 0, itemToMove);
                         this.hasChanges = true;
                     }
                 },
@@ -1331,20 +1293,9 @@
                     }
                 },
 
-                moveBookmarkUp(index) {
-                    if (index > 0) {
-                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
-                        this.editableBookmarks.splice(index - 1, 0, itemToMove);
-                        this.hasChanges = true;
-                    }
-                },
-
-                moveBookmarkDown(index) {
-                    if (index < this.editableBookmarks.length - 1) {
-                        const itemToMove = this.editableBookmarks.splice(index, 1)[0];
-                        this.editableBookmarks.splice(index + 1, 0, itemToMove);
-                        this.hasChanges = true;
-                    }
+                // つまみのドラッグで並び替えたとき (js/drag_sort.js)
+                onReorder() {
+                    this.hasChanges = this.editableBookmarks.map(b => b.tag).join(',') !== this.initialBookmarks.map(b => b.tag).join(',');
                 },
 
                 async saveBookmarks() {

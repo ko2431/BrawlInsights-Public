@@ -2,6 +2,7 @@
 {% extends "base.html" %}
 {% from "components/player_icon.html" import player_icon_src with context %}
 {% from "components/password_field.html" import password_field with context %}
+{% from "components/drag_handle.html" import drag_handle with context %}
 
 {% block title %}{% if lang == "ja" %}アカウント{% else %}Account{% endif %} - Brawl Insights{% endblock %}
 
@@ -321,10 +322,10 @@
                         </div>
                     </div>
                     <p class="player-accounts__note" x-show="!isReordering">{% if lang == "ja" %}自身のプレイヤーアカウントを、{{ sub_accounts_max_limit + 1 }}個まで登録できます。一番上に置いたものが<b>メインアカウント</b>として設定されます。{% else %}You can register up to {{ sub_accounts_max_limit + 1 }} of your own player accounts. The one at the top is set as your <b>main account</b>.{% endif %}</p>
-                    <p class="player-accounts__note" x-show="isReordering" x-cloak>{% if lang == "ja" %}矢印ボタンで並び替えられます。一番上に置いたものが<b>メインアカウント</b>として設定されます。{% else %}Use the arrow buttons to reorder. The one at the top is set as your <b>main account</b>.{% endif %}</p>
+                    <p class="player-accounts__note" x-show="isReordering" x-cloak>{% if lang == "ja" %}ドラッグで並び替えられます。一番上に置いたものが<b>メインアカウント</b>として設定されます。{% else %}Drag to reorder. The one at the top is set as your <b>main account</b>.{% endif %}</p>
                     <div class="player-accounts__list">
                         <template x-for="(account, index) in (isReordering ? editableAccounts : accounts)" :key="account.tag">
-                            <div class="player-accounts__row">
+                            <div class="player-accounts__row" data-sort-group="player-accounts">
                                 <span class="button player-accounts__badge" :class="index === 0 ? 'button--primary' : 'button--sub-account'">
                                     <span x-show="index === 0">{% if lang == "ja" %}メイン{% else %}MAIN{% endif %}</span>
                                     <span x-show="index > 0" class="sub-account-badge"><span class="sub-account-badge__label">{% if lang == "ja" %}サブ{% else %}SUB{% endif %}</span><span class="sub-account-badge__num" x-text="index"></span></span>
@@ -335,10 +336,7 @@
                                     <span class="player-accounts__name" x-text="account.name"></span>
                                     <span class="player-accounts__tag" x-text="account.tag"></span>
                                 </a>
-                                <div class="player-accounts__move" x-show="isReordering" x-cloak>
-                                    <button type="button" class="player-accounts__move-button" @click="moveAccount(index, -1)" :disabled="index === 0" aria-label="up">↑</button>
-                                    <button type="button" class="player-accounts__move-button" @click="moveAccount(index, 1)" :disabled="index === editableAccounts.length - 1" aria-label="down">↓</button>
-                                </div>
+                                {{ drag_handle("editableAccounts", show="isReordering") }}
                                 <button type="button" x-show="!isReordering && !isAdding && index > 0" @click="removeSub(account)" class="button button--secondary button--small player-accounts__row-button" :disabled="isSaving">{% if lang == "ja" %}解除{% else %}Remove{% endif %}</button>
                             </div>
                         </template>
@@ -1577,6 +1575,7 @@
 
 <script src="{{ url_for('static', path='/js/image_viewer.js') }}?v={{ app_version }}"></script>
 <script src="{{ url_for('static', path='/js/help_tip.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', path='/js/drag_sort.js') }}?v={{ app_version }}"></script>
 <script>
 // AdMob リワードイベントは base.html の ensureRewardedAdEventBridge が
 // reward-claimed / reward-ad-closed 等へ橋渡しする（ネイティブ listener の重複登録を防ぐ）
@@ -3943,12 +3942,6 @@ function playerAccountsManager() {
         cancelReorder() {
             this.isReordering = false;
             this.editableAccounts = [];
-        },
-        moveAccount(index, delta) {
-            const target = index + delta;
-            if (target < 0 || target >= this.editableAccounts.length) return;
-            const [item] = this.editableAccounts.splice(index, 1);
-            this.editableAccounts.splice(target, 0, item);
         },
         async saveOrder() {
             if (!this.hasOrderChanges || this.isSaving) return;

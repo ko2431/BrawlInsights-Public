@@ -1566,6 +1566,62 @@
     to { opacity: 0; transform: scale(0.975); }
 }
 
+/* 並び替えのつまみ（≡。components/drag_handle.html・js/drag_sort.js）。touch-action で、スマホでもつまみからはスクロールせずにドラッグになる */
+.drag-handle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-888);
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    transition: background-color .15s ease, color .15s ease, transform .12s ease;
+}
+.drag-handle::before { /* 指で押しやすいよう、押せる範囲を少し広げる */
+    content: "";
+    position: absolute;
+    inset: -4px -2px;
+}
+.drag-handle svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+@media (hover: hover) {
+    .drag-handle:hover { background: var(--bg-f0f0f0); color: var(--color-333); }
+    .dark .drag-handle:hover { background: #333; }
+}
+.drag-handle:active { transform: scale(.92); }
+.drag-handle:focus-visible { outline: 2px solid var(--color-888); outline-offset: -2px; }
+/* つかんでいる行。少し浮かせて、ほかの行の上に重ねる */
+[data-sort-group].is-sorting {
+    position: relative;
+    z-index: 5;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .14);
+}
+.dark [data-sort-group].is-sorting { box-shadow: 0 6px 16px rgba(0, 0, 0, .5); }
+.is-sorting .drag-handle { background: var(--bg-f0f0f0); color: var(--color-333); }
+.dark .is-sorting .drag-handle { background: #333; }
+html.is-drag-sorting,
+html.is-drag-sorting * {
+    cursor: grabbing !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
 /* --- シェルページのヘッダーの読み込み中表示 (プレイヤー・クラブ) --- */
 /* DBにまだない場合は、フラグメントが届くまで名前やアイコンの位置にこれを出す */
 .shell-placeholder {
