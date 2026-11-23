@@ -22,7 +22,7 @@ from app.background_tasks.task_registry import (
 )
 from app.core.cache import get_redis, is_transient_redis_error, log_transient_redis_warning
 from app.core.config import settings
-from app.core.logger import logger
+from app.core.logger import describe_exception, logger
 from app.db.db import (
     expire_stale_pool_connections,
     get_db_connection_for_bg_task,
@@ -666,8 +666,9 @@ async def run_recorded_interval_task(task_key: str) -> None:
         await ctx.mark_interrupted("ワーカー停止により中断されました")
         raise
     except Exception as e:
-        await ctx.mark_failed(str(e))
-        logger.error(f"短周期タスク '{task_key}' が失敗しました (run_id={run_id}): {e}", exc_info=True)
+        error_text = describe_exception(e)
+        await ctx.mark_failed(error_text)
+        logger.error(f"短周期タスク '{task_key}' が失敗しました (run_id={run_id}): {error_text}", exc_info=True)
     finally:
         _owned_run_ids.discard(run_id)
 
@@ -883,8 +884,9 @@ async def _execute_run(run: dict[str, Any], shutdown_event: asyncio.Event) -> No
         await ctx.mark_interrupted("ワーカー停止により中断されました")
         logger.warning(f"タスク '{task_key}' がキャンセルされました (run_id={run_id})。")
     except Exception as e:
-        await ctx.mark_failed(str(e))
-        logger.error(f"タスク '{task_key}' が失敗しました (run_id={run_id}): {e}", exc_info=True)
+        error_text = describe_exception(e)
+        await ctx.mark_failed(error_text)
+        logger.error(f"タスク '{task_key}' が失敗しました (run_id={run_id}): {error_text}", exc_info=True)
         # [この部分は公開用リポジトリでは非公開にされています]
     finally:
         heartbeat_task.cancel()

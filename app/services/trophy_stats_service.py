@@ -6,6 +6,7 @@ import datetime
 import hashlib
 import itertools
 import secrets
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
@@ -238,7 +239,7 @@ def resolve_trophy_filter_ids(
 
 
 async def update_trophy_stats(db: asyncpg.Connection, target_date: datetime.date) -> None:
-    """指定UTC日のマルチプレイ統計を集計して更新する。"""
+    """指定UTC日のマルチプレイ統計を集計して更新する。battles は1時間ずつ読む。"""
     # [この部分は公開用リポジトリでは非公開にされています]
 
 
