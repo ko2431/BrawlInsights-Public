@@ -115,6 +115,18 @@
     window.addEventListener('scroll', hideTip, { passive: true });
 
     // ---------- グラフの共通の部品（推移グラフタブの player_trends.js でも使う） ----------
+    // root が表示されて幅が決まってから fn を実行する。フラグメントは隠れた状態(x-show)で差し込まれるため、
+    // そのまま Chart.js を作ると幅0で作られ、端末によっては表示されたあとも描かれないままになる
+    function whenShown(root, fn) {
+        const shown = () => root.clientWidth > 0;
+        if (shown() || !window.ResizeObserver) { fn(); return; }
+        const ro = new ResizeObserver(() => {
+            if (!shown()) return;
+            ro.disconnect();
+            fn();
+        });
+        ro.observe(root);
+    }
     function themeOf(root) {
         const cs = getComputedStyle(root);
         const v = (n) => cs.getPropertyValue(n).trim();
@@ -351,7 +363,7 @@
     });
 
     // 詳細分析タブ（battle_analysis.js）と共通で使う小物
-    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, themeOf, baseOptions, rankTools, rankedTrendConfig, timeAxis, spacedDots, hlItem, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
+    window.BattleStatsKit = { AGG, CLOSED_KEY, PREF_KEY, CHART_FONT, FMT_COLORS, FMT_DARK, RARITY, SL, esc, nf, f1, f2, pc, signed, dur, toAgg, wr, readJson, writeJson, whenShown, themeOf, baseOptions, rankTools, rankedTrendConfig, timeAxis, spacedDots, hlItem, DOT_HOVER, LEAGUES: { ja: TEXT.ja.leagues, en: TEXT.en.leagues } };
 
     let current = null;  // いま表示しているカード（画面幅が変わったときの詰め直し用）
     window.addEventListener('resize', () => { if (current && document.body.contains(current.root)) current.fitWbars(); });
@@ -795,7 +807,7 @@
 
         // ---------- 描画 ----------
         const CARD_FN = { ranked: cardRankedTrend, daily: cardDaily, hours: cardHours, brawlers: cardBrawlers, modes: cardModes, mates: cardMates, bans: cardBans };
-        const runAfter = () => { const run = after; after = []; run.forEach((f) => f()); };
+        const runAfter = () => { const run = after; after = []; whenShown(root, () => run.forEach((f) => f())); };
         function render() {
             const summarySlot = root.querySelector('[data-bx-slot="summary"]'), cardsSlot = root.querySelector('[data-bx-slot="cards"]');
             if (!summarySlot || !cardsSlot) return;

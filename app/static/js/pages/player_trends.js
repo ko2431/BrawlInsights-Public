@@ -313,7 +313,7 @@
                 const halves = slot.querySelectorAll('.bx-card:not(.bx-span2)');
                 if (halves.length % 2) halves[halves.length - 1].classList.add('bx-span2');
             });
-            after.forEach((fn) => fn());
+            Kit.whenShown(root, () => after.forEach((fn) => fn()));
         }
 
         root.addEventListener('click', (e) => {

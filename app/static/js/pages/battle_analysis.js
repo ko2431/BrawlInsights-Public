@@ -221,7 +221,7 @@
                 out.innerHTML = outside.join('');
             });
         }
-        const runAfter = () => { const run = after; after = []; run.forEach((f) => f()); };
+        const runAfter = () => { const run = after; after = []; K.whenShown(root, () => run.forEach((f) => f())); };
         function chartTheme() {
             const cs = getComputedStyle(topSlot);
             const v = (n) => cs.getPropertyValue(n).trim();
