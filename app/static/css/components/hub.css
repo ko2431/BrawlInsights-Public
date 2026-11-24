@@ -81,11 +81,12 @@
     margin: 0 0 10px;
     padding: 4px;
     border-radius: 14px;
+    background: #efefef; /* color-mix が使えない端末（iOS 16.1 以前）用 */
     background: color-mix(in srgb, #efefef 86%, transparent);
     -webkit-backdrop-filter: saturate(1.5) blur(12px);
     backdrop-filter: saturate(1.5) blur(12px);
 }
-.dark .hub-tabs { background: color-mix(in srgb, #161616 86%, transparent); }
+.dark .hub-tabs { background: #161616; background: color-mix(in srgb, #161616 86%, transparent); }
 @media (min-width: 840px) {
     .hub-tabs { top: calc(40px + env(safe-area-inset-top) + 8px); }
 }
@@ -210,13 +211,12 @@ a.hub-notice__text:hover { text-decoration: underline; }
     min-height: 96px;
     overflow: hidden;
     border-radius: 18px;
-    background:
-        radial-gradient(60% 120% at 10% 30%, color-mix(in srgb, var(--c2) 75%, transparent), transparent 70%),
-        radial-gradient(55% 120% at 100% 110%, color-mix(in srgb, var(--c1) 85%, transparent), transparent 70%),
-        color-mix(in srgb, var(--c1) 25%, #fff);
+    /* color-mix が使えない端末（iOS 16.1 以前。アプリは iOS 14 から）は同じ色の素直なグラデーション。
+       var() を含む指定は、無効でも前の指定に戻らず透明になるので、色のにじみは下の @supports の中で当てる */
+    background: linear-gradient(170deg, var(--c1), var(--c2));
     color: var(--hub-ink);
     text-decoration: none;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 8px 22px -14px color-mix(in srgb, var(--c2) 80%, transparent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
     -webkit-tap-highlight-color: transparent;
     transition: box-shadow .2s ease;
 }
@@ -242,15 +242,26 @@ a.hub-notice__text:hover { text-decoration: underline; }
     -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
-.hub-card:hover { box-shadow: 0 1px 3.5px rgba(0, 0, 0, .2), 0 8px 22px -14px color-mix(in srgb, var(--c2) 80%, transparent); }
+.hub-card:hover { box-shadow: 0 1px 3.5px rgba(0, 0, 0, .2); }
 .hub-card:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }
-/* ダーク: にじみは弱め（強いと明るさのむらで読みにくい） */
-.dark .hub-card {
-    background:
-        radial-gradient(70% 130% at 10% 30%, color-mix(in srgb, var(--c2) 24%, transparent), transparent 75%),
-        radial-gradient(60% 130% at 100% 110%, color-mix(in srgb, var(--c1) 10%, transparent), transparent 75%),
-        color-mix(in srgb, var(--c2) 16%, #1c1c1e);
-    box-shadow: none;
+.dark .hub-card { background: #262628; box-shadow: none; }
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+    .hub-card {
+        background:
+            radial-gradient(60% 120% at 10% 30%, color-mix(in srgb, var(--c2) 75%, transparent), transparent 70%),
+            radial-gradient(55% 120% at 100% 110%, color-mix(in srgb, var(--c1) 85%, transparent), transparent 70%),
+            color-mix(in srgb, var(--c1) 25%, #fff);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 8px 22px -14px color-mix(in srgb, var(--c2) 80%, transparent);
+    }
+    .hub-card:hover { box-shadow: 0 1px 3.5px rgba(0, 0, 0, .2), 0 8px 22px -14px color-mix(in srgb, var(--c2) 80%, transparent); }
+    /* ダーク: にじみは弱め（強いと明るさのむらで読みにくい） */
+    .dark .hub-card {
+        background:
+            radial-gradient(70% 130% at 10% 30%, color-mix(in srgb, var(--c2) 24%, transparent), transparent 75%),
+            radial-gradient(60% 130% at 100% 110%, color-mix(in srgb, var(--c1) 10%, transparent), transparent 75%),
+            color-mix(in srgb, var(--c2) 16%, #1c1c1e);
+        box-shadow: none;
+    }
 }
 .dark .hub-card::before { background: linear-gradient(135deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .03) 45%, rgba(255, 255, 255, .02) 60%, rgba(255, 255, 255, .05)); }
 .dark .hub-card::after { background: linear-gradient(135deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .06) 35%, rgba(255, 255, 255, .03) 65%, rgba(255, 255, 255, .25)); }
@@ -484,10 +495,10 @@ a.hub-notice__text:hover { text-decoration: underline; }
     transition: transform .15s ease, background-color .15s ease;
 }
 @media (hover: hover) {
-    .hub-edit__row:hover { background: color-mix(in srgb, var(--color-000) 3%, var(--hub-surface)); }
+    .hub-edit__row:hover { background: var(--hub-soft); }
 }
 /* タッチで長押ししている間（つかむ直前）。少しだけ沈ませる */
-.hub-edit__row.is-pressing { transform: scale(.985); background: color-mix(in srgb, var(--color-000) 5%, var(--hub-surface)); }
+.hub-edit__row.is-pressing { transform: scale(.985); background: var(--hub-soft); }
 .hub-edit__icon {
     flex: none;
     display: grid;
@@ -498,7 +509,10 @@ a.hub-notice__text:hover { text-decoration: underline; }
     border-radius: 10px;
     background: linear-gradient(170deg, var(--c1), var(--c2));
 }
-.dark .hub-edit__icon { background: linear-gradient(170deg, color-mix(in srgb, var(--c2) 30%, #1c1c1e), color-mix(in srgb, var(--c2) 18%, #1c1c1e)); }
+.dark .hub-edit__icon { background: #2c2c2e; }
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+    .dark .hub-edit__icon { background: linear-gradient(170deg, color-mix(in srgb, var(--c2) 30%, #1c1c1e), color-mix(in srgb, var(--c2) 18%, #1c1c1e)); }
+}
 .hub-edit__icon > * { width: 100%; height: 100%; }
 .hub-edit__name {
     flex: 1;
