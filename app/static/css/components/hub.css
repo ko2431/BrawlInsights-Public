@@ -90,6 +90,57 @@
 @media (min-width: 840px) {
     .hub-tabs { top: calc(40px + env(safe-area-inset-top) + 8px); }
 }
+/* 貼り付いている間は、浮いて見えるようにわずかな影と縁を付ける */
+.hub-tabs { transition: box-shadow .2s ease; }
+.hub-tabs.is-stuck { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .18), inset 0 0 0 1px rgba(255, 255, 255, .55); }
+.dark .hub-tabs.is-stuck { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .07); }
+
+/* スクロールエッジ効果（Apple のリキッドグラスの soft）。サブタブが貼り付いている間、画面の上端から
+   サブタブの少し下までで、スクロールする中身をぼかして薄める。ぼかしは上ほど強く、下へなめらかに消える。
+   backdrop-filter は重ねると内側が外側しか写さないので、強さの違う層を兄弟に並べ、それぞれ別のマスクで消していく。
+   開閉の opacity も層ごとに付ける（外側に付けると、内側のぼかしが効かなくなるため） */
+.hub-edge {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 29;
+    height: var(--hub-edge-h, 80px);
+    pointer-events: none;
+}
+.hub-edge > i {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .2s ease;
+}
+.hub-edge.is-on > i { opacity: 1; }
+.hub-edge > i:nth-child(1) {
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+}
+.hub-edge > i:nth-child(2) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent calc(100% - 8px));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent calc(100% - 8px));
+}
+.hub-edge > i:nth-child(3) {
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 38px), transparent calc(100% - 16px));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 38px), transparent calc(100% - 16px));
+}
+/* 背景色をうっすら重ねて、ぼけた文字がちらつかないようにする */
+.hub-edge__tint {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, .72), rgba(255, 255, 255, .5) calc(100% - 30px), rgba(255, 255, 255, 0));
+}
+.dark .hub-edge__tint {
+    background: linear-gradient(to bottom, rgba(34, 34, 34, .74), rgba(34, 34, 34, .5) calc(100% - 30px), rgba(34, 34, 34, 0));
+}
+
 .hub-tabs__pill {
     position: absolute;
     left: 0;
@@ -603,5 +654,6 @@ a.hub-notice__text:hover { text-decoration: underline; }
 }
 @media (prefers-reduced-motion: reduce) {
     .hub-tabs__pill.is-ready { transition: none; }
+    .hub-edge > i { transition: none; }
     .hub-s-state--alert::before { animation: none; }
 }

@@ -15,6 +15,7 @@
     const LONG_PRESS_MS = 280;  // タッチは少し長押ししてからつかむ（すぐ動かすとスクロール）
     const REFETCH_AWAY_MS = 60 * 1000;
     const HOUR_MS = 60 * 60 * 1000;
+    const EDGE_BELOW = 18;      // 貼り付いたサブタブの下端から、ぼかしを薄めていく長さ (px)
 
     const orderKey = (hub, sub) => `bi_hub_order_${hub}_${sub}`;
     // 端末の並びが、ログイン中に置いたアカウントの写しか（写しはアカウントへ引き継がない。「デフォルトに戻す」が元に戻るため）
@@ -101,6 +102,7 @@
             editing: false,
             editList: [],
             pillStyle: '',
+            stuck: false,
             noticeClosed: false,
             touch: window.matchMedia('(hover: none)').matches,
 
@@ -130,7 +132,14 @@
                     if (document.documentElement.classList.contains('is-drag-sorting')) e.preventDefault();
                 }, { passive: false });
 
-                const refit = () => requestAnimationFrame(() => { this.fitAll(); this.movePill(); });
+                const refit = () => requestAnimationFrame(() => { this.fitAll(); this.movePill(); this.measureEdge(); });
+                // サブタブが上に貼り付いたか（貼り付いている間だけ、上でスクロールする中身をぼかす）
+                let edgeQueued = false;
+                window.addEventListener('scroll', () => {
+                    if (edgeQueued) return;
+                    edgeQueued = true;
+                    requestAnimationFrame(() => { edgeQueued = false; this.updateStuck(); });
+                }, { passive: true });
                 if ('ResizeObserver' in window) new ResizeObserver(refit).observe(root);
                 else window.addEventListener('resize', refit);
                 if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
@@ -175,6 +184,20 @@
                 const index = Math.max(0, this.ids.indexOf(this.sub));
                 const next = e.key === 'ArrowRight' ? (index + 1) % this.ids.length : (index - 1 + this.ids.length) % this.ids.length;
                 this.setSub(this.ids[next]);
+            },
+            // ぼかす範囲: 画面の上端から、貼り付いたサブタブの下端より少し下まで
+            measureEdge() {
+                const tabs = this.$refs.tabs;
+                if (!tabs) return;
+                this.stickyTop = parseFloat(getComputedStyle(tabs).top) || 0;
+                this.$root.style.setProperty('--hub-edge-h', `${Math.round(this.stickyTop + tabs.offsetHeight + EDGE_BELOW)}px`);
+                this.updateStuck();
+            },
+            updateStuck() {
+                const anchor = this.$refs.tabsAnchor;
+                if (!anchor) return;
+                const stuck = anchor.getBoundingClientRect().top < (this.stickyTop || 0) - 0.5;
+                if (stuck !== this.stuck) this.stuck = stuck;
             },
             movePill() {
                 const tab = this.$refs.tabs && this.$refs.tabs.querySelector(`[data-tab="${this.sub}"]`);

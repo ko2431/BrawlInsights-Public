@@ -55,7 +55,9 @@
 
     {# サブタブ（上に貼り付き、選んだタブに白い札が移る）。リンクは JS が無いとき・検索エンジン用 #}
     <div x-ref="tabsAnchor" aria-hidden="true"></div>
-    <nav class="hub-tabs" x-ref="tabs">
+    {# サブタブが上に貼り付いている間、その上（と少し下）でスクロールする中身をぼかして薄める（リキッドグラスのスクロールエッジ効果） #}
+    <div class="hub-edge" :class="{ 'is-on': stuck }" aria-hidden="true"><i></i><i></i><i></i><i class="hub-edge__tint"></i></div>
+    <nav class="hub-tabs" x-ref="tabs" :class="{ 'is-stuck': stuck }">
         <span class="hub-tabs__pill" :style="pillStyle" aria-hidden="true"></span>
         {% for s in hub.subtabs %}
         <a href="?sub={{ s.id }}" class="hub-tab" :class="{ 'is-active': sub === '{{ s.id }}' }" :aria-current="sub === '{{ s.id }}' ? 'page' : null"
