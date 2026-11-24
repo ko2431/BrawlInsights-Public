@@ -17,6 +17,8 @@
     const HOUR_MS = 60 * 60 * 1000;
 
     const orderKey = (hub, sub) => `bi_hub_order_${hub}_${sub}`;
+    // 端末の並びが、ログイン中に置いたアカウントの写しか（写しはアカウントへ引き継がない。「デフォルトに戻す」が元に戻るため）
+    const mirrorKey = (hub) => `bi_hub_order_${hub}_from_account`;
     const noticeKey = (id) => `bi_hub_notice_${id}`;
 
     function lsGet(key) {
@@ -195,8 +197,10 @@
                     const saved = readOrder(this.hub, sub);
                     if (saved) local[sub] = mergeOrder(saved, this.data.defaults[sub]);
                 });
-                // 未ログイン: 端末の並び。ログイン中でアカウントに並びが無い: 端末の並びを引き継ぐ（アカウントへ送る）
-                const useLocal = !this.data.loggedIn || !this.data.hasAccountOrders;
+                // 未ログイン: 端末の並び。ログイン中でアカウントに並びが無い: 端末の並びを引き継ぐ（アカウントへ送る）。
+                // ただし端末の並びがアカウントの写しなら引き継がない（別の端末で「デフォルトに戻す」をしたあとに、元に戻さないため）
+                const mirrored = lsGet(mirrorKey(this.hub)) === '1';
+                const useLocal = !this.data.loggedIn || (!this.data.hasAccountOrders && !mirrored);
                 const upload = {};
                 this.ids.forEach((sub) => {
                     const grid = this.grid(sub);
@@ -209,6 +213,7 @@
                     // ログイン中は、アカウントの並びの写しを端末にも置く（ログアウトしても同じ並びのまま）
                     if (this.data.loggedIn && !useLocal) this.storeLocal(sub, this.orders[sub]);
                 });
+                if (this.data.loggedIn) lsSet(mirrorKey(this.hub), '1');
                 if (Object.keys(upload).length) {
                     this.data.hasAccountOrders = true;
                     this.sendOrders(upload);
@@ -237,6 +242,8 @@
                 if (grid) applyOrder(grid, ids);
                 this.orders[sub] = ids.slice();
                 this.storeLocal(sub, ids);
+                // 未ログインで並べ替えた端末の並びは、次にログインしたときにアカウントへ引き継ぐ
+                lsSet(mirrorKey(this.hub), this.data.loggedIn ? '1' : null);
                 this.sendOrders({ [sub]: this.isCustomOrder(sub, ids) ? ids : null });
             },
             editItems(sub) {

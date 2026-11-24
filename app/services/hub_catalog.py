@@ -297,13 +297,17 @@ def merge_order(saved: list[str] | None, defaults: list[str]) -> list[str]:
 
 def clean_orders(raw: Any) -> dict[str, dict[str, list[str]]]:
     """アカウントに保存する並び（{"stats": {"all": [...], ...}, "tools": {...}}）を、知っている hub・サブタブ・id だけにする。
-    デフォルトと同じ並びは保存しない（デフォルトの変更に追従させるため）"""
+    デフォルトと同じ並びは保存しない（デフォルトの変更に追従させるため）。
+    一度でも保存したタブは、並びが空（すべてデフォルト）でもキーを残す。キーが無いタブだけを「アカウントに並びがない」
+    （初めてログインした・まだ並べ替えていない）とみなし、端末の並びを引き継ぐ。空を残さないと、「デフォルトに戻す」の
+    あとに別の端末にあるアカウントの写しが引き継がれ、元の並びに戻ってしまう"""
     result: dict[str, dict[str, list[str]]] = {}
     if not isinstance(raw, dict):
         return result
     for hub, subs in raw.items():
         if hub not in HUBS or not isinstance(subs, dict):
             continue
+        result.setdefault(hub, {})
         for sub, ids in subs.items():
             defaults = default_order(hub, sub)
             if not defaults or not isinstance(ids, list):
@@ -404,7 +408,9 @@ def build(request, lang: str, hub: str, *, account_orders: dict | None = None, t
             for i in s["order"]:
                 category_of.setdefault(i, labels[s["id"]])
 
-    orders = (account_orders or {}).get(hub, {}) if account_orders else {}
+    # アカウントにこのタブのキーがあるか（一度でも保存したか）。空でもあれば、端末の並びは引き継がない
+    account_hub = account_orders.get(hub) if account_orders is not None else None
+    orders = account_hub or {}
     subtabs = []
     for s in HUBS[hub]["subtabs"]:
         defaults = [i for i in s["order"] if i in shown]
@@ -432,7 +438,7 @@ def build(request, lang: str, hub: str, *, account_orders: dict | None = None, t
     js = {
         "hub": hub,
         "loggedIn": logged_in,
-        "hasAccountOrders": bool(orders),
+        "hasAccountOrders": account_hub is not None,
         "saveUrl": str(cached_url_for({"request": request}, "account_hub_order", lang=lang)) if logged_in else None,
         "subtabs": [s["id"] for s in subtabs],  # tojson はキーを並べ替えるので、サブタブの順はこちらで渡す
         "defaults": {s["id"]: s["defaults"] for s in subtabs},

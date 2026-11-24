@@ -33,6 +33,12 @@ def test_clean_orders_drops_unknown_and_default_orders():
     assert hc.clean_orders(raw) == {"stats": {"all": custom}}
 
 
+def test_clean_orders_keeps_saved_hub_even_if_empty():
+    # 「デフォルトに戻す」で空になっても、保存したことは残す（端末の写しを引き継いで元に戻さないため）
+    assert hc.clean_orders({"tools": {"ranked": hc.default_order("tools", "ranked")}}) == {"tools": {}}
+    assert hc.clean_orders({"tools": {}}) == {"tools": {}}
+
+
 def test_clean_orders_limits_ids():
     ids = ["x" * (hc.ORDER_MAX_ID_LEN + 1)] + hc.default_order("tools", "ranked")[::-1]
     assert hc.clean_orders({"tools": {"ranked": ids}}) == {"tools": {"ranked": hc.default_order("tools", "ranked")[::-1]}}
