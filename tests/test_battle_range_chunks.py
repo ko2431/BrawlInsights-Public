@@ -230,3 +230,72 @@ async def test_update_trophy_stats_reads_the_day_one_hour_at_a_time(monkeypatch)
         (day_start + dt.timedelta(hours=h), day_start + dt.timedelta(hours=h + 1)) for h in range(24)
     ]
     assert any("DELETE FROM trophy_stats_brawler" in query for query in db.executed)
+
+
+#* /---*---*---*---*---*---*---*---*/
+#* ガチバトル統計: 1時間ずつ読む
+#* /---*---*---*---*---*---*---*---*/
+def _battle_row(**extra):
+    row = {
+        "event_mode": "gemGrab",
+        "event_map": "Hard Rock Mine",
+        "result": "victory",
+        "brawler": 16000000,
+        "is_starplayer": False,
+        "teammate_brawlers": [16000001, 16000002],
+        "opponent_brawlers": [16000003, 16000004, 16000005],
+    }
+    row.update(extra)
+    return row
+
+
+class _RankedStatsDB:
+    def __init__(self, day_start: dt.datetime):
+        self.day_start = day_start
+        self.calls: list[tuple[str, dt.datetime, dt.datetime]] = []
+        self.executed: list[str] = []
+
+    async def fetch(self, query, start, end):
+        kind = "soloRanked" if "'soloRanked'" in query else "ranked"
+        self.calls.append((kind, start, end))
+        # 最初と最後の1時間だけ1件ずつ返し、全時間帯の分がまとめて集計に渡ることを確かめる
+        if start in (self.day_start, self.day_start + dt.timedelta(hours=23)):
+            return [_battle_row(trophies=10)] if kind == "soloRanked" else [_battle_row()]
+        return []
+
+    async def execute(self, query, *args):
+        self.executed.append(query)
+
+
+async def test_update_ranked_stats_reads_the_day_one_hour_at_a_time(monkeypatch):
+    from app.services import brawl_service
+
+    received: dict[str, int] = {}
+
+    def capture(name):
+        async def _store(db, battles, target_date):
+            received[name] = len(battles)
+        return _store
+
+    for name in (
+        "_calculate_and_store_brawler_stats",
+        "_calculate_and_store_synergy_stats",
+        "_calculate_and_store_composition_stats",
+        "_calculate_and_store_multi_brawler_stats",
+    ):
+        monkeypatch.setattr(brawl_service, name, capture(name))
+
+    day_start = dt.datetime(2026, 11, 22, tzinfo=UTC)
+    db = _RankedStatsDB(day_start)
+    await brawl_service.update_ranked_stats(db, dt.date(2026, 11, 22))
+
+    hours = [(day_start + dt.timedelta(hours=h), day_start + dt.timedelta(hours=h + 1)) for h in range(24)]
+    assert [(s, e) for kind, s, e in db.calls if kind == "soloRanked"] == hours
+    assert [(s, e) for kind, s, e in db.calls if kind == "ranked"] == hours
+    assert received == {
+        "_calculate_and_store_brawler_stats": 2,
+        "_calculate_and_store_synergy_stats": 2,
+        "_calculate_and_store_composition_stats": 2,
+        "_calculate_and_store_multi_brawler_stats": 2,
+    }
+    assert any("DELETE FROM ranked_stats_brawler" in query for query in db.executed)

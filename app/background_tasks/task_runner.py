@@ -107,6 +107,47 @@ def utc_day_bounds(day: date | None = None) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
+def _task_day_lead(task: TaskDef) -> timedelta:
+    """予定時刻より前に追い実行で動くタスクは、その分だけ1日の区切りを前に寄せる。"""
+    if task.key == "prestige_borders":
+        return timedelta(seconds=PRESTIGE_CATCHUP_WINDOW_SEC)
+    return timedelta(0)
+
+
+def task_day_bounds(task: TaskDef | None, now: datetime | None = None) -> tuple[datetime, datetime]:
+    """1日1回のタスクで「本日成功済み」とみなす範囲。
+
+    予定時刻のあるタスクは、予定時刻から次の予定時刻までを1日とし、その間にキューに載った実行で判定する。
+    UTC の日付で区切ると、前の回が UTC 0時をまたいで終わったとき(JST 5:05 開始のアクセサリ集計が
+    JST 9時過ぎに終わったときなど)、その日の予定時刻の実行が成功済み扱いで飛ばされてしまうため。
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    if task is None or task.cron_hour_utc is None:
+        return utc_day_bounds(now.date())
+    start = now.replace(
+        hour=task.cron_hour_utc,
+        minute=task.cron_minute_utc,
+        second=0,
+        microsecond=0,
+    ) - _task_day_lead(task)
+    if start > now:
+        start -= timedelta(days=1)
+    return start, start + timedelta(days=1)
+
+
+def _success_in_task_day(task: TaskDef | None, *, created_at: datetime | None, finished_at: datetime | None, now: datetime) -> bool:
+    """成功した実行が task_day_bounds の範囲に入るか。予定時刻のあるタスクはキューに載った時刻、ないタスクは終了時刻で見る。"""
+    start, end = task_day_bounds(task, now)
+    moment = created_at if task is not None and task.cron_hour_utc is not None else finished_at
+    if moment is None:
+        return False
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return start <= moment < end
+
+
 def _truncate_error(message: str | None) -> str | None:
     if not message:
         return None
@@ -346,17 +387,20 @@ async def recover_stale_runs() -> int:
         return 0
 
 
-async def _has_success_today(db: asyncpg.Connection, task_key: str) -> bool:
-    start, end = utc_day_bounds()
+async def _has_success_today(db: asyncpg.Connection, task_key: str, now: datetime | None = None) -> bool:
+    task = get_task(task_key)
+    start, end = task_day_bounds(task, now)
     keys = [task_key, *TASK_SUCCESS_ALIASES.get(task_key, ())]
+    # 予定時刻のあるタスクはキューに載った時刻で、ないタスクは従来どおり終了時刻で見る
+    column = "created_at" if task is not None and task.cron_hour_utc is not None else "finished_at"
     found = await db.fetchval(
-        """
+        f"""
         SELECT 1
         FROM worker_task_runs
         WHERE task_key = ANY($1::text[])
           AND status = 'success'
-          AND finished_at >= $2
-          AND finished_at < $3
+          AND {column} >= $2
+          AND {column} < $3
         LIMIT 1
         """,
         keys,
@@ -1023,20 +1067,24 @@ async def fetch_task_summaries(db: asyncpg.Connection) -> list[dict[str, Any]]:
     )
     latest_by_key = {row["task_key"]: row for row in latest_rows}
 
-    start, end = utc_day_bounds()
-    today_success_rows = await db.fetch(
-        """
-        SELECT DISTINCT ON (task_key) task_key, finished_at
-        FROM worker_task_runs
-        WHERE status = 'success' AND finished_at >= $1 AND finished_at < $2
-        ORDER BY task_key, finished_at DESC
-        """,
-        start,
-        end,
-    )
-    success_today = {row["task_key"] for row in today_success_rows}
-
     now = datetime.now(timezone.utc)
+    # 「本日成功済み」は enqueue と同じ task_day_bounds で判定する(区切りは最大で前日の予定時刻までさかのぼる)
+    recent_success_rows = await db.fetch(
+        """
+        SELECT task_key, created_at, finished_at
+        FROM worker_task_runs
+        WHERE status = 'success' AND finished_at >= $1
+        """,
+        now - timedelta(days=2),
+    )
+    success_today: set[str] = set()
+    for row in recent_success_rows:
+        key = row["task_key"]
+        if key in success_today:
+            continue
+        if _success_in_task_day(get_task(key), created_at=row["created_at"], finished_at=row["finished_at"], now=now):
+            success_today.add(key)
+
     summaries = []
     for task in iter_tasks():
         latest = _row_to_public_dict(latest_by_key.get(task.key))
