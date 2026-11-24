@@ -1,7 +1,7 @@
 """add player update schedule
 
 裏の更新（ワーカー）で、次にいつバトル履歴を確認するかをプレイヤーごとに持つ表を作る
-（notes_private/player_update_plan_2026-11-16.md 3章）。新しい表なので、既存の表は書き直さない。
+（docs/plans/player_update_plan_2026-11-16.md 3章）。新しい表なので、既存の表は書き直さない。
 players への外部キーは置かないため、players の書き込みは止めない（players は読むだけ）。
 
 今の自動追跡・アクティブの人（level 20以上・約30万人）の行を入れておく。次の確認の時刻は、これまでの順番（最後の更新が

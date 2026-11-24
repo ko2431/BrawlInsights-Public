@@ -1,6 +1,6 @@
 """add media, drop legacy announcements
 
-画像の土台（検討メモ notes_private/push_image_plan_2026-10-27.md の 6章）の media テーブルを作る。
+画像の土台（検討メモ docs/plans/push_image_plan_2026-10-27.md の 6章）の media テーブルを作る。
 最初の利用先はお知らせの画像（kind = 'announcement'。お知らせの検討メモの 14.3）。
 
 お知らせの旧テーブル announcements を消す（df1682b7cc67 で announcement_posts に写し、本番で1リリース動かした）。

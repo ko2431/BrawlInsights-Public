@@ -1,7 +1,7 @@
 """アナウンス管理（お知らせの一覧・編集・テンプレート）。
 
 admin.py が大きいため分けている。管理者は日本人しかいないため、言語設定にかかわらず日本語で表示する。
-検討メモ notes_private/announcement_plan_2026-10-29.md の 6章。権限は admin_permissions の
+検討メモ docs/plans/announcement_plan_2026-10-29.md の 6章。権限は admin_permissions の
 resolve_admin_route_permission（GET は閲覧、POST は編集。プレビューだけは閲覧）。
 """
 from __future__ import annotations

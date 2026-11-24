@@ -1,7 +1,7 @@
 """裏の更新（ワーカー）で、次にいつプレイヤーのバトル履歴を確認するかを決め、player_update_schedule に書く。
 
 自動追跡（level 30以上）とアクティブ（level 20）の人だけが対象。閲覧で取得したときも、次の確認の時刻を決め直す
-（閲覧の多い人はワーカーで確認しなくて済む）。決め方は notes_private/player_update_plan_2026-11-16.md 3章。
+（閲覧の多い人はワーカーで確認しなくて済む）。決め方は docs/plans/player_update_plan_2026-11-16.md 3章。
 """
 import datetime
 from collections.abc import Sequence

@@ -1,7 +1,7 @@
 """フィードバック確認の詳細（個別返信・公開の回答・チェック）と、回答のお知らせの作成。
 
 一覧は admin.py（/admin/feedbacks）。admin.py が大きいため分けている。管理者は日本人しかいないため日本語で表示する。
-検討メモ notes_private/feedback_plan_2026-10-31.md の 6〜8章・10章。権限は admin_permissions の
+検討メモ docs/plans/feedback_plan_2026-10-31.md の 6〜8章・10章。権限は admin_permissions の
 resolve_admin_route_permission（詳細は閲覧、返信は個別返信、回答とお知らせの作成は公開の回答、チェックはチェック更新）。
 """
 from __future__ import annotations

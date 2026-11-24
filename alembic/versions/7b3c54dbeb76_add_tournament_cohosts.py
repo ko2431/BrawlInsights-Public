@@ -1,6 +1,6 @@
 """add_tournament_cohosts
 
-大会開催ツールの副主催者（notes_private/tournament_plan_2026-10-03.md の 13.16・D69）。
+大会開催ツールの副主催者（docs/plans/tournament_plan_2026-10-03.md の 13.16・D69）。
 副主催者の表（tournament_cohosts。大会・ユーザー・招待した人・日時）と、
 主催者が作る招待リンク（tournaments.cohost_invite_token と、リンクを作った人）を足す。
 既存の大会は副主催者なし・リンクなしで、動きは変わらない。

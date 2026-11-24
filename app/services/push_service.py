@@ -1,4 +1,4 @@
-"""プッシュ通知の積み込み・端末の登録・設定（検討メモ notes_private/push_image_plan_2026-10-27.md の 3.2・3.4）。
+"""プッシュ通知の積み込み・端末の登録・設定（検討メモ docs/plans/push_image_plan_2026-10-27.md の 3.2・3.4）。
 
 - 通知を作る所（掲示板・大会・管理者）は enqueue で Redis のキューに積むだけにする（リクエストの中では送らない）。
   送信は worker の push_sender。鍵（VAPID・FCM）がどちらも未設定なら積まない。

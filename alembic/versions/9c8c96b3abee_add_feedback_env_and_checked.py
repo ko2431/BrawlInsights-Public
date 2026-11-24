@@ -1,6 +1,6 @@
 """add feedback env and checked
 
-フィードバックの送信時の環境と、チェックした日時・人（検討メモ notes_private/feedback_plan_2026-10-31.md の 3章・5章・11章）。
+フィードバックの送信時の環境と、チェックした日時・人（検討メモ docs/plans/feedback_plan_2026-10-31.md の 3章・5章・11章）。
 列はすべて NULL を許すので、テーブルの書き換えは起きない（feedbacks は 1,500 件ほど）。
 
 Revision ID: 9c8c96b3abee

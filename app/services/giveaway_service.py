@@ -1,6 +1,6 @@
 """事前応募型のプレゼント企画（トークンで応募する企画）の企画・応募・表示・管理画面。
 
-検討メモ notes_private/giveaway_campaign_plan_2026-11-04.md。
+検討メモ docs/plans/giveaway_campaign_plan_2026-11-04.md。
 - 応募は giveaway_entries（企画・ユーザー・UTC の日）に口数を足す。1日（UTC 0時で切り替え）と期間の上限は、同じタグを登録している
   アカウント全体でも共有する（main_account_reward_service。キーは giveaway:{id}:day と giveaway:{id}）。
 - アカウントタブの「プレゼント企画」には、開催中・予告の企画と、当選発表から受け取りの期限までの結果の箱（応募した人だけ）を出す。

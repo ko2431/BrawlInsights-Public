@@ -1,6 +1,6 @@
 """drop old minigame ad columns and template
 
-ミニゲーム企画の刷新の片付け（notes_private/minigame_campaign_plan_2026-11-09.md 9.1）。割引参加の回数を企画ごとに数えるようにしたため
+ミニゲーム企画の刷新の片付け（docs/plans/minigame_campaign_plan_2026-11-09.md 9.1）。割引参加の回数を企画ごとに数えるようにしたため
 使わなくなった users の2列を消し、自動生成の枠に置き換わった古いテンプレート「プレゼント企画 告知（ミニゲーム。タイトルだけ）」を消す
 （消したテンプレートは戻さない。列の DROP は表の書き直しをしないのですぐ終わる）。
 

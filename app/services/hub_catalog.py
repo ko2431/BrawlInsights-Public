@@ -1,7 +1,7 @@
 """統計データタブ・ツールタブ（ハブ）のコンテンツの定義と、画面に渡す形への組み立て。
 
 バナー画像はやめ、カードは HTML/CSS で描く（templates/components/hub.html・css/components/hub.css・js/hub.js）。
-検討メモは notes_private/hub_renewal_plan_2026-11-25.md。
+検討メモは docs/plans/hub_renewal_plan_2026-11-25.md。
 
 - コンテンツ（ITEMS）は id ごとに1つ。色・アイコン・タイトル（行ごと）・札などを持つ。
 - タブ（HUBS）はサブタブの並びと、サブタブごとのデフォルトの並び（「すべて」と各サブタブで別々に持てる）。

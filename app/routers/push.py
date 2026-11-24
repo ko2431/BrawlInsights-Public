@@ -1,4 +1,4 @@
-"""プッシュ通知の端末の登録・削除と、受け取る種類の設定（検討メモ notes_private/push_image_plan_2026-10-27.md の 3.4・3.5）。
+"""プッシュ通知の端末の登録・削除と、受け取る種類の設定（検討メモ docs/plans/push_image_plan_2026-10-27.md の 3.4・3.5）。
 
 端末の登録はログインしている人だけ（PD15）。Service Worker（/sw.js）は main.py で配る。
 """

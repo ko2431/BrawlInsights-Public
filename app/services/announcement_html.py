@@ -1,6 +1,6 @@
 """お知らせ（アナウンス）の本文の HTML の決まり。
 
-検討メモ notes_private/announcement_plan_2026-10-29.md の 4章（形式・表示のときの処理）と 10章（旧形式からの変換）。
+検討メモ docs/plans/announcement_plan_2026-10-29.md の 4章（形式・表示のときの処理）と 10章（旧形式からの変換）。
 DB・Redis には触れない。
 
 - 保存の前に `sanitize_body` / `sanitize_title` で許可リストの消毒をかける（エディターの決まりと同じ書式だけを残す）。

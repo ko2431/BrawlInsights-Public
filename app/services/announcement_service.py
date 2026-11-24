@@ -1,6 +1,6 @@
 """お知らせ（アナウンス）の読み書き。
 
-検討メモ notes_private/announcement_plan_2026-10-29.md の 3章（データ）・6章（管理画面）・7章（表示とキャッシュ）。
+検討メモ docs/plans/announcement_plan_2026-10-29.md の 3章（データ）・6章（管理画面）・7章（表示とキャッシュ）。
 本文の HTML の決まりは announcement_html.py。
 
 - ユーザー向け（ホーム・一覧・個別ページ）は Redis のキャッシュから返し、キャッシュ切れのときだけ

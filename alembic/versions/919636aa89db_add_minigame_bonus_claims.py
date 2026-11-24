@@ -1,6 +1,6 @@
 """add minigame bonus claims
 
-ミニゲーム企画の刷新（notes_private/minigame_campaign_plan_2026-11-09.md の 7b）。参加ボーナスの受け取りの表と、
+ミニゲーム企画の刷新（docs/plans/minigame_campaign_plan_2026-11-09.md の 7b）。参加ボーナスの受け取りの表と、
 企画ごとの本人の参加回数（ゲージ・上限・ボーナス）を数える索引を足す。
 
 Revision ID: 919636aa89db

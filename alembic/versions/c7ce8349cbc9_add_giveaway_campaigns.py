@@ -1,6 +1,6 @@
 """add giveaway campaigns
 
-事前応募型企画の刷新（notes_private/giveaway_campaign_plan_2026-11-04.md）。ギフトコードを借りていた応募を、独自の表
+事前応募型企画の刷新（docs/plans/giveaway_campaign_plan_2026-11-04.md）。ギフトコードを借りていた応募を、独自の表
 （企画・日ごとの応募・当選者の確定の時点の応募者・景品・手動の除外）に置き換える。
 お知らせのテンプレートに、開始のお知らせ（役目 giveaway_start）と当選発表（役目 giveaway_result）の自動生成の枠を足し、
 ギフトコードを使っていた旧来の応募型・旧形式と、掲示板企画の旧版のテンプレートを消す（GD12・GD24。消したものは戻さない）。

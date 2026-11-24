@@ -1,11 +1,11 @@
-"""アップロードした画像（共通の土台。検討メモ notes_private/push_image_plan_2026-10-27.md の 6章）。
+"""アップロードした画像（共通の土台。検討メモ docs/plans/push_image_plan_2026-10-27.md の 6章）。
 
 受け取った画像は必ず開き直して作り直し、元のファイルは保存しない（6.2）:
 形式の確認 → 画素数の上限（解凍爆弾の対策）→ EXIF の向きを反映 → sRGB にそろえる → 縮小 → WebP（位置情報などのメタデータは入れない）。
 変換は CPU を使うので、スレッドで行い、プロセスごとの同時数を絞る。ファイルの置き場所は media_storage.py。
 
 種類（kind）ごとの決まり（上げられる人・大きさ・サイズ違い・回数の上限）は KINDS。お知らせ（announcement）と
-フィードバックの添付（feedback。公開しない。検討メモ notes_private/feedback_plan_2026-10-31.md の 5章）。
+フィードバックの添付（feedback。公開しない。検討メモ docs/plans/feedback_plan_2026-10-31.md の 5章）。
 """
 from __future__ import annotations
 

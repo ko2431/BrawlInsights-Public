@@ -1,6 +1,6 @@
 """事前応募型企画の管理画面（一覧・作成とコピー・設定・応募の状況・当選者・景品の状況）。
 
-検討メモ notes_private/giveaway_campaign_plan_2026-11-04.md の 7章。ミニゲーム型の管理画面とは分ける（GD22）。
+検討メモ docs/plans/giveaway_campaign_plan_2026-11-04.md の 7章。ミニゲーム型の管理画面とは分ける（GD22）。
 権限は admin_permissions の resolve_admin_route_permission（GET は閲覧、当選者・当選発表は当選者、ほかの POST は編集）。
 """
 from __future__ import annotations

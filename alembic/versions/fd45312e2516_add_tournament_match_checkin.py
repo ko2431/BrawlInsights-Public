@@ -1,6 +1,6 @@
 """add_tournament_match_checkin
 
-大会開催ツールの試合のチェックイン（notes_private/tournament_plan_2026-10-03.md の 13.11・D69）。
+大会開催ツールの試合のチェックイン（docs/plans/tournament_plan_2026-10-03.md の 13.11・D69）。
 試合（SD はロビー）の期限（tournament_matches.checkin_deadline_at と worker 用の部分インデックス）、
 枠ごとのチェックインしたメンバーと、必要な人数がそろった時刻（tournament_match_slots）、
 続けてチェックインしなかった回数（tournament_entries.checkin_misses。2回で失格）を足す。

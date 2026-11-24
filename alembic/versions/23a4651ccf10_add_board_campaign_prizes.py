@@ -1,6 +1,6 @@
 """add board campaign prizes
 
-掲示板企画の確定・抽選・景品と受け取り・結果の通知（5b。notes_private/board_campaign_plan_2026-10-31.md の 7・9・11章）。
+掲示板企画の確定・抽選・景品と受け取り・結果の通知（5b。docs/plans/board_campaign_plan_2026-10-31.md の 7・9・11章）。
 景品の表（board_campaign_prizes）、企画の確定・抽選・発表の列、本人が結果を確認した時刻、結果の通知の企画
 （board_notifications.board_campaign_id。大きいテーブルなので外部キー・索引は付けない。NULL の列の追加なので書き換えは起きない）。
 当選発表のお知らせを結果から作るためのテンプレート（自動生成の枠の役目 settings.role = board_campaign_result）を足す。

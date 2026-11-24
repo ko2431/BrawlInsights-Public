@@ -1,7 +1,7 @@
 """add battle result data columns
 
 公式APIのバトル履歴に増えたリザルトのデータ（キル・デス・ダメージなどの stats、modeStat、BANしたキャラ）と、以前からある
-duration を battles / archived_battles に保存する（notes_private/battle_stats_plan_2026-11-13.md 4章）。
+duration を battles / archived_battles に保存する（docs/plans/battle_stats_plan_2026-11-13.md 4章）。
 既定値のない NULL 可の列の追加なので、表は書き直されずすぐ終わる。ただし一瞬だけ強いロックを取るので、長いクエリ
 （アーカイブの移管・日次の集計）の後ろで待って通常のクエリを詰まらせないよう、5秒で取れなければ失敗させる（やり直せばよい）。
 

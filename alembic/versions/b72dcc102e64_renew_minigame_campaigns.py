@@ -1,6 +1,6 @@
 """renew minigame campaigns
 
-ミニゲーム企画の刷新（notes_private/minigame_campaign_plan_2026-11-09.md の 7a）。企画に 番号（事前応募型と通し）・下書きと公開・
+ミニゲーム企画の刷新（docs/plans/minigame_campaign_plan_2026-11-09.md の 7a）。企画に 番号（事前応募型と通し）・下書きと公開・
 settings（上限・ボーナスの段・予告と先行プレイの時間・絵柄・期限）・開始のお知らせ・作成者と更新者を足す。
 今までの企画は公開済みにし、番号は名前の「第◯回」から入れる（読めないものは空）。
 お知らせのテンプレートに、開始のお知らせ（役目 minigame_start）の自動生成の枠を足す。

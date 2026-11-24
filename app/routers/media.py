@@ -1,4 +1,4 @@
-"""画像のアップロード（共通の土台。検討メモ notes_private/push_image_plan_2026-10-27.md の 6.1・6.2）。
+"""画像のアップロード（共通の土台。検討メモ docs/plans/push_image_plan_2026-10-27.md の 6.1・6.2）。
 
 POST /{lang}/media/upload?kind=… は、本番では Nginx が親サーバーのアプリだけに送る（ファイルは親のディスクに置く）。
 種類ごとの決まり（上げられる人・回数の上限など）は media_service.KINDS。上げた画像は /media/… で Nginx が配る。

@@ -1,6 +1,6 @@
 """add announcement posts
 
-お知らせの刷新（検討メモ notes_private/announcement_plan_2026-10-29.md の 3章・10章）。
+お知らせの刷新（検討メモ docs/plans/announcement_plan_2026-10-29.md の 3章・10章）。
 本体（announcement_posts）・変更の履歴（announcement_revisions）・テンプレートと部品（announcement_templates）を作り、
 旧テーブル announcements の全件を写す。旧テーブルはデプロイ中の古いプロセスが読むので、このリビジョンでは消さない。
 

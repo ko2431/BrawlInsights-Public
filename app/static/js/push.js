@@ -1,5 +1,5 @@
 // /app/static/js/push.js
-// プッシュ通知（検討メモ notes_private/push_image_plan_2026-10-27.md の 3.7）。ログインしている人のページで読み込む（base.html の window.BI_PUSH）。
+// プッシュ通知（検討メモ docs/plans/push_image_plan_2026-10-27.md の 3.7）。ログインしている人のページで読み込む（base.html の window.BI_PUSH）。
 // - Web: 通知の許可 → Service Worker（/sw.js）の登録 → 購読 → サーバーに登録（/{lang}/push/devices）。オフ・ログアウトの前は購読をやめて消す
 // - ページを開いたとき、購読が残っていれば1日1回サーバーの登録を付け直す。別のアカウントでオンにした購読なら消す
 // - アプリ版は次のアプリの更新で対応する（今は案内だけ）

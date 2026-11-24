@@ -1,4 +1,4 @@
-"""お知らせのプッシュ通知（検討メモ notes_private/announcement_plan_2026-10-29.md の 8章・AD25〜AD33）。
+"""お知らせのプッシュ通知（検討メモ docs/plans/announcement_plan_2026-10-29.md の 8章・AD25〜AD33）。
 
 - お知らせ1件に1回だけ（announcement_pushes）。送るのは公開と同時（予約の公開ならその時刻）。
   送る時刻はお知らせの published_at に付いていくので、ここでは持たない。下書きに戻す・削除すると送らない。

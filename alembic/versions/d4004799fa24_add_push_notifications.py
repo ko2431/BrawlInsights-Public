@@ -1,6 +1,6 @@
 """add push notifications
 
-プッシュ通知（検討メモ notes_private/push_image_plan_2026-10-27.md の 3.4）のため、受け取る端末（push_devices）と、
+プッシュ通知（検討メモ docs/plans/push_image_plan_2026-10-27.md の 3.4）のため、受け取る端末（push_devices）と、
 users に種類ごとの「プッシュでも届けるか」の列・管理者通知のプッシュのレベルを足す。
 users の列はどれも定数の既定値つきなので、書き直しは起きない（PostgreSQL 11 以降はカタログの変更だけ）。
 管理者通知のレベルの制約は、付けるときに users を1回読む（行は既定値の 30 なので、すぐ終わる）。

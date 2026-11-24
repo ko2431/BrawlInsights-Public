@@ -1,6 +1,6 @@
 """add_tournament_staff_checkin_agreement
 
-大会開催ツールの主催者の不在（notes_private/tournament_plan_2026-10-03.md の 13.11 の 1b・D69・M9〜M11）。
+大会開催ツールの主催者の不在（docs/plans/tournament_plan_2026-10-03.md の 13.11 の 1b・D69・M9〜M11）。
 運営のチェックイン（tournaments.staff_checkin_at と、した人）と、確認待ちの合意での確定の中身（tournament_matches.agreement）を足す。
 適用の時点でチェックインを締め切った後の大会（組み合わせの公開後・開催中）は、運営のチェックインができなかったので、
 済んだものとして扱う（開催中に動きが変わらないように）。

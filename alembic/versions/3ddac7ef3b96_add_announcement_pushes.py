@@ -1,6 +1,6 @@
 """add announcement pushes
 
-お知らせのプッシュ通知（検討メモ notes_private/announcement_plan_2026-10-29.md の 8章・AD25〜AD33）。
+お知らせのプッシュ通知（検討メモ docs/plans/announcement_plan_2026-10-29.md の 8章・AD25〜AD33）。
 お知らせ1件ごとのプッシュ（announcement_pushes）と、ユーザーの受け取りの設定（users.push_announcement_enabled。既定オフ）。
 users への列の追加は定数の既定値なので、テーブルの書き換えは起きない。
 

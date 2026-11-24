@@ -1,4 +1,4 @@
-"""プッシュ通知の送信（worker.py の常駐ループ。検討メモ notes_private/push_image_plan_2026-10-27.md の 3.4・3.6）。
+"""プッシュ通知の送信（worker.py の常駐ループ。検討メモ docs/plans/push_image_plan_2026-10-27.md の 3.4・3.6）。
 
 - push_service.enqueue が積んだものを、まとめて（最大 BATCH_SIZE 件）取り出して送る。
 - 宛先の端末・設定は、まとめた分を1回ずつで引く。端末のない人の分はここで捨てる。

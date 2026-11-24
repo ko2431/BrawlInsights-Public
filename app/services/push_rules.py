@@ -1,4 +1,4 @@
-"""プッシュ通知の決まりごと（検討メモ notes_private/push_image_plan_2026-10-27.md の 3.5・3.6）。
+"""プッシュ通知の決まりごと（検討メモ docs/plans/push_image_plan_2026-10-27.md の 3.5・3.6）。
 
 DB・Redis に触れない部分だけを置く: 通知の種類と設定の対応、送り方（優先度・緊急・まとめる単位）、文面、
 送り先（FCM・Web Push）ごとのメッセージの形。積み込みと端末の登録は push_service、送信は push_sender。

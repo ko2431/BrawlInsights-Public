@@ -1,4 +1,4 @@
-"""アップロードした画像のファイルの保存（検討メモ notes_private/push_image_plan_2026-10-27.md の 6.1 の B）。
+"""アップロードした画像のファイルの保存（検討メモ docs/plans/push_image_plan_2026-10-27.md の 6.1 の B）。
 
 今は親サーバーのディスク（settings.MEDIA_DIR）に置き、Nginx が /media/ で親のディスクから直接配る
 （アップロードの URL は Nginx が親のアプリだけに送る）。開発環境では main.py が /media を配る。

@@ -1,6 +1,6 @@
 """ミニゲーム企画管理（一覧・作成とコピー・設定・景品と還元率・絵柄・状況・開始のお知らせ）。
 
-検討メモ notes_private/minigame_campaign_plan_2026-11-09.md の 7a。参加履歴は今までどおり admin.py の /minigame-plays。
+検討メモ docs/plans/minigame_campaign_plan_2026-11-09.md の 7a。参加履歴は今までどおり admin.py の /minigame-plays。
 権限は admin_permissions の resolve_admin_route_permission（GET は閲覧、POST は編集）。
 """
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """掲示板企画の管理画面（一覧・企画の設定・集計・確定賞の順位・ユーザーの内訳・無効のリスト）。
 
-検討メモ notes_private/board_campaign_plan_2026-10-31.md の 10.3（モック 15.5）。確定・抽選・景品の状況は 5b。
+検討メモ docs/plans/board_campaign_plan_2026-10-31.md の 10.3（モック 15.5）。確定・抽選・景品の状況は 5b。
 admin.py が大きいため分けている。権限は admin_permissions の resolve_admin_route_permission（GET は閲覧、POST は編集）。
 """
 from __future__ import annotations

@@ -1003,7 +1003,7 @@ class RankedSeason(Base):
 
 class AnnouncementPost(Base):
     """
-    お知らせ（アナウンス）。検討メモ notes_private/announcement_plan_2026-10-29.md の 3章。
+    お知らせ（アナウンス）。検討メモ docs/plans/announcement_plan_2026-10-29.md の 3章。
     予約は「status = 'published' かつ published_at が未来」。削除は論理削除（deleted_at）。
     タイトル・本文は announcement_html.py の決まった形の HTML（保存の前に消毒する）。
     """
@@ -1139,7 +1139,7 @@ class AnnouncementPush(Base):
 
 class Media(Base):
     """
-    アップロードした画像（共通の土台。検討メモ notes_private/push_image_plan_2026-10-27.md の 6章）。
+    アップロードした画像（共通の土台。検討メモ docs/plans/push_image_plan_2026-10-27.md の 6章）。
     ファイルは media_storage.py が保存する（今は親サーバーのディスクの media/{kind}/{key[:2]}/{key}.webp。
     サイズ違いは {key}_s.webp・{key}_og.jpg）。元のファイルは保存しない。
     status: active（使える）・pending / rejected（承認制のもの。後で）・removed（一覧から外した。ファイルは残す）。
@@ -1228,7 +1228,7 @@ class Feedback(Base):
     """
     ユーザーからのフィードバックを格納するテーブル。
     送信時の環境（platform・ui_lang・client_env）は 2026-10-31 から記録する（それより前は NULL。
-    検討メモ notes_private/feedback_plan_2026-10-31.md の 3章）。添付の画像は media（kind = feedback、ref_type = feedback）。
+    検討メモ docs/plans/feedback_plan_2026-10-31.md の 3章）。添付の画像は media（kind = feedback、ref_type = feedback）。
     公開の回答（8章）: answer_state は none（なし）・ready（掲載待ち）・draft（お知らせの下書きに入れた）・published（掲載済み）。
     個別返信は feedback_replies。
     """
@@ -1274,7 +1274,7 @@ class Feedback(Base):
 
 class FeedbackReply(Base):
     """
-    運営から送った本人への個別返信（一方向。検討メモ notes_private/feedback_plan_2026-10-31.md の 7章）。
+    運営から送った本人への個別返信（一方向。検討メモ docs/plans/feedback_plan_2026-10-31.md の 7章）。
     本人には「Brawl Insights 運営」として見せる（送った管理者は created_by に残す）。取り消すと本人から見えなくなる。
     """
     __tablename__ = 'feedback_replies'

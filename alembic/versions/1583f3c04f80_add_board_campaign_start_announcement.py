@@ -1,6 +1,6 @@
 """add board campaign start announcement
 
-掲示板企画の5c（notes_private/board_campaign_plan_2026-10-31.md の 11章）。
+掲示板企画の5c（docs/plans/board_campaign_plan_2026-10-31.md の 11章）。
 いいね単一トップ賞から外す投稿の表（board_campaign_post_exclusions。応募は無効にしない）と、
 開始のお知らせを企画の設定から作るためのテンプレート（自動生成の枠の役目 settings.role = board_campaign_start）を足す。
 テンプレートの文面は 2026年11月の開始のお知らせ（リニューアル・NEW などその月だけの記載は除く）。

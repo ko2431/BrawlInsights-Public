@@ -1,7 +1,7 @@
 """add feedback replies and answers
 
 フィードバックの個別返信（feedback_replies）・公開の回答（feedbacks の列）・返信と回答の通知
-（board_notifications.feedback_id・users.push_feedback_enabled）。検討メモ notes_private/feedback_plan_2026-10-31.md の 6〜11章。
+（board_notifications.feedback_id・users.push_feedback_enabled）。検討メモ docs/plans/feedback_plan_2026-10-31.md の 6〜11章。
 列の追加は NULL か定数の既定値なので、テーブルの書き換えは起きない。board_notifications は大きいので外部キー・索引は付けない。
 「フィードバックへの回答」のテンプレートは、下書き #269 の形に差し替え、自動生成の枠の役目（settings.role）を付ける（F11）。
 
