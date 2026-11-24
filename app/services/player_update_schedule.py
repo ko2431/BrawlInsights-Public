@@ -78,12 +78,14 @@ async def record_check(
     fetched_count: int,
     new_count: int,
     extras_fetched: bool,
+    extras_attempted: bool = False,
     now: datetime.datetime | None = None,
     last_checked_at: datetime.datetime | None = _MISSING,
 ) -> None:
     """バトル履歴を確認した（閲覧・ワーカーのどちらでも）ことを記録し、次の確認の時刻を決める。
 
     level 20未満の人は対象外なので、行があれば消す。extras_fetched は MeowAPI・BSInfo も取れたか。
+    extras_attempted は取りに行ったか（取れなかったときは EXTRAS_RETRY_AFTER 後に取り直す）。
     last_checked_at を省くと、前回の確認の時刻を表から読む。
     """
     group = group_for_level(level)
@@ -96,6 +98,8 @@ async def record_check(
     delay = next_check_delay(
         group, now=now, times=times, fetched_count=fetched_count, new_count=new_count, last_checked_at=last_checked_at,
     )
+    extras_updated_at = extras_time(group, now, fetched=extras_fetched, attempted=extras_attempted)
+    # GREATEST は NULL を無視するので、取りに行かなかった（None）ときは今の値のまま、取り直しの時刻は今の値より新しいときだけ進める
     await db.execute(
         """
         INSERT INTO player_update_schedule AS s (tag, next_update_at, last_checked_at, extras_updated_at)
@@ -103,10 +107,19 @@ async def record_check(
         ON CONFLICT (tag) DO UPDATE SET
             next_update_at = EXCLUDED.next_update_at,
             last_checked_at = EXCLUDED.last_checked_at,
-            extras_updated_at = COALESCE(EXCLUDED.extras_updated_at, s.extras_updated_at)
+            extras_updated_at = GREATEST(s.extras_updated_at, EXCLUDED.extras_updated_at)
         """,
-        tag, now + delay, now, now if extras_fetched else None,
+        tag, now + delay, now, extras_updated_at,
     )
+
+
+def extras_time(group: str, now: datetime.datetime, *, fetched: bool, attempted: bool) -> datetime.datetime | None:
+    """extras_updated_at に書く時刻。取れたら今。取りに行って失敗したら、EXTRAS_RETRY_AFTER 後に取る時期が来る時刻
+    （今 − 間隔 ＋ EXTRAS_RETRY_AFTER）。取りに行かなかったら None（今の値のまま）。"""
+    if fetched:
+        return now
+    # [この部分は公開用リポジトリでは非公開にされています]
+    return None
 
 
 async def postpone_after_error(db: asyncpg.Connection, tag: str, now: datetime.datetime | None = None) -> None:

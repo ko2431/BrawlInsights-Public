@@ -125,11 +125,36 @@ async def test_record_check_upserts_next_time_and_removes_lower_levels():
     db = _FakeDB()
     await schedule.record_check(db, "#A", level=30, times=[], fetched_count=0, new_count=0, extras_fetched=False, now=NOW, last_checked_at=None)
     (query, args), = db.queries("INSERT INTO player_update_schedule")
-    assert args[1] == NOW + schedule.AUTO_IDLE_INTERVAL and args[3] is None and "COALESCE" in query
+    assert args[1] == NOW + schedule.AUTO_IDLE_INTERVAL and args[3] is None and "GREATEST(s.extras_updated_at" in query
     # level 20未満は行を消す
     db = _FakeDB()
     await schedule.record_check(db, "#A", level=10, times=[], fetched_count=0, new_count=0, extras_fetched=True, now=NOW)
     assert [q for q, _ in db.executed] == ["DELETE FROM player_update_schedule WHERE tag = $1"]
+
+
+def test_extras_retry_after_meowapi_failure():
+    # 取れたら今、取りに行かなかったら今の値のまま（None）
+    assert schedule.extras_time("auto", NOW, fetched=True, attempted=True) == NOW
+    assert schedule.extras_time("auto", NOW, fetched=False, attempted=False) is None
+    # 失敗したら、6時間後に取る時期が来る（その前は段3にしない）
+    for group in ("auto", "active"):
+        t = schedule.extras_time(group, NOW, fetched=False, attempted=True)
+        assert t == NOW - schedule.EXTRAS_INTERVAL[group] + schedule.EXTRAS_RETRY_AFTER
+        assert not schedule.extras_due(group, t, NOW + schedule.EXTRAS_RETRY_AFTER - MIN)
+        assert schedule.extras_due(group, t, NOW + schedule.EXTRAS_RETRY_AFTER)
+
+
+@pytest.mark.asyncio
+async def test_record_check_postpones_extras_after_meowapi_failure():
+    db = _FakeDB()
+    await schedule.record_check(
+        db, "#A", level=30, times=[], fetched_count=0, new_count=0,
+        extras_fetched=False, extras_attempted=True, now=NOW, last_checked_at=None,
+    )
+    (query, args), = db.queries("INSERT INTO player_update_schedule")
+    assert args[3] == NOW - schedule.EXTRAS_INTERVAL["auto"] + schedule.EXTRAS_RETRY_AFTER
+    # 今の値のほうが新しければ（閲覧で取れた直後など）戻さない
+    assert "GREATEST(s.extras_updated_at, EXCLUDED.extras_updated_at)" in query
 
 
 # --- 3段の確認 ---
@@ -142,7 +167,7 @@ def _row(level=30, *, extras_updated_at=None, last_checked_at=None, auto_track_e
 @pytest.fixture
 def probe(monkeypatch):
     """公式APIのバトル履歴と、段2・段3の取得を差し替える。"""
-    state = {"battlelog": {"items": []}, "refreshed": []}
+    state = {"battlelog": {"items": []}, "refreshed": [], "meow_ok": True}
 
     async def get_battlelog(tag):
         value = state["battlelog"]
@@ -152,9 +177,10 @@ def probe(monkeypatch):
 
     async def refresh(tag, db, *, extras, battlelog):
         state["refreshed"].append(extras)
-        return SimpleNamespace(fetched_battle_count=len(battlelog["items"]), new_battle_count=1)
+        return SimpleNamespace(fetched_battle_count=len(battlelog["items"]), new_battle_count=1, meowapi_success=state["meow_ok"])
 
     monkeypatch.setattr(official_api, "get_battlelog", get_battlelog)
+    monkeypatch.setattr(player_update, "_extras_pause", player_update.ExtrasPause())
     monkeypatch.setattr(player_update, "refresh_player_in_background", refresh)
     monkeypatch.setattr(schedule, "utcnow", lambda: NOW)
     return state
@@ -181,6 +207,37 @@ async def test_check_goes_to_stage2_with_new_battles_and_stage3_when_extras_are_
     db = _FakeDB(latest_saved=NOW - 2 * MIN)
     result = await player_update.check_player(db, "auto", _row(extras_updated_at=NOW - 25 * 60 * MIN))
     assert result.stage == 3 and probe["refreshed"] == [False, True]
+
+
+@pytest.mark.asyncio
+async def test_check_pauses_extras_while_meowapi_keeps_failing(probe, monkeypatch):
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(player_update.time, "monotonic", lambda: clock["t"])
+    probe["meow_ok"] = False
+    probe["battlelog"] = {"items": [{"battleTime": _api_time(NOW - 2 * MIN)}]}
+    due_row = _row(extras_updated_at=NOW - 25 * 60 * MIN)
+    for _ in range(player_update.EXTRAS_FAILURES_BEFORE_PAUSE):
+        result = await player_update.check_player(_FakeDB(latest_saved=NOW - 30 * MIN), "auto", due_row)
+        assert result.stage == 3
+    assert player_update._extras_pause.is_paused()
+    # 止めている間は、取る時期でも段3にしない（新しいバトルがあれば段2、なければ段1）
+    probe["refreshed"].clear()
+    result = await player_update.check_player(_FakeDB(latest_saved=NOW - 30 * MIN), "auto", due_row)
+    assert result.stage == 2 and probe["refreshed"] == [False]
+    result = await player_update.check_player(_FakeDB(latest_saved=NOW - 2 * MIN), "auto", due_row)
+    assert result.stage == 1
+    # 30分たったら様子見で取りに行き、まだ失敗なら1回でまた止める
+    clock["t"] += player_update.EXTRAS_PAUSE_SECONDS
+    result = await player_update.check_player(_FakeDB(latest_saved=NOW - 30 * MIN), "auto", due_row)
+    assert result.stage == 3 and player_update._extras_pause.is_paused()
+    # 取れたら戻る（次に止めるのは、また20回続いたとき）
+    clock["t"] += player_update.EXTRAS_PAUSE_SECONDS
+    probe["meow_ok"] = True
+    await player_update.check_player(_FakeDB(latest_saved=NOW - 30 * MIN), "auto", due_row)
+    assert not player_update._extras_pause.is_paused() and not player_update._extras_pause.tripped
+    probe["meow_ok"] = False
+    await player_update.check_player(_FakeDB(latest_saved=NOW - 30 * MIN), "auto", due_row)
+    assert not player_update._extras_pause.is_paused()
 
 
 @pytest.mark.asyncio

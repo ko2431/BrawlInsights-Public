@@ -90,6 +90,43 @@ class UpdateStats:
         return out
 
 
+class ExtrasPause:
+    """MeowAPI の障害中に、裏の更新で MeowAPI・BSInfo（段3）を取りに行かないようにする（回をまたいで続く）。
+
+    失敗が EXTRAS_FAILURES_BEFORE_PAUSE 回続いたら EXTRAS_PAUSE_SECONDS の間は取りに行かない（新しいバトルがあれば段2）。
+    止めた後は、取れるまで1回の失敗でまた止める（障害が続いている間は、30分に数回の様子見だけになる）。
+    """
+
+    def __init__(self) -> None:
+        self.failures = 0
+        self.paused_until = 0.0
+        self.tripped = False  # 止めてから、まだ一度も取れていない
+
+    def is_paused(self) -> bool:
+        return time.monotonic() < self.paused_until
+
+    def record(self, success: bool) -> None:
+        if success:
+            if self.tripped:
+                logger.info("プレイヤーアップデート: MeowAPI から取れるようになったので、MeowAPI・BSInfo の取得を戻します。")
+            self.failures = 0
+            self.tripped = False
+            return
+        self.failures += 1
+        if self.is_paused():
+            return
+        if self.tripped or self.failures >= EXTRAS_FAILURES_BEFORE_PAUSE:
+            logger.warning(
+                f"プレイヤーアップデート: MeowAPI の取得の失敗が{self.failures}回続いたため、"
+                f"{EXTRAS_PAUSE_SECONDS // 60}分間は MeowAPI・BSInfo を取りません（新しいバトルがある人は公式APIだけで更新します）。"
+            )
+            self.paused_until = time.monotonic() + EXTRAS_PAUSE_SECONDS
+            self.tripped = True
+
+
+_extras_pause = ExtrasPause()
+
+
 def per_round(per_hour: int) -> int:
     """1時間あたりの上限を、1回あたりの人数にする（端数は切り上げ）。"""
     if per_hour <= 0:

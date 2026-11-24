@@ -339,7 +339,8 @@ class PlayerUpdateSchedule(Base):
     tag = Column(Text, primary_key=True)
     next_update_at = Column(DateTime(timezone=True), nullable=False)  # この時刻を過ぎたら確認する
     last_checked_at = Column(DateTime(timezone=True), nullable=True)  # 最後にバトル履歴を取った時刻（閲覧を含む）
-    extras_updated_at = Column(DateTime(timezone=True), nullable=True)  # 最後に MeowAPI・BSInfo を取った時刻（閲覧を含む）
+    # 最後に MeowAPI・BSInfo を取った時刻（閲覧を含む）。MeowAPI が失敗したときは、6時間後に取り直す時期が来るよう過去の時刻を入れる
+    extras_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index('idx_player_update_schedule_next_update_at', 'next_update_at'),
