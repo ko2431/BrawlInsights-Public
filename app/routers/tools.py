@@ -2848,14 +2848,32 @@ async def tools(
     lang: str,
     db: asyncpg.Connection = Depends(get_shared_db),
 ):
-    
-    # テンプレートに渡すコンテキスト
+    from app.services import hub_catalog
+
+    user = getattr(request.state, "current_user", None)
+    tournament_visible = False
+    tournament_early = False
+    tournament_live = None
+    # [この部分は公開用リポジトリでは非公開にされています]
+
+    # マップ周期のカードの帯: マップ周期のページと同じデータ（Redis にキャッシュ済み）から、次の切り替えを手元で計算する材料
+    rotation = None
+    try:
+        from app.services.map_rotation_service import build_map_rotation_payload
+        await ensure_catalog(db)
+        rotation = hub_catalog.rotation_data(await build_map_rotation_payload(db), hub_catalog.static_images_base(request))
+    except Exception as e:
+        logger.warning(f"ツールタブのマップ周期の帯のデータの取得に失敗しました: {e}")
+
+    account_orders = await hub_catalog.load_account_orders(db, user.id) if user else None
     context = {
         "request": request,
         "lang": lang,
-        "current_page": "tools"
+        "current_page": "tools",
+        "hub": hub_catalog.build(request, lang, "tools", account_orders=account_orders,
+                                 tournament_visible=tournament_visible, tournament_early=tournament_early,
+                                 rotation=rotation, tournament=tournament_live),
     }
-    # [この部分は公開用リポジトリでは非公開にされています]
 
     try:
         return templates.TemplateResponse("tools/tools.html", context)

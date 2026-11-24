@@ -48,6 +48,9 @@ class User(Base):
     viewed_accounts = Column(JSONB, nullable=False, server_default='[]')
     viewed_clubs = Column(JSONB, nullable=False, server_default='[]')
     custom_settings = Column(JSONB, nullable=False, server_default='{}')
+    # 統計データ・ツールタブのコンテンツの並び（サブタブごと。{"stats": {"all": [...], ...}, "tools": {...}}）。
+    # デフォルトと同じ並びは入れない。custom_settings は管理画面・ギフトコードで丸ごと上書きされることがあるので別にしている
+    hub_orders = Column(JSONB, nullable=False, server_default='{}')
     registration_datetime = Column(DateTime(timezone=True), nullable=False)
     last_viewd_datetime = Column(DateTime(timezone=True), nullable=False)
     last_claim_date = Column(Date, nullable=True)

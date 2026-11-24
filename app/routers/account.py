@@ -384,6 +384,34 @@ class PlayerAccountReorderRequest(BaseModel):
     ordered_tags: list[str] = Field(min_length=1, max_length=SUB_ACCOUNTS_MAX_LIMIT + 1)
 
 
+class HubOrderRequest(BaseModel):
+    """統計データ・ツールタブの並び（サブタブごと）。orders は {サブタブ: [id...] / null（デフォルトに戻す）}"""
+    hub: str = Field(max_length=10)
+    orders: dict[str, list[str] | None] = Field(max_length=10)
+
+
+@router.post("/hub-order", name="account_hub_order")
+async def save_hub_order(
+    request: Request,
+    lang: str,
+    payload: HubOrderRequest,
+    db: asyncpg.Connection = Depends(get_shared_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """並び替えの「完了」・「デフォルトに戻す」と、初めてログインしたときに端末の並びを引き継ぐとき。
+    知らないタブ・サブタブ・id は捨て、デフォルトと同じ並びは保存しない（hub_catalog.clean_orders）"""
+    from app.services import hub_catalog
+
+    if payload.hub not in hub_catalog.HUBS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unknown hub")
+    try:
+        orders = await hub_catalog.save_account_orders(db, current_user.id, payload.hub, payload.orders)
+    except Exception as e:
+        logger.error(f"ハブの並びの保存に失敗しました (user_id={current_user.id}): {e}", exc_info=True)
+        return JSONResponse({"success": False}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return {"success": True, "orders": orders.get(payload.hub, {})}
+
+
 def _player_account_error(message_ja: str, message_en: str, lang: str, status_code: int = status.HTTP_400_BAD_REQUEST, **extra) -> JSONResponse:
     return JSONResponse(
         {"success": False, "message": message_ja if lang == "ja" else message_en, **extra},

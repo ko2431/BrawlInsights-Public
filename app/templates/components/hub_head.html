@@ -1,0 +1,6 @@
+{# /app/templates/components/hub_head.html
+   統計データタブ・ツールタブの <head> に入れるもの。
+   タイトルの太さは Mac だけ 900（iOS・Android は 900 だと太すぎ、Mac は 800 だと細い）。iPad は Mac と名乗るので、
+   タッチの有無で分ける。描く前に html にクラスを付ける #}
+<link rel="stylesheet" href="{{ url_for('static', path='/css/components/hub.css') }}?v={{ app_version }}">
+<script>if (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints < 2) document.documentElement.classList.add('hub-os-mac');</script>

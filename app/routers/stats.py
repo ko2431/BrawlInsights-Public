@@ -10,7 +10,8 @@ from app.utils.utils import format_tag
 from app.core.logger import logger
 # [この部分は公開用リポジトリでは非公開にされています]
 from app.core.templating import templates
-from app.db.db import get_shared_db
+from app.db.db import get_shared_db, get_shared_db_if_logged_in
+from app.services import hub_catalog
 from app.services.brawl_service import (get_prestige_borders, get_available_brawlers, get_player_ranking, get_player_alltime_ranking,
     get_brawler_ranking, get_brawler_alltime_ranking, get_club_ranking, get_ranked_ranking, get_custom_ranking, get_ranked_stats,
     get_ban_suggestions, get_current_ranked_pool, resolve_ranked_filter, get_brawler_analysis, get_pick_suggestions, predict_win_rate, get_japanese_mode_name,
@@ -54,14 +55,16 @@ def _validate_region(region: str, regions: list[dict]) -> str:
 async def stats(
     request: Request,
     lang: str,
-    # db: asyncpg.Connection = Depends(get_shared_db) # DB接続が必要な場合
+    db: asyncpg.Connection | None = Depends(get_shared_db_if_logged_in),
 ):
-    
-    # テンプレートに渡すコンテキスト
+    # カードの並びは、ログイン中ならアカウントの並び（Redis にキャッシュ）、未ログインならデフォルト（端末の並びは JS が当てる）
+    user = getattr(request.state, "current_user", None)
+    account_orders = await hub_catalog.load_account_orders(db, user.id) if user and db else None
     context = {
         "request": request,
         "lang": lang,
-        "current_page": "stats"
+        "current_page": "stats",
+        "hub": hub_catalog.build(request, lang, "stats", account_orders=account_orders),
     }
 
     try:

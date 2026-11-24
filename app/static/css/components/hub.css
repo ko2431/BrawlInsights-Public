@@ -1,0 +1,593 @@
+/* /app/static/css/components/hub.css
+   統計データタブ・ツールタブ（ハブ）。templates/components/hub.html・js/hub.js。
+   カードは今のバナーの色とアイコンを引き継ぎ、面はリキッドグラス（色のにじみの上に、すりガラスの板と光る縁）。
+   ホバーは今のハブと同じく影がわずかに付くだけ（動かさない）。 */
+
+.hub-container {
+    width: 90%;
+    max-width: 1194px;
+    margin: 15px auto 45px;
+}
+.hub {
+    --hub-surface: #fff;
+    --hub-line: #e8e8e8;
+    --hub-muted: #6e6e73;
+    --hub-soft: #f2f2f2;
+    --hub-ink: #1d1d1f;
+}
+.dark .hub {
+    --hub-surface: #1d1d1d;
+    --hub-line: #2d2d2d;
+    --hub-muted: #a1a1a6;
+    --hub-soft: #262626;
+    --hub-ink: #f5f5f7;
+}
+.hub [x-cloak] { display: none !important; }
+
+/* =============================================== */
+/* 見出し・並び替えのボタン                            */
+/* =============================================== */
+.hub-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0 12px;
+}
+.hub-head__title {
+    margin: 0;
+    font-size: 48px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+.hub-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    height: 34px;
+    margin-bottom: 6px;
+    padding: 0 14px 0 11px;
+    border-radius: 10px;
+    border: 1px solid var(--hub-line);
+    background: var(--hub-surface);
+    color: var(--color-333);
+    font-size: 13.5px;
+    font-weight: 600;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.hub-sort-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.hub-sort-btn:hover { background: var(--hub-soft); }
+.hub-sort-btn.is-on { background: #2a2a2a; border-color: #2a2a2a; color: #fff; }
+.dark .hub-sort-btn.is-on { background: #f0f0f0; border-color: #f0f0f0; color: #111; }
+
+/* =============================================== */
+/* サブタブ（上に貼り付く。選んだタブに白い札が移る）      */
+/* =============================================== */
+.hub-tabs {
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + 6px);
+    z-index: 30;
+    display: flex;
+    gap: 3px;
+    margin: 0 0 10px;
+    padding: 4px;
+    border-radius: 14px;
+    background: color-mix(in srgb, #efefef 86%, transparent);
+    -webkit-backdrop-filter: saturate(1.5) blur(12px);
+    backdrop-filter: saturate(1.5) blur(12px);
+}
+.dark .hub-tabs { background: color-mix(in srgb, #161616 86%, transparent); }
+@media (min-width: 840px) {
+    .hub-tabs { top: calc(40px + env(safe-area-inset-top) + 8px); }
+}
+.hub-tabs__pill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 6px rgba(0, 0, 0, .04);
+}
+.hub-tabs__pill.is-ready { transition: transform .25s ease, width .25s ease; }
+.dark .hub-tabs__pill { background: #2c2c2c; box-shadow: none; }
+.hub-tab {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 7px 6px;
+    border-radius: 10px;
+    color: #666;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: color .15s ease;
+}
+.hub-tab:hover { color: #222; }
+.hub-tab.is-active { color: #111; font-weight: 700; }
+.dark .hub-tab { color: #9a9a9a; }
+.dark .hub-tab:hover,
+.dark .hub-tab.is-active { color: #fff; }
+.hub-tab__icon { flex: none; height: 22px; width: auto; }
+.hub-tab__icon--ranked { transform: scale(1.08); }
+.hub-tab__icon--brawlers { transform: scale(.88); }
+.hub-tab__icon--starrdrop { transform: scale(1.25); }
+.hub-tab__label { word-break: keep-all; overflow-wrap: anywhere; text-align: center; }
+.hub-tab__badge { top: 2px; right: 4px; left: auto; }
+
+/* =============================================== */
+/* お知らせ・説明                                     */
+/* =============================================== */
+.hub-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 6px 6px 6px 8px;
+    border-radius: 12px;
+    background: var(--hub-soft);
+    font-size: 13px;
+}
+.hub-notice__tag {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 800;
+}
+.hub-notice__text { flex: 1; min-width: 0; color: var(--color-222); line-height: 1.4; }
+a.hub-notice__text:hover { text-decoration: underline; }
+.hub-notice__close {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    color: var(--color-888);
+}
+.hub-notice__close:hover { background: rgba(0, 0, 0, .06); }
+.dark .hub-notice__close:hover { background: rgba(255, 255, 255, .08); }
+.hub-notice__close svg {
+    width: 10px;
+    height: 10px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+.hub-desc { margin: 0 0 8px; color: var(--hub-muted); font-size: 13.5px; }
+
+/* =============================================== */
+/* グリッド                                         */
+/* =============================================== */
+.hub-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 680px) {
+    .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1000px) {
+    .hub-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* カードが6個以下のときの広告（グリッドの下） */
+.hub-ad:not(.bi-adsense--grid) { margin-top: 10px; }
+
+/* =============================================== */
+/* カード                                           */
+/* 文字とアイコンはカードの幅（cqi）に合わせて、入るだけ大きくする */
+/* =============================================== */
+.hub-card {
+    container-type: inline-size;
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    grid-template-areas: "icon body" "strip strip";
+    align-items: center;
+    column-gap: 12px;
+    min-width: 0;
+    min-height: 96px;
+    overflow: hidden;
+    border-radius: 18px;
+    background:
+        radial-gradient(60% 120% at 10% 30%, color-mix(in srgb, var(--c2) 75%, transparent), transparent 70%),
+        radial-gradient(55% 120% at 100% 110%, color-mix(in srgb, var(--c1) 85%, transparent), transparent 70%),
+        color-mix(in srgb, var(--c1) 25%, #fff);
+    color: var(--hub-ink);
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 8px 22px -14px color-mix(in srgb, var(--c2) 80%, transparent);
+    -webkit-tap-highlight-color: transparent;
+    transition: box-shadow .2s ease;
+}
+/* すりガラスの板（左上が明るい）。下の面がなめらかなので backdrop-filter は使わずに同じ見た目にする（描画の負荷を抑える） */
+.hub-card::before,
+.hub-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+}
+.hub-card::before {
+    z-index: -1;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .58) 0%, rgba(255, 255, 255, .2) 38%, rgba(255, 255, 255, .08) 62%, rgba(255, 255, 255, .34) 100%);
+}
+/* 光る縁（左上と右下が明るい） */
+.hub-card::after {
+    z-index: 3;
+    padding: 1.2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .95), rgba(255, 255, 255, .25) 35%, rgba(255, 255, 255, .1) 65%, rgba(255, 255, 255, .75));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.hub-card:hover { box-shadow: 0 1px 3.5px rgba(0, 0, 0, .2), 0 8px 22px -14px color-mix(in srgb, var(--c2) 80%, transparent); }
+.hub-card:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }
+/* ダーク: にじみは弱め（強いと明るさのむらで読みにくい） */
+.dark .hub-card {
+    background:
+        radial-gradient(70% 130% at 10% 30%, color-mix(in srgb, var(--c2) 24%, transparent), transparent 75%),
+        radial-gradient(60% 130% at 100% 110%, color-mix(in srgb, var(--c1) 10%, transparent), transparent 75%),
+        color-mix(in srgb, var(--c2) 16%, #1c1c1e);
+    box-shadow: none;
+}
+.dark .hub-card::before { background: linear-gradient(135deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .03) 45%, rgba(255, 255, 255, .02) 60%, rgba(255, 255, 255, .05)); }
+.dark .hub-card::after { background: linear-gradient(135deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .06) 35%, rgba(255, 255, 255, .03) 65%, rgba(255, 255, 255, .25)); }
+.dark .hub-card:hover { box-shadow: 0 0 0 1px rgba(255, 255, 255, .14); }
+
+.hub-card__icon {
+    grid-area: icon;
+    width: 80px;
+    width: clamp(60px, 21cqi, 84px);
+    height: 80px;
+    height: clamp(60px, 21cqi, 84px);
+    margin-left: 16px;
+}
+.hub-ic { display: block; width: 100%; height: 100%; object-fit: contain; }
+.hub-cluster { position: relative; display: block; width: 100%; height: 100%; }
+.hub-cluster img { position: absolute; display: block; height: auto; }
+
+/* 文字がわずかに上に寄って見えるので、上の余白を下より 2px 多くする */
+.hub-card__body {
+    grid-area: body;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 11px 16px 9px 0;
+}
+.hub-card__top {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    max-width: 100%;
+}
+/* NEW と説明の札を並べると窮屈なとき（JS が判断）は2行にし、札を少し小さくする */
+.hub-card__top.is-stacked { flex-direction: column; align-items: flex-start; gap: 3px; }
+.hub-card__badge {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 7px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+.hub-card__badge--early { background: #0a84ff; }
+.hub-card__tag,
+.hub-card__chip {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+    padding: 1px 8px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, .62);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .8);
+    color: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.hub-card__chip { flex: none; }
+.hub-card__top.is-stacked .hub-card__badge { padding: 0 6px; font-size: 10.5px; }
+.hub-card__top.is-stacked .hub-card__tag { padding: 0 7px; font-size: 11.5px; }
+.dark .hub-card__tag,
+.dark .hub-card__chip { background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+
+/* タイトル。入るときは大きく。入らないときは --fit-min（今のバナーの大きさ）まで2行そろって小さくなり、残りは長体（JS） */
+.hub-card__title {
+    --fit-min: .86;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    font-size: 28px;
+    font-size: clamp(23px, 8.8cqi, 35px);
+    font-weight: 800;
+    font-feature-settings: "palt";
+    letter-spacing: -.005em;
+    line-height: 1.14;
+}
+/* Mac は 800 だと細く見えるので 900（iOS・Android は 900 だと太すぎる）。hub_head.html が html に付ける */
+.hub-os-mac .hub-card__title { font-weight: 900; }
+.hub-card__title--narrow { display: none; }
+.hub-line { display: flex; justify-content: flex-start; min-width: 0; white-space: nowrap; }
+.hub-fit { display: inline-block; flex: none; white-space: nowrap; transform-origin: left center; }
+
+/* 大会の通知の未読数 */
+.hub-card__count {
+    top: 10px;
+    right: 10px;
+    left: auto;
+    z-index: 4;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    font-size: 13px;
+    line-height: 24px;
+}
+
+/* 外部リンクの細いカード（今の 7:1 の小さなバナーと同じ扱い）。右に ↗ */
+.hub-card--small { min-height: 60px; }
+.hub-card--small .hub-card__icon { width: 40px; height: 40px; margin-left: 12px; }
+.hub-card--small .hub-card__body { padding: 8px 34px 8px 0; }
+.hub-card--small .hub-card__title { --fit-min: 1; font-size: clamp(17px, 5.6cqi, 21px); }
+.hub-card__ext {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 13px;
+    height: 13px;
+    translate: 0 -50%;
+    opacity: .55;
+}
+.hub-card__ext svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ---- ライブ表示（大会開催ツール・マップ周期）。カードの下の帯 ---- */
+.hub-card--live .hub-card__icon { width: clamp(50px, 16cqi, 66px); height: clamp(50px, 16cqi, 66px); }
+.hub-strip {
+    grid-area: strip;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 30px;
+    padding: 0 14px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .34);
+    border-top: 1px solid rgba(255, 255, 255, .6);
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.hub-strip:empty { display: none; }
+.dark .hub-strip { background: rgba(255, 255, 255, .05); border-top-color: rgba(255, 255, 255, .1); }
+.hub-s-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hub-s-text b { font-weight: 700; }
+/* 次に切り替わるモード。同時に切り替わるものが多くて入らないときは、入る分だけ */
+.hub-s-modes { display: flex; flex: 0 1 auto; gap: 3px; min-width: 18px; overflow: hidden; }
+.hub-s-modes img { flex: none; width: 18px; height: 18px; object-fit: contain; }
+.hub-s-modes + .hub-s-text { flex: none; }
+.hub-s-time {
+    flex: none;
+    margin-left: auto;
+    font-size: 13px;
+    font-weight: 700;
+}
+/* 1時間を切って秒が毎秒変わる間だけ等幅の数字にする（1時間以上は分までなので、詰めた数字のまま） */
+.hub-s-time.is-ticking { font-variant-numeric: tabular-nums; }
+.hub-s-role {
+    flex: none;
+    padding: 0 6px;
+    border-radius: 7px;
+    background: #0a84ff;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.6;
+}
+.hub-s-state {
+    flex: none;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--hub-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+.hub-s-state--alert { color: #d70015; }
+.dark .hub-s-state--alert { color: #ff6961; }
+.hub-s-state--live { color: #1f8f3a; }
+.dark .hub-s-state--live { color: #5ad37a; }
+.hub-s-state--alert::before,
+.hub-s-state--live::before,
+.hub-s-dot {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+/* 大会開催ツールの赤い丸（tournaments.css の .tn-live-dot）と同じ点滅 */
+.hub-s-state--alert::before { background: #ff3b30; animation: hub-live-pulse 1.4s ease-in-out infinite; }
+.hub-s-state--live::before { background: #28a745; }
+.hub-s-dot { background: #28a745; }
+@keyframes hub-live-pulse { 50% { opacity: .3; } }
+
+/* =============================================== */
+/* 並び替え                                         */
+/* =============================================== */
+/* 並び替え中は、リストを上に出してカードを隠す。広告（グリッドの中・下）は隠さない */
+.hub.is-editing .hub-grid > .hub-card,
+.hub.is-editing .hub-desc { display: none; }
+.hub-edit { margin: 0 0 10px; }
+.hub-edit__bar { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; }
+.hub-edit__hint { flex: 1; margin: 0; color: var(--hub-muted); font-size: 12.5px; }
+.hub-edit__reset {
+    flex: none;
+    padding: 5px 10px;
+    border-radius: 8px;
+    color: #0a84ff;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+.hub-edit__reset:hover:not(:disabled) { background: color-mix(in srgb, #0a84ff 10%, transparent); }
+.hub-edit__reset:disabled { color: var(--color-bbb); cursor: default; }
+.hub-edit__list { display: flex; flex-direction: column; gap: 6px; }
+.hub-edit__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--hub-line);
+    background: var(--hub-surface);
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    transition: transform .15s ease, background-color .15s ease;
+}
+@media (hover: hover) {
+    .hub-edit__row:hover { background: color-mix(in srgb, var(--color-000) 3%, var(--hub-surface)); }
+}
+/* タッチで長押ししている間（つかむ直前）。少しだけ沈ませる */
+.hub-edit__row.is-pressing { transform: scale(.985); background: color-mix(in srgb, var(--color-000) 5%, var(--hub-surface)); }
+.hub-edit__icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 3px;
+    border-radius: 10px;
+    background: linear-gradient(170deg, var(--c1), var(--c2));
+}
+.dark .hub-edit__icon { background: linear-gradient(170deg, color-mix(in srgb, var(--c2) 30%, #1c1c1e), color-mix(in srgb, var(--c2) 18%, #1c1c1e)); }
+.hub-edit__icon > * { width: 100%; height: 100%; }
+.hub-edit__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.hub-edit__cat {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--hub-soft);
+    color: var(--hub-muted);
+    font-size: 11px;
+}
+
+/* =============================================== */
+/* こちらをお探しですか？・お役立ち外部リンク（今と同じ、枠線に見出しを載せた箱） */
+/* =============================================== */
+.hub-box {
+    position: relative;
+    margin-top: 22px;
+    padding: 16px 16px 14px;
+    border: 1.5px dashed var(--color-888);
+    border-radius: 14px;
+}
+.hub-box--solid { border-style: solid; }
+.hub-box__legend {
+    position: absolute;
+    top: 0;
+    left: 14px;
+    transform: translateY(-50%);
+    margin: 0;
+    padding: 0 8px;
+    background-color: var(--bg-main);
+    color: var(--color-333);
+    font-size: 14.5px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+.hub-box .hub-grid { gap: 8px; }
+
+/* =============================================== */
+/* 幅ごとの調整                                       */
+/* =============================================== */
+@media (max-width: 839px) {
+    .hub-tab { flex-direction: column; gap: 4px; padding: 7px 3px 6px; font-size: 12px; }
+    .hub-tab__icon { height: 24px; }
+}
+@media (max-width: 539px) {
+    .hub-container { width: 92%; }
+    .hub-head { margin: 4px 0 8px; }
+    .hub-head__title { font-size: 34px; }
+    .hub-sort-btn { height: 32px; margin-bottom: 3px; font-size: 13px; }
+    .hub-tabs { margin-left: -1.5%; margin-right: -1.5%; padding: 3px; }
+    .hub-tab { font-size: 10.5px; padding: 6px 2px 5px; }
+    .hub-tab__icon { height: 22px; }
+    .hub-desc { font-size: 12.5px; }
+    .hub-notice { font-size: 12.5px; }
+    .hub-grid { gap: 8px; }
+    .hub-box { padding: 14px 12px 12px; }
+    .hub-box__legend { left: 10px; font-size: 13px; }
+
+    .hub-card { min-height: 104px; border-radius: 16px; }
+    .hub-card__icon { margin-left: 14px; }
+    .hub-card__body { padding: 11px 14px 9px 0; }
+    .hub-strip { padding: 0 12px; }
+
+    /* 細いカード（今のスリムバナーと同じ）。タイトルは1行で、最大 30px から今の大きさまで小さくしてから長体。
+       「非公式」はタイトルの左、NEW などは上に出して2行。説明の札は出さない */
+    .hub-card--slim:not(.hub-card--live) { min-height: 60px; }
+    .hub-card--slim .hub-card__icon { width: 44px; height: 44px; margin-left: 12px; }
+    .hub-card--slim:not(.hub-card--live) .hub-card__body { flex-direction: row; align-items: center; gap: 7px; padding: 9px 14px 7px 0; }
+    .hub-card--slim:not(.hub-card--live) .hub-card__top { flex: none; }
+    .hub-card--slim .hub-card__tag { display: none; }
+    .hub-card--slim:not(.hub-card--live) .hub-card__title { --fit-min: .74; flex: 1; width: auto; font-size: clamp(22px, 8.4cqi, 30px); }
+    .hub-card--narrow .hub-card__title--wide { display: none; }
+    .hub-card--slim .hub-card__title--narrow { display: flex; }
+    .hub-card--slim.hub-card--has-badge:not(.hub-card--live) .hub-card__body { flex-direction: column; align-items: flex-start; gap: 3px; }
+    .hub-card--slim.hub-card--has-badge:not(.hub-card--live) .hub-card__title { width: 100%; }
+    /* 外部リンクの細いカードは、右の ↗ の分を空ける（細いカードの余白より強く指定する） */
+    .hub-card--small.hub-card--slim:not(.hub-card--live) .hub-card__body { padding-right: 34px; }
+
+    .hub-edit__cat { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .hub-tabs__pill.is-ready { transition: none; }
+    .hub-s-state--alert::before { animation: none; }
+}

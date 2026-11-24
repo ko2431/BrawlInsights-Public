@@ -1,0 +1,132 @@
+{# /app/templates/components/hub.html
+   統計データタブ・ツールタブ（ハブ）。中身は services/hub_catalog.build が作る hub。見た目は css/components/hub.css、動きは js/hub.js。
+   カードはサーバーで描く（検索エンジンにリンクが見えるように）。サブタブごとのパネルに、その人の並び（ログイン中はアカウントの並び、
+   未ログインはデフォルト。端末に保存した並びは JS が描く前に当てる）で並べる。
+   広告（AdSense の手動の広告ユニット）は今と同じく、7個以上なら6個目のあとに1行ぶん、6個以下ならカードの下。並び替え中も隠さない。 #}
+{% from "components/adsense_unit.html" import adsense_unit with context %}
+
+{% macro hub_card(c) %}
+{%- set ja = lang == "ja" -%}
+<a href="{{ c.href }}" class="hub-card{% if c.slim %} hub-card--slim{% endif %}{% if c.live %} hub-card--live{% endif %}{% if c.badge %} hub-card--has-badge{% endif %}{% if c.external %} hub-card--small{% endif %}{% if c.slim and not c.live and c.lines|length > 1 %} hub-card--narrow{% endif %}" style="{{ c.style }}" data-id="{{ c.id }}"{% if c.external %} target="_blank" rel="noopener"{% endif %}>
+    <span class="hub-card__icon">{{ c.icon_html|safe }}</span>
+    <span class="hub-card__body">
+        {% if c.badge or c.unofficial or c.tag %}
+        <span class="hub-card__top">
+            {% if c.badge %}<span class="hub-card__badge hub-card__badge--{{ c.badge }}">{{ c.badge_label }}</span>{% endif %}
+            {% if c.unofficial %}<span class="hub-card__chip">{{ "非公式" if ja else "Unofficial" }}</span>{% endif %}
+            {% if c.tag %}<span class="hub-card__tag"><span class="hub-fit">{{ c.tag }}</span></span>{% endif %}
+        </span>
+        {% endif %}
+        {% set lines = c.live_lines if c.live else c.lines %}
+        <span class="hub-card__title hub-card__title--wide">{% for line in lines %}<span class="hub-line"><span class="hub-fit">{{ line }}</span></span>{% endfor %}</span>
+        {# スマホ幅の細いカードは1行（今のスリムバナーと同じ） #}
+        {% if c.slim and not c.live and lines|length > 1 %}<span class="hub-card__title hub-card__title--narrow"><span class="hub-line"><span class="hub-fit">{{ c.full }}</span></span></span>{% endif %}
+    </span>
+    {% if c.external %}<span class="hub-card__ext" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M4.5 2.5h5v5M9.5 2.5L3 9"/></svg></span>{% endif %}
+    {# [この部分は公開用リポジトリでは非公開にされています] #}
+    {% if c.live %}<span class="hub-strip" data-live="{{ c.live }}"></span>{% endif %}
+</a>
+{% endmacro %}
+
+{#^ ad_unit: このサブタブの広告ユニットのキー。カードが7個以上なら6個目のあとに入れる（6個以下ならグリッドの下） #}
+{% macro hub_grid(cards, ad_unit=none, sub=none) %}
+<div class="hub-grid"{% if sub %} data-grid="{{ sub }}"{% endif %}>
+    {% for c in cards %}
+        {{ hub_card(c) }}
+        {% if ad_unit and loop.index == 6 and not loop.last %}{{ adsense_unit(ad_unit, extra_class='bi-adsense--grid hub-ad') }}{% endif %}
+    {% endfor %}
+</div>
+{% if ad_unit and cards|length <= 6 %}{{ adsense_unit(ad_unit, extra_class='hub-ad') }}{% endif %}
+{% endmacro %}
+
+{% macro hub_page(hub) %}
+{%- set ja = lang == "ja" -%}
+{% set storage_key = "bi_" ~ hub.id ~ "_subtab" %}
+<div class="hub" x-data="hubPage()" :class="{ 'is-editing': editing }" @keydown.window="handleKeydown($event)" @keydown.window.escape="editing && finishEdit()"
+     data-hub="{{ hub.id }}" data-lang="{{ lang }}" data-storage-key="{{ storage_key }}" data-platform="{{ platform }}">
+
+    <div class="hub-head">
+        <h1 class="hub-head__title">{{ hub.title }}</h1>
+        <button type="button" class="hub-sort-btn" :class="{ 'is-on': editing }" @click="editing ? finishEdit() : startEdit()">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3.5v13M6 16.5l-3-3M6 16.5l3-3M14 16.5v-13M14 3.5l-3 3M14 3.5l3 3"/></svg>
+            <span x-text="editing ? '{{ "完了" if ja else "Done" }}' : '{{ "並び替え" if ja else "Reorder" }}'">{{ "並び替え" if ja else "Reorder" }}</span>
+        </button>
+    </div>
+
+    {# サブタブ（上に貼り付き、選んだタブに白い札が移る）。リンクは JS が無いとき・検索エンジン用 #}
+    <div x-ref="tabsAnchor" aria-hidden="true"></div>
+    <nav class="hub-tabs" x-ref="tabs">
+        <span class="hub-tabs__pill" :style="pillStyle" aria-hidden="true"></span>
+        {% for s in hub.subtabs %}
+        <a href="?sub={{ s.id }}" class="hub-tab" :class="{ 'is-active': sub === '{{ s.id }}' }" :aria-current="sub === '{{ s.id }}' ? 'page' : null"
+           data-tab="{{ s.id }}" @click.prevent="setSub('{{ s.id }}')">
+            <img src="{{ url_for('static', path='/images/ui/' + s.icon) }}" alt="" class="hub-tab__icon hub-tab__icon--{{ s.icon_class }}">
+            <span class="hub-tab__label">{{ s.label|safe }}</span>
+            {# [この部分は公開用リポジトリでは非公開にされています] #}
+        </a>
+        {% endfor %}
+    </nav>
+
+    {# お知らせ（今の【New】の段落の代わり。× で閉じると、そのお知らせは端末で出さなくなる） #}
+    {% if hub.notice %}
+    <div class="hub-notice" x-show="!noticeClosed && !editing" x-cloak data-notice="{{ hub.notice.id }}">
+        <span class="hub-notice__tag">NEW</span>
+        {% if hub.notice.href %}<a href="{{ hub.notice.href }}" class="hub-notice__text">{{ hub.notice.html|safe }}</a>
+        {% else %}<span class="hub-notice__text">{{ hub.notice.html|safe }}</span>{% endif %}
+        <button type="button" class="hub-notice__close" @click="closeNotice()" aria-label="{{ '閉じる' if ja else 'Close' }}">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg>
+        </button>
+    </div>
+    {% endif %}
+
+    {# 並び替え（1列のリスト。行のどこをつかんでもドラッグできる。タッチは少し長押ししてから） #}
+    <section class="hub-edit" x-show="editing" x-cloak>
+        <div class="hub-edit__bar">
+            <p class="hub-edit__hint" x-text="touch ? '{{ "長押ししてからドラッグすると、コンテンツを並び替えできます。" if ja else "Press and hold, then drag to reorder the contents." }}' : '{{ "ドラッグしてコンテンツを並び替えできます。" if ja else "Drag to reorder the contents." }}'"></p>
+            <button type="button" class="hub-edit__reset" @click="resetOrder()" :disabled="!isCustom">{{ "デフォルトに戻す" if ja else "Restore default" }}</button>
+        </div>
+        <div class="hub-edit__list" x-ref="editList">
+            <template x-for="item in editList" :key="item.id">
+                <div class="hub-edit__row" data-sort-group="hub" :style="item.style" @pointerdown="rowDown($event)" @contextmenu.prevent>
+                    <span class="hub-edit__icon" x-html="item.icon"></span>
+                    <span class="hub-edit__name" x-text="item.name"></span>
+                    <span class="hub-edit__cat" x-show="sub === 'all' && item.cat" x-text="item.cat"></span>
+                    <button type="button" class="drag-handle" tabindex="-1" @pointerdown.stop="dragFrom($event)" @mousedown.prevent @click.prevent @contextmenu.prevent
+                            aria-label="{{ 'ドラッグで並び替え' if ja else 'Drag to reorder' }}">
+                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg>
+                    </button>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    {# サブタブごとのパネル #}
+    {% for s in hub.subtabs %}
+    <div class="hub-panel" data-sub="{{ s.id }}" x-show="sub === '{{ s.id }}'" x-cloak>
+        <p class="hub-desc" x-show="!editing">{{ s.desc }}</p>
+        {{ hub_grid(s.cards, hub.ad_unit, s.id) }}
+        <div x-show="!editing">
+            {% if s.suggest %}
+            {# 今と同じ「こちらをお探しですか？」（点線の枠に見出し） #}
+            <section class="hub-box">
+                <h2 class="hub-box__legend">{{ "こちらをお探しですか？" if ja else "Looking for these?" }}</h2>
+                {{ hub_grid(s.suggest) }}
+            </section>
+            {% endif %}
+            {% if s.external %}
+            <section class="hub-box hub-box--solid">
+                <h2 class="hub-box__legend">{{ "お役立ち外部リンク" if ja else "Useful External Links" }}</h2>
+                {{ hub_grid(s.external) }}
+            </section>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {# 独自広告（今と同じくタブの下） #}
+    {% include "components/ad_banner.html" %}
+</div>
+
+{# JS（js/hub.js）に渡すもの。サブタブごとのデフォルトの並びと、並び替えのリストの行 #}
+<script type="application/json" id="hub-data">{{ hub.js|tojson }}</script>
+{% endmacro %}
