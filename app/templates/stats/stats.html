@@ -19,5 +19,6 @@
 {% block scripts %}
     {{ super() }}
     <script src="{{ url_for('static', path='/js/drag_sort.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', path='/js/glass_tabs.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', path='/js/hub.js') }}?v={{ app_version }}"></script>
 {% endblock %}

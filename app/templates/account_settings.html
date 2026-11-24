@@ -8,6 +8,7 @@
 
 {% block head_extra %}
     {# アカウント設定ページ固有のCSS #}
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/components/glass_tabs.css') }}?v={{ app_version }}">
     <link rel="stylesheet" href="{{ url_for('static', path='/css/pages/account.css') }}?v={{ app_version }}">
     <link rel="stylesheet" href="{{ url_for('static', path='/css/components/image_viewer.css') }}?v={{ app_version }}">
 {% endblock %}
@@ -85,36 +86,29 @@
     <div>
         {# === ログイン済みの場合 === #}
 
-        <div class="account-subtabs">
-            <nav class="sub-tab-nav account-sub-tab-nav">
-                <ul class="sub-tab-nav__list">
-                    <li class="sub-tab-nav__item">
-                        <a href="#" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'settings' }" @click.prevent="setAccountSubTab('settings')">
-                            <img src="{{ url_for('static', path='/images/ui/settings.png') }}" alt="{% if lang == 'ja' %}アカウントと設定{% else %}Account{% endif %}" class="sub-tab-nav__icon">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}アカウントと<wbr>設定{% else %}Account{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="#" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'tokens' }" @click.prevent="setAccountSubTab('tokens')">
-                            <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}" alt="{% if lang == 'ja' %}トークンとチケット{% else %}Tokens{% endif %}" class="sub-tab-nav__icon">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}トークンと<wbr>チケット{% else %}Tokens{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="#" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'codes' }" @click.prevent="setAccountSubTab('codes')">
-                            <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="{% if lang == 'ja' %}プレゼント企画とコード入力{% else %}Giveaways & Codes{% endif %}" class="sub-tab-nav__icon">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}プレゼント企画と<wbr>コード入力{% else %}Giveaways &amp; <wbr>Codes{% endif %}</span>
-                        </a>
-                    </li>
-                    <li class="sub-tab-nav__item">
-                        <a href="#" class="sub-tab-nav__link" :class="{ 'sub-tab-nav__link--active': activeSubTab === 'support' }" @click.prevent="setAccountSubTab('support')">
-                            <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="{% if lang == 'ja' %}支援・購入とフィードバック{% else %}Support{% endif %}" class="sub-tab-nav__icon">
-                            <span class="sub-tab-nav__text">{% if lang == "ja" %}支援・購入と<wbr>フィードバック{% else %}Support{% endif %}</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </div>
+        {# サブタブ（統計データ・ツールタブと同じリキッドグラス。css/components/glass_tabs.css・js/glass_tabs.js）。
+           上に貼り付き、選んだタブに白い札が移る。貼り付いている間は上でスクロールする中身をぼかす #}
+        <div class="gtabs-anchor" aria-hidden="true"></div>
+        <div class="gtabs-edge" aria-hidden="true"><i></i><i></i><i></i><i class="gtabs-edge__tint"></i></div>
+        <nav class="gtabs account-tabs" data-glass-tabs>
+            <span class="gtabs__pill" aria-hidden="true"></span>
+            <a href="#" class="gtab" :class="{ 'is-active': activeSubTab === 'settings' }" :aria-current="activeSubTab === 'settings' ? 'page' : null" @click.prevent="setAccountSubTab('settings')">
+                <img src="{{ url_for('static', path='/images/ui/settings.png') }}" alt="" class="gtab__icon">
+                <span class="gtab__label">{% if lang == "ja" %}アカウントと<wbr>設定{% else %}Account{% endif %}</span>
+            </a>
+            <a href="#" class="gtab" :class="{ 'is-active': activeSubTab === 'tokens' }" :aria-current="activeSubTab === 'tokens' ? 'page' : null" @click.prevent="setAccountSubTab('tokens')">
+                <img src="{{ url_for('static', path='/images/mode_icons/event.png') }}" alt="" class="gtab__icon">
+                <span class="gtab__label">{% if lang == "ja" %}トークンと<wbr>チケット{% else %}Tokens{% endif %}</span>
+            </a>
+            <a href="#" class="gtab" :class="{ 'is-active': activeSubTab === 'codes' }" :aria-current="activeSubTab === 'codes' ? 'page' : null" @click.prevent="setAccountSubTab('codes')">
+                <img src="{{ url_for('static', path='/images/mode_icons/presentPlunder.png') }}" alt="" class="gtab__icon">
+                <span class="gtab__label">{% if lang == "ja" %}プレゼント企画と<wbr>コード入力{% else %}Giveaways &amp; <wbr>Codes{% endif %}</span>
+            </a>
+            <a href="#" class="gtab" :class="{ 'is-active': activeSubTab === 'support' }" :aria-current="activeSubTab === 'support' ? 'page' : null" @click.prevent="setAccountSubTab('support')">
+                <img src="{{ url_for('static', path='/images/ui/comment.png') }}" alt="" class="gtab__icon">
+                <span class="gtab__label">{% if lang == "ja" %}支援・購入と<wbr>フィードバック{% else %}Support{% endif %}</span>
+            </a>
+        </nav>
 
         <div class="account-subtab-panel" x-show="activeSubTab === 'settings'" x-cloak>
         {% if platform == "web" %}
@@ -1576,6 +1570,7 @@
 <script src="{{ url_for('static', path='/js/image_viewer.js') }}?v={{ app_version }}"></script>
 <script src="{{ url_for('static', path='/js/help_tip.js') }}?v={{ app_version }}"></script>
 <script src="{{ url_for('static', path='/js/drag_sort.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', path='/js/glass_tabs.js') }}?v={{ app_version }}"></script>
 <script>
 // AdMob リワードイベントは base.html の ensureRewardedAdEventBridge が
 // reward-claimed / reward-ad-closed 等へ橋渡しする（ネイティブ listener の重複登録を防ぐ）
@@ -2066,7 +2061,13 @@ function accountSettingsPage() {
                     history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
                 }
             }
-            if (!scrollToId) return;
+            if (!scrollToId) {
+                // スクロールしていれば、このサブタブの先頭（貼り付いたサブタブのすぐ下）へ戻す（統計データ・ツールタブと同じ）
+                if (tabChanged && !isInitial && window.biGlassTabs) {
+                    this.$nextTick(() => window.biGlassTabs.scrollToTop(document.querySelector('.account-tabs')));
+                }
+                return;
+            }
             this.$nextTick(() => {
                 window.setTimeout(() => {
                     this.scrollToAccountSection(scrollToId);
@@ -2083,7 +2084,10 @@ function accountSettingsPage() {
                     alpineData.open = true;
                 }
             } catch (_e) {}
-            const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
+            // 上に貼り付いたサブタブの裏に隠れないよう、その下端より少し下に来るようにする
+            const tabs = document.querySelector('.account-tabs');
+            const offset = tabs && window.biGlassTabs ? window.biGlassTabs.stickyBottom(tabs) + 12 : 80;
+            const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
             window.scrollTo({ top: y, behavior: 'smooth' });
         },
 

@@ -1,0 +1,128 @@
+/* /app/static/css/components/glass_tabs.css
+   リキッドグラスのサブタブ（統計データ・ツール・アカウントタブで共通）。動きは js/glass_tabs.js。
+   - スクロールしたら上に貼り付き、貼り付いている間は浮いて見えるよう影と縁を付ける
+   - 選んだタブに白い札（.gtabs__pill）が移る
+   - 貼り付いている間、その上（と少し下）でスクロールする中身をぼかして薄める（Apple のリキッドグラスのスクロールエッジ効果の soft）
+   マークアップ（この順で兄弟に並べる。上に貼り付けるので、まとめて囲まない）:
+     <div class="gtabs-anchor"></div>
+     <div class="gtabs-edge"><i></i><i></i><i></i><i class="gtabs-edge__tint"></i></div>
+     <nav class="gtabs" data-glass-tabs><span class="gtabs__pill"></span><a class="gtab is-active">…</a>…</nav> */
+
+.gtabs {
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + 6px);
+    z-index: 30;
+    display: flex;
+    gap: 3px;
+    margin: 0 0 10px;
+    padding: 4px;
+    border-radius: 14px;
+    background: #efefef; /* color-mix が使えない端末（iOS 16.1 以前）用 */
+    background: color-mix(in srgb, #efefef 86%, transparent);
+    -webkit-backdrop-filter: saturate(1.5) blur(12px);
+    backdrop-filter: saturate(1.5) blur(12px);
+    transition: box-shadow .2s ease;
+}
+.dark .gtabs { background: #161616; background: color-mix(in srgb, #161616 86%, transparent); }
+@media (min-width: 840px) {
+    .gtabs { top: calc(40px + env(safe-area-inset-top) + 8px); }
+}
+/* 貼り付いている間は、浮いて見えるようにわずかな影と縁を付ける */
+.gtabs.is-stuck { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .18), inset 0 0 0 1px rgba(255, 255, 255, .55); }
+.dark .gtabs.is-stuck { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .07); }
+
+.gtabs__pill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 6px rgba(0, 0, 0, .04);
+}
+.gtabs__pill.is-ready { transition: transform .25s ease, width .25s ease; }
+.dark .gtabs__pill { background: #2c2c2c; box-shadow: none; }
+.gtab {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 7px 6px;
+    border-radius: 10px;
+    color: #666;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: color .15s ease;
+}
+.gtab:hover { color: #222; }
+.gtab.is-active { color: #111; font-weight: 700; }
+.dark .gtab { color: #9a9a9a; }
+.dark .gtab:hover,
+.dark .gtab.is-active { color: #fff; }
+.gtab__icon { flex: none; height: 22px; width: auto; }
+.gtab__label { word-break: keep-all; overflow-wrap: anywhere; text-align: center; }
+.gtab__badge { top: 2px; right: 4px; left: auto; }
+
+/* スクロールエッジ効果。backdrop-filter は重ねると内側が外側しか写さないので、強さの違う層を兄弟に並べ、
+   それぞれ別のマスクで消していく。開閉の opacity も層ごとに付ける（外側に付けると、内側のぼかしが効かなくなるため） */
+.gtabs-edge {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 29;
+    height: var(--gtabs-edge-h, 80px);
+    pointer-events: none;
+}
+.gtabs-edge > i {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .2s ease;
+}
+.gtabs-edge.is-on > i { opacity: 1; }
+.gtabs-edge > i:nth-child(1) {
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+}
+.gtabs-edge > i:nth-child(2) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent calc(100% - 8px));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent calc(100% - 8px));
+}
+.gtabs-edge > i:nth-child(3) {
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 38px), transparent calc(100% - 16px));
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 38px), transparent calc(100% - 16px));
+}
+/* 背景色をうっすら重ねて、ぼけた文字がちらつかないようにする */
+.gtabs-edge__tint {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, .72), rgba(255, 255, 255, .5) calc(100% - 30px), rgba(255, 255, 255, 0));
+}
+.dark .gtabs-edge__tint {
+    background: linear-gradient(to bottom, rgba(34, 34, 34, .74), rgba(34, 34, 34, .5) calc(100% - 30px), rgba(34, 34, 34, 0));
+}
+
+@media (max-width: 839px) {
+    .gtab { flex-direction: column; gap: 4px; padding: 7px 3px 6px; font-size: 12px; }
+    .gtab__icon { height: 24px; }
+}
+@media (max-width: 539px) {
+    .gtabs { margin-left: -1.5%; margin-right: -1.5%; padding: 3px; }
+    .gtab { font-size: 10.5px; padding: 6px 2px 5px; }
+    .gtab__icon { height: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .gtabs__pill.is-ready { transition: none; }
+    .gtabs-edge > i { transition: none; }
+}

@@ -69,118 +69,10 @@
 .hub-sort-btn.is-on { background: #2a2a2a; border-color: #2a2a2a; color: #fff; }
 .dark .hub-sort-btn.is-on { background: #f0f0f0; border-color: #f0f0f0; color: #111; }
 
-/* =============================================== */
-/* サブタブ（上に貼り付く。選んだタブに白い札が移る）      */
-/* =============================================== */
-.hub-tabs {
-    position: sticky;
-    top: calc(env(safe-area-inset-top) + 6px);
-    z-index: 30;
-    display: flex;
-    gap: 3px;
-    margin: 0 0 10px;
-    padding: 4px;
-    border-radius: 14px;
-    background: #efefef; /* color-mix が使えない端末（iOS 16.1 以前）用 */
-    background: color-mix(in srgb, #efefef 86%, transparent);
-    -webkit-backdrop-filter: saturate(1.5) blur(12px);
-    backdrop-filter: saturate(1.5) blur(12px);
-}
-.dark .hub-tabs { background: #161616; background: color-mix(in srgb, #161616 86%, transparent); }
-@media (min-width: 840px) {
-    .hub-tabs { top: calc(40px + env(safe-area-inset-top) + 8px); }
-}
-/* 貼り付いている間は、浮いて見えるようにわずかな影と縁を付ける */
-.hub-tabs { transition: box-shadow .2s ease; }
-.hub-tabs.is-stuck { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .18), inset 0 0 0 1px rgba(255, 255, 255, .55); }
-.dark .hub-tabs.is-stuck { box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .07); }
-
-/* スクロールエッジ効果（Apple のリキッドグラスの soft）。サブタブが貼り付いている間、画面の上端から
-   サブタブの少し下までで、スクロールする中身をぼかして薄める。ぼかしは上ほど強く、下へなめらかに消える。
-   backdrop-filter は重ねると内側が外側しか写さないので、強さの違う層を兄弟に並べ、それぞれ別のマスクで消していく。
-   開閉の opacity も層ごとに付ける（外側に付けると、内側のぼかしが効かなくなるため） */
-.hub-edge {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 29;
-    height: var(--hub-edge-h, 80px);
-    pointer-events: none;
-}
-.hub-edge > i {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity .2s ease;
-}
-.hub-edge.is-on > i { opacity: 1; }
-.hub-edge > i:nth-child(1) {
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
-}
-.hub-edge > i:nth-child(2) {
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent calc(100% - 8px));
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent calc(100% - 8px));
-}
-.hub-edge > i:nth-child(3) {
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 38px), transparent calc(100% - 16px));
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 38px), transparent calc(100% - 16px));
-}
-/* 背景色をうっすら重ねて、ぼけた文字がちらつかないようにする */
-.hub-edge__tint {
-    background: linear-gradient(to bottom, rgba(255, 255, 255, .72), rgba(255, 255, 255, .5) calc(100% - 30px), rgba(255, 255, 255, 0));
-}
-.dark .hub-edge__tint {
-    background: linear-gradient(to bottom, rgba(34, 34, 34, .74), rgba(34, 34, 34, .5) calc(100% - 30px), rgba(34, 34, 34, 0));
-}
-
-.hub-tabs__pill {
-    position: absolute;
-    left: 0;
-    top: 0;
-    z-index: 0;
-    border-radius: 10px;
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 6px rgba(0, 0, 0, .04);
-}
-.hub-tabs__pill.is-ready { transition: transform .25s ease, width .25s ease; }
-.dark .hub-tabs__pill { background: #2c2c2c; box-shadow: none; }
-.hub-tab {
-    position: relative;
-    z-index: 1;
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    padding: 7px 6px;
-    border-radius: 10px;
-    color: #666;
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.2;
-    text-decoration: none;
-    transition: color .15s ease;
-}
-.hub-tab:hover { color: #222; }
-.hub-tab.is-active { color: #111; font-weight: 700; }
-.dark .hub-tab { color: #9a9a9a; }
-.dark .hub-tab:hover,
-.dark .hub-tab.is-active { color: #fff; }
-.hub-tab__icon { flex: none; height: 22px; width: auto; }
-.hub-tab__icon--ranked { transform: scale(1.08); }
-.hub-tab__icon--brawlers { transform: scale(.88); }
-.hub-tab__icon--starrdrop { transform: scale(1.25); }
-.hub-tab__label { word-break: keep-all; overflow-wrap: anywhere; text-align: center; }
-.hub-tab__badge { top: 2px; right: 4px; left: auto; }
+/* サブタブの見た目・貼り付き・上のぼかしは css/components/glass_tabs.css（アカウントタブと共通）。ここはアイコンの大きさだけ */
+.hub-tab-icon--ranked { transform: scale(1.08); }
+.hub-tab-icon--brawlers { transform: scale(.88); }
+.hub-tab-icon--starrdrop { transform: scale(1.25); }
 
 /* =============================================== */
 /* お知らせ・説明                                     */
@@ -612,18 +504,11 @@ a.hub-notice__text:hover { text-decoration: underline; }
 /* =============================================== */
 /* 幅ごとの調整                                       */
 /* =============================================== */
-@media (max-width: 839px) {
-    .hub-tab { flex-direction: column; gap: 4px; padding: 7px 3px 6px; font-size: 12px; }
-    .hub-tab__icon { height: 24px; }
-}
 @media (max-width: 539px) {
     .hub-container { width: 92%; }
     .hub-head { margin: 4px 0 8px; }
     .hub-head__title { font-size: 34px; }
     .hub-sort-btn { height: 32px; margin-bottom: 3px; font-size: 13px; }
-    .hub-tabs { margin-left: -1.5%; margin-right: -1.5%; padding: 3px; }
-    .hub-tab { font-size: 10.5px; padding: 6px 2px 5px; }
-    .hub-tab__icon { height: 22px; }
     .hub-desc { font-size: 12.5px; }
     .hub-notice { font-size: 12.5px; }
     .hub-grid { gap: 8px; }
@@ -653,7 +538,5 @@ a.hub-notice__text:hover { text-decoration: underline; }
     .hub-edit__cat { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .hub-tabs__pill.is-ready { transition: none; }
-    .hub-edge > i { transition: none; }
     .hub-s-state--alert::before { animation: none; }
 }

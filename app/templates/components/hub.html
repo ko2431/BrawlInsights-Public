@@ -53,17 +53,17 @@
         </button>
     </div>
 
-    {# サブタブ（上に貼り付き、選んだタブに白い札が移る）。リンクは JS が無いとき・検索エンジン用 #}
-    <div x-ref="tabsAnchor" aria-hidden="true"></div>
-    {# サブタブが上に貼り付いている間、その上（と少し下）でスクロールする中身をぼかして薄める（リキッドグラスのスクロールエッジ効果） #}
-    <div class="hub-edge" :class="{ 'is-on': stuck }" aria-hidden="true"><i></i><i></i><i></i><i class="hub-edge__tint"></i></div>
-    <nav class="hub-tabs" x-ref="tabs" :class="{ 'is-stuck': stuck }">
-        <span class="hub-tabs__pill" :style="pillStyle" aria-hidden="true"></span>
+    {# サブタブ（リキッドグラス。css/components/glass_tabs.css・js/glass_tabs.js。上に貼り付き、選んだタブに白い札が移る。
+       貼り付いている間は上でスクロールする中身をぼかす）。リンクは JS が無いとき・検索エンジン用 #}
+    <div class="gtabs-anchor" aria-hidden="true"></div>
+    <div class="gtabs-edge" aria-hidden="true"><i></i><i></i><i></i><i class="gtabs-edge__tint"></i></div>
+    <nav class="gtabs" x-ref="tabs" data-glass-tabs>
+        <span class="gtabs__pill" aria-hidden="true"></span>
         {% for s in hub.subtabs %}
-        <a href="?sub={{ s.id }}" class="hub-tab" :class="{ 'is-active': sub === '{{ s.id }}' }" :aria-current="sub === '{{ s.id }}' ? 'page' : null"
+        <a href="?sub={{ s.id }}" class="gtab" :class="{ 'is-active': sub === '{{ s.id }}' }" :aria-current="sub === '{{ s.id }}' ? 'page' : null"
            data-tab="{{ s.id }}" @click.prevent="setSub('{{ s.id }}')">
-            <img src="{{ url_for('static', path='/images/ui/' + s.icon) }}" alt="" class="hub-tab__icon hub-tab__icon--{{ s.icon_class }}">
-            <span class="hub-tab__label">{{ s.label|safe }}</span>
+            <img src="{{ url_for('static', path='/images/ui/' + s.icon) }}" alt="" class="gtab__icon hub-tab-icon--{{ s.icon_class }}">
+            <span class="gtab__label">{{ s.label|safe }}</span>
             {# [この部分は公開用リポジトリでは非公開にされています] #}
         </a>
         {% endfor %}
