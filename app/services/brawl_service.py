@@ -21,7 +21,7 @@ import secrets
 from app.core.config import settings
 from app.models.missing import MISSING
 from app.core.logger import logger
-from app.core.cache import get_cache, set_cache, update_cache_fields_keep_ttl, delete_cache, get_redis
+from app.core.cache import RANKING_CACHE_TTL, get_cache, set_cache, update_cache_fields_keep_ttl, delete_cache, get_redis
 from app.services import meowapi, bsinfoapi, official_api
 from app.services.user_service import get_region_name
 from app.utils.utils import calc_tier, calc_old_tier, parse_utc_datetime, format_utc_date, format_utc_datetime, is_expired, update_logdict, estimate_play_time, calc_auto_activate_hours, parse_utc_date, calc_mastery_rank, calc_ranked_season, confirm_tag, format_skin_name_en
@@ -111,6 +111,7 @@ RANKED_STATS_CACHE_LOCK_TTL = [この部分は公開用リポジトリでは非�
 RANKED_STATS_CACHE_WAIT_SECONDS = [この部分は公開用リポジトリでは非公開にされています]
 RANKED_STATS_CACHE_POLL_INTERVAL = [この部分は公開用リポジトリでは非公開にされています]
 RANKED_STATS_GLOBAL_BUILD_LOCK_KEY = [この部分は公開用リポジトリでは非公開にされています]
+# 読まれるのは最新日の分と、次の日の分ができるまでの前日の分だけ（日付はキーに入っている）。毎日の集計が遅れたときのために1日の余裕を持たせる
 RANKED_STATS_CACHE_TTL = [この部分は公開用リポジトリでは非公開にされています]
 CURRENT_RANKED_POOL_CACHE_TTL = [この部分は公開用リポジトリでは非公開にされています]
 BRAWLER_ANALYSIS_CACHE_TTL = [この部分は公開用リポジトリでは非公開にされています]
@@ -1299,7 +1300,7 @@ async def get_play_time_ranking(db: asyncpg.Connection, region: str | None = Non
     # [この部分は公開用リポジトリでは非公開にされています]
 
 async def get_player_ranking(region: str | None = None) -> list[RankingTrophyPlayer]:
-    """総合トロフィーランキングを取得する。(表示用) 永続するキャッシュを使用するが、3分ごとに新規取得を試みる。
+    """総合トロフィーランキングを取得する。(表示用) キャッシュ（取り直しの間隔より7日長く残る）を使用するが、3分ごとに新規取得を試みる。
 
     Args:
         region (str | None): 地域。デフォルトはNoneで、Noneの場合はグローバル。
@@ -1318,7 +1319,7 @@ async def get_player_ranking(region: str | None = None) -> list[RankingTrophyPla
     return [RankingTrophyPlayer.from_dict(data) for data in result]
 
 async def get_player_alltime_ranking(region: str | None = None) -> list[RankingTrophyPlayer]:
-    """総合トロフィー歴代ランキングを取得する。(表示用) 永続するキャッシュを使用するが、3分ごとに新規取得を試みる。
+    """総合トロフィー歴代ランキングを取得する。(表示用) キャッシュ（取り直しの間隔より7日長く残る）を使用するが、3分ごとに新規取得を試みる。
 
     Args:
         region (str | None): 地域。デフォルトはNoneで、Noneの場合はグローバル。
@@ -1337,7 +1338,7 @@ async def get_player_alltime_ranking(region: str | None = None) -> list[RankingT
     return [RankingTrophyPlayer.from_dict(data) for data in result]
 
 async def get_club_ranking(region: str | None = None) -> list[RankingClub]:
-    """クラブランキングを取得する。(表示用)  永続するキャッシュを使用するが、3分ごとに新規取得を試みる。
+    """クラブランキングを取得する。(表示用)  キャッシュ（取り直しの間隔より7日長く残る）を使用するが、3分ごとに新規取得を試みる。
 
     Args:
         region (str | None): 地域。デフォルトはNoneで、Noneの場合はグローバル。
@@ -1364,12 +1365,12 @@ async def get_club_ranking(region: str | None = None) -> list[RankingClub]:
         raise BrawlStarsAPIError(str(e))
     
     ranking = [RankingClub(c) for c in ranking_clubs]
-    await set_cache(key=cache_key, value=[rankingclub.to_dict() for rankingclub in ranking], ttl=None)
+    await set_cache(key=cache_key, value=[rankingclub.to_dict() for rankingclub in ranking], ttl=180 + RANKING_CACHE_TTL)
     await set_cache(key=cache_key_update_lock, value=True, ttl=180)
     return ranking
 
 async def get_brawler_ranking(brawler_id: int, region: str | None = None) -> list[RankingTrophyPlayer]:
-    """キャラクターランキングを取得する。(表示用) 3分間のキャッシュを使用する。 永続するキャッシュを使用するが、3分ごとに新規取得を試みる。
+    """キャラクターランキングを取得する。(表示用) 3分間のキャッシュを使用する。 キャッシュ（取り直しの間隔より7日長く残る）を使用するが、3分ごとに新規取得を試みる。
 
     Args:
         brawler_id (int): キャラクターID
@@ -1397,12 +1398,12 @@ async def get_brawler_ranking(brawler_id: int, region: str | None = None) -> lis
         raise BrawlStarsAPIError(str(e))
     
     ranking = [RankingTrophyPlayer(p) for p in ranking_players]
-    await set_cache(key=cache_key, value=[rankingplayer.to_dict() for rankingplayer in ranking], ttl=None)
+    await set_cache(key=cache_key, value=[rankingplayer.to_dict() for rankingplayer in ranking], ttl=180 + RANKING_CACHE_TTL)
     await set_cache(key=cache_key_update_lock, value=True, ttl=180)
     return ranking
 
 async def get_brawler_alltime_ranking(brawler_id: int, region: str | None = None) -> list[RankingTrophyPlayer]:
-    """キャラトロフィー歴代ランキングを取得する。(表示用) 永続するキャッシュを使用するが、3分ごとに新規取得を試みる。
+    """キャラトロフィー歴代ランキングを取得する。(表示用) キャッシュ（取り直しの間隔より7日長く残る）を使用するが、3分ごとに新規取得を試みる。
 
     Args:
         brawler_id (int): キャラクターID
@@ -1422,7 +1423,7 @@ async def get_brawler_alltime_ranking(brawler_id: int, region: str | None = None
     return [RankingTrophyPlayer.from_dict(data) for data in result]
 
 async def get_ranked_ranking(db: asyncpg.Connection, season: int | None = None, region: str | None = None) -> list[RankingRankedPlayer]:
-    """ガチバトルランキングを取得する。(表示用) 永続するキャッシュを使用するが、3分(前シーズンは1日、それより前のシーズンは30日)ごとに新規取得を試みる。
+    """ガチバトルランキングを取得する。(表示用) キャッシュ（取り直しの間隔より7日長く残る）を使用するが、3分(前シーズンは1日、それより前のシーズンは30日)ごとに新規取得を試みる。
 
     Args:
         db: データベース接続

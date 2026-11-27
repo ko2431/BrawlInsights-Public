@@ -3,7 +3,7 @@ from typing import Any
 import asyncpg
 
 from app.core.logger import logger
-from app.core.cache import get_cache, set_cache
+from app.core.cache import RANKING_CACHE_TTL, get_cache, set_cache
 from app.exceptions.custom_exceptions import BrawlStarsAPIError
 from app.utils.utils import calc_mastery_rank, calc_ranked_season
 

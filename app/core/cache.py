@@ -7,6 +7,11 @@ from redis.exceptions import BusyLoadingError, ConnectionError as RedisConnectio
 from app.core.config import settings
 from app.core.logger import logger
 
+# ランキングの写し（ranking:*）を残す時間。取り直しの間隔（ranking_update_lock:*）にこれを足した期限で保存する。
+# 取り直しに失敗したときは前回の分を出すため長めに残すが、期限なしだと地域×キャラ×シーズンの開かれた分が
+# たまり続ける（2026-11 に約1.7万キー・約750MB、9割以上が7日以上読まれていなかった。docs/ops/load_check_2026-11-16.md）
+RANKING_CACHE_TTL = 7 * 24 * 60 * 60
+
 # Redis接続プールを保持するグローバル変数
 redis_pool: Optional[redis.Redis] = None # 型ヒントを修正
 
