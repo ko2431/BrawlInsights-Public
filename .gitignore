@@ -30,6 +30,8 @@ logs/
 
 # メモ
 notes_private/
+# 請求書のスクリプトの例で書き出した PDF（本物は notes_private/billing/out）
+scripts/billing/examples/out/
 
 # IDE/エディタ設定ファイル
 .vscode/
