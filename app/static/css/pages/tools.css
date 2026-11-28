@@ -2915,6 +2915,14 @@
     .gtabs.tt-modes { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); } /* glass_tabs.css の flex より後に読まれるため .gtabs を重ねる */
     .tt-modes .gtab { grid-column: span 4; }
     .tt-modes .gtab:nth-of-type(n+6) { grid-column: span 5; }
+    /* 2段のときは1段より小さくして、貼り付いたときに表を広く見せる */
+    .tt-modes .gtab { gap: 3px; padding: 5px 2px 4px; font-size: 11.5px; line-height: 1.15; }
+    .tt-modes .gtab.is-active { font-weight: 600; }
+    .tt-modes .gtab__icon { height: 21px; }
+}
+@media (max-width: 539px) {
+    .tt-modes .gtab { font-size: 10.5px; }
+    .tt-modes .gtab__icon { height: 20px; }
 }
 
 /* 連勝ボーナス・トロフィーラッシュ。サブタブと同じ灰色の溝に白い札の、iOS のセグメント風 */
